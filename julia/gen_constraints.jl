@@ -114,12 +114,9 @@ function trust_region_data(lnr::IAI.OptimalTreeLearner, vks)
         while IAI.get_depth(lnr, parents[end]) > 0
             append!(parents, IAI.get_parent(lnr, parents[end]))
         end
-        children = parents[1:end-1]
-        parents = parents[2:end];
         upperDict[all_leaves[i]] = []
         lowerDict[all_leaves[i]] = []
-        println(parents)
-        for j in parents
+        for j in parents[2:end]
             # For each parent, define trust region with binary variables
             threshold = IAI.get_split_threshold(lnr, j);
             if IAI.is_hyperplane_split(lnr, j)
@@ -129,7 +126,7 @@ function trust_region_data(lnr::IAI.OptimalTreeLearner, vks)
                 weights = Dict(feature => 1);
             end
             upper = IAI.get_upper_child(lnr, j) in parents
-            println(j, upper)
+            println(IAI.get_upper_child(lnr, j))
             α = []
             for i=1:size(vks,1)
                 if vks[i] in keys(weights)
