@@ -1,25 +1,107 @@
 import pandas as pd
 import numpy as np
-import interpretableai as iai
+from interpretableai import iai # Check out https://docs.interpretable.ai/stable/IAI-Python/installation/
+                                # for in depth installation info
+    
+# Using trees to obtain PWL approximations with trust regions
+# Each leaf has a set of PWL constraints (hyperplanes of the form β0 + β'x <= y)
+# as well as trust regions (threshold <= α for upper split, threshold >= α for lower split)
 
-vks = ["Re", "thick", "M", "C_L"];
-X = pd.read_csv("../data/airfoil/airfoil_X.csv", header=None)
-y = pd.read_csv("../data/airfoil/airfoil_Y.csv", header=None)
-X = np.array(X);
-y = np.array(y);
+def pwl_constraint_data(lnr, vks):
+    """
+    Creates PWL dataset from a OptimalTreeLearner
+    Arguments:
+        lnr: OptimalTreeLearner
+        vks: varkeys, ['x1',..., 'xp'] for numpy arrays
+             potentially different for other data structures
+    Returns:
+        Dict[leaf_number] containing [B0 (offset), B (linear)]
+    """
+    n_nodes = lnr.get_num_nodes()
+    all_leaves = [i for i in range(1,n_nodes+1) if lnr.is_leaf(i)] # Julia is one-indexed!
+    pwlConstraintDict = {leaf:[] for leaf in all_leaves}
+    for i in range(len(all_leaves)):
+        β0 = lnr.get_regression_constant(all_leaves[i]);
+        weights = lnr.get_regression_weights(all_leaves[i])[0];
+        β = [];
+        for i in range(len(vks)):
+            if vks[i] in weights.keys():
+                β.append(weights[vks[i]]);
+            else:
+                β.append(0.);
+        pwlConstraintDict[all_leaves[i]].append([β0, β])
+    return pwlConstraintDict
 
-Re = np.linspace(10000,35000, num=6, endpoint=True);
-thick = np.array([0.100,0.110,0.120,0.130,0.140,0.145]);
-M = np.array([0.4, 0.5, 0.6, 0.7, 0.8, 0.9]);
-cl = np.linspace(0.35, 0.70, num=8, endpoint=True);
-(train_X, train_y), (test_X, test_y) = iai.split_data('regression', X, y, seed=1)
+def trust_region_data(lnr, vks):
+    """
+    Creates trust region from a OptimalTreeLearner
+    Arguments:
+        lnr: OptimalTreeLearner
+        vks: varkeys, ['x1',..., 'xp'] for numpy arrays
+             potentially different for other data structures
+    Returns:
+        upper and lowerDict, with [leaf_number] containing [threshold, coeffs]
+    """
+    n_nodes = lnr.get_num_nodes()
+    all_leaves = [i for i in range(1,n_nodes+1) if lnr.is_leaf(i)] # Julia is one-indexed!
+    upperDict = {leaf:[] for leaf in all_leaves}
+    lowerDict = {leaf:[] for leaf in all_leaves}
+    for i in range(len(all_leaves)):
+        # Find all parents
+        parents = [all_leaves[i]];
+        while lnr.get_depth(parents[-1]) > 0:
+            parents.append(lnr.get_parent(parents[-1]))
+        for j in parents[1:]:
+            # For each parent, define trust region with binary variables
+            threshold = lnr.get_split_threshold(j)
+            if lnr.is_hyperplane_split(j):
+                weights = lnr.get_split_weights(j);
+            else:
+                feature = lnr.get_split_feature(j);
+                weights = {feature: 1};
+            upper = lnr.get_upper_child(j) in parents # Checking upper vs. lower split
+            α = []
+            for k in range(len(vks)):
+                if vks[k] in weights.keys():
+                    α.append(weights[vks[k]]);
+                else:
+                    α.append(0.);
+            if upper:
+              upperDict[all_leaves[i]].append([threshold, α])
+            else:
+              lowerDict[all_leaves[i]].append([threshold, α])
+    return upperDict, lowerDict
+    
 
-grid = iai.GridSearch(iai.OptimalTreeRegressor(random_seed=1),
-    max_depth=[2,3,4], cp=[0.01, 0.05, 0.001], 
-)
-grid.fit(train_X, train_y, test_X, test_y)
-lnr = grid.get_learner()
 
-from julia import Julia as j
+if __name__ == "__main__":
+    vks = ["Re", "thick", "M", "C_L"];
+    
+    # Airfoil data over Reynolds #, thickness, Mach #, and lift coeff
+    X = pd.read_csv("../data/airfoil/airfoil_X.csv", header=None)
+    y = pd.read_csv("../data/airfoil/airfoil_Y.csv", header=None)
+    X = np.array(X);
+    y = np.array(y);
+    
+    # Values of independent vars in exponential space for reference
+    Re = np.linspace(10000,35000, num=6, endpoint=True);
+    thick = np.array([0.100,0.110,0.120,0.130,0.140,0.145]);
+    M = np.array([0.4, 0.5, 0.6, 0.7, 0.8, 0.9]);
+    cl = np.linspace(0.35, 0.70, num=8, endpoint=True);
+    
+    # Splitting and training tree over data
+    (train_X, train_y), (test_X, test_y) = iai.split_data('regression', X, y, seed=1)
+    vks = ['x' + str(i) for i in range(1,5)]
+    grid = iai.GridSearch(iai.OptimalTreeRegressor(random_seed=1, regression_sparsity='all',
+                                                  hyperplane_config={'sparsity':1},
+                                                  fast_num_support_restarts=3),
+                                                  regression_lambda=[0.001],
+                          max_depth=[2,3], cp=[0.01, 0.05, 0.001],)
+    grid.fit(train_X, train_y, test_X, test_y)
+    lnr = grid.get_learner()
+    
+    # Getting trust region data
+    upperDict, lowerDict = trust_region_data(lnr, vks)
 
-j.include("../julia/gen_constraints.jl")
+    # PWL approximation data
+    pwlData = pwl_constraint_data(lnr, vks)
