@@ -67,7 +67,7 @@ function add_mio_constraints(lnr, m, x, y, M=1e5)
     return m
 end
 
-function pwl_constraint_data(lnr::IAI.OptimalTreeLearner, vks)
+function pwl_constraint_data(lnr, vks)
     """
     Creates PWL dataset from a OptimalTreeLearner
     Arguments:
@@ -95,7 +95,7 @@ function pwl_constraint_data(lnr::IAI.OptimalTreeLearner, vks)
     return pwlConstraintDict
 end
 
-function trust_region_data(lnr::IAI.OptimalTreeLearner, vks)
+function trust_region_data(lnr, vks)
     """
     Creates trust region from a OptimalTreeLearner
     Arguments:
@@ -125,8 +125,7 @@ function trust_region_data(lnr::IAI.OptimalTreeLearner, vks)
                 feature = IAI.get_split_feature(lnr, j);
                 weights = Dict(feature => 1);
             end
-            upper = IAI.get_upper_child(lnr, j) in parents
-            println(IAI.get_upper_child(lnr, j))
+            upper = IAI.get_upper_child(lnr, j) in parents # Checking upper vs. lower split
             α = []
             for i=1:size(vks,1)
                 if vks[i] in keys(weights)
