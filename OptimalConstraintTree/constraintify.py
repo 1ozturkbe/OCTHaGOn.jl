@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from interpretableai import iai # Check out https://docs.interpretable.ai/stable/IAI-Python/installation/
                                 # for in depth installation info
+from gpkit import Variable
     
 # Using trees to obtain PWL approximations with trust regions
 # Each leaf has a set of PWL constraints (hyperplanes of the form β0 + β'x <= y)
@@ -31,6 +32,13 @@ def pwl_constraint_data(lnr, vks):
                 β.append(0.);
         pwlConstraintDict[all_leaves[i]].append([β0, β])
     return pwlConstraintDict
+
+# def gp_constraints(lnr, gpvars):
+#     relvars = [Monomial(1), gpvars]
+#     constraints = []
+#     for key, value in pwlConstraintDict:
+#         constraints += [Monomial]
+    
 
 def trust_region_data(lnr, vks):
     """
@@ -71,6 +79,11 @@ def trust_region_data(lnr, vks):
             else:
               lowerDict[all_leaves[i]].append([threshold, α])
     return upperDict, lowerDict
+
+# def signomial_trust_region(upperDict, lowerDict, gpvars):
+# #     for i in upperDict:
+#     return
+    
     
 
 
