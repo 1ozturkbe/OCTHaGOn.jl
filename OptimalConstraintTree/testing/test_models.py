@@ -27,11 +27,11 @@ class TestModels(unittest.TestCase):
 
         # Splitting and training tree over data
         (train_X, train_y), (test_X, test_y) = iai.split_data('regression', X, y, seed=1)
-        grid = iai.GridSearch(iai.OptimalTreeRegressor(random_seed=1, regression_sparsity='all',
+        grid = iai.GridSearch(iai.OptimalTreeRegressor(regression_sparsity='all',
                                                        hyperplane_config={'sparsity': 1},
                                                        fast_num_support_restarts=3),
                               regression_lambda=[0.001],
-                              max_depth=[2], cp=[0.01, 0.05, 0.001], )
+                              max_depth=[2,3], cp=[0.01, 0.005])
         grid.fit(train_X, train_y, test_X, test_y)
         lnr = grid.get_learner()
 
@@ -40,6 +40,10 @@ class TestModels(unittest.TestCase):
 
         # PWL approximation data
         pwlData = pwl_constraint_data(lnr, vks)
+
+        # Testing number of splits is equal to depth
+        for key in list(upperDict.keys()):
+            self.assertEqual(len(upperDict[key])+len(lowerDict[key]), lnr.get_depth(key))
 
 TESTS = [TestModels]
 

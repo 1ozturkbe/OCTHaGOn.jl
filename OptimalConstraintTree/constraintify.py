@@ -1,8 +1,10 @@
 import pandas as pd
 import numpy as np
-from interpretableai import iai  # Check out https://docs.interpretable.ai/stable/IAI-Python/installation/
+from interpretableai import iai
+# Check out https://docs.interpretable.ai/stable/IAI-Python/installation/
 # for in depth installation info
-from gpkit import Variable
+from gpkit import Variable, Monomial
+from gpkit.varkey import VarKey
 
 
 # Using trees to obtain PWL approximations with trust regions
@@ -21,9 +23,9 @@ def pwl_constraint_data(lnr: iai.OptimalTreeRegressor, vks=None):
     """
     n_nodes = lnr.get_num_nodes()
     if not vks:
-        vks = ['x' + str(i) for i in range(1, n_nodes+1)]
+        vks = ['x' + str(i) for i in range(1, n_nodes + 1)]
     all_leaves = [i for i in range(1, n_nodes + 1) if lnr.is_leaf(i)]  # Julia is one-indexed!
-    pwlConstraintDict = {leaf: [] for leaf in all_leaves}
+    pwlDict = {leaf: [] for leaf in all_leaves}
     for i in range(len(all_leaves)):
         β0 = lnr.get_regression_constant(all_leaves[i]);
         weights = lnr.get_regression_weights(all_leaves[i])[0];
@@ -33,15 +35,29 @@ def pwl_constraint_data(lnr: iai.OptimalTreeRegressor, vks=None):
                 β.append(weights[vks[i]]);
             else:
                 β.append(0.);
-        pwlConstraintDict[all_leaves[i]] = [β0, β]
-    return pwlConstraintDict
+        pwlDict[all_leaves[i]] = [β0, β]
+    return pwlDict
 
 
-# def gp_constraints(lnr, gpvars):
-#     relvars = [Monomial(1), gpvars]
-#     constraints = []
-#     for key, value in pwlConstraintDict:
-#         constraints += [Monomial]
+def monomials_from_pwl_data(pwlDict, gpvars):
+    """
+    Creates monomials from pwlDict over GPkit variables
+    Arguments:
+        pwlDict: Dict[leaf_number] containing [B0 (offset), B (linear)]
+        gpvars: list of GPkit.variables
+    Returns:
+        Dict[leaf_number] containing monomial
+    """
+    constraintDict = {}
+    for key, value in pwlDict.items():
+        c = np.exp(value[0])
+        if len(gpvars) != len(value[1]):
+            raise ValueError("Number of GP variables don't match "
+                             "approximation dimension.")
+        exponential = np.prod([gpvars[i] ** value[1][i]
+                               for i in range(len(gpvars))])
+        constraintDict[key] = c * exponential
+    return constraintDict
 
 
 def trust_region_data(lnr: iai.OptimalTreeRegressor, vks=None):
@@ -56,7 +72,7 @@ def trust_region_data(lnr: iai.OptimalTreeRegressor, vks=None):
     """
     n_nodes = lnr.get_num_nodes()
     if not vks:
-        vks = ['x' + str(i) for i in range(1, n_nodes+1)]
+        vks = ['x' + str(i) for i in range(1, n_nodes + 1)]
     all_leaves = [i for i in range(1, n_nodes + 1) if lnr.is_leaf(i)]  # Julia is one-indexed!
     upperDict = {leaf: [] for leaf in all_leaves}
     lowerDict = {leaf: [] for leaf in all_leaves}
@@ -90,7 +106,6 @@ def trust_region_data(lnr: iai.OptimalTreeRegressor, vks=None):
 # def signomial_trust_region(upperDict, lowerDict, gpvars):
 # #     for i in upperDict:
 #     return
-
 
 if __name__ == "__main__":
     vks = ["Re", "thick", "M", "C_L"];
