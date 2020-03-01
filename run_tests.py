@@ -10,6 +10,9 @@ def import_tests():
     from OptimalConstraintTree.testing import test_constraintify
     tests += test_constraintify.TESTS
 
+    from OptimalConstraintTree.testing import test_models
+    tests += test_models.TESTS
+
     return tests
 
 def test():

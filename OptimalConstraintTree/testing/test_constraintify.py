@@ -1,5 +1,3 @@
-from builtins import zip
-from builtins import range
 import numpy as np
 from gpkit import Variable, Model
 import scipy.optimize as op
@@ -7,8 +5,6 @@ import os
 
 import unittest
 from gpkit.tests.helpers import run_tests
-
-np.warnings.filterwarnings('ignore')
 
 class TestConstraintify(unittest.TestCase):
     def test_gp_constraintify(self):
