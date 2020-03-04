@@ -128,7 +128,7 @@ if __name__ == "__main__":
                                                    hyperplane_config={'sparsity': 1},
                                                    fast_num_support_restarts=3),
                           regression_lambda=[0.001],
-                          max_depth=[2], cp=[0.01, 0.05, 0.001], )
+                          max_depth=[2], cp=[0.01, 0.05, 0.001],)
     grid.fit(train_X, train_y, test_X, test_y)
     lnr = grid.get_learner()
 
