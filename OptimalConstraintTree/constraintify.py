@@ -102,6 +102,13 @@ def trust_region_data(lnr: iai.OptimalTreeRegressor, vks=None):
                 lowerDict[all_leaves[i]].append([threshold, α])
     return upperDict, lowerDict
 
+# def sequential_trust_region(upperDict, lowerDict, gpvars, epsilon=1e-3):
+#     trDict = {key: [] for key, _ in upperDict.items()}
+#     for key in upperDict.items():
+#
+#
+#     return trDict
+
 
 # def signomial_trust_region(upperDict, lowerDict, gpvars):
 # #     for i in upperDict:

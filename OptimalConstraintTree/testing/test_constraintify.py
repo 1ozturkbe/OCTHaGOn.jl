@@ -1,7 +1,5 @@
 import numpy as np
-from gpkit import Variable, Model
-import scipy.optimize as op
-import os
+from gpkit import Variable
 
 import unittest
 from gpkit.tests.helpers import run_tests
@@ -18,7 +16,7 @@ class TestConstraintify(unittest.TestCase):
         c = Variable('c')
         gpvars = [a, b, c]
         monys = monomials_from_pwl_data(pwlDict, gpvars)
-        self.assertEqual(monys[1],np.exp(1)*a**2*b**3*c**4)
+        self.assertEqual(monys[1], np.exp(1)*a**2*b**3*c**4)
 
 TESTS = [TestConstraintify]
 

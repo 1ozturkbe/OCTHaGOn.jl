@@ -18,11 +18,15 @@ def lh_sample_gpobj(gpobj, bounds, samples, criterion="corr"):
     """
     vks = list(gpobj.varkeys)
     levels = lhs(len(vks), samples=samples, criterion=criterion)
+    levels = [dict(zip(vks, levels[i])) for i in range(samples)]
     Xsubs = []
     Yvals = []
     for i in range(samples):
-        Xsubs.append({vks[j]: bounds[vks[j]][0] +
-                              (bounds[vks[j]][1] - bounds[vks[j]][0]) * levels[i][j]
-                      for j in range(len(vks))})
+        Xsubs.append({vk: bounds[vk][0] +
+                          (bounds[vk][1] - bounds[vk][0]) * levels[i][vk]
+                      for vk in vks})
         Yvals.append(gpobj.sub(Xsubs[-1]))
     return Yvals, Xsubs
+
+if __name__ == "__main__":
+    pass
