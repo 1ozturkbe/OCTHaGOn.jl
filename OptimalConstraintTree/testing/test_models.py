@@ -7,9 +7,10 @@ import pickle
 from gpkit import Variable
 from gpkit.small_scripts import mag
 from gpfit.fit import fit
+from gpfit.fit_constraintset import FitCS
 
 from OptimalConstraintTree.constraintify import trust_region_data, pwl_constraint_data
-from OptimalConstraintTree.sample import sample_gpobj
+from OptimalConstraintTree.sample import sample_gpobj, gen_X
 
 import unittest
 from gpkit.tests.helpers import run_tests
@@ -62,7 +63,7 @@ class TestModels(unittest.TestCase):
         gpobjs = [a*b**(-1.2), a + b**(2.1)]
         samples = 10
         for gpobj in gpobjs:
-            bounds = {a.key: [xp(), xp()], b.key: [xp(), xp()]}
+            bounds = {a: [xp(), xp()], b: [xp(), xp()]}
             Y, X = sample_gpobj(gpobj, bounds, samples)
             X = np.log([[mag(X[i][key]) for i in range(samples)] for key in list(bounds.keys())])
             Y = np.log([y.value for y in Y])
@@ -70,14 +71,34 @@ class TestModels(unittest.TestCase):
             # print('RMS: ' + str(rms))
 
     def test_fit_gpmodel(self):
-        samples = 300
-        bounds = pickle.load(open("subs/SimPleAC.bounds", "rb"))
-        solns = [pickle.load(open("solns/SimPleAC" + str(i) + ".sol", "rb")) for i in range(samples)]
-        subs = [pickle.load(open("subs/SimPleAC" + str(i) + ".subs", "rb")) for i in range(samples)]
-        X = np.log([[mag(subs[i][key]) for i in range(samples)] for key in list(bounds.keys())])
-        Y = np.log([mag(soln['cost']) for soln in solns])
-        cstrt, rms = fit(X, Y, 4, 'SMA')
-        # print('RMS: ' + str(rms))
+        # Compares posynomial surrogate for GPmodel with actual model
+        m = Mission(SimPleAC(),4)
+        m.cost = m['W_{f_m}']*units('1/N') + m['C_m']*m['t_m']
+        features = {
+            'h_{cruise_m}'   :5000*units('m'),
+            'Range_m'        :3000*units('km'),
+            'W_{p_m}'        :6250*units('N'),
+            '\\rho_{p_m}'    :1500*units('kg/m^3'),
+            'C_m'            :120*units('1/hr'),
+            'V_{min_m}'      :25*units('m/s'),
+            'T/O factor_m'   :2,
+        }
+        m.substitutions.update(features)
+        basesol = m.localsolve(verbosity=0)
+        ivar = m.cost
+        dvars = [m[var] for var in list(features.keys())]
+        bounds = pickle.load(open("data/SimPleAC.bounds", "rb"))
+        solns = pickle.load(open("data/SimPleAC.sol", "rb"))
+        subs = pickle.load(open("data/SimPleAC.subs", "rb"))
+        X = gen_X(subs, bounds)
+        Y = [mag(soln(ivar)/basesol(ivar)) for soln in solns]
+        # GPfitted model with generated constraint
+        cstrt, rms = fit(np.log(X), np.log(Y), 4, 'SMA')
+        modelfit = FitCS(cstrt.fitdata, ivar, dvars)
+        cstrt.dvars = dvars
+
+
+
 
 TESTS = [TestModels]
 

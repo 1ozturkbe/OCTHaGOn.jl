@@ -8,7 +8,7 @@ import pickle
 from gpkitmodels.SP.SimPleAC.SimPleAC_mission import *
 
 from OptimalConstraintTree.sample import sample_gpobj, sample_gpmodel
-
+from OptimalConstraintTree.sample import gen_X
 
 class TestSample(unittest.TestCase):
     """ Tests sampling methods. """
@@ -20,20 +20,11 @@ class TestSample(unittest.TestCase):
         samples = 10
         for gpobj in gpobjs:
             bounds = {a.key: [xp(), xp()], b.key: [xp(), xp()]}
-            Yvals, Xsubs = sample_gpobj(gpobj, bounds, samples)
+            _, _ = sample_gpobj(gpobj, bounds, samples)
 
     def test_sample_gpmodel(self):
         m = Mission(SimPleAC(),4)
         m.cost = m['W_{f_m}']*units('1/N') + m['C_m']*m['t_m']
-        subs = {
-            'h_{cruise_m}'   :5000*units('m'),
-            'Range_m'        :3000*units('km'),
-            'W_{p_m}'        :6250*units('N'),
-            '\\rho_{p_m}'    :1500*units('kg/m^3'),
-            'C_m'            :120*units('1/hr'),
-            'V_{min_m}'      :25*units('m/s'),
-            'T/O factor_m'   :2,
-        }
         bounds = {
             'h_{cruise_m}'   :[6000*units('m'), 1000*units('m')], # reversed
             'Range_m'        :[1000*units('km'), 5000*units('km')],
@@ -43,12 +34,30 @@ class TestSample(unittest.TestCase):
             'V_{min_m}'      :[15*units('m/s'), 45*units('m/s')],
             'T/O factor_m'   :[2, 3],
         }
-        samples = 300
+        samples = 100
         solns, subs = sample_gpmodel(m, bounds, samples, verbosity=-1)
-        pickle.dump(bounds, open("subs/SimPleAC.bounds", "wb"))
-        for i in range(samples):
-            solns[i].save("solns/SimPLeAC" + str(i) + ".sol")
-            pickle.dump(subs[i], open("subs/SimPLeAC" + str(i) + ".subs", "wb"))
+        pickle.dump(bounds, open("data/SimPleAC.bounds", "wb"))
+        pickle.dump(solns, open("data/SimPLeAC.sol", "wb"))
+        pickle.dump(subs, open("data/SimPLeAC.subs", "wb"))
+
+    def test_gen_X(self):
+        m = Mission(SimPleAC(),4)
+        a = Variable()
+        basis = {
+            'h_{cruise_m}'   :5000*units('m'),
+            'Range_m'        :3000*units('km'),
+            'W_{p_m}'        :6250*units('N'),
+            '\\rho_{p_m}'    :1500*units('kg/m^3'),
+            'C_m'            :120*units('1/hr'),
+            'V_{min_m}'      :25*units('m/s'),
+            'T/O factor_m'   :2,
+            a                :3
+        }
+        subs = pickle.load(open("data/SimPleAC.subs", "rb"))
+        with self.assertRaises(KeyError):
+            gen_X(subs, basis)
+        basis.pop(a)
+        _ = gen_X(subs, basis)
 
 TESTS = [TestSample]
 

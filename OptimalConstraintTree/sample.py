@@ -1,10 +1,13 @@
 """
 These methods use the pyDOE package to generate samples from unknown or known functions.
 """
+import numpy as np
 from pyDOE import lhs
 from gpkit import SignomialsEnabled, units
+from gpkit.small_scripts import mag
 from gpkit.exceptions import InvalidGPConstraint, Infeasible
 from gpkit.exceptions import UnknownInfeasible
+from gpkit import Monomial
 
 from OptimalConstraintTree.tools import clean_subs
 
@@ -35,6 +38,7 @@ def sample_gpobj(gpobj, bounds, samples, criterion="corr"):
     return Yvals, Xsubs
 
 def sample_gpmodel(gpmodel, bounds, samples, criterion='corr', verbosity=0):
+    """ Latin hypercube sampling of a GP model within given input bounds. """
     vks = list(bounds.keys())
     levels = lhs(len(vks), samples=samples, criterion=criterion)
     levels = [dict(zip(vks, levels[i])) for i in range(samples)]
@@ -55,6 +59,39 @@ def sample_gpmodel(gpmodel, bounds, samples, criterion='corr', verbosity=0):
         except (Infeasible, UnknownInfeasible):
             print("Model infeasible at substitutions %s" % next_subs)
     return solns, subs
+
+def gen_X(subs, basis):
+    """
+    Generates X data with normalization using the basis.
+    Also strips monomials.
+    :param subs: List of subs dicts
+    :param basis: subs dict with
+    :return: X, a numpy array of data
+    """
+    n_samples = len(subs)
+    keys = list(basis.keys())
+    X = np.zeros((n_samples, len(keys)))
+    try:
+        for i in range(n_samples):
+            for j in range(len(keys)):
+                sub = subs[i][keys[j]]
+                base = basis[keys[j]]
+                if type(base) is Monomial:
+                    base = base.value
+                if type(sub) is Monomial:
+                    sub = sub.value
+                try:
+                    X[i,j] = (sub/base).to('')
+                except AttributeError:
+                    X[i,j] = sub/base
+                except ValueError:
+                    print("Units of data point [%s, %s] "
+                                     "don't match." % (i, key))
+    except KeyError:
+        raise KeyError("Substitutions and the basis have different "
+                         "keys. Please make uniform (Variable preferred) "
+                         "and try again.")
+    return X
 
 if __name__ == "__main__":
     pass
