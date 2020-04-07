@@ -11,6 +11,7 @@ from gpfit.fit_constraintset import FitCS
 
 from OptimalConstraintTree.constraintify import trust_region_data, pwl_constraint_data
 from OptimalConstraintTree.sample import sample_gpobj, gen_X
+from OptimalConstraintTree.train import train_trees
 
 import unittest
 from gpkit.tests.helpers import run_tests
@@ -25,9 +26,9 @@ class TestModels(unittest.TestCase):
 
         # Airfoil data over Reynolds #, thickness, Mach #, and lift coeff
         X = pd.read_csv("../../data/airfoil/airfoil_X.csv", header=None)
-        y = pd.read_csv("../../data/airfoil/airfoil_Y.csv", header=None)
+        Y = pd.read_csv("../../data/airfoil/airfoil_Y.csv", header=None)
         X = np.array(X)
-        y = np.array(y)
+        Y = np.array(Y)
 
         # Values of independent vars in exponential space for reference
         # Re = np.linspace(10000, 35000, num=6, endpoint=True)
@@ -36,13 +37,14 @@ class TestModels(unittest.TestCase):
         # cl = np.linspace(0.35, 0.70, num=8, endpoint=True)
 
         # Splitting and training tree over data
-        (train_X, train_y), (test_X, test_y) = iai.split_data('regression', X, y, seed=1)
-        grid = iai.GridSearch(iai.OptimalTreeRegressor(regression_sparsity='all',
-                                                       hyperplane_config={'sparsity': 1},
-                                                       fast_num_support_restarts=3),
-                              regression_lambda=[0.001],
-                              max_depth=[2, 3], cp=[0.01, 0.005])
-        grid.fit(train_X, train_y, test_X, test_y)
+        grid = train_trees(X, Y, seed = 314,
+                           regression_sparsity = 'all',
+                           fast_num_support_restarts = 5,
+                           regression_lambda = [0.001],
+                           max_depth = [2],
+                           cp = [0.001, 0.005],
+                           hyperplane_config = [{'sparsity': 1, 'feature_set': [3,4]},
+                                                {'sparsity': 2, 'feature_set': [1,2,3]}])
         lnr = grid.get_learner()
 
         # Getting trust region data
@@ -51,7 +53,7 @@ class TestModels(unittest.TestCase):
         # PWL approximation data
         _ = pwl_constraint_data(lnr, vks)
 
-        # Testing number of splits is equal to depthlh
+        # Testing number of splits is equal to depth
         for key in list(upperDict.keys()):
             self.assertEqual(len(upperDict[key]) + len(lowerDict[key]), lnr.get_depth(key))
 
@@ -61,13 +63,24 @@ class TestModels(unittest.TestCase):
         b = Variable()
         xp = np.random.exponential
         gpobjs = [a*b**(-1.2), a + b**(2.1)]
-        samples = 10
+        samples = 20
         for gpobj in gpobjs:
-            bounds = {a: [xp(), xp()], b: [xp(), xp()]}
-            Y, X = sample_gpobj(gpobj, bounds, samples)
-            X = np.log([[mag(X[i][key]) for i in range(samples)] for key in list(bounds.keys())])
-            Y = np.log([y.value for y in Y])
-            cstrt, rms = fit(X, Y, 2, 'SMA')
+            bounds = {a.key: [xp(), xp()], b.key: [xp(), xp()]}
+            basis = {a.key: 1, b.key: 1}
+            res, subs = sample_gpobj(gpobj, bounds, samples)
+            Y = [r.value for r in res]
+            X = gen_X(subs, basis)
+            # GP fit
+            cstrt, rms = fit(np.log(np.transpose(X)), np.log(Y), 2, 'SMA')
+            # Tree fit
+            (train_X, train_Y), (test_X, test_Y) = iai.split_data('regression', np.log(X), np.log(Y), seed=1)
+            grid = iai.GridSearch(iai.OptimalTreeRegressor(regression_sparsity='all',
+                                                       hyperplane_config={'sparsity': 1},
+                                                       fast_num_support_restarts=3),
+                              regression_lambda=[0.001],
+                              max_depth=[2, 3], cp=[0.01, 0.005])
+            grid.fit(train_X, train_Y, test_X, test_Y)
+            lnr = grid.get_learner()
             # print('RMS: ' + str(rms))
 
     def test_fit_gpmodel(self):
@@ -106,4 +119,4 @@ def test():
     run_tests(TESTS)
 
 if __name__ == "__main__":
-    test()
+    pass
