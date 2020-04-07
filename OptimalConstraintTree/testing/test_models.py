@@ -21,14 +21,14 @@ class TestModels(unittest.TestCase):
     """ Test cases for different ORT models.
     Also tests constraint data generation from ORTs.
     """
-    def test_airfoil_model(self):
+    def test_train_trees(self):
+        """ Tests train_trees over real XFOIL analysis."""
         vks = ["Re", "thick", "M", "C_L"]
-
         # Airfoil data over Reynolds #, thickness, Mach #, and lift coeff
         X = pd.read_csv("../../data/airfoil/airfoil_X.csv", header=None)
         Y = pd.read_csv("../../data/airfoil/airfoil_Y.csv", header=None)
-        X = np.array(X)
-        Y = np.array(Y)
+        X = X.values
+        Y = Y.values.flatten()
 
         # Values of independent vars in exponential space for reference
         # Re = np.linspace(10000, 35000, num=6, endpoint=True)
@@ -36,18 +36,23 @@ class TestModels(unittest.TestCase):
         # M = np.array([0.4, 0.5, 0.6, 0.7, 0.8, 0.9])
         # cl = np.linspace(0.35, 0.70, num=8, endpoint=True)
 
-        # Splitting and training tree over data
+        # Fitting with GPfit
+        cstrt, rms = fit(np.transpose(X), Y, 3, 'SMA')
+
+        # Splitting and training tree over data (dummy config inputs for testing)
         grid = train_trees(X, Y, seed = 314,
                            regression_sparsity = 'all',
                            fast_num_support_restarts = 5,
                            regression_lambda = [0.001],
                            max_depth = [2],
                            cp = [0.001, 0.005],
+                           minbucket = [0.05],
                            hyperplane_config = [{'sparsity': 1, 'feature_set': [3,4]},
-                                                {'sparsity': 2, 'feature_set': [1,2,3]}])
+                                                {'sparsity': 2, 'feature_set': [1,2,4]}])
         lnr = grid.get_learner()
 
         # Getting trust region data
+        vks = ['x' + str(i) for i in range(1,5)]
         upperDict, lowerDict = trust_region_data(lnr, vks)
 
         # PWL approximation data
@@ -72,16 +77,11 @@ class TestModels(unittest.TestCase):
             X = gen_X(subs, basis)
             # GP fit
             cstrt, rms = fit(np.log(np.transpose(X)), np.log(Y), 2, 'SMA')
+            self.assertAlmostEqual(rms, 0, places=5)
             # Tree fit
-            (train_X, train_Y), (test_X, test_Y) = iai.split_data('regression', np.log(X), np.log(Y), seed=1)
-            grid = iai.GridSearch(iai.OptimalTreeRegressor(regression_sparsity='all',
-                                                       hyperplane_config={'sparsity': 1},
-                                                       fast_num_support_restarts=3),
-                              regression_lambda=[0.001],
-                              max_depth=[2, 3], cp=[0.01, 0.005])
-            grid.fit(train_X, train_Y, test_X, test_Y)
+            grid = train_trees(np.log(X), np.log(Y))
             lnr = grid.get_learner()
-            # print('RMS: ' + str(rms))
+            self.assertAlmostEqual(lnr.score(np.log(X), np.log(Y)),1, places=2)
 
     def test_fit_gpmodel(self):
         # Compares posynomial surrogate for GPmodel with actual model
@@ -99,19 +99,21 @@ class TestModels(unittest.TestCase):
         m.substitutions.update(features)
         basesol = m.localsolve(verbosity=0)
         ivar = m.cost
-        dvars = [m[var] for var in list(features.keys())]
+        dvars = [m[var].key for var in list(features.keys())]
         bounds = pickle.load(open("data/SimPleAC.bounds", "rb"))
         solns = pickle.load(open("data/SimPleAC.sol", "rb"))
         subs = pickle.load(open("data/SimPleAC.subs", "rb"))
-        X = gen_X(subs, bounds)
-        Y = [mag(soln(ivar)/basesol(ivar)) for soln in solns]
+        X = gen_X(subs, features)
+        Y = [mag(soln['cost']/basesol['cost']) for soln in solns]
+
         # GPfitted model with generated constraint
-        cstrt, rms = fit(np.log(X), np.log(Y), 4, 'SMA')
-        modelfit = FitCS(cstrt.fitdata, ivar, dvars)
-        cstrt.dvars = dvars
+        cstrt, rms = fit(np.log(np.transpose(X)), np.log(Y), 4, 'SMA')
+        self.assertAlmostEqual(rms, 0, places=2)
 
-
-
+        # ML model
+        grid = train_trees(np.log(X), np.log(Y))
+        lnr = grid.get_learner()
+        self.assertAlmostEqual(lnr.score(np.log(X), np.log(Y)), 1, places=2)
 
 TESTS = [TestModels]
 

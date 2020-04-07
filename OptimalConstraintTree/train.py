@@ -12,13 +12,14 @@ def train_trees(X, Y, **kwargs):
                          'train_proportion': 0.6}
     grid_kwargs = {'max_depth': [2, 3],
                    'cp': [0.01, 0.005],
-                   'regression_lambda': [0.0001]
+                   'regression_lambda': [0.0001],
+                   'minbucket': [0.05, 0.01]
                    }
     for key, value in kwargs.items():
         # Setting learner parameters
         if key in ['regression_sparsity', 'hyperplane_config', 'fast_num_support_restarts']:
             lnr_kwargs.update({key: value})
-        elif key in ['regression_lambda', 'max_depth', 'cp']:
+        elif key in ['regression_lambda', 'max_depth', 'minbucket', 'cp']:
             grid_kwargs.update({key:value})
         elif key == 'seed':
             lnr_kwargs.update({'random_seed': value})
