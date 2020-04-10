@@ -34,7 +34,7 @@ class TestSample(unittest.TestCase):
             'V_{min_m}'      :[15*units('m/s'), 45*units('m/s')],
             'T/O factor_m'   :[2, 3],
         }
-        samples = 100
+        samples = 500
         solns, subs = sample_gpmodel(m, bounds, samples, verbosity=-1)
         pickle.dump(bounds, open("data/SimPleAC.bounds", "wb"))
         pickle.dump(solns, open("data/SimPLeAC.sol", "wb"))
