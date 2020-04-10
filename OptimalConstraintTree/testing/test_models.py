@@ -12,6 +12,8 @@ from gpfit.fit_constraintset import FitCS
 from OptimalConstraintTree.constraintify import trust_region_data, pwl_constraint_data
 from OptimalConstraintTree.sample import sample_gpobj, gen_X
 from OptimalConstraintTree.train import train_trees
+from OptimalConstraintTree.tools import constraint_from_gpfit
+from OptimalConstraintTree.tools import enablePrint, blockPrint
 
 import unittest
 from gpkit.tests.helpers import run_tests
@@ -23,7 +25,7 @@ class TestModels(unittest.TestCase):
     """
     def test_train_trees(self):
         """ Tests train_trees over real XFOIL analysis."""
-        vks = ["Re", "thick", "M", "C_L"]
+        #vks = ["Re", "thick", "M", "C_L"]
         # Airfoil data over Reynolds #, thickness, Mach #, and lift coeff
         X = pd.read_csv("../../data/airfoil/airfoil_X.csv", header=None)
         Y = pd.read_csv("../../data/airfoil/airfoil_Y.csv", header=None)
@@ -37,7 +39,9 @@ class TestModels(unittest.TestCase):
         # cl = np.linspace(0.35, 0.70, num=8, endpoint=True)
 
         # Fitting with GPfit
+        blockPrint()
         cstrt, rms = fit(np.transpose(X), Y, 3, 'SMA')
+        enablePrint()
 
         # Splitting and training tree over data (dummy config inputs for testing)
         grid = train_trees(X, Y, seed = 314,
@@ -45,7 +49,7 @@ class TestModels(unittest.TestCase):
                            fast_num_support_restarts = 5,
                            regression_lambda = [0.001],
                            max_depth = [2],
-                           cp = [0.001, 0.005],
+                           cp = [0.005],
                            minbucket = [0.05],
                            hyperplane_config = [{'sparsity': 1, 'feature_set': [3,4]},
                                                 {'sparsity': 2, 'feature_set': [1,2,4]}])
@@ -61,8 +65,9 @@ class TestModels(unittest.TestCase):
         # Testing number of splits is equal to depth
         for key in list(upperDict.keys()):
             self.assertEqual(len(upperDict[key]) + len(lowerDict[key]), lnr.get_depth(key))
-
+    #
     def test_gpobj_model(self):
+        """ Tests surrogate models over GPkit objects. """
         # TODO: compare different sampling methods here.
         a = Variable()
         b = Variable()
@@ -76,18 +81,21 @@ class TestModels(unittest.TestCase):
             Y = [r.value for r in res]
             X = gen_X(subs, basis)
             # GP fit
+            blockPrint()
             cstrt, rms = fit(np.log(np.transpose(X)), np.log(Y), 2, 'SMA')
+            enablePrint()
             self.assertAlmostEqual(rms, 0, places=5)
             # Tree fit
-            grid = train_trees(np.log(X), np.log(Y))
+            grid = train_trees(np.log(X), np.log(Y), max_depth=5)
             lnr = grid.get_learner()
             self.assertAlmostEqual(lnr.score(np.log(X), np.log(Y)),1, places=2)
 
     def test_fit_gpmodel(self):
-        # Compares posynomial surrogate for GPmodel with actual model
+        """ Computes and compares posynomial surrogate
+        for GPmodel with actual model. """
         m = Mission(SimPleAC(),4)
         m.cost = m['W_{f_m}']*units('1/N') + m['C_m']*m['t_m']
-        features = {
+        basis = {
             'h_{cruise_m}'   :5000*units('m'),
             'Range_m'        :3000*units('km'),
             'W_{p_m}'        :6250*units('N'),
@@ -96,24 +104,39 @@ class TestModels(unittest.TestCase):
             'V_{min_m}'      :25*units('m/s'),
             'T/O factor_m'   :2,
         }
-        m.substitutions.update(features)
+        m.substitutions.update(basis)
+        blockPrint()
         basesol = m.localsolve(verbosity=0)
-        ivar = m.cost
-        dvars = [m[var].key for var in list(features.keys())]
-        bounds = pickle.load(open("data/SimPleAC.bounds", "rb"))
+        enablePrint()
         solns = pickle.load(open("data/SimPleAC.sol", "rb"))
         subs = pickle.load(open("data/SimPleAC.subs", "rb"))
-        X = gen_X(subs, features)
+        X = gen_X(subs, basis)
         Y = [mag(soln['cost']/basesol['cost']) for soln in solns]
 
         # GPfitted model with generated constraint
+        blockPrint()
         cstrt, rms = fit(np.log(np.transpose(X)), np.log(Y), 4, 'SMA')
-        self.assertAlmostEqual(rms, 0, places=2)
+        enablePrint()
+        self.assertAlmostEqual(rms, 0.01, places=2)
 
         # ML model
-        grid = train_trees(np.log(X), np.log(Y))
+        grid = train_trees(np.log(X), np.log(Y),
+                           fast_num_support_restarts = 1,
+                           regression_lambda = [0.00001],
+                           max_depth = [5],
+                           minbucket = [0.01],
+                           hyperplane_config = [{'sparsity': 1}])
         lnr = grid.get_learner()
         self.assertAlmostEqual(lnr.score(np.log(X), np.log(Y)), 1, places=2)
+
+        # Replicate GP model with new models
+        ivar = Variable('cost')
+        dvars = [m[var] for var in list(basis.keys())]
+        basis[ivar.key] = basesol['cost']
+        fit_constraint = constraint_from_gpfit(cstrt, ivar, dvars, basis)
+        m = Model(ivar, [fit_constraint], basis)
+        fitsol = m.solve(verbosity=0, reltol=1e-6)
+        self.assertAlmostEqual(basesol['cost'], fitsol['cost'], places=2)
 
 TESTS = [TestModels]
 
@@ -121,4 +144,4 @@ def test():
     run_tests(TESTS)
 
 if __name__ == "__main__":
-    pass
+    test()

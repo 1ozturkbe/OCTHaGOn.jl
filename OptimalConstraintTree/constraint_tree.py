@@ -11,7 +11,7 @@ class ConstraintTree:
     from ORT models"""
 
     def __init__(self, lnr, vars, vks=None, type='seq'):
-        self.learner = lnr
+        self.learner = lnr  # original PWL learner
         self.learner_units = None
         self.type = type
         self.vars = vars

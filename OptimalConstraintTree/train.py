@@ -18,7 +18,6 @@ def train_trees(X, Y, **kwargs):
     split_data_kwargs = {'seed': 314,
                          'train_proportion': 0.5}
     grid_kwargs = {'max_depth': [2, 3],
-                   'cp': [0.01, 0.005],
                    'regression_lambda': [0.0001],
                    'minbucket': [0.05, 0.01]
                    }
