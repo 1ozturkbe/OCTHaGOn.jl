@@ -3,13 +3,20 @@ import numpy as np
 from interpretableai import iai
 
 def train_trees(X, Y, **kwargs):
-    """ Wrapper for IAI grid search with optional kwargs."""
+    """
+    Wrapper for IAI grid search with optional kwargs.
+    :param X: feature data
+    :param Y: class data
+    :param kwargs: kwargs for learner
+    :return: A solved gridsearch over the data, where
+             grid.get_learner() gives the best performing tree.
+    """
     lnr_kwargs = {'regression_sparsity': 'all',
                   'fast_num_support_restarts': 3,
                   'hyperplane_config': [{'sparsity': 1}],
                   'random_seed': 314}
     split_data_kwargs = {'seed': 314,
-                         'train_proportion': 0.6}
+                         'train_proportion': 0.5}
     grid_kwargs = {'max_depth': [2, 3],
                    'cp': [0.01, 0.005],
                    'regression_lambda': [0.0001],
