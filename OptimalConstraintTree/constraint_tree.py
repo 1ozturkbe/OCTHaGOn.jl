@@ -11,6 +11,11 @@ class ConstraintTree:
     """ ConstraintTree class, containing the approximate constraints
     from ORT models"""
 
+    pwl_data = None
+    tr_data = None
+    tr_constraints = None
+    pwl_constraints = None
+
     def __init__(self, lnr, dvar, ivars, **kwargs):
         self.learner = lnr  # original PWL learner
         kwarg_keys = set(['basis', 'solve_type', 'epsilon'])

@@ -24,34 +24,34 @@ class TestConstraintify(unittest.TestCase):
         self.assertEqual(test_constr.as_hmapslt1({}),
                          constraintDict[1].as_hmapslt1({}))
 
-    def test_ConstraintTree(self):
-        """
-        Tests the class ConstraintTree
-        """
-        # TODO: figure out why JSON loading is not working...
-        m = Mission(SimPleAC(),4)
-        m.cost = m['W_{f_m}']*units('1/N') + m['C_m']*m['t_m']
-        basis = {
-            'h_{cruise_m}'   :5000*units('m'),
-            'Range_m'        :3000*units('km'),
-            'W_{p_m}'        :6250*units('N'),
-            '\\rho_{p_m}'    :1500*units('kg/m^3'),
-            'C_m'            :120*units('1/hr'),
-            'V_{min_m}'      :25*units('m/s'),
-            'T/O factor_m'   :2,
-        }
-        m.substitutions.update(basis)
-        basesol = m.localsolve(verbosity=0)
-        # Adding fits for each mission segment
-        # Note that Mach number does not exist for the original model,
-        # so it has to be added as a monomial.
-        cts = []
-        for i in range(len(m['C_D'])):
-            dvar = m['C_D'][i]
-            ivars = [m['Re'][i], m['\\tau'],
-                     m['V'][i]/(1.4*287*units('J/kg/K')*250*units('K'))**0.5,
-                     m['C_L'][i]]
-            cts.append(ConstraintTree(lnr, dvar, ivars))
+    # def test_ConstraintTree(self):
+    #     """
+    #     Tests the class ConstraintTree
+    #     """
+    #     # TODO: figure out why JSON loading is not working...
+    #     m = Mission(SimPleAC(),4)
+    #     m.cost = m['W_{f_m}']*units('1/N') + m['C_m']*m['t_m']
+    #     basis = {
+    #         'h_{cruise_m}'   :5000*units('m'),
+    #         'Range_m'        :3000*units('km'),
+    #         'W_{p_m}'        :6250*units('N'),
+    #         '\\rho_{p_m}'    :1500*units('kg/m^3'),
+    #         'C_m'            :120*units('1/hr'),
+    #         'V_{min_m}'      :25*units('m/s'),
+    #         'T/O factor_m'   :2,
+    #     }
+    #     m.substitutions.update(basis)
+    #     basesol = m.localsolve(verbosity=0)
+    #     # Adding fits for each mission segment
+    #     # Note that Mach number does not exist for the original model,
+    #     # so it has to be added as a monomial.
+    #     cts = []
+    #     for i in range(len(m['C_D'])):
+    #         dvar = m['C_D'][i]
+    #         ivars = [m['Re'][i], m['\\tau'],
+    #                  m['V'][i]/(1.4*287*units('J/kg/K')*250*units('K'))**0.5,
+    #                  m['C_L'][i]]
+    #         cts.append(ConstraintTree(lnr, dvar, ivars))
 
     # def test_ConstraintTree_in_model(self):
     #     """

@@ -4,7 +4,7 @@ from numpy.random import exponential as xp
 import pandas as pd
 import pickle
 from gpkit.small_scripts import mag
-from gpkit import VectorVariable, Variable
+from gpkit import VectorVariable, Variable, units, Model
 from gpfit.fit import fit
 
 from OptimalConstraintTree.constraint_tree import ConstraintTree
@@ -15,7 +15,7 @@ from OptimalConstraintTree.tools import enablePrint, blockPrint
 
 import unittest
 from gpkit.tests.helpers import run_tests
-from gpkitmodels.SP.SimPleAC.SimPleAC_mission import Mission
+from gpkitmodels.SP.SimPleAC.SimPleAC_mission import Mission, SimPleAC
 
 class TestModels(unittest.TestCase):
     """ Test cases for different ORT models.
@@ -60,7 +60,7 @@ class TestModels(unittest.TestCase):
         upperDict, lowerDict = ConstraintTree.trust_region_data(lnr, vks)
 
         # Making constraints from trust region data
-        tr_constraints = ConstraintTree.tr_constraintify(upperDict, lowerDict, dvar, ivars)
+        tr_constraints = ConstraintTree.tr_constraintify(upperDict, lowerDict, ivars)
 
         # PWL approximation data
         pwlDict = ConstraintTree.pwl_constraint_data(lnr, vks)
@@ -155,5 +155,4 @@ def test():
     run_tests(TESTS)
 
 if __name__ == "__main__":
-    # test()
-    pass
+    test()
