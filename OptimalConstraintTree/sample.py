@@ -28,9 +28,9 @@ def sample_gpobj(gpobj, bounds, samples, criterion="corr"):
     :return: Y and X data for the gpobj
     """
     vks = list(gpobj.varkeys)
-    blockPrint()
+    #blockPrint()
     levels = lhs(len(vks), samples=samples, criterion=criterion)
-    enablePrint()
+    #enablePrint()
     levels = [dict(zip(vks, levels[i])) for i in range(samples)]
     Xsubs = []
     Yvals = []
@@ -58,9 +58,9 @@ def sample_gpmodel(gpmodel, bounds, samples, criterion='corr', verbosity=0):
     :return:
     """
     vks = list(bounds.keys())
-    blockPrint()
+    # blockPrint()
     levels = lhs(len(vks), samples=samples, criterion=criterion)
-    enablePrint()
+    # enablePrint()
     levels = [dict(zip(vks, levels[i])) for i in range(samples)]
     subs = []
     solns = []

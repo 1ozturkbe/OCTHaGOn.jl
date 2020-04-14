@@ -1,15 +1,13 @@
 """ Tests for ORT models from data """
 import numpy as np
 from numpy.random import exponential as xp
-from interpretableai import iai
 import pandas as pd
 import pickle
-from gpkit import Variable
 from gpkit.small_scripts import mag
+from gpkit import VectorVariable, Variable
 from gpfit.fit import fit
-from gpfit.fit_constraintset import FitCS
 
-from OptimalConstraintTree.constraintify import trust_region_data, pwl_constraint_data
+from OptimalConstraintTree.constraint_tree import ConstraintTree
 from OptimalConstraintTree.sample import sample_gpobj, gen_X
 from OptimalConstraintTree.train import train_trees
 from OptimalConstraintTree.tools import constraint_from_gpfit
@@ -17,7 +15,7 @@ from OptimalConstraintTree.tools import enablePrint, blockPrint
 
 import unittest
 from gpkit.tests.helpers import run_tests
-from gpkitmodels.SP.SimPleAC.SimPleAC_mission import *
+from gpkitmodels.SP.SimPleAC.SimPleAC_mission import Mission
 
 class TestModels(unittest.TestCase):
     """ Test cases for different ORT models.
@@ -25,7 +23,6 @@ class TestModels(unittest.TestCase):
     """
     def test_train_trees(self):
         """ Tests train_trees over real XFOIL analysis."""
-        #vks = ["Re", "thick", "M", "C_L"]
         # Airfoil data over Reynolds #, thickness, Mach #, and lift coeff
         X = pd.read_csv("../../data/airfoil/airfoil_X.csv", header=None)
         Y = pd.read_csv("../../data/airfoil/airfoil_Y.csv", header=None)
@@ -46,25 +43,39 @@ class TestModels(unittest.TestCase):
         # Splitting and training tree over data (dummy config inputs for testing)
         grid = train_trees(X, Y, seed = 314,
                            regression_sparsity = 'all',
-                           fast_num_support_restarts = 5,
+                           fast_num_support_restarts = 2,
                            regression_lambda = [0.001],
                            max_depth = [2],
-                           cp = [0.005],
                            minbucket = [0.05],
                            hyperplane_config = [{'sparsity': 1, 'feature_set': [3,4]},
                                                 {'sparsity': 2, 'feature_set': [1,2,4]}])
         lnr = grid.get_learner()
 
-        # Getting trust region data
+        # Defining dummy variables of interest
         vks = ['x' + str(i) for i in range(1,5)]
-        upperDict, lowerDict = trust_region_data(lnr, vks)
+        ivars = VectorVariable(len(vks), 'x')
+        dvar = Variable('y')
+
+        # Getting trust region data
+        upperDict, lowerDict = ConstraintTree.trust_region_data(lnr, vks)
+
+        # Making constraints from trust region data
+        tr_constraints = ConstraintTree.tr_constraintify(upperDict, lowerDict, dvar, ivars)
 
         # PWL approximation data
-        _ = pwl_constraint_data(lnr, vks)
+        pwlDict = ConstraintTree.pwl_constraint_data(lnr, vks)
+
+        # PWL constraints
+        pwl_constraints = ConstraintTree.pwl_constraintify(pwlDict, dvar, ivars)
 
         # Testing number of splits is equal to depth
         for key in list(upperDict.keys()):
             self.assertEqual(len(upperDict[key]) + len(lowerDict[key]), lnr.get_depth(key))
+            self.assertEqual(len(tr_constraints[key]), lnr.get_depth(key))
+
+        # Finally creating a ConstraintTree from the learner
+        ct = ConstraintTree(lnr, dvar, ivars)
+
     #
     def test_gpobj_model(self):
         """ Tests surrogate models over GPkit objects. """
@@ -81,9 +92,9 @@ class TestModels(unittest.TestCase):
             Y = [r.value for r in res]
             X = gen_X(subs, basis)
             # GP fit
-            blockPrint()
+            # blockPrint()
             cstrt, rms = fit(np.log(np.transpose(X)), np.log(Y), 2, 'SMA')
-            enablePrint()
+            # enablePrint()
             self.assertAlmostEqual(rms, 0, places=5)
             # Tree fit
             grid = train_trees(np.log(X), np.log(Y), max_depth=5)
@@ -105,18 +116,18 @@ class TestModels(unittest.TestCase):
             'T/O factor_m'   :2,
         }
         m.substitutions.update(basis)
-        blockPrint()
+        # blockPrint()
         basesol = m.localsolve(verbosity=0)
-        enablePrint()
+        # enablePrint()
         solns = pickle.load(open("data/SimPleAC.sol", "rb"))
         subs = pickle.load(open("data/SimPleAC.subs", "rb"))
         X = gen_X(subs, basis)
         Y = [mag(soln['cost']/basesol['cost']) for soln in solns]
 
         # GPfitted model with generated constraint
-        blockPrint()
+        # blockPrint()
         cstrt, rms = fit(np.log(np.transpose(X)), np.log(Y), 4, 'SMA')
-        enablePrint()
+        # enablePrint()
         self.assertAlmostEqual(rms, 0.01, places=2)
 
         # ML model
@@ -130,13 +141,13 @@ class TestModels(unittest.TestCase):
         self.assertAlmostEqual(lnr.score(np.log(X), np.log(Y)), 1, places=2)
 
         # Replicate GP model with new models
-        ivar = Variable('cost')
-        dvars = [m[var] for var in list(basis.keys())]
-        basis[ivar.key] = basesol['cost']
-        fit_constraint = constraint_from_gpfit(cstrt, ivar, dvars, basis)
-        m = Model(ivar, [fit_constraint], basis)
+        dvar = Variable('cost')
+        ivars = [m[var] for var in list(basis.keys())]
+        basis[dvar.key] = basesol['cost']
+        fit_constraint = constraint_from_gpfit(cstrt, dvar, ivars, basis)
+        m = Model(dvar, [fit_constraint], basis)
         fitsol = m.solve(verbosity=0, reltol=1e-6)
-        self.assertAlmostEqual(basesol['cost'], fitsol['cost'], places=2)
+        self.assertAlmostEqual(basesol['cost']/fitsol['cost'], 1, places=2)
 
 TESTS = [TestModels]
 
@@ -144,4 +155,5 @@ def test():
     run_tests(TESTS)
 
 if __name__ == "__main__":
-    test()
+    # test()
+    pass
