@@ -33,7 +33,7 @@ class TestConstraintify(unittest.TestCase):
         Tests ConstraintTree generation from SP constraints
         """
         model = Mission(SimPleAC(),4)
-        model.cost = m['W_{f_m}']*units('1/N') + m['C_m']*m['t_m']
+        model.cost = model['W_{f_m}']*units('1/N') + model['C_m']*model['t_m']
         basis = {
             'h_{cruise_m}'   :5000*units('m'),
             'Range_m'        :3000*units('km'),
@@ -43,16 +43,19 @@ class TestConstraintify(unittest.TestCase):
             'V_{min_m}'      :25*units('m/s'),
             'T/O factor_m'   :2,
         }
-        m.substitutions.update(basis)
-        basesol = m.localsolve(verbosity=0)
+        model.substitutions.update(basis)
+        basesol = model.localsolve(verbosity=0)
 
         # Identify signomial constraints
-        sp_constraints = find_signomials(m)
+        sp_constraints = find_signomials(model)
         sp_variables = get_variables(sp_constraints)
 
         # Get variable bounds
         solutions = pickle.load(open("data/SimPleAC.sol", "rb"))
         bounds = get_bounds(model, solutions)
+
+        for constraint in sp_constraints:
+            sp_variables = get_variables([constraint])
 
     # def test_ConstraintTree_in_model(self):
     #     """

@@ -3,6 +3,7 @@ Defines the ConstraintTree class, with class and static methods.
 """
 
 from gpkit.small_scripts import mag
+from gpkit.nomials import PosynomialInequality
 
 import numpy as np
 from interpretableai import iai
@@ -10,7 +11,10 @@ from interpretableai import iai
 class ConstraintTree:
     """ ConstraintTree class, containing the approximate constraints
     from ORT models"""
-
+    basis = None
+    solve_type = 'seq'
+    epsilon = None
+    oper = '>='
     pwl_data = None
     tr_data = None
     tr_constraints = None
@@ -18,8 +22,6 @@ class ConstraintTree:
 
     def __init__(self, lnr, dvar, ivars, **kwargs):
         self.learner = lnr  # original PWL learner
-        kwarg_keys = set(['basis', 'solve_type', 'epsilon'])
-        self.__dict__.update((key, None) for key in kwarg_keys)
         self.__dict__.update((key, value) for key, value in kwargs.items()
                              if key in kwarg_keys)
         if self.basis:
@@ -49,6 +51,7 @@ class ConstraintTree:
             self.pwl_constraints = self.pwl_constraintify(self.pwl_data,
                                                           self.dvar,
                                                           self.ivars,
+                                                          self.oper,
                                                           self.epsilon)
         elif self.solve_type == "mi":
             raise Warning("Mixed integer solver not yet available.")
@@ -175,13 +178,14 @@ class ConstraintTree:
         return constraintDict
 
     @staticmethod
-    def pwl_constraintify(pwlDict, dvar, ivars, epsilon=None):
+    def pwl_constraintify(pwlDict, dvar, ivars, oper='>=', epsilon=None):
         """
         Turns pwl constraint data into monomial inequality constraints
         Arguments:
             pwlDict: Dict[leaf_number] containing [B0 (offset), B (linear)]
             dvar: dependent monomial
             ivars: independent monomials
+            oper: type of inequality (default lower bounds dvar)
             epsilon: optional offset variable
         Returns:
             Dict[leaf_number] containing monomial
@@ -194,5 +198,5 @@ class ConstraintTree:
                                  "approximation dimension.")
             mono = np.prod([ivars[j] ** value[1][j]
                             for j in range(len(value[1]))]).value
-            constraintDict[key] = c * mono <= dvar
+            constraintDict[key] = PosynomialInequality(dvar, oper, c * mono)
         return constraintDict

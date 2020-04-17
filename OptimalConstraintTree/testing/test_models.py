@@ -36,9 +36,9 @@ class TestModels(unittest.TestCase):
         # cl = np.linspace(0.35, 0.70, num=8, endpoint=True)
 
         # Fitting with GPfit
-        blockPrint()
+        # blockPrint()
         cstrt, rms = fit(np.transpose(X), Y, 3, 'SMA')
-        enablePrint()
+        # enablePrint()
 
         # Splitting and training tree over data (dummy config inputs for testing)
         grid = train_trees(X, Y, seed = 314,
@@ -50,6 +50,7 @@ class TestModels(unittest.TestCase):
                            hyperplane_config = [{'sparsity': 1, 'feature_set': [3,4]},
                                                 {'sparsity': 2, 'feature_set': [1,2,4]}])
         lnr = grid.get_learner()
+        lnr.write_json("airfoil_lnr.json")
 
         # Defining dummy variables of interest
         vks = ['x' + str(i) for i in range(1,5)]

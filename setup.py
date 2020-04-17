@@ -15,7 +15,7 @@ setup(
     author="Berk Ozturk",
     author_email="bozturk@mit.edu",
     url="https://github.com/1ozturkbe/OptimalConstraintTree",
-    install_requires=["gpkit >= 0.9", "interpretableai"],
+    install_requires=["gpkit >= 0.9", "interpretableai", "pyDOE", "progressbar"],
     version="0.0.0",
     packages=["OptimalConstraintTree"],
     long_description=LONG_DESCRIPTION,
