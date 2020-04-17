@@ -2,8 +2,11 @@ import progressbar
 from time import sleep
 import sys, os
 import io
+import numpy as np
 
 from gpfit.fit_constraintset import FitCS
+from gpkit.nomials import SignomialInequality
+from gpkit.small_scripts import mag
 
 text_trap = io.StringIO()
 
@@ -37,9 +40,38 @@ def find_signomials(model):
     """
     Finds are returns all signomials in a GPkit model
     :param model:
-    :return:
+    :return: signomial constraints
     """
-    pass
+    return [i for i in model.flat() if isinstance(i, SignomialInequality)]
+
+def get_variables(constraints):
+    """
+    Finds all of the variables in the constraints
+    :param constraints: GPkit constraints
+    :return: GPkit variables
+    """
+    variables = set()
+    for constraint in constraints:
+        variables = variables.union(constraint.varkeys)
+    return variables
+
+def get_bounds(model, solutions):
+    """
+    Finds the minimum and maximum of every variable
+    from the solutions.
+    :param model: GP model
+    :param solutions: solutions to the GP model
+    :return: bounds dict over varkeys
+    """
+    bounds = {varkey: None for varkey in model.varkeys}
+    for key in bounds.keys():
+        vals = [mag(sol(key)) for sol in solutions]
+        if model[key].units:
+            bounds[key] = [np.min(vals)*model[key].units,
+                           np.max(vals)*model[key].units]
+        else:
+            bounds[key] = [np.min(vals), np.max(vals)]
+    return bounds
 
 def constraint_from_gpfit(fitcs, dvar, ivars, basis=None):
     """
