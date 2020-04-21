@@ -23,7 +23,7 @@ class TestSample(unittest.TestCase):
             _, _ = sample_gpobj(gpobj, bounds, samples)
 
     def test_sample_gpmodel(self):
-        m = Mission(SimPleAC(),4)
+        m = Mission(SimPleAC(), 4)
         m.cost = m['W_{f_m}']*units('1/N') + m['C_m']*m['t_m']
         bounds = {
             'h_{cruise_m}'   :[6000*units('m'), 1000*units('m')], # reversed
@@ -41,7 +41,6 @@ class TestSample(unittest.TestCase):
         pickle.dump(subs, open("data/SimPLeAC.subs", "wb"))
 
     def test_gen_X(self):
-        m = Mission(SimPleAC(),4)
         a = Variable()
         basis = {
             'h_{cruise_m}'   :5000*units('m'),

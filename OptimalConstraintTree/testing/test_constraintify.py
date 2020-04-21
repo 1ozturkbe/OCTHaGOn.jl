@@ -1,5 +1,5 @@
 import numpy as np
-from gpkit import Variable
+from gpkit import Variable, Model
 
 import unittest
 from gpkit.tests.helpers import run_tests
@@ -26,7 +26,7 @@ class TestConstraintify(unittest.TestCase):
         constraintDict = ConstraintTree.pwl_constraintify(pwlDict, dvar, ivars)
         test_constr = np.exp(1)*ivars[0]**2*ivars[1]**3*ivars[2]**4 <= dvar
         self.assertEqual(test_constr.as_hmapslt1({}),
-                         constraintDict[1].as_hmapslt1({}))
+                         constraintDict[1][0].as_hmapslt1({}))
 
     def test_ConstraintTree_sp_constraints(self):
         """
@@ -54,37 +54,34 @@ class TestConstraintify(unittest.TestCase):
         solutions = pickle.load(open("data/SimPleAC.sol", "rb"))
         bounds = get_bounds(model, solutions)
 
-        for constraint in sp_constraints:
-            sp_variables = get_variables([constraint])
-
-    # def test_ConstraintTree_in_model(self):
-    #     """
-    #     Tests the class ConstraintTree
-    #     """
-    #     # TODO: figure out why JSON loading is not working...
-    #     m = Mission(SimPleAC(),4)
-    #     m.cost = m['W_{f_m}']*units('1/N') + m['C_m']*m['t_m']
-    #     basis = {
-    #         'h_{cruise_m}'   :5000*units('m'),
-    #         'Range_m'        :3000*units('km'),
-    #         'W_{p_m}'        :6250*units('N'),
-    #         '\\rho_{p_m}'    :1500*units('kg/m^3'),
-    #         'C_m'            :120*units('1/hr'),
-    #         'V_{min_m}'      :25*units('m/s'),
-    #         'T/O factor_m'   :2,
-    #     }
-    #     m.substitutions.update(basis)
-    #     basesol = m.localsolve(verbosity=0)
-    #     # Adding fits for each mission segment
-    #     # Note that Mach number does not exist for the original model,
-    #     # so it has to be added as a monomial.
-    #     cts = []
-    #     for i in len(m['C_D']):
-    #         ivar = m['C_D'][i]
-    #         ivars = [m['Re'][i], m['\\tau'],
-    #                  m['V'][i]/(1.4*287*units('J/kg/K')*250*units('K'))**0.5,
-    #                  m['C_L'][i]]
-    #         cts.append(ConstraintTree(lnr, ivar, ivars))
+    def test_SimPleAC_with_treeconstraint(self):
+        model = Mission(SimPleAC(),4)
+        model.cost = model['W_{f_m}']*units('1/N') + model['C_m']*model['t_m']
+        basis = {
+            'h_{cruise_m}'   :5000*units('m'),
+            'Range_m'        :3000*units('km'),
+            'W_{p_m}'        :6250*units('N'),
+            '\\rho_{p_m}'    :1500*units('kg/m^3'),
+            'C_m'            :120*units('1/hr'),
+            'V_{min_m}'      :25*units('m/s'),
+            'T/O factor_m'   :2,
+        }
+        model.substitutions.update(basis)
+        basesol = model.localsolve(verbosity=0)
+        # Now replacing the drag model with a learner...
+        constraints = [c for c in model.flat()]
+        lnr = iai.read_json("data/airfoil_lnr.json")
+        cts = []
+        for i in range(len(model['C_D'])):
+            dvar = model['C_D'][i]
+            ivars = [model['Re'][i], model['\\tau'],
+                     model['V'][i]/(1.4*287*units('J/kg/K')*250*units('K'))**0.5,
+                     model['C_L'][i]]
+            ct = ConstraintTree(lnr, dvar, ivars)
+            ct.setup()
+            cts.append(ct)
+            # Check that we can get corresponding GP constraints
+            # from a previous solution
 
 TESTS = [TestConstraintify]
 

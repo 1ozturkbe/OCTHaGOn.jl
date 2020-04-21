@@ -3,7 +3,11 @@ Defines the ConstraintTree class, with class and static methods.
 """
 
 from gpkit.small_scripts import mag
+from gpkit import Variable, VectorVariable, SignomialsEnabled
+from gpkit import SignomialEquality
 from gpkit.nomials import PosynomialInequality
+
+from OptimalConstraintTree.tools import mergeDict
 
 import numpy as np
 from interpretableai import iai
@@ -19,6 +23,7 @@ class ConstraintTree:
     tr_data = None
     tr_constraints = None
     pwl_constraints = None
+    M = 10
 
     def __init__(self, lnr, dvar, ivars, **kwargs):
         self.learner = lnr  # original PWL learner
@@ -30,7 +35,7 @@ class ConstraintTree:
         else:
             self.dvar = dvar
             self.ivars = ivars
-        for var in set([self.dvar, self.ivars]):
+        for var in ivars: # TODO: include dvar checking in this.
             if var.units:
                 raise ValueError('Monomial %s has units %s but'
                                  'is required to be unitless. '
@@ -44,30 +49,34 @@ class ConstraintTree:
         self.pwl_data = self.pwl_constraint_data(self.learner)
         self.tr_data = self.trust_region_data(self.learner)
         if self.solve_type == "seq":
-            self.tr_constraints = self.tr_constraintify(self.tr_data[0],
+            self.constraints = mergeDict(self.tr_constraintify(self.tr_data[0],
                                                         self.tr_data[1],
                                                         self.ivars,
-                                                        self.epsilon)
-            self.pwl_constraints = self.pwl_constraintify(self.pwl_data,
+                                                        self.epsilon),
+                                         self.pwl_constraintify(self.pwl_data,
                                                           self.dvar,
                                                           self.ivars,
-                                                          self.oper,
-                                                          self.epsilon)
+                                                          self.oper))
         elif self.solve_type == "mi":
-            raise Warning("Mixed integer solver not yet available.")
+            self.constraints = self.bigM_constraintify(self.tr_data[0],
+                                                       self.tr_data[1],
+                                                       self.pwl_data,
+                                                       self.dvar,
+                                                       self.ivars,
+                                                       oper=self.oper,
+                                                       M=self.M)
         elif self.solve_type == "global":
             raise Warning("Global solver not yet available.")
         else:
             raise ValueError("ConstraintTree with solver type %s "
                              "is not supported." % self.solve_type)
 
-    def get_leaf_constraint(self, sol):
+    def get_leaf_constraints(self, sol):
         """ Returns constraints for a particular leaf
         depending on the features (solution of free vars). """
-        # TODO: finish
-        inps = np.array([np.log(mag(sol))])
-        leaf_no = self.learner.apply(inps)
-        return self.constraints[leaf_no]
+        inps = np.array([np.log(mag(sol(var))) for var in self.ivars])
+        leaf_no = self.learner.apply([inps])
+        return self.constraints[leaf_no[0]]
 
     def piecewise_convexify(self, rms_threshold=0.01, max_threshold=0.02):
         """ Prunes the tree using by efficiently computing adjacent convex regions,
@@ -146,7 +155,7 @@ class ConstraintTree:
         return upperDict, lowerDict
 
     @staticmethod
-    def tr_constraintify(upperDict, lowerDict, ivars, epsilon=None):
+    def tr_constraintify(upperDict, lowerDict, ivars, epsilon=0):
         """
         Turns trust region data into monomial inequality constraints.
         :param upperDict: Dict of upper split data
@@ -160,25 +169,21 @@ class ConstraintTree:
             raise ValueError("There is an issue with the keys in "
                              "trust region constraint generation.")
         constraintDict = {key: [] for key in list(upperDict.keys())}
-        if epsilon:
-            epsilon = epsilon
-        else:
-            epsilon = 1.
         for leaf_key in list(constraintDict.keys()):
             for constraint_data in upperDict[leaf_key]:
                 bound = float(np.exp(constraint_data[0]))
                 mono = np.prod([ivars[j] ** constraint_data[1][j]
                                 for j in range(len(constraint_data[1]))]).value
-                constraintDict[leaf_key].append(bound <= mono ** epsilon)
+                constraintDict[leaf_key].append(bound ** (1-epsilon) <= mono)
             for constraint_data in lowerDict[leaf_key]:
                 bound = float(np.exp(constraint_data[0]))
                 mono = np.prod([ivars[j] ** constraint_data[1][j]
                                 for j in range(len(constraint_data[1]))]).value
-                constraintDict[leaf_key].append(bound ** epsilon >= mono)
+                constraintDict[leaf_key].append(bound ** (1+epsilon) >= mono)
         return constraintDict
 
     @staticmethod
-    def pwl_constraintify(pwlDict, dvar, ivars, oper='>=', epsilon=None):
+    def pwl_constraintify(pwlDict, dvar, ivars, oper='>='):
         """
         Turns pwl constraint data into monomial inequality constraints
         Arguments:
@@ -198,5 +203,46 @@ class ConstraintTree:
                                  "approximation dimension.")
             mono = np.prod([ivars[j] ** value[1][j]
                             for j in range(len(value[1]))]).value
-            constraintDict[key] = PosynomialInequality(dvar, oper, c * mono)
+            constraintDict[key] = [PosynomialInequality(dvar, oper, c * mono)]
         return constraintDict
+
+    @staticmethod
+    def bigM_constraintify(upperDict, lowerDict, pwlDict,
+                           dvar, ivars, oper='>=', M = 10):
+        if oper == '=':
+            raise ValueError('Equalities are not supported for big-M '
+                             'formulations. Please reformulate and try again.')
+        binary_var = VectorVariable(len(pwlDict), 'bin', '-', 'binary variable', bin=True)
+        leaves = list(pwlDict.keys())
+        constraintDict = {leaf: [] for leaf in leaves}
+        pwlConstraints = ConstraintTree.pwl_constraintify(pwlDict, dvar,
+                                                          ivars, oper=oper)
+        trConstraints = ConstraintTree.tr_constraintify(upperDict, lowerDict, ivars)
+        constraintDict = mergeDict(pwlConstraints, trConstraints)
+        for i in range(len(leaves)):
+            for constraint in constraintDict[leaves[i]]:
+                if constraint.oper == '>=':
+                    bigMconstr = PosynomialInequality(constraint.left * binary_var[i]**M,
+                                                      constraint.oper, constraint.right)
+                elif constraint.oper == '<=':
+                    bigMconstr = PosynomialInequality(constraint.left, constraint.oper,
+                                                      constraint.right * binary_var[i]**M)
+                constraintDict[leaves[i]].append(bigMconstr)
+        return constraintDict
+
+    @staticmethod
+    def binary_constraintify(bin_vectorvar, solve_type):
+        """ Generates list of constraints that ensure that binary variables
+        are valued either 1 or e. """
+        constraints = []
+        if solve_type == 'mi':
+            constraints.append(np.prod(bin_vectorvar) == np.exp(1))
+        if solve_type == 'global':
+            constraints.append(np.prod(bin_vectorvar) == np.exp(1))
+            for i in range(len(bin_vectorvar)):
+                var = bin_vectorvar[i]
+                with SignomialsEnabled():
+                    constraints.append(SignomialEquality(var**2 - (1+np.exp(1))*var + np.exp(1), 0))
+        return constraints
+
+

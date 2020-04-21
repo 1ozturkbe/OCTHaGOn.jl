@@ -21,6 +21,7 @@ class TestModels(unittest.TestCase):
     """ Test cases for different ORT models.
     Also tests constraint data generation from ORTs.
     """
+
     def test_train_trees(self):
         """ Tests train_trees over real XFOIL analysis."""
         # Airfoil data over Reynolds #, thickness, Mach #, and lift coeff
@@ -41,19 +42,19 @@ class TestModels(unittest.TestCase):
         # enablePrint()
 
         # Splitting and training tree over data (dummy config inputs for testing)
-        grid = train_trees(X, Y, seed = 314,
-                           regression_sparsity = 'all',
-                           fast_num_support_restarts = 2,
-                           regression_lambda = [0.001],
-                           max_depth = [2],
-                           minbucket = [0.05],
-                           hyperplane_config = [{'sparsity': 1, 'feature_set': [3,4]},
-                                                {'sparsity': 2, 'feature_set': [1,2,4]}])
+        grid = train_trees(X, Y, seed=314,
+                           regression_sparsity='all',
+                           fast_num_support_restarts=2,
+                           regression_lambda=[0.001],
+                           max_depth=[2],
+                           minbucket=[0.05],
+                           hyperplane_config=[{'sparsity': 1, 'feature_set': [3, 4]},
+                                              {'sparsity': 2, 'feature_set': [1, 2, 4]}])
         lnr = grid.get_learner()
-        lnr.write_json("airfoil_lnr.json")
+        lnr.write_json("data/airfoil_lnr.json")
 
         # Defining dummy variables of interest
-        vks = ['x' + str(i) for i in range(1,5)]
+        vks = ['x' + str(i) for i in range(1, 5)]
         ivars = VectorVariable(len(vks), 'x')
         dvar = Variable('y')
 
@@ -84,7 +85,7 @@ class TestModels(unittest.TestCase):
         a = Variable()
         b = Variable()
         xp = np.random.exponential
-        gpobjs = [a*b**(-1.2), a + b**(2.1)]
+        gpobjs = [a * b ** (-1.2), a + b ** (2.1)]
         samples = 20
         for gpobj in gpobjs:
             bounds = {a.key: [xp(), xp()], b.key: [xp(), xp()]}
@@ -100,21 +101,21 @@ class TestModels(unittest.TestCase):
             # Tree fit
             grid = train_trees(np.log(X), np.log(Y), max_depth=5)
             lnr = grid.get_learner()
-            self.assertAlmostEqual(lnr.score(np.log(X), np.log(Y)),1, places=2)
+            self.assertAlmostEqual(lnr.score(np.log(X), np.log(Y)), 1, places=2)
 
     def test_fit_gpmodel(self):
         """ Computes and compares posynomial surrogate
         for GPmodel with actual model. """
-        m = Mission(SimPleAC(),4)
-        m.cost = m['W_{f_m}']*units('1/N') + m['C_m']*m['t_m']
+        m = Mission(SimPleAC(), 4)
+        m.cost = m['W_{f_m}'] * units('1/N') + m['C_m'] * m['t_m']
         basis = {
-            'h_{cruise_m}'   :5000*units('m'),
-            'Range_m'        :3000*units('km'),
-            'W_{p_m}'        :6250*units('N'),
-            '\\rho_{p_m}'    :1500*units('kg/m^3'),
-            'C_m'            :120*units('1/hr'),
-            'V_{min_m}'      :25*units('m/s'),
-            'T/O factor_m'   :2,
+            'h_{cruise_m}': 5000 * units('m'),
+            'Range_m': 3000 * units('km'),
+            'W_{p_m}': 6250 * units('N'),
+            '\\rho_{p_m}': 1500 * units('kg/m^3'),
+            'C_m': 120 * units('1/hr'),
+            'V_{min_m}': 25 * units('m/s'),
+            'T/O factor_m': 2,
         }
         m.substitutions.update(basis)
         # blockPrint()
@@ -123,7 +124,7 @@ class TestModels(unittest.TestCase):
         solns = pickle.load(open("data/SimPleAC.sol", "rb"))
         subs = pickle.load(open("data/SimPleAC.subs", "rb"))
         X = gen_X(subs, basis)
-        Y = [mag(soln['cost']/basesol['cost']) for soln in solns]
+        Y = [mag(soln['cost'] / basesol['cost']) for soln in solns]
 
         # GPfitted model with generated constraint
         # blockPrint()
@@ -133,12 +134,13 @@ class TestModels(unittest.TestCase):
 
         # ML model
         grid = train_trees(np.log(X), np.log(Y),
-                           fast_num_support_restarts = 1,
-                           regression_lambda = [0.00001],
-                           max_depth = [5],
-                           minbucket = [0.01],
-                           hyperplane_config = [{'sparsity': 1}])
+                           fast_num_support_restarts=1,
+                           regression_lambda=[0.00001],
+                           max_depth=[5],
+                           minbucket=[0.01],
+                           hyperplane_config=[{'sparsity': 1}])
         lnr = grid.get_learner()
+        lnr.write_json("data/SimPleAC_lnr.json")
         self.assertAlmostEqual(lnr.score(np.log(X), np.log(Y)), 1, places=2)
 
         # Replicate GP model with new models
@@ -148,12 +150,13 @@ class TestModels(unittest.TestCase):
         fit_constraint = constraint_from_gpfit(cstrt, dvar, ivars, basis)
         m = Model(dvar, [fit_constraint], basis)
         fitsol = m.solve(verbosity=0, reltol=1e-6)
-        self.assertAlmostEqual(basesol['cost']/fitsol['cost'], 1, places=2)
+        self.assertAlmostEqual(basesol['cost'] / fitsol['cost'], 1, places=2)
 
 TESTS = [TestModels]
 
 def test():
     run_tests(TESTS)
+
 
 if __name__ == "__main__":
     test()

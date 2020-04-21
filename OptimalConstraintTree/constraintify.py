@@ -12,23 +12,10 @@ from gpkit.varkey import VarKey
 # as well as trust regions (threshold <= α for upper split, threshold >= α for lower split)
 
 
-
 def bounding_constraints(bounds, m):
     """ Provides bounding constraints to a GP based on the bounds on
     the fitted variables. """
     pass
-
-# def sequential_trust_region(upperDict, lowerDict, gpvars, epsilon=1e-3):
-#     trDict = {key: [] for key, _ in upperDict.items()}
-#     for key in upperDict.items():
-#
-#
-#     return trDict
-
-
-# def signomial_trust_region(upperDict, lowerDict, gpvars):
-# #     for i in upperDict:
-#     return
 
 if __name__ == "__main__":
     pass

@@ -55,7 +55,7 @@ def sample_gpmodel(gpmodel, bounds, samples, criterion='corr', verbosity=0):
             “centermaximin” or “cm”: same as “maximin”, but centered within the intervals
             “correlation” or “corr”: minimize the maximum correlation coefficient
     :param verbosity:
-    :return:
+    :return: solutions and corresponding substitutions
     """
     vks = list(bounds.keys())
     # blockPrint()
