@@ -78,10 +78,12 @@ class TestConstraintify(unittest.TestCase):
                      model['V'][i]/(1.4*287*units('J/kg/K')*250*units('K'))**0.5,
                      model['C_L'][i]]
             ct = ConstraintTree(lnr, dvar, ivars)
-            ct.setup()
             cts.append(ct)
             # Check that we can get corresponding GP constraints
             # from a previous solution
+
+        gm = GlobalModel(model.cost, [constraints, cts], model.substitutions)
+        sol = gm.solve(verbosity=0, solve_type='seq')
 
 TESTS = [TestConstraintify]
 

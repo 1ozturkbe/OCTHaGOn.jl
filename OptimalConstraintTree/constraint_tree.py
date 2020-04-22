@@ -17,7 +17,7 @@ class ConstraintTree:
     from ORT models"""
     basis = None
     solve_type = 'seq'
-    epsilon = None
+    epsilon = 0
     oper = '>='
     pwl_data = None
     tr_data = None
@@ -174,12 +174,12 @@ class ConstraintTree:
                 bound = float(np.exp(constraint_data[0]))
                 mono = np.prod([ivars[j] ** constraint_data[1][j]
                                 for j in range(len(constraint_data[1]))]).value
-                constraintDict[leaf_key].append(bound ** (1-epsilon) <= mono)
+                constraintDict[leaf_key].append(bound ** (1.-epsilon) <= mono)
             for constraint_data in lowerDict[leaf_key]:
                 bound = float(np.exp(constraint_data[0]))
                 mono = np.prod([ivars[j] ** constraint_data[1][j]
                                 for j in range(len(constraint_data[1]))]).value
-                constraintDict[leaf_key].append(bound ** (1+epsilon) >= mono)
+                constraintDict[leaf_key].append(bound ** (1.+epsilon) >= mono)
         return constraintDict
 
     @staticmethod
