@@ -10,6 +10,7 @@ import pickle
 
 
 from OptimalConstraintTree.constraint_tree import ConstraintTree
+from OptimalConstraintTree.global_model import GlobalModel
 from OptimalConstraintTree.tools import find_signomials
 from OptimalConstraintTree.tools import get_variables, get_bounds
 
@@ -70,6 +71,7 @@ class TestConstraintify(unittest.TestCase):
         basesol = model.localsolve(verbosity=0)
         # Now replacing the drag model with a learner...
         constraints = [c for c in model.flat()]
+        constraints[-12:-8].clear()
         lnr = iai.read_json("data/airfoil_lnr.json")
         cts = []
         for i in range(len(model['C_D'])):

@@ -2,6 +2,7 @@ import numpy as np
 
 from gpkit import Model
 from gpkit.exceptions import InvalidGPConstraint
+from gpkit.small_scripts import mag
 
 from OptimalConstraintTree.constraint_tree import ConstraintTree
 
@@ -27,11 +28,12 @@ class GlobalModel(Model):
         self.sp_constraints = [c for c in constraints if not isinstance(c, ConstraintTree)]
         # self.treevars = set([[tree.dvar, ivar for ivar in tree.ivars]
         #                     for tree in self.trees])
-        for key, value in kwargs:
+        for key, value in kwargs.items():
             if key == 'solve_type':
                 for tree in self.trees:
                     tree.solve_type = value
                 tree.setup()
+        print(cost)
         self.sp_model = Model.__init__(cost, constraints, *args, **kwargs)
 
     def solve(self, verbosity=0, reltol=1e-3, x0=None):
@@ -48,4 +50,6 @@ class GlobalModel(Model):
                 xi = self.program.sps[-1].solve(verbosity=verbosity)
             except InvalidGPConstraint:
                 xi = self.program.sps[-1].localsolve(verbosity=verbosity)
-            new_cost
+            prev_cost = new_cost
+            new_cost = mag(xi['cost'])
+        return xi
