@@ -1,11 +1,12 @@
 """ Tests for function sampling methods. """
 import numpy as np
 from numpy.random import exponential as xp
-from gpkit import Variable
+from gpkit import Variable, units
 import unittest
 from gpkit.tests.helpers import run_tests
 import pickle
 from gpkitmodels.SP.SimPleAC.SimPleAC_mission import *
+from gpkit.keydict import KeyDict
 
 from OptimalConstraintTree.sample import sample_gpobj, sample_gpmodel
 from OptimalConstraintTree.sample import gen_X
@@ -26,13 +27,13 @@ class TestSample(unittest.TestCase):
         m = Mission(SimPleAC(), 4)
         m.cost = m['W_{f_m}']*units('1/N') + m['C_m']*m['t_m']
         bounds = {
-            'h_{cruise_m}'   :[6000*units('m'), 1000*units('m')], # reversed
-            'Range_m'        :[1000*units('km'), 5000*units('km')],
-            'W_{p_m}'        :[1250*units('N'), 6250*units('N')],
-            '\\rho_{p_m}'    :[1000*units('kg/m^3'), 2000*units('kg/m^3')],
-            'C_m'            :[100*units('1/hr'), 200*units('1/hr')],
-            'V_{min_m}'      :[15*units('m/s'), 45*units('m/s')],
-            'T/O factor_m'   :[2, 3],
+            m['h_{cruise_m}'].key   :[6000*units('m'), 1000*units('m')], # reversed
+            m['Range_m'].key        :[1000*units('km'), 5000*units('km')],
+            m['W_{p_m}'].key        :[1250*units('N'), 6250*units('N')],
+            m['\\rho_{p_m}'].key    :[1000*units('kg/m^3'), 2000*units('kg/m^3')],
+            m['C_m'].key            :[100*units('1/hr'), 200*units('1/hr')],
+            m['V_{min_m}'].key      :[15*units('m/s'), 45*units('m/s')],
+            m['T/O factor_m'].key   :[2, 3],
         }
         samples = 500
         solns, subs = sample_gpmodel(m, bounds, samples, verbosity=-1)
@@ -42,14 +43,15 @@ class TestSample(unittest.TestCase):
 
     def test_gen_X(self):
         a = Variable()
+        m = Mission(SimPleAC(), 4)
         basis = {
-            'h_{cruise_m}'   :5000*units('m'),
-            'Range_m'        :3000*units('km'),
-            'W_{p_m}'        :6250*units('N'),
-            '\\rho_{p_m}'    :1500*units('kg/m^3'),
-            'C_m'            :120*units('1/hr'),
-            'V_{min_m}'      :25*units('m/s'),
-            'T/O factor_m'   :2,
+            m['h_{cruise_m}'].key   :5000*units('m'),
+            m['Range_m'].key        :3000*units('km'),
+            m['W_{p_m}'].key        :6250*units('N'),
+            m['\\rho_{p_m}'].key    :1500*units('kg/m^3'),
+            m['C_m'].key            :120*units('1/hr'),
+            m['V_{min_m}'].key      :25*units('m/s'),
+            m['T/O factor_m'].key   :2,
             a                :3
         }
         subs = pickle.load(open("data/SimPleAC.subs", "rb"))

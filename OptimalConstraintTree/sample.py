@@ -8,6 +8,7 @@ from gpkit.small_scripts import mag
 from gpkit.exceptions import InvalidGPConstraint, Infeasible
 from gpkit.exceptions import UnknownInfeasible
 from gpkit import Monomial
+from gpkit.keydict import KeyDict
 import progressbar
 from time import sleep
 
@@ -96,12 +97,14 @@ def gen_X(subs, basis):
     """
     n_samples = len(subs)
     keys = list(basis.keys())
+    subs = [KeyDict(sub) for sub in subs]
+    basis = KeyDict(basis)
     X = np.zeros((n_samples, len(keys)))
     try:
         for i in range(n_samples):
             for j in range(len(keys)):
-                sub = subs[i][keys[j]]
-                base = basis[keys[j]]
+                sub = subs[i][keys[j].name]
+                base = basis[keys[j].name]
                 if type(base) is Monomial:
                     base = base.value
                 if type(sub) is Monomial:

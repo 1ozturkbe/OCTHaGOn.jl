@@ -12,9 +12,12 @@ from OptimalConstraintTree.tools import mergeDict
 import numpy as np
 from interpretableai import iai
 
+from pandas.core.frame import DataFrame as df
+
 class ConstraintTree:
     """ ConstraintTree class, containing the approximate constraints
-    from ORT models"""
+    from ORT models. Also includes many static models for tree
+    data and constraint generation. """
     basis = None
     solve_type = 'seq'
     epsilon = 0
@@ -26,6 +29,13 @@ class ConstraintTree:
     M = 10
 
     def __init__(self, lnr, dvar, ivars, **kwargs):
+        """
+        Init's a ConstraintTree.
+        :param lnr: OptimalRegressionTreeLearner
+        :param dvar: GPkit dependent monomial (dimensionless)
+        :param ivars: GPkit independent monomial (dimensionless)
+        :param kwargs:
+        """
         self.learner = lnr  # original PWL learner
         self.__dict__.update((key, value) for key, value in kwargs.items()
                              if key in kwarg_keys)
@@ -45,7 +55,9 @@ class ConstraintTree:
         self.constraints = {}
 
     def setup(self):
-        # Generating constraint data from ORT
+        """
+        Generates all relevant PWL and trust region data.
+        """
         self.pwl_data = self.pwl_constraint_data(self.learner)
         self.tr_data = self.trust_region_data(self.learner)
         if self.solve_type == "seq":
@@ -75,7 +87,7 @@ class ConstraintTree:
         """ Returns constraints for a particular leaf
         depending on the features (solution of free vars). """
         inps = np.array([np.log(mag(sol(var))) for var in self.ivars])
-        leaf_no = self.learner.apply([inps])
+        leaf_no = self.learner.apply(df(np.log(inps)))
         return self.constraints[leaf_no[0]]
 
     def piecewise_convexify(self, rms_threshold=0.01, max_threshold=0.02):
@@ -214,7 +226,6 @@ class ConstraintTree:
                              'formulations. Please reformulate and try again.')
         binary_var = VectorVariable(len(pwlDict), 'bin', '-', 'binary variable', bin=True)
         leaves = list(pwlDict.keys())
-        constraintDict = {leaf: [] for leaf in leaves}
         pwlConstraints = ConstraintTree.pwl_constraintify(pwlDict, dvar,
                                                           ivars, oper=oper)
         trConstraints = ConstraintTree.tr_constraintify(upperDict, lowerDict, ivars)

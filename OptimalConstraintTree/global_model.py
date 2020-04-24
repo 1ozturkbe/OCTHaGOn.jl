@@ -42,7 +42,9 @@ class GlobalModel(Model):
         if x0:
             xi = x0.copy()
         else:
-            xi = None
+            if verbosity >= 2:
+                print("Generating initial first guess.")
+            xi = self.sp_model.debug(verbosity=0)
         self.sps = []
         while prev_cost/new_cost - 1 >= reltol:
             constraints = self.sp_constraints.copy()

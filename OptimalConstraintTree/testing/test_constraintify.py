@@ -71,7 +71,7 @@ class TestConstraintify(unittest.TestCase):
         basesol = model.localsolve(verbosity=0)
         # Now replacing the drag model with a learner...
         constraints = [c for c in model.flat()]
-        constraints[-12:-8].clear()
+        del constraints[-12:-8]
         lnr = iai.read_json("data/airfoil_lnr.json")
         for i in range(len(model['C_D'])):
             dvar = model['C_D'][i]
