@@ -5,9 +5,8 @@ from gpkit import Variable, units
 import unittest
 from gpkit.tests.helpers import run_tests
 import pickle
-from gpkitmodels.SP.SimPleAC.SimPleAC_mission import *
-from gpkit.keydict import KeyDict
 
+from OptimalConstraintTree.testing.test_ort_models import prep_SimPleAC
 from OptimalConstraintTree.sample import sample_gpobj, sample_gpmodel
 from OptimalConstraintTree.sample import gen_X
 
@@ -24,8 +23,7 @@ class TestSample(unittest.TestCase):
             _, _ = sample_gpobj(gpobj, bounds, samples)
 
     def test_sample_gpmodel(self):
-        m = Mission(SimPleAC(), 4)
-        m.cost = m['W_{f_m}']*units('1/N') + m['C_m']*m['t_m']
+        m, basis = prep_SimPleAC()
         bounds = {
             m['h_{cruise_m}'].key   :[6000*units('m'), 1000*units('m')], # reversed
             m['Range_m'].key        :[1000*units('km'), 5000*units('km')],
@@ -43,21 +41,16 @@ class TestSample(unittest.TestCase):
 
     def test_gen_X(self):
         a = Variable()
-        m = Mission(SimPleAC(), 4)
-        basis = {
-            m['h_{cruise_m}'].key   :5000*units('m'),
-            m['Range_m'].key        :3000*units('km'),
-            m['W_{p_m}'].key        :6250*units('N'),
-            m['\\rho_{p_m}'].key    :1500*units('kg/m^3'),
-            m['C_m'].key            :120*units('1/hr'),
-            m['V_{min_m}'].key      :25*units('m/s'),
-            m['T/O factor_m'].key   :2,
-            a                :3
-        }
+        _, basis = prep_SimPleAC()
+        basis.update({a: 3})
         subs = pickle.load(open("data/SimPleAC.subs", "rb"))
-        with self.assertRaises(KeyError):
+        with self.assertRaises(AttributeError):
             gen_X(subs, basis)
         basis.pop(a)
+        basis.update({a.key: 3})
+        with self.assertRaises(KeyError):
+            gen_X(subs, basis)
+        basis.pop(a.key)
         _ = gen_X(subs, basis)
 
 TESTS = [TestSample]

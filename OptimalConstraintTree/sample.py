@@ -118,7 +118,7 @@ def gen_X(subs, basis):
                                      "don't match." % (i, keys[j]))
     except KeyError:
         raise KeyError("Substitutions and the basis have different "
-                         "keys. Please make uniform (Variable preferred) "
+                         "keys. Please make uniform (VarKey preferred) "
                          "and try again.")
     return X
 

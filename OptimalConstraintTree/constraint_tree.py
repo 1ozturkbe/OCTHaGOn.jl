@@ -7,7 +7,7 @@ from gpkit import Variable, VectorVariable, SignomialsEnabled
 from gpkit import SignomialEquality
 from gpkit.nomials import PosynomialInequality
 
-from OptimalConstraintTree.tools import mergeDict
+from OptimalConstraintTree.tools import mergeDict, check_units
 
 import numpy as np
 from interpretableai import iai
@@ -37,19 +37,15 @@ class ConstraintTree:
         :param kwargs:
         """
         self.learner = lnr  # original PWL learner
-        self.__dict__.update((key, value) for key, value in kwargs.items()
-                             if key in kwarg_keys)
+        self.__dict__.update((key, value) for key, value in kwargs.items())
         if self.basis:
-            self.dvar = dvar / self.basis[dvar.varkey]
-            self.ivars = [dvar / self.basis[ivar.varkey] for ivar in ivars]
+            self.dvar = dvar / self.basis[dvar.key]
+            self.ivars = [ivar / self.basis[ivar.key] for ivar in ivars]
         else:
             self.dvar = dvar
             self.ivars = ivars
-        for var in ivars: # TODO: include dvar checking in this.
-            if var.units:
-                raise ValueError('Monomial %s has units %s but'
-                                 'is required to be unitless. '
-                                 % (var, var.units))
+        check_units(self.dvar)
+        check_units(self.ivars)
         if not self.solve_type:
             self.solve_type = 'seq'  # Default sequential solver
         self.constraints = {}

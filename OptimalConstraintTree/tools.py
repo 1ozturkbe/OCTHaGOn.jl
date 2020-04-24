@@ -4,11 +4,14 @@ import sys, os
 import io
 import numpy as np
 
+from gpkit import units
 from gpfit.fit_constraintset import FitCS
 from gpkit.nomials import SignomialInequality
+from gpkit.keydict import KeyDict
 from gpkit.small_scripts import mag
 from gpkit import VectorVariable, Variable, Model
-from gpkit.nomials import NomialArray
+from gpkit.nomials import NomialArray, Nomial
+from gpkitmodels.SP.SimPleAC.SimPleAC_mission import Mission, SimPleAC
 
 text_trap = io.StringIO()
 
@@ -86,19 +89,27 @@ def constraints_from_bounds(bounds, gpinput):
     :return: list of PosynomialInequalities
     """
     if isinstance(gpinput, Model):
-        variables = [gpinput[varkey] for varkey in gpinput.varkeys]
-    elif isinstance(gpinput, NomialArray):
-        variables = gpinput
+        varkeys = KeyDict({varkey: gpinput[varkey.name] for varkey in bounds.keys()})
+    else:
+        raise ValueError("Other types of inputs currently not supported.")
+    # elif isinstance(gpinput, NomialArray):
+    #     varkeys = KeyDict({key})
+    # elif isinstance(gpinput, list):
+    #     varkeys = KeySet(bounds.keys())
     constraints = []
     for key, value in bounds.items():
         # Non-vector variables
+        if isinstance(value[0], Nomial):
+            value = [v.value for v in value]
         try:
-            constraints.extend([gpinput[key] <= max(value),
-                                gpinput[key] >= min(value)])
+            constraints.extend([gpinput[key.name] <= max(value),
+                                gpinput[key.name] >= min(value)])
         except KeyError:
-            constraints.extend([gpinput.variables_byname(key) <= max(value),
-                                gpinput.variables_byname(key) >= min(value)])
-    if 2*len(constraints) != len(bounds):
+            constraints.extend([gpinput.variables_byname(key.name) <= max(value),
+                                gpinput.variables_byname(key.name) >= min(value)])
+    for constr in constraints:
+        constr.bound = True
+    if len(constraints) != 2*len(bounds):
         raise ValueError("Number of bounding constraints does"
                          "not match the number of specified bounds.")
     return constraints
@@ -136,5 +147,37 @@ def mergeDict(dict1, dict2):
     for key, value in dict3.items():
         if key in dict1 and key in dict2:
             dict3[key] = value + dict1[key]
-
     return dict3
+
+def check_units(thing):
+    """
+    :param thing: Monomial or a collection of Monomials
+    :return:
+    """
+    if isinstance(thing, Nomial):
+        if thing.units:
+            raise ValueError('Monomial %s has units %s but '
+                             'is required to be unitless. '
+                             % (thing, thing.units))
+    if isinstance(set, list):
+        for one_thing in thing:
+            if one_thing.units:
+                raise ValueError('Monomial %s has units %s but '
+                     'is required to be unitless. '
+                     % (one_thing, one_thing.units))
+
+def prep_SimPleAC():
+    """ A useful model for tests. """
+    m = Mission(SimPleAC(), 4)
+    m.cost = m['W_{f_m}'] * units('1/N') + m['C_m'] * m['t_m']
+    basis = {
+        m['h_{cruise_m}'].key: 5000 * units('m'),
+        m['Range_m'].key: 3000 * units('km'),
+        m['W_{p_m}'].key: 6250 * units('N'),
+        m['\\rho_{p_m}'].key: 1500 * units('kg/m^3'),
+        m['C_m'].key: 120 * units('1/hr'),
+        m['V_{min_m}'].key: 25 * units('m/s'),
+        m['T/O factor_m'].key: 2,
+    }
+    m.substitutions.update(basis)
+    return m, basis
