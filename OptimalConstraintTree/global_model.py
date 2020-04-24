@@ -20,7 +20,7 @@ class GlobalModel(Model):
         Note: Do not forget substitutions required for ConstraintTrees and
         GP object fits.
     """
-    program = None
+    sps = None
 
     def __init__(self, cost, constraints, *args, **kwargs):
         self.cost = cost
@@ -34,22 +34,25 @@ class GlobalModel(Model):
                     tree.solve_type = value
                 tree.setup()
         print(cost)
-        self.sp_model = Model.__init__(cost, constraints, *args, **kwargs)
+        self.sp_model = Model(cost, self.sp_constraints, *args, **kwargs)
 
     def solve(self, verbosity=0, reltol=1e-3, x0=None):
         prev_cost = np.inf
         new_cost = 1e30
-        xi = x0.copy()
-        self.program.sps = []
+        if x0:
+            xi = x0.copy()
+        else:
+            xi = None
+        self.sps = []
         while prev_cost/new_cost - 1 >= reltol:
             constraints = self.sp_constraints.copy()
             for tree in self.trees:
                 constraints.extend(tree.get_leaf_constraints(xi))
-            self.program.sps.append(Model(self.cost, constraints, self.sp_model.substitutions))
+            self.sps.append(Model(self.cost, constraints, self.sp_model.substitutions))
             try:
-                xi = self.program.sps[-1].solve(verbosity=verbosity)
+                xi = self.sps[-1].solve(verbosity=verbosity)
             except InvalidGPConstraint:
-                xi = self.program.sps[-1].localsolve(verbosity=verbosity)
+                xi = self.sps[-1].localsolve(verbosity=verbosity)
             prev_cost = new_cost
             new_cost = mag(xi['cost'])
         return xi

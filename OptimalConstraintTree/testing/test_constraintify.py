@@ -51,9 +51,9 @@ class TestConstraintify(unittest.TestCase):
         sp_constraints = find_signomials(model)
         sp_variables = get_variables(sp_constraints)
 
-        # Get variable bounds
+        # Get variable bounds and constraintify those
         solutions = pickle.load(open("data/SimPleAC.sol", "rb"))
-        bounds = get_bounds(model, solutions)
+        bounds = get_bounds(solutions)
 
     def test_SimPleAC_with_treeconstraint(self):
         model = Mission(SimPleAC(),4)
@@ -73,19 +73,16 @@ class TestConstraintify(unittest.TestCase):
         constraints = [c for c in model.flat()]
         constraints[-12:-8].clear()
         lnr = iai.read_json("data/airfoil_lnr.json")
-        cts = []
         for i in range(len(model['C_D'])):
             dvar = model['C_D'][i]
             ivars = [model['Re'][i], model['\\tau'],
                      model['V'][i]/(1.4*287*units('J/kg/K')*250*units('K'))**0.5,
                      model['C_L'][i]]
             ct = ConstraintTree(lnr, dvar, ivars)
-            cts.append(ct)
-            # Check that we can get corresponding GP constraints
-            # from a previous solution
+            constraints.append(ct)
 
-        gm = GlobalModel(model.cost, [constraints, cts], model.substitutions)
-        sol = gm.solve(verbosity=0, solve_type='seq')
+        gm = GlobalModel(model.cost, constraints, model.substitutions)
+        sol = gm.solve(verbosity=0)
 
 TESTS = [TestConstraintify]
 
