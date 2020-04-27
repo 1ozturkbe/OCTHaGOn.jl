@@ -86,16 +86,19 @@ class TestConstraintify(unittest.TestCase):
 
         basis[dvar.key] = basesol['cost']
         fit_constraint = constraint_from_gpfit(cstrt, dvar, ivars, basis)
+        basis.pop(dvar.key)
         m = Model(dvar, [fit_constraint], basis)
         fitsol = m.solve(verbosity=0, reltol=1e-6)
         self.assertAlmostEqual(basesol['cost'] / fitsol['cost'], 1, places=2)
 
         # Now with trees
         lnr = iai.read_json("data/SimPleAC_lnr.json")
+        basis[dvar.key] = basesol['cost']
         ct = ConstraintTree(lnr, dvar, ivars, basis=basis)
         bounds = pickle.load(open("data/SimPleAC.bounds", "rb"))
         bounding_constraints = constraints_from_bounds(bounds, m)
-        gm = GlobalModel(dvar, [bounding_constraints], basis)
+        gm = GlobalModel(dvar, [bounding_constraints, ct], basis)
+        sol = gm.solve(verbosity=2)
 
 TESTS = [TestConstraintify]
 

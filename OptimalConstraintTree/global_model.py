@@ -2,11 +2,14 @@ import numpy as np
 from time import time
 
 from gpkit import Model
-from gpkit.exceptions import InvalidGPConstraint
+from gpkit.exceptions import (InvalidGPConstraint, Infeasible,
+                              InvalidSGPConstraint)
 from gpkit.small_scripts import mag
 
 from OptimalConstraintTree.constraint_tree import ConstraintTree
+from OptimalConstraintTree.tools import flatten
 from gpkit import ConstraintSet
+from gpkit.keydict import KeySet
 
 class GlobalModel(Model):
     """ Extends the GPkit Model class to be able to accommodate
@@ -23,22 +26,43 @@ class GlobalModel(Model):
         GP object fits.
     """
     sps = None
+    gp_vars = None
+    sp_vars = None
+    tree_vars = None
 
     def __init__(self, cost, constraints, *args, **kwargs):
         self.cost = cost
-        self.trees = [c for c in constraints if isinstance(c, ConstraintTree)]
-        self.sp_constraints = ConstraintSet([c for c in constraints if not isinstance(c, ConstraintTree)])
-        # self.treevars = set([[tree.dvar, ivar for ivar in tree.ivars]
-        #                     for tree in self.trees])
+        self.classify_constraints(constraints)
+        self.substitutions = kwargs.pop("substitutions", None)
         for key, value in kwargs.items():
             if key == 'solve_type':
-                for tree in self.trees:
+                for tree in self.constraints['trees']:
                     tree.solve_type = value
-                tree.setup()
-        print(cost)
-        self.sp_model = Model(cost, self.sp_constraints, *args, **kwargs)
+                    tree.setup()
+        self.sp_model = Model(cost, [self.constraints['gp_constraints'],
+                                     self.constraints['sp_constraints']],
+                              self.substitutions, *args, **kwargs)
 
-    def solve(self, verbosity=0, reltol=1e-3, x0=None):
+    def classify_constraints(self, constraints):
+        self.constraints = {'trees': [],
+                       'sp_constraints': [],
+                       'gp_constraints': []}
+        self.gp_vars, self.sp_vars, self.tree_vars = set(), set(), set()
+        for constr in flatten(constraints):
+            if isinstance(constr, ConstraintTree):
+                self.tree_vars.update(constr.varkeys)
+                self.constraints['trees'].append(constr)
+            elif hasattr(constr, 'as_gpconstr'):
+                self.sp_vars.update(constr.varkeys)
+                self.constraints['sp_constraints'].append(constr)
+            elif hasattr(constr, 'as_hmapslt1'):
+                self.gp_vars.update(constr.varkeys)
+                self.constraints['gp_constraints'].append(constr)
+            else:
+                raise Warning("Constraint %s could not be "
+                              "classified." % constr)
+
+    def solve(self, verbosity=0, reltol=1e-3, x0=None, iteration_limit=50):
         """
         Solves GlobalModel using defined solve_type (currently
         only works as a sequential SP solver).
@@ -51,7 +75,7 @@ class GlobalModel(Model):
         self.sps, self.solver_outs, self._results = [], [], []
         starttime = time()
         if verbosity > 0:
-            print("Starting a sequence of GlobalModel solves")
+            print("Starting a sequence of GlobalModel solves...")
             # print(" for %i free variables" % len(self.sgpvks))
             # print("  in %i locally-GP constraints" % len(self.sgpconstraints))
             # print("  and for %i free variables" % len(self._gp.varlocs))
@@ -63,24 +87,20 @@ class GlobalModel(Model):
                 print("Generating initial first guess using provided SP"
                       "constraints and bounds.")
             xi = self.sp_model.debug(verbosity=0)
-        self.sps = []
 
         # Starting solve...
-        prev_cost = np.inf
-        new_cost = 1e30
-        # prevcost, cost, rel_improvement = None, None, None
-        # while rel_improvement is None or rel_improvement > reltol:
-        #     prevcost = cost
-        #     if len(self.gps) > iteration_limit:
-        #         raise Infeasible(
-        #             "Unsolved after %s iterations. Check `m.program.results`;"
-        #             " if they're converging, try `.localsolve(...,"
-        #             " iteration_limit=NEWLIMIT)`." % len(self.gps))
-        while prev_cost/new_cost - 1 >= reltol:
-            constraints = self.sp_constraints.copy()
-            for tree in self.trees:
-                constraints.extend(tree.get_leaf_constraints(xi))
-            self.sps.append(Model(self.cost, constraints, self.sp_model.substitutions))
+        prevcost, cost, rel_improvement = None, None, None
+        base_constraints = self.constraints['gp_constraints']
+        base_constraints.append(self.constraints['sp_constraints'])
+        while rel_improvement is None or rel_improvement > reltol:
+            prevcost = cost
+            if len(self.sps) > iteration_limit:
+                raise Infeasible(
+                    "Unsolved after %s iterations. Check `m.sps` to check"
+                    " if solutions they're converging." % len(self.sps))
+            tree_constraints = [tree.get_leaf_constraints(xi) for tree in self.constraints['trees']]
+            self.sps.append(Model(self.cost, [base_constraints, tree_constraints],
+                                  self.substitutions))
             try:
                 xi = self.sps[-1].solve(verbosity=verbosity)
             except InvalidGPConstraint:

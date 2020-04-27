@@ -128,16 +128,15 @@ def constraint_from_gpfit(fitcs, dvar, ivars, basis=None):
     try:
         nondim_dvar = dvar/basis[dvar.key]
     except KeyError:
-        raise KeyError("Independent variable %s "
-                       "is not in the basis to be "
+        raise KeyError("Dependent variable %s "
+                       "is not properly "
                        "normalized" % dvar.key)
-    basis.pop(dvar.key)
     try:
-        nondim_ivars = [ivars[i]/basis[basis_keys[i]] for i in range(len(basis.keys()))]
+        nondim_ivars = [ivar/basis[ivar.key] for ivar in ivars]
     except KeyError:
         raise KeyError("There is a dependent variable "
                        "missing in the basis, or there is an "
-                       "incorrect type. ")
+                       "incorrect normalization.")
     new_fitcs = FitCS(fitcs.fitdata, nondim_dvar, nondim_ivars)
     return new_fitcs
 
@@ -181,3 +180,11 @@ def prep_SimPleAC():
     }
     m.substitutions.update(basis)
     return m, basis
+
+def flatten(container):
+    for i in container:
+        if isinstance(i, (list,tuple)):
+            for j in flatten(i):
+                yield j
+        else:
+            yield i

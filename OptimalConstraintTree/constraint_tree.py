@@ -6,6 +6,7 @@ from gpkit.small_scripts import mag
 from gpkit import Variable, VectorVariable, SignomialsEnabled
 from gpkit import SignomialEquality
 from gpkit.nomials import PosynomialInequality
+from gpkit.keydict import KeySet
 
 from OptimalConstraintTree.tools import mergeDict, check_units
 
@@ -27,6 +28,7 @@ class ConstraintTree:
     tr_constraints = None
     pwl_constraints = None
     M = 10
+    varkeys = None
 
     def __init__(self, lnr, dvar, ivars, **kwargs):
         """
@@ -37,15 +39,17 @@ class ConstraintTree:
         :param kwargs:
         """
         self.learner = lnr  # original PWL learner
+        self.dvar = dvar
+        self.ivars = ivars
         self.__dict__.update((key, value) for key, value in kwargs.items())
         if self.basis:
-            self.dvar = dvar / self.basis[dvar.key]
-            self.ivars = [ivar / self.basis[ivar.key] for ivar in ivars]
+            self.norm_dvar = dvar / self.basis[dvar.key]
+            self.norm_ivars = [ivar / self.basis[ivar.key] for ivar in ivars]
         else:
-            self.dvar = dvar
-            self.ivars = ivars
-        check_units(self.dvar)
-        check_units(self.ivars)
+            self.norm_dvar = dvar
+            self.norm_ivars = ivars
+        check_units(self.norm_dvar)
+        check_units(self.norm_ivars)
         if not self.solve_type:
             self.solve_type = 'seq'  # Default sequential solver
         self.constraints = {}
@@ -59,18 +63,18 @@ class ConstraintTree:
         if self.solve_type == "seq":
             self.constraints = mergeDict(self.tr_constraintify(self.tr_data[0],
                                                         self.tr_data[1],
-                                                        self.ivars,
+                                                        self.norm_ivars,
                                                         self.epsilon),
                                          self.pwl_constraintify(self.pwl_data,
-                                                          self.dvar,
-                                                          self.ivars,
+                                                          self.norm_dvar,
+                                                          self.norm_ivars,
                                                           self.oper))
         elif self.solve_type == "mi":
             self.constraints = self.bigM_constraintify(self.tr_data[0],
                                                        self.tr_data[1],
                                                        self.pwl_data,
-                                                       self.dvar,
-                                                       self.ivars,
+                                                       self.norm_dvar,
+                                                       self.norm_ivars,
                                                        oper=self.oper,
                                                        M=self.M)
         elif self.solve_type == "global":
@@ -78,11 +82,18 @@ class ConstraintTree:
         else:
             raise ValueError("ConstraintTree with solver type %s "
                              "is not supported." % self.solve_type)
+    @property
+    def varkeys(self):
+        if self.varkeys is None:
+            vks = [var.key for var in ivars]
+            vks.append(dvar.key)
+            self.varkeys = KeySet(vks)
+        return self.varkeys
 
     def get_leaf_constraints(self, sol):
         """ Returns constraints for a particular leaf
         depending on the features (solution of free vars). """
-        inps = np.array([np.log(mag(sol(var))) for var in self.ivars])
+        inps = np.array([np.log(mag(sol(var))) for var in self.norm_ivars])
         leaf_no = self.learner.apply(df(np.log(inps)))
         return self.constraints[leaf_no[0]]
 
