@@ -19,6 +19,7 @@ class ConstraintTree:
     """ ConstraintTree class, containing the approximate constraints
     from ORT models. Also includes many static models for tree
     data and constraint generation. """
+    # pylint: disable=too-many-instance-attributes
     basis = None
     solve_type = 'seq'
     epsilon = 0
@@ -28,23 +29,31 @@ class ConstraintTree:
     tr_constraints = None
     pwl_constraints = None
     M = 10
-    varkeys = None
+    _varkeys = None
 
     def __init__(self, lnr, dvar, ivars, **kwargs):
         """
         Init's a ConstraintTree.
         :param lnr: OptimalRegressionTreeLearner
-        :param dvar: GPkit dependent monomial (dimensionless)
-        :param ivars: GPkit independent monomial (dimensionless)
-        :param kwargs:
+        :param dvar: GPkit dependent monomial
+        :param ivars: GPkit independent monomial
+        :param kwargs: basis required if dvar and ivars are not dimensionless
         """
         self.learner = lnr  # original PWL learner
+        self.norm_dvar = None
+        self.norm_ivars = []
         self.dvar = dvar
         self.ivars = ivars
         self.__dict__.update((key, value) for key, value in kwargs.items())
         if self.basis:
-            self.norm_dvar = dvar / self.basis[dvar.key]
-            self.norm_ivars = [ivar / self.basis[ivar.key] for ivar in ivars]
+            if self.dvar.units:
+                self.norm_dvar = dvar / self.basis[dvar.key]
+            self.norm_ivars = []
+            for ivar in self.ivars:
+                if ivar.units:
+                    self.norm_ivars.append(ivar / self.basis[ivar.key])
+                else:
+                    self.norm_ivars.append(ivar)
         else:
             self.norm_dvar = dvar
             self.norm_ivars = ivars
@@ -84,11 +93,11 @@ class ConstraintTree:
                              "is not supported." % self.solve_type)
     @property
     def varkeys(self):
-        if self.varkeys is None:
-            vks = [var.key for var in ivars]
-            vks.append(dvar.key)
-            self.varkeys = KeySet(vks)
-        return self.varkeys
+        if self._varkeys is None:
+            vks = [var.key for var in self.ivars]
+            vks.append(self.dvar.key)
+            self._varkeys = KeySet(vks)
+        return self._varkeys
 
     def get_leaf_constraints(self, sol):
         """ Returns constraints for a particular leaf

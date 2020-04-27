@@ -13,10 +13,10 @@ import pickle
 from OptimalConstraintTree.constraint_tree import ConstraintTree
 from OptimalConstraintTree.global_model import GlobalModel
 from OptimalConstraintTree.sample import gen_X
-from OptimalConstraintTree.tools import find_signomials, prep_SimPleAC, \
+from OptimalConstraintTree.tools import (find_signomials, prep_SimPleAC,
                                         get_variables, get_bounds, \
                                         constraints_from_bounds, \
-                                        constraint_from_gpfit
+                                        constraint_from_gpfit)
 
 class TestConstraintify(unittest.TestCase):
     def test_monomials_from_pwl_data(self):
@@ -98,7 +98,7 @@ class TestConstraintify(unittest.TestCase):
         bounds = pickle.load(open("data/SimPleAC.bounds", "rb"))
         bounding_constraints = constraints_from_bounds(bounds, m)
         gm = GlobalModel(dvar, [bounding_constraints, ct], basis)
-        sol = gm.solve(verbosity=2)
+        # sol = gm.solve(verbosity=2)
 
 TESTS = [TestConstraintify]
 
@@ -106,4 +106,31 @@ def test():
     run_tests(TESTS)
 
 if __name__ == "__main__":
-    test()
+    # test()
+    m, basis = prep_SimPleAC()
+    # Replicate GP model with new models
+    basesol = m.localsolve(verbosity=0)
+    dvar = Variable('cost')
+    ivars = [m[var] for var in list(basis.keys())]
+
+    # Fitting GPfit model
+    solns = pickle.load(open("data/SimPleAC.sol", "rb"))
+    subs = pickle.load(open("data/SimPleAC.subs", "rb"))
+    X = gen_X(subs, basis)
+    Y = [mag(soln['cost'] / basesol['cost']) for soln in solns]
+    cstrt, rms = fit(np.log(np.transpose(X)), np.log(Y), 4, 'SMA')
+
+    basis[dvar.key] = basesol['cost']
+    fit_constraint = constraint_from_gpfit(cstrt, dvar, ivars, basis)
+    basis.pop(dvar.key)
+    m = Model(dvar, [fit_constraint], basis)
+    fitsol = m.solve(verbosity=0, reltol=1e-6)
+
+    # Now with trees
+    lnr = iai.read_json("data/SimPleAC_lnr.json")
+    basis[dvar.key] = basesol['cost']
+    ct = ConstraintTree(lnr, dvar, ivars, basis=basis)
+    print(ct.varkeys)
+    # bounds = pickle.load(open("data/SimPleAC.bounds", "rb"))
+    # bounding_constraints = constraints_from_bounds(bounds, m)
+    # gm = GlobalModel(dvar, [bounding_constraints, ct], basis)
