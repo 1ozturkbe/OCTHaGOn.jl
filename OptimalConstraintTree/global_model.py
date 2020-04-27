@@ -43,7 +43,7 @@ class GlobalModel(Model):
                     tree.setup()
         self.sp_model = Model(cost, [self.constraints['gp_constraints'],
                                      self.constraints['sp_constraints']],
-                              self.substitutions, *args, **kwargs)
+                              substitutions=self.substitutions, *args, **kwargs)
 
     def classify_constraints(self, constraints):
         self.constraints = {'trees': [],
@@ -101,7 +101,9 @@ class GlobalModel(Model):
                 raise Infeasible(
                     "Unsolved after %s iterations. Check `m.sps` to check"
                     " if solutions they're converging." % len(self.sps))
-            tree_constraints = [tree.get_leaf_constraints(xi) for tree in self.constraints['trees']]
+            tree_constraints = []
+            for tree in self.constraints['trees']:
+                tree_constraints.append(tree.get_leaf_constraints(xi))
             self.sps.append(Model(self.cost, [base_constraints, tree_constraints],
                                   self.substitutions))
             if verbosity > 1:

@@ -33,6 +33,8 @@ class TestConstraintify(unittest.TestCase):
         self.assertEqual(test_constr.as_hmapslt1({}),
                          constraintDict[1][0].as_hmapslt1({}))
 
+        # Testing tree
+
     def test_ConstraintTree_sp_constraints(self):
         """
         Tests ConstraintTree generation from SP constraints
@@ -130,7 +132,7 @@ if __name__ == "__main__":
     lnr = iai.read_json("data/SimPleAC_lnr.json")
     basis[dvar.key] = basesol['cost']
     ct = ConstraintTree(lnr, dvar, ivars, basis=basis)
-    print(ct.varkeys)
-    # bounds = pickle.load(open("data/SimPleAC.bounds", "rb"))
-    # bounding_constraints = constraints_from_bounds(bounds, m)
-    # gm = GlobalModel(dvar, [bounding_constraints, ct], basis)
+    bounds = pickle.load(open("data/SimPleAC.bounds", "rb"))
+    bounding_constraints = constraints_from_bounds(bounds, m)
+    gm = GlobalModel(dvar, [bounding_constraints, ct], basis)
+    sol = gm.solve(verbosity=0)

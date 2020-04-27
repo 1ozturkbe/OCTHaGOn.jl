@@ -102,8 +102,9 @@ class ConstraintTree:
     def get_leaf_constraints(self, sol):
         """ Returns constraints for a particular leaf
         depending on the features (solution of free vars). """
-        inps = np.array([np.log(mag(sol(var))) for var in self.norm_ivars])
-        leaf_no = self.learner.apply(df(np.log(inps)))
+        inps = df(np.array([np.log(mag(sol(var))) for var in self.norm_ivars]))
+        inps = inps.transpose()
+        leaf_no = self.learner.apply(inps.as_matrix())
         return self.constraints[leaf_no[0]]
 
     def piecewise_convexify(self, rms_threshold=0.01, max_threshold=0.02):
