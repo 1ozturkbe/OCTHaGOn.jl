@@ -46,31 +46,32 @@ class TestConstraintify(unittest.TestCase):
         sp_constraints = find_signomials(m)
         sp_variables = get_varkeys(sp_constraints)
     #
-    # def test_SimPleAC_with_treeconstraint(self):
-    #     m, basis = prep_SimPleAC()
-    #     basesol = m.localsolve(verbosity=0)
-    #
-    #     # Now replacing the drag model with a learner...
-    #     constraints = [c for c in m.flat()]
-    #     del constraints[-12:-8]
-    #     lnr = iai.read_json("data/airfoil_lnr.json")
-    #     for i in range(len(m['C_D'])):
-    #         dvar = m['C_D'][i]
-    #         ivars = [m['Re'][i], m['\\tau'],
-    #                  m['V'][i]/(1.4*287*units('J/kg/K')*250*units('K'))**0.5,
-    #                  m['C_L'][i]]
-    #         ct = ConstraintTree(lnr, dvar, ivars)
-    #         constraints.append(ct)
-    #
-    #     # Get variable bounds and constraintify those
-    #     solutions = pickle.load(open("data/SimPleAC.sol", "rb"))
-    #     bounds = get_bounds(solutions)
-    #     bounding_constraints = constraints_from_bounds(bounds, m)
-    #
-    #     gm = GlobalModel(m.cost,
-    #                      [constraints, bounding_constraints],
-    #                      m.substitutions)
-    #     sol = gm.solve(verbosity=0)
+    def test_SimPleAC_with_treeconstraint(self):
+        m, basis = prep_SimPleAC()
+        basesol = m.localsolve(verbosity=0)
+
+        # Now replacing the drag model with a learner...
+        constraints = [c for c in m.flat()]
+        del constraints[-12:-8]
+        lnr = iai.read_json("data/solar_airfoil_lnr.json")
+        subs = m.substitutions.copy()
+        for i in range(len(m['C_D'])):
+            basis = {m['Re'][i].key: 1.5e6,
+                     m['\\tau'].key:0.12}
+            dvar = m['C_D'][i]
+            ivars = [m['Re'][i],
+                     m['\\tau'],
+                     m['C_L'][i]]
+            bounds = {
+                m['Re'][i].key: [5e5,3e6],
+                m['\\tau'].key: [0.08, 0.23],
+                m['C_L'][i].key: [0.33, 2.0],
+            }
+            ct = ConstraintTree(lnr, dvar, ivars, basis=basis)
+            constraints.append(ct)
+            constraints.append(constraints_from_bounds(bounds, m))
+        gm = GlobalModel(m.cost, constraints, subs)
+        sol = gm.solve(verbosity=0)
 
     def test_SimPleAC_with_surrogate_tree(self):
         m, basis = prep_SimPleAC()

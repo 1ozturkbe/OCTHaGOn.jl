@@ -90,10 +90,10 @@ class TestORTModels(unittest.TestCase):
         # Splitting and training tree over data
         grid = train_trees(np.transpose(X), Y, seed=314,
                            regression_sparsity='all',
-                           fast_num_support_restarts=2,
-                           regression_lambda=[0.00001],
-                           max_depth=[2],
-                           minbucket=[0.05],
+                           fast_num_support_restarts=1,
+                           regression_lambda=[0.001],
+                           max_depth=[3],
+                           minbucket=[0.10],
                            hyperplane_config=[{'sparsity': 1}])
         lnr = grid.get_learner()
         lnr.write_json("data/solar_airfoil_lnr.json") # Saving for later use
@@ -113,9 +113,7 @@ class TestORTModels(unittest.TestCase):
             Y = [r.value for r in res]
             X = gen_X(subs, basis)
             # GP fit
-            # blockPrint()
             cstrt, rms = fit(np.log(np.transpose(X)), np.log(Y), 2, 'SMA')
-            # enablePrint()
             self.assertAlmostEqual(rms, 0, places=5)
             # Tree fit
             grid = train_trees(np.log(X), np.log(Y), max_depth=5)
