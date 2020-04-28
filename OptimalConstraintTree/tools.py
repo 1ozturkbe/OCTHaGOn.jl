@@ -49,7 +49,7 @@ def find_signomials(model):
     """
     return [i for i in model.flat() if isinstance(i, SignomialInequality)]
 
-def get_variables(constraints):
+def get_varkeys(constraints):
     """
     Finds all of the variables in the constraints
     :param constraints: GPkit constraints

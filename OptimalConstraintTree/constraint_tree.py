@@ -48,6 +48,8 @@ class ConstraintTree:
         if self.basis:
             if self.dvar.units:
                 self.norm_dvar = dvar / self.basis[dvar.key]
+            else:
+                self.norm_dvar = dvar
             self.norm_ivars = []
             for ivar in self.ivars:
                 if ivar.units:
@@ -61,9 +63,9 @@ class ConstraintTree:
         check_units(self.norm_ivars)
         if not self.solve_type:
             self.solve_type = 'seq'  # Default sequential solver
-        self.constraints = {}
+        self.constraintify()
 
-    def setup(self):
+    def constraintify(self):
         """
         Generates all relevant PWL and trust region data.
         """
@@ -104,7 +106,7 @@ class ConstraintTree:
         depending on the features (solution of free vars). """
         inps = df(np.array([np.log(mag(sol(var))) for var in self.norm_ivars]))
         inps = inps.transpose()
-        leaf_no = self.learner.apply(inps.as_matrix())
+        leaf_no = self.learner.apply(inps.values)
         return self.constraints[leaf_no[0]]
 
     def piecewise_convexify(self, rms_threshold=0.01, max_threshold=0.02):
@@ -232,7 +234,11 @@ class ConstraintTree:
                                  "approximation dimension.")
             mono = np.prod([ivars[j] ** value[1][j]
                             for j in range(len(value[1]))]).value
-            constraintDict[key] = [PosynomialInequality(dvar, oper, c * mono)]
+            try:
+                constraintDict[key] = [PosynomialInequality(dvar, oper, c * mono)]
+            except:
+                print("Culprits are: \n %s, \n %s, and \n %s ..." %
+                      (dvar, oper, c*mono))
         return constraintDict
 
     @staticmethod

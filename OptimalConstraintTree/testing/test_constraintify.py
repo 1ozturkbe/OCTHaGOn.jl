@@ -14,7 +14,7 @@ from OptimalConstraintTree.constraint_tree import ConstraintTree
 from OptimalConstraintTree.global_model import GlobalModel
 from OptimalConstraintTree.sample import gen_X
 from OptimalConstraintTree.tools import (find_signomials, prep_SimPleAC,
-                                        get_variables, get_bounds, \
+                                        get_varkeys, get_bounds, \
                                         constraints_from_bounds, \
                                         constraint_from_gpfit)
 
@@ -44,39 +44,39 @@ class TestConstraintify(unittest.TestCase):
 
         # Identify signomial constraints
         sp_constraints = find_signomials(m)
-        sp_variables = get_variables(sp_constraints)
-
-    def test_SimPleAC_with_treeconstraint(self):
-        m, basis = prep_SimPleAC()
-        basesol = m.localsolve(verbosity=0)
-
-        # Now replacing the drag model with a learner...
-        constraints = [c for c in m.flat()]
-        del constraints[-12:-8]
-        lnr = iai.read_json("data/airfoil_lnr.json")
-        for i in range(len(m['C_D'])):
-            dvar = m['C_D'][i]
-            ivars = [m['Re'][i], m['\\tau'],
-                     m['V'][i]/(1.4*287*units('J/kg/K')*250*units('K'))**0.5,
-                     m['C_L'][i]]
-            ct = ConstraintTree(lnr, dvar, ivars)
-            constraints.append(ct)
-
-        # Get variable bounds and constraintify those
-        solutions = pickle.load(open("data/SimPleAC.sol", "rb"))
-        bounds = get_bounds(solutions)
-        bounding_constraints = constraints_from_bounds(bounds, m)
-
-        gm = GlobalModel(m.cost,
-                         [constraints, bounding_constraints],
-                         m.substitutions)
-        sol = gm.solve(verbosity=0)
+        sp_variables = get_varkeys(sp_constraints)
+    #
+    # def test_SimPleAC_with_treeconstraint(self):
+    #     m, basis = prep_SimPleAC()
+    #     basesol = m.localsolve(verbosity=0)
+    #
+    #     # Now replacing the drag model with a learner...
+    #     constraints = [c for c in m.flat()]
+    #     del constraints[-12:-8]
+    #     lnr = iai.read_json("data/airfoil_lnr.json")
+    #     for i in range(len(m['C_D'])):
+    #         dvar = m['C_D'][i]
+    #         ivars = [m['Re'][i], m['\\tau'],
+    #                  m['V'][i]/(1.4*287*units('J/kg/K')*250*units('K'))**0.5,
+    #                  m['C_L'][i]]
+    #         ct = ConstraintTree(lnr, dvar, ivars)
+    #         constraints.append(ct)
+    #
+    #     # Get variable bounds and constraintify those
+    #     solutions = pickle.load(open("data/SimPleAC.sol", "rb"))
+    #     bounds = get_bounds(solutions)
+    #     bounding_constraints = constraints_from_bounds(bounds, m)
+    #
+    #     gm = GlobalModel(m.cost,
+    #                      [constraints, bounding_constraints],
+    #                      m.substitutions)
+    #     sol = gm.solve(verbosity=0)
 
     def test_SimPleAC_with_surrogate_tree(self):
         m, basis = prep_SimPleAC()
         # Replicate GP model with new models
         basesol = m.localsolve(verbosity=0)
-        dvar = Variable('cost')
+        dvar = m['W_{f_m}']
         ivars = [m[var] for var in list(basis.keys())]
 
         # Fitting GPfit model
@@ -86,21 +86,20 @@ class TestConstraintify(unittest.TestCase):
         Y = [mag(soln['cost'] / basesol['cost']) for soln in solns]
         cstrt, rms = fit(np.log(np.transpose(X)), np.log(Y), 4, 'SMA')
 
-        basis[dvar.key] = basesol['cost']
+        basis[dvar.key] = basesol('W_{f_m}')
         fit_constraint = constraint_from_gpfit(cstrt, dvar, ivars, basis)
         basis.pop(dvar.key)
         m = Model(dvar, [fit_constraint], basis)
         fitsol = m.solve(verbosity=0, reltol=1e-6)
-        self.assertAlmostEqual(basesol['cost'] / fitsol['cost'], 1, places=2)
 
         # Now with trees
         lnr = iai.read_json("data/SimPleAC_lnr.json")
-        basis[dvar.key] = basesol['cost']
+        basis[dvar.key] =  basesol('W_{f_m}')
         ct = ConstraintTree(lnr, dvar, ivars, basis=basis)
         bounds = pickle.load(open("data/SimPleAC.bounds", "rb"))
         bounding_constraints = constraints_from_bounds(bounds, m)
         gm = GlobalModel(dvar, [bounding_constraints, ct], basis)
-        # sol = gm.solve(verbosity=2)
+        sol = gm.solve(verbosity=0)
 
 TESTS = [TestConstraintify]
 
@@ -108,31 +107,4 @@ def test():
     run_tests(TESTS)
 
 if __name__ == "__main__":
-    # test()
-    m, basis = prep_SimPleAC()
-    # Replicate GP model with new models
-    basesol = m.localsolve(verbosity=0)
-    dvar = Variable('cost')
-    ivars = [m[var] for var in list(basis.keys())]
-
-    # Fitting GPfit model
-    solns = pickle.load(open("data/SimPleAC.sol", "rb"))
-    subs = pickle.load(open("data/SimPleAC.subs", "rb"))
-    X = gen_X(subs, basis)
-    Y = [mag(soln['cost'] / basesol['cost']) for soln in solns]
-    cstrt, rms = fit(np.log(np.transpose(X)), np.log(Y), 4, 'SMA')
-
-    basis[dvar.key] = basesol['cost']
-    fit_constraint = constraint_from_gpfit(cstrt, dvar, ivars, basis)
-    basis.pop(dvar.key)
-    m = Model(dvar, [fit_constraint], basis)
-    fitsol = m.solve(verbosity=0, reltol=1e-6)
-
-    # Now with trees
-    lnr = iai.read_json("data/SimPleAC_lnr.json")
-    basis[dvar.key] = basesol['cost']
-    ct = ConstraintTree(lnr, dvar, ivars, basis=basis)
-    bounds = pickle.load(open("data/SimPleAC.bounds", "rb"))
-    bounding_constraints = constraints_from_bounds(bounds, m)
-    gm = GlobalModel(dvar, [bounding_constraints, ct], basis)
-    sol = gm.solve(verbosity=0)
+    test()
