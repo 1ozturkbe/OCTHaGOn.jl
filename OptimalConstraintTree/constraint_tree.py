@@ -21,6 +21,7 @@ class ConstraintTree:
     data and constraint generation. """
     # pylint: disable=too-many-instance-attributes
     basis = None
+    bounds = None
     solve_type = 'seq'
     epsilon = 0
     oper = '>='
@@ -46,13 +47,13 @@ class ConstraintTree:
         self.ivars = ivars
         self.__dict__.update((key, value) for key, value in kwargs.items())
         if self.basis:
-            if self.dvar.units:
+            if dvar.key in self.basis.keys():
                 self.norm_dvar = dvar / self.basis[dvar.key]
             else:
                 self.norm_dvar = dvar
             self.norm_ivars = []
             for ivar in self.ivars:
-                if ivar.units:
+                if ivar.key in self.basis.keys():
                     self.norm_ivars.append(ivar / self.basis[ivar.key])
                 else:
                     self.norm_ivars.append(ivar)
@@ -63,7 +64,13 @@ class ConstraintTree:
         check_units(self.norm_ivars)
         if not self.solve_type:
             self.solve_type = 'seq'  # Default sequential solver
-        self.constraintify()
+        try:
+            self.constraintify()
+        except OverflowError:
+            print("The learner %s \n has regression coefficients "
+                  "that are too large. "
+                  "Please increase the regression_lambda and "
+                  "try again. " % self.learner)
 
     def constraintify(self):
         """
