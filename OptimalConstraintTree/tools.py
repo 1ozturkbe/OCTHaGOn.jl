@@ -101,12 +101,12 @@ def constraints_from_bounds(bounds, gpinput):
         # Non-vector variables
         if isinstance(value[0], Nomial):
             value = [v.value for v in value]
-        try:
+        if key.shape:
+            constraints.extend([gpinput[key.name][key.descr['idx'][0]] <= max(value),
+                                gpinput[key.name][key.descr['idx'][0]] >= min(value)])
+        else:
             constraints.extend([gpinput[key.name] <= max(value),
                                 gpinput[key.name] >= min(value)])
-        except KeyError:
-            constraints.extend([gpinput.variables_byname(key.name) <= max(value),
-                                gpinput.variables_byname(key.name) >= min(value)])
     for constr in constraints:
         constr.bound = True
     if len(constraints) != 2*len(bounds):
