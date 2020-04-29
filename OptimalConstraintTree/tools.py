@@ -1,7 +1,6 @@
 import progressbar
 from time import sleep
 import sys, os
-import io
 import numpy as np
 
 from gpkit import units
@@ -13,18 +12,15 @@ from gpkit import VectorVariable, Variable, Model
 from gpkit.nomials import NomialArray, Nomial
 from gpkitmodels.SP.SimPleAC.SimPleAC_mission import Mission, SimPleAC
 
-text_trap = io.StringIO()
+class HiddenPrints:
+    """Environment to disable or enable printing."""
+    def __enter__(self):
+        self._original_stdout = sys.stdout
+        sys.stdout = open(os.devnull, 'w')
 
-# Disable or enable printing for problematic functions
-def blockPrint():
-    """ Disables printing from this onward.
-    Printing MUST BE REACTIVATED after. """
-    sys.stdout = text_trap
-
-def enablePrint():
-    """ Enables print outputs.
-    Counteracts blockPrint. """
-    sys.stdout = sys.__stdout__
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        sys.stdout.close()
+        sys.stdout = self._original_stdout
 
 def clean_subs(subs):
     """

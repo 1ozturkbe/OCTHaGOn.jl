@@ -10,7 +10,7 @@ from gpfit.fit import fit
 from OptimalConstraintTree.constraint_tree import ConstraintTree
 from OptimalConstraintTree.sample import sample_gpobj, gen_X
 from OptimalConstraintTree.train import train_trees
-from OptimalConstraintTree.tools import enablePrint, blockPrint, prep_SimPleAC
+from OptimalConstraintTree.tools import HiddenPrints, prep_SimPleAC
 
 import unittest
 from gpkit.tests.helpers import run_tests
@@ -35,9 +35,8 @@ class TestORTModels(unittest.TestCase):
         # cl = np.linspace(0.35, 0.70, num=8, endpoint=True)
 
         # Fitting with GPfit
-        # blockPrint()
-        cstrt, rms = fit(np.transpose(X), Y, 3, 'SMA')
-        # enablePrint()
+        with HiddenPrints():
+            cstrt, rms = fit(np.transpose(X), Y, 3, 'SMA')
 
         # Splitting and training tree over data (dummy config inputs for testing)
         grid = train_trees(X, Y, seed=314,
@@ -124,19 +123,18 @@ class TestORTModels(unittest.TestCase):
         """ Computes and compares posynomial surrogate
         for GPmodel with actual model. """
         m, basis = prep_SimPleAC()
-        # blockPrint()
-        basesol = m.localsolve(verbosity=0)
-        # enablePrint()
+        with HiddenPrints():
+            basesol = m.localsolve(verbosity=0)
+
         solns = pickle.load(open("data/SimPleAC.sol", "rb"))
         subs = pickle.load(open("data/SimPleAC.subs", "rb"))
         X = gen_X(subs, basis)
         Y = [mag(soln['cost'] / basesol['cost']) for soln in solns]
 
         # GPfitted model with generated constraint
-        # blockPrint()
-        cstrt, rms = fit(np.log(np.transpose(X)), np.log(Y), 4, 'SMA')
-        # enablePrint()
-        # self.assertAlmostEqual(rms, 0.03, places=0)
+        with HiddenPrints():
+            cstrt, rms = fit(np.log(np.transpose(X)), np.log(Y), 4, 'SMA')
+        self.assertAlmostEqual(rms, 0.03, places=0)
 
         # ML model
         grid = train_trees(np.log(X), np.log(Y),

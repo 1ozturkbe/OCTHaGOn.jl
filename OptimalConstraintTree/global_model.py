@@ -1,5 +1,6 @@
 import numpy as np
 from time import time
+from copy import copy
 
 from gpkit import Model
 from gpkit.exceptions import (InvalidGPConstraint, Infeasible,
@@ -7,9 +8,7 @@ from gpkit.exceptions import (InvalidGPConstraint, Infeasible,
 from gpkit.small_scripts import mag
 
 from OptimalConstraintTree.constraint_tree import ConstraintTree
-from OptimalConstraintTree.tools import flatten
-from gpkit import ConstraintSet
-from gpkit.keydict import KeySet
+from OptimalConstraintTree.tools import flatten, HiddenPrints
 
 EPS = 1e-6
 
@@ -31,11 +30,14 @@ class GlobalModel(Model):
     gp_vars = None
     sp_vars = None
     tree_vars = None
+    substitutions = None
 
     def __init__(self, cost, constraints, *args, **kwargs):
         self.cost = cost
         self.classify_constraints(constraints)
         self.substitutions = kwargs.pop("substitutions", None)
+        if args and not self.substitutions:
+            self.substitutions, = args
         for key, value in kwargs.items():
             if key == 'solve_type':
                 for tree in self.constraints['trees']:
@@ -43,12 +45,12 @@ class GlobalModel(Model):
                     tree.setup()
         self.sp_model = Model(cost, [self.constraints['gp_constraints'],
                                      self.constraints['sp_constraints']],
-                              substitutions=self.substitutions, *args, **kwargs)
+                              substitutions=copy(self.substitutions), *args, **kwargs)
 
     def classify_constraints(self, constraints):
         self.constraints = {'trees': [],
-                       'sp_constraints': [],
-                       'gp_constraints': []}
+                            'sp_constraints': [],
+                            'gp_constraints': []}
         self.gp_vars, self.sp_vars, self.tree_vars = set(), set(), set()
         for constr in flatten(constraints):
             if isinstance(constr, ConstraintTree):
@@ -91,7 +93,16 @@ class GlobalModel(Model):
                       " constraints and bounds.")
                 print("\n[Debug] Solve %i" % len(self.sps))
             self.sps.append(self.sp_model)
-            xi = self.sps[-1].debug(verbosity=verbosity-1)
+            with HiddenPrints():
+                xi = self.sps[-1].debug(verbosity=verbosity-1)
+            if verbosity > 2:
+                try:
+                    self.solver_outs.append(self.sps[-1].program.solver_out)
+                    result = self.sps[-1].program.generate_result(self.solver_outs[-1], verbosity=verbosity-3)
+                except InvalidGPConstraint:
+                    self.solver_outs.append(self.sps[-1].program.gps[-1].solver_out)
+                    result = self.sps[-1].program.gps[-1].generate_result(self.solver_outs[-1], verbosity=verbosity-3)
+                self._results.append(result)
         # Starting solve...
         prevcost, cost, rel_improvement = None, None, None
         base_constraints = self.constraints['gp_constraints']
@@ -102,12 +113,9 @@ class GlobalModel(Model):
                 raise Infeasible(
                     "Unsolved after %s iterations. Check `m.sps` to check"
                     " if solutions they're converging." % len(self.sps))
-            tree_constraints = []
-            print(tree_constraints)
-            for tree in self.constraints['trees']:
-                tree_constraints.append(tree.get_leaf_constraints(xi))
+            tree_constraints = [tree.get_leaf_constraints(xi) for tree in self.constraints['trees']]
             self.sps.append(Model(self.cost, [base_constraints, tree_constraints],
-                                  self.substitutions))
+                                  copy(self.substitutions)))
             try:
                 if verbosity > 1:
                     print("\n[GP] Solve %i" % len(self.sps))

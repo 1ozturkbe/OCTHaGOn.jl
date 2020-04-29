@@ -13,7 +13,7 @@ import progressbar
 from time import sleep
 
 from OptimalConstraintTree.tools import clean_subs
-from OptimalConstraintTree.tools import blockPrint, enablePrint
+from OptimalConstraintTree.tools import HiddenPrints
 
 def sample_gpobj(gpobj, bounds, samples, criterion="corr"):
     """
@@ -29,9 +29,8 @@ def sample_gpobj(gpobj, bounds, samples, criterion="corr"):
     :return: Y and X data for the gpobj
     """
     vks = list(gpobj.varkeys)
-    #blockPrint()
-    levels = lhs(len(vks), samples=samples, criterion=criterion)
-    #enablePrint()
+    with HiddenPrints():
+        levels = lhs(len(vks), samples=samples, criterion=criterion)
     levels = [dict(zip(vks, levels[i])) for i in range(samples)]
     Xsubs = []
     Yvals = []
@@ -59,9 +58,8 @@ def sample_gpmodel(gpmodel, bounds, samples, criterion='corr', verbosity=0):
     :return: solutions and corresponding substitutions
     """
     vks = list(bounds.keys())
-    # blockPrint()
-    levels = lhs(len(vks), samples=samples, criterion=criterion)
-    # enablePrint()
+    with HiddenPrints():
+        levels = lhs(len(vks), samples=samples, criterion=criterion)
     levels = [dict(zip(vks, levels[i])) for i in range(samples)]
     subs = []
     solns = []
