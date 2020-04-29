@@ -94,15 +94,16 @@ class GlobalModel(Model):
                 print("\n[Debug] Solve %i" % len(self.sps))
             self.sps.append(self.sp_model)
             with HiddenPrints():
-                xi = self.sps[-1].debug(verbosity=verbosity-1)
-            if verbosity > 2:
-                try:
-                    self.solver_outs.append(self.sps[-1].program.solver_out)
-                    result = self.sps[-1].program.generate_result(self.solver_outs[-1], verbosity=verbosity-3)
-                except InvalidGPConstraint:
-                    self.solver_outs.append(self.sps[-1].program.gps[-1].solver_out)
-                    result = self.sps[-1].program.gps[-1].generate_result(self.solver_outs[-1], verbosity=verbosity-3)
-                self._results.append(result)
+                xi = self.sps[-1].debug(verbosity=verbosity-2)
+            # TODO: figure out how to properly update results.
+            # if verbosity > 2:
+                # try:
+                #     # self.solver_outs.append(self.sps[-1].program.solver_out)
+                #     result = self.sps[-1].program.generate_result(self.solver_outs[-1], verbosity=verbosity-3)
+                # except (AttributeError, InvalidGPConstraint):
+                #     # self.solver_outs.append(self.sps[-1].program.gps[-1].solver_out)
+                #     result = self.sps[-1].program.gps[-1].generate_result(self.solver_outs[-1], verbosity=verbosity-3)
+                # self._results.append(result)
         # Starting solve...
         prevcost, cost, rel_improvement = None, None, None
         base_constraints = self.constraints['gp_constraints']
@@ -119,21 +120,22 @@ class GlobalModel(Model):
             try:
                 if verbosity > 1:
                     print("\n[GP] Solve %i" % len(self.sps))
-                xi = self.sps[-1].solve(solver, verbosity=verbosity,
+                xi = self.sps[-1].solve(solver, verbosity=verbosity-2,
                                                 reltol=reltol, x0=xi)
+                self.solver_outs.append(self.sps[-1].program.solver_out)
             except InvalidGPConstraint:
                 if verbosity > 1:
                     print("\n[SP] Solve %i" % len(self.sps))
-                xi = self.sps[-1].localsolve(solver, verbosity=verbosity,
+                xi = self.sps[-1].localsolve(solver, verbosity=verbosity-2,
                                                      reltol=reltol, x0=xi)
+                self.solver_outs.append(self.sps[-1].program.gps[-1].solver_out)
             if verbosity > 2:
                 print("===============")
-            self.solver_outs.append(self.sps[-1].program.solver_out)
             cost = float(xi["cost"])
             if verbosity > 2:
                 try:
                     result = self.sps[-1].program.generate_result(self.solver_outs[-1], verbosity=verbosity-3)
-                except InvalidGPConstraint:
+                except AttributeError:
                     result = self.sps[-1].program.gps[-1].generate_result(self.solver_outs[-1], verbosity=verbosity-3)
                 self._results.append(result)
             elif verbosity > 1:
@@ -150,7 +152,7 @@ class GlobalModel(Model):
                 rel_improvement = cost = None
         try:
             self.result = self.sps[-1].program.generate_result(self.solver_outs[-1], verbosity=verbosity-3)
-        except InvalidGPConstraint:
+        except AttributeError:
             self.result = self.sps[-1].program.gps[-1].generate_result(self.solver_outs[-1], verbosity=verbosity-3)
         self.result["soltime"] = time() - starttime
         if verbosity > 1:

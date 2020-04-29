@@ -38,7 +38,6 @@ class TestConstraintify(unittest.TestCase):
         Tests ConstraintTree generation from SP constraints
         """
         m, basis = prep_SimPleAC()
-        basesol = m.localsolve(verbosity=0)
 
         # Identify signomial constraints
         sp_constraints = find_signomials(m)
@@ -54,10 +53,10 @@ class TestConstraintify(unittest.TestCase):
         del constraints[-12:-8]
         lnr = iai.read_json("data/solar_airfoil_lnr.json")
         subs = m.substitutions.copy()
-        for i in range(len(m['C_D'])):
+        for i in range(len(m['C_{D_{wpar}}'])):
             basis = {m['Re'][i].key: 1.5e6,
                      m['\\tau'].key:0.12}
-            dvar = m['C_D'][i]
+            dvar = m['C_{D_{wpar}}'][i]
             ivars = [m['Re'][i],
                      m['\\tau'],
                      m['C_L'][i]]
