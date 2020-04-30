@@ -23,6 +23,6 @@ setup(
               "OptimalConstraintTree.sample",
               "OptimalConstraintTree.tools",
               "OptimalConstraintTree.train",
-              "OptimalConstraintTree.testing"]
+              "OptimalConstraintTree.testing"],
     long_description=LONG_DESCRIPTION,
 )
