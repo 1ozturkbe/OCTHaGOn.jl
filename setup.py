@@ -17,6 +17,9 @@ setup(
     url="https://github.com/1ozturkbe/OptimalConstraintTree",
     install_requires=["gpkit >= 0.9", "interpretableai", "pyDOE", "progressbar"],
     version="0.0.0",
-    packages=["OptimalConstraintTree"],
+    packages=["OptimalConstraintTree", "OptimalConstraintTree.tools",
+              "OptimalConstraintTree.constraint_tree", "OptimalConstraintTree.sample",
+              "OptimalConstraintTree.train",
+              "OptimalConstraintTree.testing"],
     long_description=LONG_DESCRIPTION,
 )
