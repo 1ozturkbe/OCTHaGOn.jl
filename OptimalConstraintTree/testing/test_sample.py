@@ -34,10 +34,7 @@ class TestSample(unittest.TestCase):
             m['T/O factor_m'].key   :[2, 3],
         }
         samples = 500
-        solns, subs = sample_gpmodel(m, bounds, samples, verbosity=-1)
-        pickle.dump(bounds, open("data/SimPleAC.bounds", "wb"))
-        pickle.dump(solns, open("data/SimPLeAC.sol", "wb"))
-        pickle.dump(subs, open("data/SimPLeAC.subs", "wb"))
+        solns, subs = sample_gpmodel(m, bounds, samples, verbosity=-1, filename="data/SimPleAC")
 
     def test_gen_X(self):
         a = Variable()

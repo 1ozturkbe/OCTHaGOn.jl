@@ -10,7 +10,7 @@ from gpkit.exceptions import UnknownInfeasible
 from gpkit import Monomial
 from gpkit.keydict import KeyDict
 import progressbar
-from time import sleep
+import pickle
 
 from OptimalConstraintTree.tools import clean_subs
 from OptimalConstraintTree.tools import HiddenPrints
@@ -42,7 +42,7 @@ def sample_gpobj(gpobj, bounds, samples, criterion="corr"):
         Yvals.append(gpobj.sub(Xsubs[-1]))
     return Yvals, Xsubs
 
-def sample_gpmodel(gpmodel, bounds, samples, criterion='corr', verbosity=0):
+def sample_gpmodel(gpmodel, bounds, samples, criterion='corr', verbosity=0, filename=None):
     """
     Latin hypercube sampling of a GP model within given input bounds.
     :param gpmodel: A GPkit model
@@ -83,6 +83,10 @@ def sample_gpmodel(gpmodel, bounds, samples, criterion='corr', verbosity=0):
             print("Model infeasible at substitutions %s" % next_subs)
         bar.update(i+1)
     bar.finish()
+    if filename:
+        pickle.dump(bounds, open(filename + ".bounds", "wb"))
+        pickle.dump(solns, open(filename + ".sol", "wb"))
+        pickle.dump(subs, open(filename + ".subs", "wb"))
     return solns, subs
 
 def gen_X(subs, basis):
