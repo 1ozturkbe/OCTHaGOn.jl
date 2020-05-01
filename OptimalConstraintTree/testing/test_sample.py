@@ -52,8 +52,5 @@ class TestSample(unittest.TestCase):
 
 TESTS = [TestSample]
 
-def test():
-    run_tests(TESTS)
-
 if __name__ == "__main__":
-    test()
+    run_tests(TESTS)

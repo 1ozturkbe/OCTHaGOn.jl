@@ -106,8 +106,5 @@ class TestConstraintify(unittest.TestCase):
 
 TESTS = [TestConstraintify]
 
-def test():
-    run_tests(TESTS)
-
 if __name__ == "__main__":
-    test()
+    run_tests(TESTS)

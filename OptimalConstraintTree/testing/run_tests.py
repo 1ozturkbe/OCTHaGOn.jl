@@ -4,6 +4,8 @@ from gpkit.tests.run_tests import run
 from gpkit.tests.helpers import run_tests as r_t
 from gpkit.tests.test_repo import git_clone, pip_install
 
+from julia.core import UnsupportedPythonError
+
 def import_tests():
     """Get a list of all robust unit test TestCases"""
     tests = []
@@ -20,8 +22,12 @@ def import_tests():
     return tests
 
 def run_tests(tests, xmloutput=None, verbosity=2):
-    r_t(tests, xmloutput=xmloutput, verbosity=verbosity)
-
+    try:
+        r_t(tests, xmloutput=xmloutput, verbosity=verbosity)
+    except UnsupportedPythonError:
+        from julia.api import Julia
+        Julia(compiled_modules=False)
+        r_t(tests, xmloutput=xmloutput, verbosity=verbosity)
 
 def test():
     try:
@@ -46,4 +52,4 @@ if __name__ == '__main__':
     except UnsupportedPythonError:
         from julia.api import Julia
         Julia(compiled_modules=False)
-        r_t(tests, xmloutput=xmloutput, verbosity=verbosity)
+        test()
