@@ -20,12 +20,8 @@ def import_tests():
     return tests
 
 def run_tests(tests, xmloutput=None, verbosity=2):
-    try:
-        r_t(tests, xmloutput=xmloutput, verbosity=verbosity)
-    except UnsupportedPythonError:
-        from julia.api import Julia
-        Julia(compiled_modules=False)
-        r_t(tests, xmloutput=xmloutput, verbosity=verbosity)
+    r_t(tests, xmloutput=xmloutput, verbosity=verbosity)
+
 
 def test():
     try:
@@ -45,4 +41,9 @@ def test():
     run(tests=TESTS, xmloutput=True)
 
 if __name__ == '__main__':
-    test()
+    try:
+        test()
+    except UnsupportedPythonError:
+        from julia.api import Julia
+        Julia(compiled_modules=False)
+        r_t(tests, xmloutput=xmloutput, verbosity=verbosity)
