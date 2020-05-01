@@ -1,19 +1,22 @@
 """ Tests for ORT models from data """
+import os
 import numpy as np
 from numpy.random import exponential as xp
 import pandas as pd
 import pickle
+
 from gpkit.small_scripts import mag
 from gpkit import VectorVariable, Variable, units, Model
 from gpfit.fit import fit
+import unittest
+from gpkit.tests.helpers import run_tests
 
 from OptimalConstraintTree.constraint_tree import ConstraintTree
 from OptimalConstraintTree.sample import sample_gpobj, gen_X
 from OptimalConstraintTree.train import train_trees
 from OptimalConstraintTree.tools import HiddenPrints, prep_SimPleAC
 
-import unittest
-from gpkit.tests.helpers import run_tests
+FILE_DIR = os.path.dirname(os.path.realpath(__file__))
 
 class TestORTModels(unittest.TestCase):
     """ Test cases for different ORT models.
@@ -23,8 +26,8 @@ class TestORTModels(unittest.TestCase):
     def test_train_trees(self):
         """ Tests train_trees over transonic XFOIL analysis."""
         # Airfoil data over Reynolds #, thickness, Mach #, and lift coeff
-        X = pd.read_csv("../../data/airfoil/airfoil_X.csv", header=None)
-        Y = pd.read_csv("../../data/airfoil/airfoil_Y.csv", header=None)
+        X = pd.read_csv(FILE_DIR + "/../../data/airfoil/airfoil_X.csv", header=None)
+        Y = pd.read_csv(FILE_DIR + "/../../data/airfoil/airfoil_Y.csv", header=None)
         X = X.values
         Y = Y.values.flatten()
 
@@ -48,7 +51,7 @@ class TestORTModels(unittest.TestCase):
                            hyperplane_config=[{'sparsity': 1, 'feature_set': [3, 4]},
                                               {'sparsity': 2, 'feature_set': [1, 2, 4]}])
         lnr = grid.get_learner()
-        lnr.write_json("data/airfoil_lnr.json")
+        lnr.write_json(FILE_DIR + "/data/airfoil_lnr.json")
 
         # Defining dummy variables of interest
         vks = ['x' + str(i) for i in range(1, 5)]
@@ -83,8 +86,8 @@ class TestORTModels(unittest.TestCase):
                               160, 170, 180, 190, 200, 210, 220, 230])/1000.
         re_ref = 1500000.
         tau_ref = 120./1000.
-        X = pickle.load(open("../../data/airfoil/solar.X", "rb")) # [CL, Re, tau]
-        Y = pickle.load(open("../../data/airfoil/solar.Y", "rb")) # [CD]
+        X = pickle.load(open(FILE_DIR + "/../../data/airfoil/solar.X", "rb")) # [CL, Re, tau]
+        Y = pickle.load(open(FILE_DIR + "/../../data/airfoil/solar.Y", "rb")) # [CD]
 
         # Splitting and training tree over data
         grid = train_trees(np.transpose(X), Y, seed=314,
@@ -95,7 +98,7 @@ class TestORTModels(unittest.TestCase):
                            minbucket=[0.10],
                            hyperplane_config=[{'sparsity': 1}])
         lnr = grid.get_learner()
-        lnr.write_json("data/solar_airfoil_lnr.json") # Saving for later use
+        lnr.write_json(FILE_DIR + "/data/solar_airfoil_lnr.json") # Saving for later use
 
     def test_gpobj_model(self):
         """ Tests surrogate models over GPkit objects. """
@@ -118,7 +121,7 @@ class TestORTModels(unittest.TestCase):
             grid = train_trees(np.log(X), np.log(Y), max_depth=5)
             lnr = grid.get_learner()
             self.assertAlmostEqual(lnr.score(np.log(X), np.log(Y)), 1, places=2)
-
+    #
     def test_fit_gpmodel(self):
         """ Computes and compares posynomial surrogate
         for GPmodel with actual model. """
@@ -126,8 +129,8 @@ class TestORTModels(unittest.TestCase):
         with HiddenPrints():
             basesol = m.localsolve(verbosity=0)
 
-        solns = pickle.load(open("data/SimPleAC.sol", "rb"))
-        subs = pickle.load(open("data/SimPleAC.subs", "rb"))
+        solns = pickle.load(open(FILE_DIR + "/data/SimPleAC.sol", "rb"))
+        subs = pickle.load(open(FILE_DIR + "/data/SimPleAC.subs", "rb"))
         X = gen_X(subs, basis)
         Y = [mag(soln['cost'] / basesol['cost']) for soln in solns]
 
@@ -143,7 +146,7 @@ class TestORTModels(unittest.TestCase):
                            max_depth=[3],
                            minbucket=[0.01])
         lnr = grid.get_learner()
-        lnr.write_json("data/SimPleAC_lnr.json")
+        lnr.write_json(FILE_DIR + "/data/SimPleAC_lnr.json")
         self.assertAlmostEqual(lnr.score(np.log(X), np.log(Y)), 1, places=2)
 
 TESTS = [TestORTModels]

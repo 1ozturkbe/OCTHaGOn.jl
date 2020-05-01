@@ -18,11 +18,6 @@ setup(
     install_requires=["gpkit >= 0.9", "interpretableai", "pyDOE", "progressbar"],
     version="0.0.0",
     packages=["OptimalConstraintTree",
-              "OptimalConstraintTree.constraint_tree",
-              "OptimalConstraintTree.global_model",
-              "OptimalConstraintTree.sample",
-              "OptimalConstraintTree.tools",
-              "OptimalConstraintTree.train",
               "OptimalConstraintTree.testing"],
     long_description=LONG_DESCRIPTION,
 )

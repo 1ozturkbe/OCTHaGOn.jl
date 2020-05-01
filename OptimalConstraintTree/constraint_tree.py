@@ -11,7 +11,6 @@ from gpkit.keydict import KeySet
 from OptimalConstraintTree.tools import mergeDict, check_units
 
 import numpy as np
-from interpretableai import iai
 
 from pandas.core.frame import DataFrame as df
 
@@ -122,7 +121,7 @@ class ConstraintTree:
         pass
 
     @staticmethod
-    def pwl_constraint_data(lnr: iai.OptimalTreeRegressor, vks=None):
+    def pwl_constraint_data(lnr, vks=None):
         """
         Creates PWL dataset from a OptimalTreeLearner
         Arguments:
@@ -150,7 +149,7 @@ class ConstraintTree:
         return pwlDict
 
     @staticmethod
-    def trust_region_data(lnr: iai.OptimalTreeRegressor, vks=None):
+    def trust_region_data(lnr, vks=None):
         """
         Creates trust region from a OptimalTreeLearner
         Arguments:
