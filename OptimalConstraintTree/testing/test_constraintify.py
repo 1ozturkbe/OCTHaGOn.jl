@@ -95,14 +95,25 @@ class TestConstraintify(unittest.TestCase):
 
         # Now with trees
         lnr = iai.read_json("data/SimPleAC_lnr.json")
-        basis[dvar.key] =  basesol['cost']*dvar.units
-        ct = ConstraintTree(lnr, dvar, ivars, basis=basis)
-        del basis[dvar.key]
         bounds = pickle.load(open("data/SimPleAC.bounds", "rb"))
-        bounding_constraints = constraints_from_bounds(bounds, m)
-        gm = GlobalModel(dvar, [bounding_constraints, ct], basis)
-        sol = gm.solve(verbosity=0)
-        self.assertAlmostEqual(sol['cost']/basesol['cost'], 1, places=2)
+        basis[dvar.key] =  basesol['cost']*dvar.units
+        # Check that bounding constraints are same for the two generation methods
+        c1 = constraints_from_bounds(bounds, m)
+        c2 = constraints_from_bounds(bounds, ivars)
+        for i in range(len(c1)):
+            self.assertEqual(c1[i].as_hmapslt1({}), c2[i].as_hmapslt1({}))
+
+        ct1 = ConstraintTree(lnr, dvar, ivars, basis=basis, bounds=bounds)
+        ct2 = ConstraintTree(lnr, dvar, ivars, basis=basis)
+
+        # Making sure solutions are identical as well
+        del basis[dvar.key]
+        gm1 = GlobalModel(dvar, [ct1], basis)
+        sol1 = gm1.solve(verbosity=0)
+        gm2 = GlobalModel(dvar, [ct2, c2], basis)
+        sol2 = gm2.solve(verbosity=0)
+        self.assertAlmostEqual(sol1['cost']/basesol['cost'], 1, places=2)
+        self.assertAlmostEqual(sol1['cost'], sol2['cost'], places=2)
 
 TESTS = [TestConstraintify]
 

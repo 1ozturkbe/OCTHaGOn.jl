@@ -8,7 +8,7 @@ from gpkit import SignomialEquality
 from gpkit.nomials import PosynomialInequality
 from gpkit.keydict import KeySet
 
-from OptimalConstraintTree.tools import mergeDict, check_units
+from OptimalConstraintTree.tools import mergeDict, check_units, constraints_from_bounds
 
 import numpy as np
 
@@ -26,8 +26,7 @@ class ConstraintTree:
     oper = '>='
     pwl_data = None
     tr_data = None
-    tr_constraints = None
-    pwl_constraints = None
+    bound_constraints = []
     M = 10
     _varkeys = None
 
@@ -61,6 +60,8 @@ class ConstraintTree:
             self.norm_ivars = ivars
         check_units(self.norm_dvar)
         check_units(self.norm_ivars)
+        if self.bounds:
+            self.bound_constraints = constraints_from_bounds(self.bounds, self.ivars)
         if not self.solve_type:
             self.solve_type = 'seq'  # Default sequential solver
         try:

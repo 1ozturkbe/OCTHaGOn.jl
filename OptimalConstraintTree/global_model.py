@@ -43,12 +43,10 @@ class GlobalModel(Model):
                 for tree in self.constraints['trees']:
                     tree.solve_type = value
                     tree.setup()
-        self.sp_model = Model(cost, [self.constraints['gp_constraints'],
-                                     self.constraints['sp_constraints']],
-                              substitutions=copy(self.substitutions), *args, **kwargs)
 
     def classify_constraints(self, constraints):
         self.constraints = {'trees': [],
+                            'bound_constraints': [],
                             'sp_constraints': [],
                             'gp_constraints': []}
         self.gp_vars, self.sp_vars, self.tree_vars = set(), set(), set()
@@ -56,6 +54,7 @@ class GlobalModel(Model):
             if isinstance(constr, ConstraintTree):
                 self.tree_vars.update(constr.varkeys)
                 self.constraints['trees'].append(constr)
+                self.constraints['bound_constraints'].append(constr.bound_constraints)
             elif hasattr(constr, 'as_gpconstr'):
                 self.sp_vars.update(constr.varkeys)
                 self.constraints['sp_constraints'].append(constr)
@@ -92,7 +91,11 @@ class GlobalModel(Model):
                 print("Generating initial first guess using provided "
                       " constraints and bounds.")
                 print("\n[Debug] Solve %i" % len(self.sps))
-            self.sps.append(self.sp_model)
+            sp_model = Model(self.cost, [self.constraints['gp_constraints'],
+                                         self.constraints['sp_constraints'],
+                                         self.constraints['bound_constraints']],
+                                      substitutions=copy(self.substitutions))
+            self.sps.append(sp_model)
             with HiddenPrints():
                 xi = self.sps[-1].debug(verbosity=verbosity-2)
             # TODO: figure out how to properly update results.
@@ -108,6 +111,7 @@ class GlobalModel(Model):
         prevcost, cost, rel_improvement = None, None, None
         base_constraints = self.constraints['gp_constraints']
         base_constraints.append(self.constraints['sp_constraints'])
+        base_constraints.append(self.constraints['bound_constraints'])
         while rel_improvement is None or rel_improvement > reltol:
             prevcost = cost
             if len(self.sps) > iteration_limit:
@@ -160,6 +164,6 @@ class GlobalModel(Model):
         if verbosity > 0:
             print("Solving took %.3g seconds and %i SP solves."
                   % (self.result["soltime"], len(self.sps)))
-        #TODO: add slack checking as well.
+        #TODO: add slack and bound checking as well.
         return xi
 

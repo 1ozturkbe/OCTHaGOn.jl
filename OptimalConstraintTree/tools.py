@@ -85,31 +85,28 @@ def constraints_from_bounds(bounds, gpinput):
     :return: list of PosynomialInequalities
     """
     if isinstance(gpinput, Model):
-        varkeys = KeyDict({varkey: gpinput[varkey.name] for varkey in bounds.keys()})
-    else:
-        raise ValueError("Other types of inputs currently not supported.")
-    # elif isinstance(gpinput, NomialArray):
-    #     varkeys = KeyDict({key})
-    # elif isinstance(gpinput, list):
-    #     varkeys = KeySet(bounds.keys())
+        vars = KeyDict({varkey: gpinput[varkey.name] for varkey in bounds.keys()})
+    elif isinstance(gpinput, list):
+        vars = KeyDict({var.key: var for var in gpinput})
+    elif isinstance(gpinput, KeyDict):
+        pass
     constraints = []
     for key, value in bounds.items():
         # Non-vector variables
         if isinstance(value[0], Nomial):
             value = [v.value for v in value]
         if key.shape:
-            constraints.extend([gpinput[key.name][key.descr['idx'][0]] <= max(value),
-                                gpinput[key.name][key.descr['idx'][0]] >= min(value)])
+            constraints.extend([vars[key.name][key.descr['idx'][0]] <= max(value),
+                                vars[key.name][key.descr['idx'][0]] >= min(value)])
         else:
-            constraints.extend([gpinput[key.name] <= max(value),
-                                gpinput[key.name] >= min(value)])
+            constraints.extend([vars[key.name] <= max(value),
+                                vars[key.name] >= min(value)])
     for constr in constraints:
         constr.bound = True
     if len(constraints) != 2*len(bounds):
         raise ValueError("Number of bounding constraints does"
                          "not match the number of specified bounds.")
     return constraints
-
 
 def constraint_from_gpfit(fitcs, dvar, ivars, basis=None):
     """
