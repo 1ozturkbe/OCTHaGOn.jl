@@ -3,7 +3,7 @@ import numpy as np
 from numpy.random import exponential as xp
 from gpkit import Variable, units
 import unittest
-from gpkit.tests.helpers import run_tests
+from OptimalConstraintTree.testing.run_tests import run_tests
 import pickle
 
 from OptimalConstraintTree.testing.test_ort_models import prep_SimPleAC

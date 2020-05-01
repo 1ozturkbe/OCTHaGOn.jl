@@ -1,11 +1,11 @@
 """Standard Python setup script for OptimalConstraintTree"""
-import os
-from distutils.core import setup
+from setuptools import setup
 
 LONG_DESCRIPTION = """
 OptimalConstraintTree is a Python package for 
 generating optimization compatible constraints from data using 
-machine learning. 
+machine learning, and solving the resulting global
+optimization problems. 
 """
 
 setup(

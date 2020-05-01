@@ -1,6 +1,7 @@
 """Script for running all unit tests"""
 import gpkit
 from gpkit.tests.run_tests import run
+from gpkit.tests.helpers import run_tests as r_t
 from gpkit.tests.test_repo import git_clone, pip_install
 
 def import_tests():
@@ -13,7 +14,18 @@ def import_tests():
     from OptimalConstraintTree.testing import test_ort_models
     tests += test_ort_models.TESTS
 
+    from OptimalConstraintTree.testing import test_sample
+    tests += test_sample.TESTS
+
     return tests
+
+def run_tests(tests, xmloutput=None, verbosity=2):
+    try:
+        r_t(tests, xmloutput=xmloutput, verbosity=verbosity)
+    except UnsupportedPythonError:
+        from julia.api import Julia
+        Julia(compiled_modules=False)
+        r_t(tests, xmloutput=xmloutput, verbosity=verbosity)
 
 def test():
     try:
