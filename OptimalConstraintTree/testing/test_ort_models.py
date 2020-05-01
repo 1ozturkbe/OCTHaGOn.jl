@@ -9,7 +9,7 @@ from gpkit.small_scripts import mag
 from gpkit import VectorVariable, Variable, units, Model
 from gpfit.fit import fit
 import unittest
-from OptimalConstraintTree.testing import run_tests
+from OptimalConstraintTree.testing.run_tests import run_tests
 
 from OptimalConstraintTree.constraint_tree import ConstraintTree
 from OptimalConstraintTree.sample import sample_gpobj, gen_X
