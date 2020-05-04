@@ -94,7 +94,7 @@ class TestORTModels(unittest.TestCase):
                            regression_sparsity='all',
                            fast_num_support_restarts=1,
                            regression_lambda=[0.001],
-                           max_depth=[3],
+                           max_depth=[5],
                            minbucket=[0.10],
                            hyperplane_config=[{'sparsity': 1}])
         lnr = grid.get_learner()

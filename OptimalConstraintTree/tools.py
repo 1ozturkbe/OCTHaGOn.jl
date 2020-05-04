@@ -76,6 +76,18 @@ def get_bounds(solutions, keys=None):
             bounds[varkey] = [np.min(vals), np.max(vals)]
     return bounds
 
+def get_active_bounds(model, solution):
+    active = []
+    for constr in flatten(model.constraints['bound_constraints']):
+        sens = solution['sensitivities']['constraints'][constr]
+        if sens >= 1e-10:
+            bd = "lower"
+            if constr.oper == "<=":
+                bd = "upper"
+            active.append((constr.left, bd, constr.right.value, sens))
+    active.sort(key=lambda tup: tup[3])
+    return active
+
 def constraints_from_bounds(bounds, gpinput):
     """
     Generates trust region constraints from bounds

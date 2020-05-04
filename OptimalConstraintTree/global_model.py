@@ -8,7 +8,7 @@ from gpkit.exceptions import (InvalidGPConstraint, Infeasible,
 from gpkit.small_scripts import mag
 
 from OptimalConstraintTree.constraint_tree import ConstraintTree
-from OptimalConstraintTree.tools import flatten, HiddenPrints
+from OptimalConstraintTree.tools import flatten, HiddenPrints, get_active_bounds
 
 EPS = 1e-6
 
@@ -87,7 +87,7 @@ class GlobalModel(Model):
         if x0:
             xi = x0.copy()
         else:
-            if verbosity > 0:
+            if verbosity > 1:
                 print("Generating initial first guess using provided "
                       " constraints and bounds.")
                 print("\n[Debug] Solve %i" % len(self.sps))
@@ -164,6 +164,13 @@ class GlobalModel(Model):
         if verbosity > 0:
             print("Solving took %.3g seconds and %i SP solves."
                   % (self.result["soltime"], len(self.sps)))
-        #TODO: add slack and bound checking as well.
+            if self.constraints['bound_constraints']:
+                self.active_bounds = get_active_bounds(self, xi)
+                if self.active_bounds:
+                    print("\nSolves with these monomials hitting bounds "
+                          "(from highest to lowest sensitivity):")
+                    for item in self.active_bounds:
+                        print("\n %s is %s bounded at %s, with sens. %s" % item)
+        # TODO: add slack checking as well
         return xi
 

@@ -44,7 +44,7 @@ class TestConstraintify(unittest.TestCase):
         sp_variables = get_varkeys(sp_constraints)
         #TODO: complete
 
-    def test_SimPleAC_with_treeconstraint(self):
+    def test_SimPleAC_with_treeconstraints(self):
         m, basis = prep_SimPleAC()
         basesol = m.localsolve(verbosity=0)
 
@@ -55,7 +55,7 @@ class TestConstraintify(unittest.TestCase):
         subs = m.substitutions.copy()
         for i in range(len(m['C_{D_{wpar}}'])):
             basis = {m['Re'][i].key: 1.5e6,
-                     m['\\tau'].key:0.12}
+                     m['\\tau'].key: 0.12}
             dvar = m['C_{D_{wpar}}'][i]
             ivars = [m['Re'][i],
                      m['\\tau'],
@@ -65,9 +65,8 @@ class TestConstraintify(unittest.TestCase):
                 m['\\tau'].key: [0.08, 0.23],
                 m['C_L'][i].key: [0.33, 2.0],
             }
-            ct = ConstraintTree(lnr, dvar, ivars, basis=basis)
+            ct = ConstraintTree(lnr, dvar, ivars, basis=basis, bounds=bounds)
             constraints.append(ct)
-            constraints.append(constraints_from_bounds(bounds, m))
         gm = GlobalModel(m.cost, constraints, subs)
         sol = gm.solve(verbosity=0)
 
