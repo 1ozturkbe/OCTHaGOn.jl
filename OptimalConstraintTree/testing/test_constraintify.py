@@ -68,7 +68,7 @@ class TestConstraintify(unittest.TestCase):
             ct = ConstraintTree(lnr, dvar, ivars, basis=basis, bounds=bounds)
             constraints.append(ct)
         gm = GlobalModel(m.cost, constraints, subs)
-        sol = gm.solve(verbosity=0)
+        sol = gm.solve(verbosity=2)
 
     def test_SimPleAC_with_surrogate_tree(self):
         m, basis = prep_SimPleAC()

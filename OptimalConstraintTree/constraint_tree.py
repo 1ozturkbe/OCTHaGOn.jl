@@ -64,6 +64,7 @@ class ConstraintTree:
             self.bound_constraints = constraints_from_bounds(self.bounds, self.ivars)
         if not self.solve_type:
             self.solve_type = 'seq'  # Default sequential solver
+            self.epsilon = 1e-6
         try:
             self.constraintify()
         except OverflowError:
