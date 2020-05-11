@@ -4,6 +4,7 @@ import numpy as np
 from numpy.random import exponential as xp
 import pandas as pd
 import pickle
+import matplotlib.pyplot as plt
 
 from gpkit.small_scripts import mag
 from gpkit import VectorVariable, Variable, units, Model
@@ -99,6 +100,35 @@ class TestORTModels(unittest.TestCase):
                            hyperplane_config=[{'sparsity': 1}])
         lnr = grid.get_learner()
         lnr.write_json(FILE_DIR + "data/solar_airfoil_lnr.json") # Saving for later use
+
+        # Plotting for comparison
+        cn, err = fit(X, Y, 3, "SMA")
+        yfit = cn.evaluate(X)
+        yfit = lnr.predict(pd.DataFrame(X).transpose().values)
+        x2, ind = np.unique(x[2], return_index=True)
+        ind = np.append(ind, len(x[2]))
+        i = 4 # corresponds to tau = 0.12
+        colors = ["#084081", "#0868ac", "#2b8cbe", "#4eb3d3", "#7bccc4"] * 5
+        xt, yt = x[0:2, ind[i - 1]:ind[i]], y[ind[i - 1]:ind[i]]
+        yft = yfit[ind[i - 1]:ind[i]]
+        x1, ind1 = np.unique(xt[1], return_index=True)
+        ind1 = np.append(ind1, len(xt[1]))
+        x0 = [xt[0][ind1[j - 1]:ind1[j]] for j in range(1, len(ind1))]
+        y0 = [yt[ind1[j - 1]:ind1[j]] for j in range(1, len(ind1))]
+        yf0 = [yft[ind1[j - 1]:ind1[j]] for j in range(1, len(ind1))]
+        fig, ax = plt.subplots()
+        c = 0
+        for r, cl, cd, fi in zip(exp(x1)*re_ref/1000, x0, y0, yf0):
+            ax.plot(exp(cl), exp(cd), "o", mec=colors[c], mfc="none", mew=1.5)
+            ax.plot(exp(cl), exp(fi), c=colors[c], label="Re = %dk" % r, lw=2)
+            c += 1
+        ax.set_xlabel("$C_L$")
+        ax.set_ylabel("$c_{d_p}$")
+        thick = 0.12 * exp(x2[i])
+        ax.set_title("$\\tau = %.2f$" % thick)
+        ax.legend(loc=2)
+        ax.grid()
+        fig.show()
 
     def test_gpobj_model(self):
         """ Tests surrogate models over GPkit objects. """

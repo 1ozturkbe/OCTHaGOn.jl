@@ -87,15 +87,15 @@ class GlobalModel(Model):
         if x0:
             xi = x0.copy()
         else:
-            if verbosity > 1:
-                print("Generating initial first guess using provided "
-                      " constraints and bounds.")
-                print("\n[Debug] Solve %i" % len(self.sps))
             sp_model = Model(self.cost, [self.constraints['gp_constraints'],
                                          self.constraints['sp_constraints'],
                                          self.constraints['bound_constraints']],
                                       substitutions=copy(self.substitutions))
             self.sps.append(sp_model)
+            if verbosity > 1:
+                print("Generating initial first guess using provided "
+                      " constraints and bounds.")
+                print("\n[Debug] Solve %i" % len(self.sps))
             with HiddenPrints():
                 xi = self.sps[-1].debug(verbosity=verbosity-2)
             # TODO: figure out how to properly update results.
