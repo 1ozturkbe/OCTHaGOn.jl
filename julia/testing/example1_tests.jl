@@ -13,16 +13,15 @@ function example1()
     nsamples = 1000
     ndims = 3
     # Code for initial tree training
-    #     plan, _ = LHCoptim(nsamples, ndims, 1)
-    #     X = scaleLHC(plan,[(lbs[i], ubs[i]) for i=1:3])   
-    #     lnr = IAI.OptimalTreeRegressor(random_seed=1, max_depth=5, cp=1e-8,  minbucket=0.05, regression_sparsity=:all, fast_num_support_restarts = 1,
-    #                                    hyperplane_config=(sparsity=1,), regression_lambda = 0.0001)
-    #     Y = [-g1(X[j,:]) for j=1:nsamples]
-    #     IAI.fit!(lnr, X, Y)
-    #     IAI.write_json("data/example1_constraint.json", lnr)
-    #     Y = [objective(X[j,:]) for j=1:nsamples]
-    #     IAI.fit!(lnr, X, Y)
-    #     IAI.write_json("data/example1_objective.json", lnr)
+        plan, _ = LHCoptim(nsamples, ndims, 1)
+        X = scaleLHC(plan,[(lbs[i], ubs[i]) for i=1:3])   
+        lnr = IAI.OptimalTreeRegressor(random_seed=1, max_depth=5, cp=1e-8,  minbucket=0.05, regression_sparsity=:all, fast_num_support_restarts = 1, hyperplane_config=(sparsity=1,), regression_lambda = 0.0001)
+        Y = [-g1(X[j,:]) for j=1:nsamples]
+        IAI.fit!(lnr, X, Y)
+        IAI.write_json("data/example1_constraint.json", lnr)
+        Y = [objective(X[j,:]) for j=1:nsamples]
+        IAI.fit!(lnr, X, Y)
+        IAI.write_json("data/example1_objective.json", lnr)
     
     # Creating the model
     constr = IAI.read_json("data/example1_constraint.json")
@@ -38,7 +37,7 @@ function example1()
     constraints_from_bounds(m, x, lbs, ubs);
     status = solve(m)
     println("Solved minimum: ", getvalue(obj))
-    println("Known global bound: ", 0.00371)
+    println("Known global bound: ", -147-2/3)
     println("X values: ", getvalue(x))
     println("Optimal X: ", [5.01063529, 3.40119660, -0.48450710])
     return true
