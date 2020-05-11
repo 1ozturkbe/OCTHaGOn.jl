@@ -2,6 +2,14 @@
 using JuMP
 using Gurobi
 
+function constraints_from_bounds(m, x, lbs, ubs)
+    for i=1:size(lbs,1)
+        @constraint(m, x[i] <= ubs[i])
+        @constraint(m, x[i] >= lbs[i])
+    end
+    return m 
+end
+
 function add_mio_constraints(lnr, m, x, y, vks, M=1e5)
     """
     Creates a set of MIO constraints from a OptimalTreeLearner
@@ -16,7 +24,7 @@ function add_mio_constraints(lnr, m, x, y, vks, M=1e5)
     n_nodes = IAI.get_num_nodes(lnr);
     # Add a binary variable for each leaf
     all_leaves = [i for i=1:n_nodes if IAI.is_leaf(lnr,i)];
-    @variable(m, z[1:size(all_leaves,1)], Bin);
+    z = @variable(m, [1:size(all_leaves,1)], Bin);
     @constraint(m, sum(z) == 1);
     # Getting lnr data
     pwlDict = pwl_constraint_data(lnr, vks)
