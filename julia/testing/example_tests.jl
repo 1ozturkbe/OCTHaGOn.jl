@@ -7,12 +7,12 @@ include("examples.jl")
 include("../gen_constraints.jl")
 
 """
-Set of examples for which to test 
+Set of examples for which to test different examples. 
 """
 
 
-function example1_naive_fit()
-    objective, constraints, lbs, ubs = example1()
+function example_naive_fit(example, name)
+    objective, constraints, lbs, ubs = example
     nsamples = 1000;
     ndims = 3;
     # Code for initial tree training
@@ -21,14 +21,14 @@ function example1_naive_fit()
     lnr = IAI.OptimalTreeRegressor(random_seed=1, max_depth=3, cp=1e-10,  minbucket=0.03, regression_sparsity=:all, fast_num_support_restarts = 1, hyperplane_config=(sparsity=:1,), regression_lambda = 0.00001, regression_weighted_betas=true)
     Y = [-constraints[1](X[j,:]) for j=1:nsamples];
     IAI.fit!(lnr, X, Y)
-    IAI.write_json("data/example1_constraint_naive.json", lnr)
+    IAI.write_json("data/" + name + "example1_constraint_naive.json", lnr)
     Y = [objective(X[j,:]) for j=1:nsamples];
     IAI.fit!(lnr, X, Y)
     IAI.write_json("data/example1_objective_naive.json", lnr)
 end
 
-function example1_naive_solve()
-    objective, constraints, lbs, ubs = example1()
+function example_naive_solve(example)
+    objective, constraints, lbs, ubs = example
     # Creating the model
     constr = IAI.read_json("data/example1_constraint_naive.json")
     objectivefn = IAI.read_json("data/example1_objective_naive.json")
@@ -77,4 +77,13 @@ function example1_infeas()
     println("Optimal X: ", [5.01063529, 3.40119660, -0.48450710])
 end
 
+function model_creation()
+    examples = [example1, example2]
+    for i in examples
+        ex = i()
+    end
+    return true
+end
+
+@test model_creation()
     
