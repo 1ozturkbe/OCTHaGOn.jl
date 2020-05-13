@@ -2,6 +2,29 @@
 using JuMP
 using Gurobi
 
+function learn_constraints(lnr, constraints, X, name=nothing)
+    """
+    Returns a set of feasibility trees from a set of constraints.
+    Arguments:
+        lnr: Unfit OptimalTreeClassifier or Grid
+        constraints: set of constraint functions in std form (>= 0)
+        X: samples of the free variables
+    NOTE: All constraints must take in vector of all X values. 
+    """
+    n_samples, n_features = size(X)
+    n_constraints = size(constraints, 1)
+    feasTrees = []
+    for i=1:n_constraints
+        Y = [constraints[i](X[j,:]) >= 0 for j=1:nsamples];
+        IAI.fit!(lnr, X, Y)
+        append!(feasTrees, lnr)
+        if name
+            IAI.write_json(lnr, name + "_constraint" + str(i) + ".json")
+        end
+    end
+    return feasTrees
+end
+
 function constraints_from_bounds(m, x, lbs, ubs)
     for i=1:size(lbs,1)
         @constraint(m, x[i] <= ubs[i])
@@ -10,11 +33,44 @@ function constraints_from_bounds(m, x, lbs, ubs)
     return m 
 end
 
+function add_feas_constraints(lnr, m, x, vks, M=1e5)
+    """ 
+    Creates a set of binary feasibility constraints from 
+    a binary classification tree:
+    Arguments:
+        lnr: OptimalTreeClassifier
+        m:: JuMP Model
+        x:: JuMPVariables (features in lnr)
+        vks:: varkeys of the features in lnr
+    """
+    n_nodes = IAI.get_num_nodes(lnr);
+    # Add a binary variable for each leaf
+    all_leaves = [i for i=1:n_nodes if IAI.is_leaf(lnr,i)];
+    feas_leaves = [i for i in all_leaves if IAI.get_classification_label(lnr, i)]
+    z = @variable(m, [1:size(feas_leaves,1)], Bin);
+    @constraint(m, sum(z) == 1);
+    # Getting lnr data
+    upperDict, lowerDict = trust_region_data(lnr, vks)
+    for i = 1:size(feas_leaves, 1)
+        leaf = feas_leaves[i]
+        # ADDING TRUST REGIONS
+        for region in upperDict[leaf]
+            threshold, α = region
+            @constraint(m, threshold <= sum(α.*x) + M*(1-z[i]));            
+        end
+        for region in lowerDict[leaf]
+            threshold, α = region
+            @constraint(m, threshold <= sum(α.*x) + M*(1-z[i]));      
+        end
+    end
+    return m
+end
+
 function add_mio_constraints(lnr, m, x, y, vks, M=1e5)
     """
-    Creates a set of MIO constraints from a OptimalTreeLearner
+    Creates a set of MIO constraints from a OptimalTreeRegressor
     Arguments:
-        lnr: OptimalTreeLearner
+        lnr: OptimalTreeRegressor
         m:: JuMP Model
         x:: independent JuMPVariable (features in lnr)
         y:: dependent JuMPVariable (output of lnr)

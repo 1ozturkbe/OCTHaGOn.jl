@@ -1,5 +1,7 @@
 # Functions for design of experiments
+
 using RCall
+
 function ort_arrays(levels)
     # Based on this: https://support.sas.com/techsup/technote/ts723b.pdf
     R"library(DoE.base)"
