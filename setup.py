@@ -41,7 +41,8 @@ setup(
     install_requires=["gpkit >= 0.9", "interpretableai", "pyDOE", "progressbar",
                       "julia >= 0.5.0"],
     version="0.0.0",
+    package_dir={"OptimalConstraintTree": "python"},
     packages=["OptimalConstraintTree",
-              "OptimalConstraintTree.testing"],
+              "OptimalConstraintTree.test"],
     long_description=LONG_DESCRIPTION,
 )

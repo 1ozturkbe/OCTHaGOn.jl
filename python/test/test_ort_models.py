@@ -42,7 +42,7 @@ class TestORTModels(unittest.TestCase):
         with HiddenPrints():
             cstrt, rms = fit(np.transpose(X), Y, 3, 'SMA')
 
-        # Splitting and training tree over data (dummy config inputs for testing)
+        # Splitting and training tree over data (dummy config inputs for test)
         grid = train_trees(X, Y, seed=314,
                            regression_sparsity='all',
                            fast_num_support_restarts=1,
