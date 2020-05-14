@@ -1,5 +1,11 @@
 using Test
 include("../structs.jl")
+using PyCall
+
+function import_sagebenchmark(number)
+    u
+    return ex
+end
 
 function example1()
     obj(x) = 0.5*exp(x[1]-x[2]) - exp(x[1]) - 5*exp(-x[2]);
