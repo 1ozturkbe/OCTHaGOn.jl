@@ -39,10 +39,11 @@ setup(
     author_email="bozturk@mit.edu",
     url="https://github.com/1ozturkbe/OptimalConstraintTree",
     install_requires=["gpkit >= 0.9", "interpretableai", "pyDOE", "progressbar",
-                      "julia >= 0.5.0"],
-    version="0.0.0",
+                      "gpfit", "julia >= 0.5.0", "time", "copy", "pandas"],
+    version="0.1.0",
     package_dir={"OptimalConstraintTree": "python"},
     packages=["OptimalConstraintTree",
               "OptimalConstraintTree.test"],
+    license=LICENSE,
     long_description=LONG_DESCRIPTION,
 )

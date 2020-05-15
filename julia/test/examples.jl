@@ -1,11 +1,40 @@
 using Test
-include("../structs.jl")
+include("../src/structs.jl")
 using PyCall
 
-function import_sagebenchmark(number)
-    u
+function alphac_to_fn(alpha, c)
+    nterms, xdim = size(alpha)
+    sig_fn(x) = sum([c[i]*exp(sum(alpha[i,j]*x[j] for j=1:xdim)) for i=1:nterms])
+    return sig_fn
+end
+
+function import_sagebenchmark(exidx)
+    """
+    Imports sagebenchmarks example from literature.solved and
+    returns as a function_model.
+    """
+    sagemarks = pyimport("sagebenchmarks.literature.solved");
+    signomials, solver, run_fn = sagemarks.get_example(exidx);
+    f, gts, eqs = signomials;
+    xdim = size(f.alpha,2);
+    obj(x) = alphac_to_fn(f.alpha, f.c);
+    obj_idxs = unique([idx[2] for idx in findall(i->i != 0, f.alpha)]);
+    constr = Vector{Function}()
+    constr_idxs = Vector{Vector{Float64}}()
+    lbs = Vector{Vector{Float64}}()
+    ubs = Vector{Vector{Float64}}()
+    for i=1:size(gts,1)
+        alpha = gts[i].alpha
+        c = gts[i].c
+        append!(constr, [alphac_to_fn(alpha, c)])
+        idxs = findall(x->x!=0, alpha)
+        append!(constr_idxs, unique([idx[2] for idx in idxs]))
+    end
+    ex = function_model(string("example", exidx),
+                        obj, obj_idxs, constr, constr_idxs, lbs, ubs)
     return ex
 end
+
 
 function example1()
     obj(x) = 0.5*exp(x[1]-x[2]) - exp(x[1]) - 5*exp(-x[2]);
@@ -30,4 +59,3 @@ function example2()
     ubs = [15, 5, 450]
     ex = function_model("example2", obj, obj_idxs, constr, constr_idxs, lbs, ubs)
 end
-

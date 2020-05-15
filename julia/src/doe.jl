@@ -9,12 +9,12 @@ function ort_arrays(levels)
     @rget orth_arrays
     return orth_arrays
 end
-    
+
 function full_factorial_doe(levels)
     R"library(DoE.base)"
     R"factor_mat <- oa.design(nlevels=$levels, seed=100)"
     @rget factor_mat
-    return factor_mat
+    return factor_matcmd
 end
 
 function collapse(orth_array, nlevels)
