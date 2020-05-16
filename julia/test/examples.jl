@@ -19,19 +19,30 @@ function import_sagebenchmark(exidx)
     xdim = size(f.alpha,2);
     obj(x) = alphac_to_fn(f.alpha, f.c);
     obj_idxs = unique([idx[2] for idx in findall(i->i != 0, f.alpha)]);
-    constr = Vector{Function}()
-    constr_idxs = Vector{Vector{Float64}}()
-    lbs = Vector{Vector{Float64}}()
-    ubs = Vector{Vector{Float64}}()
+    constr = Vector{Function}();
+    constr_idxs = Array[];
+    lbs = Array{Union{Missing,Float64}}(missing, 1, xdim);
+    ubs = Array{Union{Missing,Float64}}(missing, 1, xdim);
     for i=1:size(gts,1)
-        alpha = gts[i].alpha
-        c = gts[i].c
-        append!(constr, [alphac_to_fn(alpha, c)])
-        idxs = findall(x->x!=0, alpha)
-        append!(constr_idxs, unique([idx[2] for idx in idxs]))
+        alpha = gts[i].alpha;
+        c = gts[i].c;
+        idxs = findall(x->x!=0, alpha);
+        if size(idxs, 1) > 1
+            append!(constr, [alphac_to_fn(alpha, c)]);
+            append!(constr_idxs, [unique([idx[2] for idx in idxs])]);
+        else
+            local c_rat = -c[idxs[1][1]] / (sum(c)-c[idxs[1][1]]);
+            local val = 1/alpha[idxs[1]]*log(c_rat);
+            local coeff = alpha[idxs[1]]*c[idxs[1][1]];
+            if coeff >= 0 && (ismissing(ubs[idxs[1][2]]) || ubs[idxs[1][2]] >= val)
+                ubs[idxs[1][2]] = val;
+            elseif ismissing(lbs[idxs[1][2]]) || lbs[idxs[1][2]] <= val
+                lbs[idxs[1][2]] = val;
+            end
+        end
     end
     ex = function_model(string("example", exidx),
-                        obj, obj_idxs, constr, constr_idxs, lbs, ubs)
+                        obj, obj_idxs, constr, constr_idxs, lbs, ubs);
     return ex
 end
 

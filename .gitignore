@@ -1,0 +1,12 @@
+.idea
+.ipynb_checkpoints
+venv
+test_reports
+build
+OptimalConstraintTree.egg-info
+dist
+__pycache__
+*.json
+*.subs
+*.bounds
+*.sol
