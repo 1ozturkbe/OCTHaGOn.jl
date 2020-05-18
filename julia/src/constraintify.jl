@@ -2,6 +2,22 @@
 using JuMP
 using Gurobi
 
+function base_otr()
+    return IAI.OptimalTreeRegressor(random_seed=1, max_depth=3, cp=1e-10,
+                                   minbucket=0.03, regression_sparsity=:all,
+                                   fast_num_support_restarts = 1,
+                                   hyperplane_config=(sparsity=:1,),
+                                   regression_lambda = 0.00001,
+                                   regression_weighted_betas=true)
+end
+
+function base_otc()
+    return IAI.OptimalTreeClassifier(random_seed=1, max_depth=5, cp=1e-10,
+                                   minbucket=0.01,
+                                   fast_num_support_restarts = 1,
+                                   hyperplane_config=(sparsity=:1,))
+end
+
 function learn_constraints(lnr, constraints, X; name=nothing)
     """
     Returns a set of feasibility trees from a set of constraints.

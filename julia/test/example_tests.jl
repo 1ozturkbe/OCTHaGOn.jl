@@ -11,6 +11,15 @@ include("../src/solve.jl")
 Set of examples for which to test different examples.
 """
 
+function example_constraint_fit(fn_model)
+    """ Fits a provided function model with feasibility and obj f'n fits and
+        saves the learners.
+    """
+    nsamples = 1000;
+    ndims = size(fn_model.lbs, 1)
+    plan, _ = LHCoptim(nsamples, ndims, 1);
+    X = scaleLHC(plan,[(fnm.lbs[i], fnm.ubs[i]) for i=1:3]);
+end
 
 function example_naive_fit(fnm)
     """
@@ -23,7 +32,7 @@ function example_naive_fit(fnm)
     # Code for initial tree training
     plan, _ = LHCoptim(nsamples, ndims, 1);
     X = scaleLHC(plan,[(fnm.lbs[i], fnm.ubs[i]) for i=1:3]);
-    lnr = IAI.OptimalTreeRegressor(random_seed=1, max_depth=3, cp=1e-10,  minbucket=0.03, regression_sparsity=:all, fast_num_support_restarts = 1, hyperplane_config=(sparsity=:1,), regression_lambda = 0.00001, regression_weighted_betas=true)
+    lnr = base_otr()
     for i = 1:size(fnm.constr, 1)
         Y = [-fnm.constr[i](X[j,:]) for j=1:nsamples];
         IAI.fit!(lnr, X, Y)
@@ -60,7 +69,7 @@ end
 #     plan, _ = LHCoptim(nsamples, ndims, 1);
 #     X = scaleLHC(plan,[(fnm.lbs[i], fnm.ubs[i]) for i=1:3]);
 #     # Assuming the objective has already been trained...
-#     lnr = IAI.OptimalTreeClassifier(random_seed=1, max_depth=5, cp=1e-10,  minbucket=0.01,fast_num_support_restarts = 1, hyperplane_config=(sparsity=1,))
+#     lnr = base_otr()
 #     name = "example1"
 #     feasTrees = learn_constraints(lnr, constraints, X, name=name)
 #
@@ -98,7 +107,7 @@ end
 
 @test test_import_sagebenchmark()
 
-@test
+@test example_
 
 # @test example_naive_fit(example2)
 

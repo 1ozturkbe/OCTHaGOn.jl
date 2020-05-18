@@ -1,4 +1,5 @@
 include("constraintify.jl")
+include("../test/examples.jl")
 
 function solve_sagebenchmark(sagemark)
     """ Solves a benchmark of given number (1-25 for now). """
@@ -8,9 +9,10 @@ function solve_sagebenchmark(sagemark)
     plan, _ = LHCoptim(nsamples, ndims, 1);
     X = scaleLHC(plan,[(fnm.lbs[i], fnm.ubs[i]) for i=1:3]);
     # Assuming the objective has already been trained...
-    lnr = IAI.OptimalTreeClassifier(random_seed=1, max_depth=5, cp=1e-10,  minbucket=0.01,fast_num_support_restarts = 1, hyperplane_config=(sparsity=1,))
+    otr = base_otr()
+    otc = base_otc()
     name = "example1"
-    feasTrees = learn_constraints(lnr, constraints, X, name=name)
+    feasTrees = learn_constraints(otc, constraints, X, name=name)
 
     # Creating the model
     constr = IAI.read_json("data/example1_constraint_infeas.json")
