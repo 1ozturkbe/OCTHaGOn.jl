@@ -12,6 +12,10 @@ function import_sagebenchmark(exidx)
     """
     Imports sagebenchmarks example from literature.solved and
     returns as a function_model.
+    Arguments:
+        exidx:: number of benchmark
+    Returns:
+        ex:: a function_model
     """
     sagemarks = pyimport("sagebenchmarks.literature.solved");
     signomials, solver, run_fn = sagemarks.get_example(exidx);

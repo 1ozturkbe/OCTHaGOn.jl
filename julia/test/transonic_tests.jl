@@ -2,7 +2,7 @@ using CSV, DataFrames, Statistics, Random
 using Gurobi, JuMP
 using Test
 
-include("../gen_constraints.jl")
+include("../src/constraintify.jl")
 
 function train_transonic_tree()
     @info "Trains tree over transonic airfoil data"

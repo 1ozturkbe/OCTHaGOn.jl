@@ -9,7 +9,7 @@ function learn_constraints(lnr, constraints, X, name=nothing)
         lnr: Unfit OptimalTreeClassifier or Grid
         constraints: set of constraint functions in std form (>= 0)
         X: samples of the free variables
-    NOTE: All constraints must take in vector of all X values. 
+    NOTE: All constraints must take in vector of all X values.
     """
     n_samples, n_features = size(X)
     n_constraints = size(constraints, 1)
@@ -30,12 +30,12 @@ function constraints_from_bounds(m, x, lbs, ubs)
         @constraint(m, x[i] <= ubs[i])
         @constraint(m, x[i] >= lbs[i])
     end
-    return m 
+    return m
 end
 
 function add_feas_constraints(lnr, m, x, vks, M=1e5)
-    """ 
-    Creates a set of binary feasibility constraints from 
+    """
+    Creates a set of binary feasibility constraints from
     a binary classification tree:
     Arguments:
         lnr: OptimalTreeClassifier
@@ -56,11 +56,11 @@ function add_feas_constraints(lnr, m, x, vks, M=1e5)
         # ADDING TRUST REGIONS
         for region in upperDict[leaf]
             threshold, α = region
-            @constraint(m, threshold <= sum(α.*x) + M*(1-z[i]));            
+            @constraint(m, threshold <= sum(α.*x) + M*(1-z[i]));
         end
         for region in lowerDict[leaf]
             threshold, α = region
-            @constraint(m, threshold <= sum(α.*x) + M*(1-z[i]));      
+            @constraint(m, threshold <= sum(α.*x) + M*(1-z[i]));
         end
     end
     return m
@@ -88,16 +88,16 @@ function add_mio_constraints(lnr, m, x, y, vks, M=1e5)
     for i = 1:size(all_leaves, 1)
         # ADDING CONSTRAINTS
         leaf = all_leaves[i];
-        β0, β = pwlDict[leaf]; 
+        β0, β = pwlDict[leaf];
         @constraint(m, sum(β.*x) + β0 <= y + M*(1 .-z[i]));
         # ADDING TRUST REGIONS
         for region in upperDict[leaf]
             threshold, α = region
-            @constraint(m, threshold <= sum(α.*x) + M*(1-z[i]));            
+            @constraint(m, threshold <= sum(α.*x) + M*(1-z[i]));
         end
         for region in lowerDict[leaf]
             threshold, α = region
-            @constraint(m, threshold <= sum(α.*x) + M*(1-z[i]));      
+            @constraint(m, threshold <= sum(α.*x) + M*(1-z[i]));
         end
     end
     return m
@@ -179,4 +179,3 @@ function trust_region_data(lnr, vks)
     end
     return upperDict, lowerDict
 end
-    
