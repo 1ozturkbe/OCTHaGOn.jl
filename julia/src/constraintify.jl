@@ -2,7 +2,7 @@
 using JuMP
 using Gurobi
 
-function learn_constraints(lnr, constraints, X, name=nothing)
+function learn_constraints(lnr, constraints, X; name=nothing)
     """
     Returns a set of feasibility trees from a set of constraints.
     Arguments:
@@ -33,7 +33,7 @@ function constraints_from_bounds(m, x, lbs, ubs)
     return m
 end
 
-function add_feas_constraints(lnr, m, x, vks, M=1e5)
+function add_feas_constraints(lnr, m, x, vks; M=1e5)
     """
     Creates a set of binary feasibility constraints from
     a binary classification tree:
@@ -66,7 +66,7 @@ function add_feas_constraints(lnr, m, x, vks, M=1e5)
     return m
 end
 
-function add_mio_constraints(lnr, m, x, y, vks, M=1e5)
+function add_mio_constraints(lnr, m, x, y, vks; M=1e5, eq=false)
     """
     Creates a set of MIO constraints from a OptimalTreeRegressor
     Arguments:
@@ -90,6 +90,9 @@ function add_mio_constraints(lnr, m, x, y, vks, M=1e5)
         leaf = all_leaves[i];
         β0, β = pwlDict[leaf];
         @constraint(m, sum(β.*x) + β0 <= y + M*(1 .-z[i]));
+        if eq
+            @constraint(m, sum(β.*x) + β0 + M*(1 .-z[i]) >= y)
+        end
         # ADDING TRUST REGIONS
         for region in upperDict[leaf]
             threshold, α = region
