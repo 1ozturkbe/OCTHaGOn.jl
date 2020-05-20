@@ -14,7 +14,7 @@ from OptimalConstraintTree.global_model import GlobalModel
 from OptimalConstraintTree.sample import gen_X
 from OptimalConstraintTree.tools import (find_signomials, prep_SimPleAC,
                                         get_varkeys, get_bounds, \
-                                        constraints_from_bounds, \
+                                        bound_variables, \
                                         constraint_from_gpfit, HiddenPrints)
 from OptimalConstraintTree.testing.run_tests import run_tests
 
@@ -97,8 +97,8 @@ class TestConstraintify(unittest.TestCase):
         bounds = pickle.load(open("data/SimPleAC.bounds", "rb"))
         basis[dvar.key] =  basesol['cost']*dvar.units
         # Check that bounding constraints are same for the two generation methods
-        c1 = constraints_from_bounds(bounds, m)
-        c2 = constraints_from_bounds(bounds, ivars)
+        c1 = bound_variables(bounds, m)
+        c2 = bound_variables(bounds, ivars)
         for i in range(len(c1)):
             self.assertEqual(c1[i].as_hmapslt1({}), c2[i].as_hmapslt1({}))
 

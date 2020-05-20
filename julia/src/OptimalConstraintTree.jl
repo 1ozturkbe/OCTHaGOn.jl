@@ -9,7 +9,8 @@ include("regress.jl")
 include("structs.jl")
 include("../test/examples.jl")
 
-export function_model, learn_constraints, constraints_from_bounds,
-       add_feas_constraints, add_mio_constraints, import_sagebenchmark
+export function_model, learn_constraints, bound_variables,
+       add_feas_constraints, add_mio_constraints, import_sagebenchmark,
+       base_otr, base_otc
 
 end

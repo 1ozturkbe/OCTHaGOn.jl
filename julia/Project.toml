@@ -3,5 +3,9 @@ uuid = "0bb7ae64-b219-4fe7-9577-362e06a335f4"
 authors = ["Berk Ozturk <1ozturkbe@gmail.com>"]
 version = "0.1.0"
 
+[deps]
+LIBLINEAR = "2d691ee1-e668-5016-a719-b2531b85e0f5"
+LIBSVM = "b1bec4e5-fd48-53fe-b0cb-9723c09d164b"
+
 [compat]
 julia = "1.3"

@@ -319,8 +319,8 @@ def powerResidual(x, dct):
     # =============
     '''
     Losses due to eddy currents in the stator (cored motors only, zero in coreless)
-    The metod in Gieras has been simplified here in order to not require FEA
-    Makes some conservative assumpitons
+    The method in Gieras has been simplified here in order to not require FEA
+    Makes some conservative assumptions
     Should generally be small, so long as lamination thickness is reasonable
     This model in general should not be run (indicated by setting the 'run_losses' input to False)
     '''
@@ -351,9 +351,10 @@ def powerResidual(x, dct):
     # Permanent Magnets
     # =============
     '''
-    Losses due to eddy currents and heating in the rotor magnets (cored motors only, negligable in coreless)
-    The metod in Gieras has been simplified here in order to not require FEA
-    Makes some conservative assumpitons
+    Losses due to eddy currents and heating in the rotor magnets
+    (cored motors only, negligible in coreless).
+    The method in Gieras has been simplified here in order to not require FEA
+    Makes some conservative assumptions.
     Should generally be small
     This model in general should not be run (indicated by setting the 'run_losses' input to False)
     '''
@@ -393,9 +394,10 @@ def powerResidual(x, dct):
     # Rotor Core
     # =============
     '''
-    Losses due to eddy currents and heating in the rotor core or backplate (cored motors only, negligable in coreless)
-    The metod in Gieras has been simplified here in order to not require FEA
-    Makes some conservative assumpitons
+    Losses due to eddy currents and heating in the rotor core or backplate
+    (cored motors only, negligible in coreless)
+    The method in Gieras has been simplified here in order to not require FEA
+    Makes some conservative assumptions
     Should generally be small
     This model in general should not be run (indicated by setting the 'run_losses' input to False)
     '''
@@ -604,6 +606,9 @@ def baseline():
     dct['n_s']            = None #8000*units.rpm
     dct['I_1']            = maximumCurrent
     return dct, maximumCurrent
+
+def simulate_motor(dct, maximumCurrent, throttleLevels, torqueLevels):
+    pass
 
 if __name__ == '__main__':
     dct, maximumCurrent = baseline()

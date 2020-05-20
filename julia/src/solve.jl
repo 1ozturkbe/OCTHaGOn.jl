@@ -24,7 +24,7 @@ function solve_sagebenchmark(sagemark)
     @objective(m, Min, obj)
     add_feas_constraints(constr, m, x, vks, 1000);
     add_mio_constraints(objectivefn, m, x, obj, vks, 1000000);
-    constraints_from_bounds(m, x, fnm.lbs, fnm.ubs);
+    bound_variables(m, x, fnm.lbs, fnm.ubs);
     status = solve(m)
     println("Solved minimum: ", getvalue(obj))
     println("Known global bound: ", -147-2/3)

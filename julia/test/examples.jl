@@ -2,13 +2,16 @@ using Test
 include("../src/structs.jl")
 using PyCall
 
-function alphac_to_fn(alpha, c)
+function alphac_to_fn(alpha, c; lse=false)
     nterms, xdim = size(alpha)
-    sig_fn(x) = sum([c[i]*exp(sum(alpha[i,j]*x[j] for j=1:xdim)) for i=1:nterms])
+    sig_fn(x) = sum([c[i]*prod(x[j]^alpha[i,j] for j=1:xdim) for i=1:nterms])
+    if lse
+        sig_fn(x) = sum([c[i]*exp(sum(alpha[i,j]*x[j] for j=1:xdim)) for i=1:nterms])
+    end
     return sig_fn
 end
 
-function import_sagebenchmark(exidx)
+function import_sagebenchmark(exidx; lse=false)
     """
     Imports sagebenchmarks example from literature.solved and
     returns as a function_model.
@@ -21,7 +24,7 @@ function import_sagebenchmark(exidx)
     signomials, solver, run_fn = sagemarks.get_example(exidx);
     f, gts, eqs = signomials;
     xdim = size(f.alpha,2);
-    obj(x) = alphac_to_fn(f.alpha, f.c);
+    obj(x) = alphac_to_fn(f.alpha, f.c, lse=lse);
     obj_idxs = unique([idx[2] for idx in findall(i->i != 0, f.alpha)]);
     ineqs = Vector{Function}();
     ineq_idxs = Array[];
@@ -37,10 +40,11 @@ function import_sagebenchmark(exidx)
             append!(ineqs, [alphac_to_fn(alpha, c)]);
             append!(ineq_idxs, [unique([idx[2] for idx in idxs])]);
         else
-            local c_rat = -c[idxs[1][1]] / (sum(c)-c[idxs[1][1]]);
-            local val = 1/alpha[idxs[1]]*log(c_rat);
-            local coeff = alpha[idxs[1]]*c[idxs[1][1]];
-            if coeff >= 0 && (ismissing(ubs[idxs[1][2]]) || ubs[idxs[1][2]] >= val)
+            local val = -((sum(c)-c[idxs[1][1]]) / c[idxs[1][1]])^(1/alpha[idxs[1]]);
+            if lse
+                val=log(val)
+            end
+            if c[idxs[1][1]] <= 0 && (ismissing(ubs[idxs[1][2]]) || ubs[idxs[1][2]] >= val)
                 ubs[idxs[1][2]] = val;
             elseif ismissing(lbs[idxs[1][2]]) || lbs[idxs[1][2]] <= val
                 lbs[idxs[1][2]] = val;
