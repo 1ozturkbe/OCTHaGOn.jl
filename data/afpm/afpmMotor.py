@@ -570,11 +570,9 @@ def powerResidual(x, dct):
         output['Darcy Friction Factor'] = f_d
         return output
 
-if __name__ == '__main__':
-    # Runs when called in terminal
-
+def baseline():
+    """ Returns baseline inputs to motor model that closes. """
     dct = {}
-    tol = 1e-6
     # Variables =======================
     dct['D_out']          = 13*units.cm    # Outer Diameter of the motor
     dct['D_in']           = 7.6*units.cm   # Inner Diameter of the motor
@@ -587,7 +585,6 @@ if __name__ == '__main__':
     dct['motor_type']     = 2              # 1: feromagnetic core with non-overlapping coils, 2: coreless with overlapping coils
     dct['wire_dimension'] = [0.15,3.0]*units.mm   # Reference dimension of the wire: Diameter for circle, width for square
     dct['wire_type']      = 'rectangle'       # Wire geometry, either circle or square
-
     # dct['wire_dimension'] = 2*units.mm   # Reference dimension of the wire: Diameter for circle, width for square
     # dct['wire_thickness'] = 0.4 * units.mm # Thickness of copper in the wire, interior becomes coolant path
     # dct['wire_type']      = 'square'       # Wire geometry, either circle or square
@@ -600,14 +597,16 @@ if __name__ == '__main__':
     dct['frequency']  = 50*units.Hz           # AC frequency
     dct['run_losses'] = False                 # Flag whether or not to run the loss functions (cored motor only).  Model not validated, should leave false
     dct['print_roughness'] = 0.05*units.mm
-
     # Compute max current the motor can take =======================
     equivalentDiameter = diameter_from_dimension(dct['wire_dimension'],dct['wire_type'])
     maximumCurrent     = computeRatedCurrent(equivalentDiameter.to('mm').magnitude) * units.ampere
-
     # Values to be solved =======================
-    dct['n_s']            = None#8000*units.rpm
+    dct['n_s']            = None #8000*units.rpm
     dct['I_1']            = maximumCurrent
+    return dct, maximumCurrent
+
+if __name__ == '__main__':
+    dct, maximumCurrent = baseline()
 
     # Check Valid Configuration ==================
     runCon = True
@@ -627,6 +626,7 @@ if __name__ == '__main__':
         raise ValueError('Invalid Motor Configuration')
 
     # Run (solve for whichever value you did not specify above) =======================
+    tol = 1e-6
     res = spo.minimize(powerResidual, 1.0, args=(dct), method='SLSQP')
     if res['message'] != 'Optimization terminated successfully.' or abs(res['fun']) > tol:
         print(res)
