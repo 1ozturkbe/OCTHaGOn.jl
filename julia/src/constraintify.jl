@@ -23,9 +23,10 @@ function base_otc()
         cp = 1e-10,
         minbucket = 0.01,
         fast_num_support_restarts = 1,
-        hyperplane_config = (sparsity = :1,),
+        hyperplane_config = (sparsity = :all,),
     )
 end
+
 
 function learn_constraints(lnr, constraints, X; idxs = nothing)
     """
@@ -58,6 +59,36 @@ function learn_constraints(lnr, constraints, X; idxs = nothing)
     end
     return feasTrees
 end
+
+# function learn_objective(lnr, objective, X; idxs=nothing)
+#     """
+#     Returns a set of feasibility trees from a set of constraints.
+#     Arguments:
+#         lnr: Unfit OptimalTreeClassifier or Grid
+#         constraints: set of constraint functions in std form (>= 0)
+#         X: samples of the free variables
+#     NOTE: All constraints must take in vector of all X values.
+#     """
+#     n_samples, n_features = size(X)
+#     local Y = [objective(X[j, :]) for j = 1:n_samples]
+#     local nX = repeat(X, n_samples)
+#     local nY = repeat(Y, n_samples)
+#     nY = [nY[j] >= objective(nX[j,:]) for j=1:shape(nY,2)]
+#     # Making sure that we only consider relevant features.
+#     if !isnothing(idxs)
+#         IAI.set_params!(lnr, split_features = idxs[i])
+#         if typeof(lnr) == IAI.OptimalTreeRegressor
+#             IAI.set_params!(lnr, regression_features=idxs[i])
+#         end
+#     else
+#         IAI.set_params!(lnr, split_features = :all)
+#         if typeof(lnr) == IAI.OptimalTreeRegressor
+#             IAI.set_params!(lnr, regression_features=:all)
+#         end
+#     end
+#     IAI.fit!(lnr, nX, nY)
+#     return lnr
+# end
 
 function bound_variables(m, x, lbs, ubs)
     for i = 1:size(lbs, 1)
