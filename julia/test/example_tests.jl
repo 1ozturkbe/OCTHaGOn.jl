@@ -107,61 +107,91 @@ function test_import_sagebenchmark()
     """ Makes sure all sage benchmarks import properly.
         For now, just doing first 25, since polynomial
         examples are not in R+. """
-    idxs = 1:25
+    idxs = 1:25;
     # max_min = [26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38]
     for idx in idxs
-        ex = import_sagebenchmark(idx)
+        ex = import_sagebenchmark(idx);
     end
-    idx = 1
-    ex = import_sagebenchmark(idx, lse=false)
-    ubs = [1, 10, 15, 1]
-    lbs = [0.1, 5, 8, 0.01]
-    @test ex.obj([1,2,3,4]) == 2 ^ 0.8 * 3 ^ 1.2
+    idx = 1;
+    ex = import_sagebenchmark(idx; lse=false);
+    ex_lse = import_sagebenchmark(idx; lse=true);
+    ubs = [1, 10, 15, 1];
+    lbs = [0.1, 5, 8, 0.01];
+    inp = [1,2,3,4]
+    @test ex.obj(inp) ≈ inp[3] ^ 0.8 * inp[4] ^ 1.2
+    @test ex_lse.obj(log.(inp)) ≈ inp[3] ^ 0.8 * inp[4] ^ 1.2
     for i=1:4
-        @test ex.ubs[i] ≈ ubs[i]
-        @test ex.lbs[i] ≈ lbs[i]
+        @test ex.ubs[i] ≈ ubs[i];
+        @test ex.lbs[i] ≈ lbs[i];
+        @test ex_lse.ubs[i] ≈ log(ubs[i])
+        @test ex_lse.lbs[i] ≈ log(lbs[i])
     end
-
     return true
 end
 
-# @test test_import_sagebenchmark()
+@test test_import_sagebenchmark()
 
 # @test example_
 
 # @test example_naive_fit(example2)
 
 # @test example1_infeas()
-fn_model = import_sagebenchmark(2)
-n_samples = 1000;
-n_dims = length(fn_model.lbs)
-vks = [Symbol("x",i) for i=1:n_dims];
-plan, _ = LHCoptim(n_samples, n_dims, 1);
-X = scaleLHC(plan,[(fn_model.lbs[i], fn_model.ubs[i]) for i=1:n_dims]);
-otr = base_otr()
-otc = base_otc()
-ineq_trees = learn_constraints(otc, fn_model.ineqs, X; idxs=fn_model.ineq_idxs)
-eq_trees = learn_constraints(otc, fn_model.eqs, X; idxs=fn_model.eq_idxs)
-for i=1:size(ineq_trees,1)
-    IAI.write_json(string("data/", fn_model.name, "_ineq_", string(i), ".json"),
-                    ineq_trees[i]);
-end
-for i = 1:size(eq_trees, 1)
-    IAI.write_json(string("data/", fn_model.name, "_ineq_", string(i), ".json"),
-                   eq_trees[i]);
-end
-m = Model(solver=GurobiSolver());
-@variable(m, x[1:n_dims])
-@variable(m, obj)
-@objective(m, Min, obj)
-for i in 1:length(ineq_trees)
-    add_feas_constraints(ineq_trees[i], m, x, vks; M = 1e5)
-end
-#     add_mio_constraints(constr, m, x, 0, vks, 1000000);
-#     add_mio_constraints(objectivefn, m, x, obj, vks, 1000000);
-#     bound_variables(m, x, fn_model.lbs, fn_model.ubs);
-#     status = solve(m)
-#     println("Solved minimum: ", getvalue(obj))
-#     println("Known global bound: ", -147-2/3)
-#     println("X values: ", getvalue(x))
-#     println("Optimal X: ", [5.01063529, 3.40119660, -0.48450710])
+# fn_model = import_sagebenchmark(1, lse=true);
+# n_samples = 1000;
+# n_dims = length(fn_model.lbs)
+# vks = [Symbol("x",i) for i=1:n_dims];
+# plan, _ = LHCoptim(n_samples, n_dims, 1);
+# X = scaleLHC(plan,[(fn_model.lbs[i], fn_model.ubs[i]) for i=1:n_dims]);
+# otr = base_otr()
+# otc = base_otc()
+# # obj_tree = learn_objective(otc, fn_model.obj, X; idxs=fn_model.obj_idxs)
+# ineq_trees = learn_constraints(otc, fn_model.ineqs, X; idxs=fn_model.ineq_idxs)
+# eq_trees = learn_constraints(otc, fn_model.eqs, X; idxs=fn_model.eq_idxs)
+# for i=1:size(ineq_trees,1)
+#     IAI.write_json(string("data/", fn_model.name, "_ineq_", string(i), ".json"),
+#                     ineq_trees[i]);
+# end
+# for i = 1:size(eq_trees, 1)
+#     IAI.write_json(string("data/", fn_model.name, "_eq_", string(i), ".json"),
+#                    eq_trees[i]);
+# end
+# m = Model(solver=GurobiSolver());
+# @variable(m, x[1:n_dims])
+# @variable(m, obj)
+# @objective(m, Min, obj)
+# for i=1:length(ineq_trees)
+#     add_feas_constraints(ineq_trees[i], m, x, vks; M = 100);
+# end
+# for i=1:length(eq_trees)
+#     add_feas_constraints(eq_trees[i], m, x, vks; M = 100);
+# end
+#
+# #     add_mio_constraints(constr, m, x, 0, vks, 1000000);
+# #     add_mio_constraints(objectivefn, m, x, obj, vks, 1000000);
+# #     bound_variables(m, x, fn_model.lbs, fn_model.ubs);
+# #     status = solve(m)
+# #     println("Solved minimum: ", getvalue(obj))
+# #     println("Known global bound: ", -147-2/3)
+# #     println("X values: ", getvalue(x))
+# #     println("Optimal X: ", [5.01063529, 3.40119660, -0.48450710])
+#
+# n_samples, n_features = size(X)
+# objective = fn_model.obj
+# Y = [objective(transpose(X[j, :])) for j = 1:n_samples]
+# nX = repeat(X, n_samples)
+# nY = repeat(Y, n_samples)
+# nY = [nY[j] >= objective(nX[j,:]) for j=1:shape(nY,2)]
+#     # Making sure that we only consider relevant features.
+#     if !isnothing(idxs)
+#         IAI.set_params!(lnr, split_features = idxs[i])
+#         if typeof(lnr) == IAI.OptimalTreeRegressor
+#             IAI.set_params!(lnr, regression_features=idxs[i])
+#         end
+#     else
+#         IAI.set_params!(lnr, split_features = :all)
+#         if typeof(lnr) == IAI.OptimalTreeRegressor
+#             IAI.set_params!(lnr, regression_features=:all)
+#         end
+#     end
+#     IAI.fit!(lnr, nX, nY)
+#     return lnr
