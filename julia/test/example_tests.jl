@@ -117,15 +117,18 @@ function test_import_sagebenchmark()
     ex_lse = import_sagebenchmark(idx; lse=true);
     ubs = [1, 10, 15, 1];
     lbs = [0.1, 5, 8, 0.01];
-    inp = [1,2,3,4]
+    inp = [1,1.9,3,3.9];
     @test ex.obj(inp) ≈ inp[3] ^ 0.8 * inp[4] ^ 1.2
     @test ex_lse.obj(log.(inp)) ≈ inp[3] ^ 0.8 * inp[4] ^ 1.2
-    for i=1:4
+    for i=1:length(inp)
         @test ex.ubs[i] ≈ ubs[i];
         @test ex.lbs[i] ≈ lbs[i];
         @test ex_lse.ubs[i] ≈ log(ubs[i])
         @test ex_lse.lbs[i] ≈ log(lbs[i])
     end
+    @test ex.ineqs[1](inp) >= 0
+    @test ex.ineqs[2](inp) <= 0
+    @test ex.ineqs[1](inp) ≈ ex_lse.ineqs[1](log.(inp))
     return true
 end
 
