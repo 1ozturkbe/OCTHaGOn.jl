@@ -8,4 +8,5 @@ struct function_model
     eq_idxs::Array          # Equality indices
     lbs::Array              # Lower bounds
     ubs::Array              # Upper bounds
+    lse::Bool
 end

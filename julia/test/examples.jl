@@ -61,7 +61,7 @@ function import_sagebenchmark(idx; lse=false)
     end
     ex = function_model(string("example", idx),
                         obj, obj_idxs, ineqs, ineq_idxs,
-                        eqs, eq_idxs, lbs, ubs);
+                        eqs, eq_idxs, lbs, ubs, lse);
     return ex
 end
 
@@ -77,7 +77,7 @@ function example1()
     lbs = log.([70, 1, 0.5]);
     ubs = log.([150, 20, 21]);
     ex = function_model("example1", obj, obj_idxs, ineqs, ineq_idxs,
-                        eqs, eq_idxs, lbs, ubs)
+                        eqs, eq_idxs, lbs, ubs, false)
     return ex
 end
 
@@ -93,6 +93,6 @@ function example2()
     lbs = [5, 0., 380];
     ubs = [15, 5, 450];
     ex = function_model("example2", obj, obj_idxs, ineqs, ineq_idxs,
-                        eqs, eq_idxs, lbs, ubs);
+                        eqs, eq_idxs, lbs, ubs, false);
     return ex
 end
