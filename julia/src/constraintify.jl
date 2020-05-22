@@ -38,24 +38,25 @@ function learn_constraints(lnr, constraints, X; idxs = nothing)
     NOTE: All constraints must take in vector of all X values.
     """
     n_samples, n_features = size(X)
-    n_constraints = size(constraints, 1)
+    n_constraints = length(constraints)
     feasTrees = IAI.OptimalTreeClassifier[]
     for i = 1:n_constraints
+        nl = deepcopy(lnr)
         Y = [constraints[i](X[j, :]) >= 0 for j = 1:n_samples]
         # Making sure that we only consider relevant features.
         if !isnothing(idxs)
-            IAI.set_params!(lnr, split_features = idxs[i])
-            if typeof(lnr) == IAI.OptimalTreeRegressor
-                IAI.set_params!(lnr, regression_features=idxs[i])
+            IAI.set_params!(nl, split_features = idxs[i])
+            if typeof(nl) == IAI.OptimalTreeRegressor
+                IAI.set_params!(nl, regression_features=idxs[i])
             end
         else
-            IAI.set_params!(lnr, split_features = :all)
-            if typeof(lnr) == IAI.OptimalTreeRegressor
-                IAI.set_params!(lnr, regression_features=:all)
+            IAI.set_params!(nl, split_features = :all)
+            if typeof(nl) == IAI.OptimalTreeRegressor
+                IAI.set_params!(nl, regression_features=:all)
             end
         end
-        IAI.fit!(lnr, X, Y)
-        append!(feasTrees, [lnr])
+        IAI.fit!(nl, X, Y)
+        append!(feasTrees, [nl])
     end
     return feasTrees
 end
@@ -71,7 +72,8 @@ function learn_objective(lnr, objective, X; idxs=nothing, lse=false)
     """
     n_samples, n_features = size(X)
     Y = [objective(X[j, :]) for j = 1:n_samples];
-    if typeof(lnr) == IAI.OptimalTreeClassifier
+    nl = deepcopy(lnr)
+    if typeof(nl) == IAI.OptimalTreeClassifier
         nX = repeat(X, n_samples);
         nY = Y;
         for i=2:n_samples
@@ -94,32 +96,24 @@ function learn_objective(lnr, objective, X; idxs=nothing, lse=false)
     end
     # Making sure that we only consider relevant features.
     if !isnothing(idxs)
-        if typeof(lnr) == IAI.OptimalTreeRegressor
-            IAI.set_params!(lnr, split_features = idxs)
-            IAI.set_params!(lnr, regression_features = idxs)
+        if typeof(nl) == IAI.OptimalTreeRegressor
+            IAI.set_params!(nl, split_features = idxs)
+            IAI.set_params!(nl, regression_features = idxs)
         else
             nidxs = append!(copy(idxs), n_features+1)
-            IAI.set_params!(lnr, split_features = nidxs)
+            IAI.set_params!(nl, split_features = nidxs)
         end
     else
-        IAI.set_params!(lnr, split_features = :all)
-        if typeof(lnr) == IAI.OptimalTreeRegressor
-            IAI.set_params!(lnr, regression_features=:all)
+        IAI.set_params!(nl, split_features = :all)
+        if typeof(nl) == IAI.OptimalTreeRegressor
+            IAI.set_params!(nl, regression_features=:all)
         end
     end
-    IAI.fit!(lnr, nX, nY)
-    return lnr
+    IAI.fit!(nl, nX, nY)
+    return nl
 end
 
-function bound_variables(m, x, lbs, ubs)
-    for i = 1:size(lbs, 1)
-        @constraint(m, x[i] <= ubs[i])
-        @constraint(m, x[i] >= lbs[i])
-    end
-    return m
-end
-
-function add_feas_constraints(lnr, m, x, vks; M = 1e5, eq = false)
+function add_feas_constraints!(lnr, m, x, vks; M = 1e5, eq = false)
     """
     Creates a set of binary feasibility constraints from
     a binary classification tree:
@@ -154,7 +148,7 @@ function add_feas_constraints(lnr, m, x, vks; M = 1e5, eq = false)
     return m
 end
 
-function add_mio_constraints(lnr, m, x, y, vks; M = 1e5, eq = false)
+function add_mio_constraints!(lnr, m, x, y, vks; M = 1e5, eq = false)
     """
     Creates a set of MIO constraints from a OptimalTreeRegressor
     Arguments:
@@ -189,7 +183,7 @@ function add_mio_constraints(lnr, m, x, y, vks; M = 1e5, eq = false)
         end
         for region in lowerDict[leaf]
             threshold, α = region
-            @constraint(m, threshold <= sum(α .* x) + M * (1 - z[i]))
+            @constraint(m, threshold + M * (1 - z[i]) >= sum(α .* x))
         end
     end
     return m
