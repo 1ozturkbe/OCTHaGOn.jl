@@ -6,11 +6,11 @@ function base_otr()
     return IAI.OptimalTreeRegressor(
         random_seed = 1,
         max_depth = 3,
-        cp = 1e-10,
+        cp = 1e-6,
         minbucket = 0.03,
         regression_sparsity = :all,
         fast_num_support_restarts = 1,
-        hyperplane_config = (sparsity = :1,),
+        hyperplane_config = (sparsity = :all,),
         regression_lambda = 0.00001,
         regression_weighted_betas = true,
     )
@@ -20,7 +20,7 @@ function base_otc()
     return IAI.OptimalTreeClassifier(
         random_seed = 1,
         max_depth = 5,
-        cp = 1e-10,
+        cp = 1e-6,
         minbucket = 0.01,
         fast_num_support_restarts = 1,
         hyperplane_config = (sparsity = :all,),
@@ -60,35 +60,56 @@ function learn_constraints(lnr, constraints, X; idxs = nothing)
     return feasTrees
 end
 
-# function learn_objective(lnr, objective, X; idxs=nothing)
-#     """
-#     Returns a set of feasibility trees from a set of constraints.
-#     Arguments:
-#         lnr: Unfit OptimalTreeClassifier or Grid
-#         constraints: set of constraint functions in std form (>= 0)
-#         X: samples of the free variables
-#     NOTE: All constraints must take in vector of all X values.
-#     """
-#     n_samples, n_features = size(X)
-#     local Y = [objective(X[j, :]) for j = 1:n_samples]
-#     local nX = repeat(X, n_samples)
-#     local nY = repeat(Y, n_samples)
-#     nY = [nY[j] >= objective(nX[j,:]) for j=1:shape(nY,2)]
-#     # Making sure that we only consider relevant features.
-#     if !isnothing(idxs)
-#         IAI.set_params!(lnr, split_features = idxs[i])
-#         if typeof(lnr) == IAI.OptimalTreeRegressor
-#             IAI.set_params!(lnr, regression_features=idxs[i])
-#         end
-#     else
-#         IAI.set_params!(lnr, split_features = :all)
-#         if typeof(lnr) == IAI.OptimalTreeRegressor
-#             IAI.set_params!(lnr, regression_features=:all)
-#         end
-#     end
-#     IAI.fit!(lnr, nX, nY)
-#     return lnr
-# end
+function learn_objective(lnr, objective, X; idxs=nothing, lse=false)
+    """
+    Returns a set of feasibility trees from a set of constraints.
+    Arguments:
+        lnr: Unfit OptimalTreeClassifier, OptimalTreeRegressor, or Grid
+        constraints: set of constraint functions in std form (>= 0)
+        X: samples of the free variables
+    NOTE: All constraints must take in vector of all X values.
+    """
+    n_samples, n_features = size(X)
+    Y = [objective(X[j, :]) for j = 1:n_samples];
+    if typeof(lnr) == IAI.OptimalTreeClassifier
+        nX = repeat(X, n_samples);
+        nY = Y;
+        for i=2:n_samples
+            append!(nY, Y[i:n_samples, :])
+            append!(nY, Y[1:i-1, :])
+        end
+        if lse
+            nX = [nX log.(nY)];
+        else
+            nX = [nX nY];
+        end
+        nY = [nY[j] >= objective(nX[j,:]) for j=1:size(nY,1)];
+    else
+        nX = X;
+        if lse
+            nY = log.(Y);
+        else
+            nY = Y;
+        end
+    end
+    # Making sure that we only consider relevant features.
+    if !isnothing(idxs)
+        if typeof(lnr) == IAI.OptimalTreeRegressor
+            IAI.set_params!(lnr, split_features = idxs)
+            IAI.set_params!(lnr, regression_features = idxs)
+        else
+            nidxs = append!(copy(idxs), n_features+1)
+            IAI.set_params!(lnr, split_features = nidxs)
+        end
+    else
+        IAI.set_params!(lnr, split_features = :all)
+        if typeof(lnr) == IAI.OptimalTreeRegressor
+            IAI.set_params!(lnr, regression_features=:all)
+        end
+    end
+    IAI.fit!(lnr, nX, nY)
+    return lnr
+end
 
 function bound_variables(m, x, lbs, ubs)
     for i = 1:size(lbs, 1)
@@ -98,7 +119,7 @@ function bound_variables(m, x, lbs, ubs)
     return m
 end
 
-function add_feas_constraints(lnr, m, x, vks; M = 1e5)
+function add_feas_constraints(lnr, m, x, vks; M = 1e5, eq = false)
     """
     Creates a set of binary feasibility constraints from
     a binary classification tree:
@@ -108,6 +129,7 @@ function add_feas_constraints(lnr, m, x, vks; M = 1e5)
         x:: JuMPVariables (features in lnr)
         vks:: varkeys of the features in lnr
     """
+    #TODO determine proper use for equalities
     n_nodes = IAI.get_num_nodes(lnr)
     # Add a binary variable for each leaf
     all_leaves = [i for i = 1:n_nodes if IAI.is_leaf(lnr, i)]
@@ -126,7 +148,7 @@ function add_feas_constraints(lnr, m, x, vks; M = 1e5)
         end
         for region in lowerDict[leaf]
             threshold, α = region
-            @constraint(m, threshold <= sum(α .* x) + M * (1 - z[i]))
+            @constraint(m, threshold + M * (1 - z[i]) >= sum(α .* x))
         end
     end
     return m
@@ -143,6 +165,7 @@ function add_mio_constraints(lnr, m, x, y, vks; M = 1e5, eq = false)
         vks:: varkeys of the features in lnr
         M:: coefficient in bigM formulation
     """
+    #TODO determine proper use for equalities
     n_nodes = IAI.get_num_nodes(lnr)
     # Add a binary variable for each leaf
     all_leaves = [i for i = 1:n_nodes if IAI.is_leaf(lnr, i)]
@@ -226,6 +249,7 @@ function trust_region_data(lnr, vks)
             threshold = IAI.get_split_threshold(lnr, j)
             if IAI.is_hyperplane_split(lnr, j)
                 weights = IAI.get_split_weights(lnr, j)
+                weights = weights[1]
             else
                 feature = IAI.get_split_feature(lnr, j)
                 weights = Dict(feature => 1)
