@@ -1,20 +1,7 @@
 include("constraintify.jl")
 include("../test/examples.jl")
 
-function reweight(X, x_sol, mag=2, neighbors=1.2)
-    """ Reweights existing data by proximity to previous solution.
-    Arguments:
-    - X: data
-    - x_sol: solution array with same # of columns
-    - mag: relative weighting, bigger is more.
-    - neighbors: magnitude of relative deviation where weighting is equal.
-    Returns:
-    - weights: weights of X rows, by Euclidian distance
-    """
-    distance = 0;
-    weights =[];
-    return weights
-end
+
 
 function solve_sagebenchmark(sagemark)
     """ Solves a benchmark of given number (1-25 for now). """
