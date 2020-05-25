@@ -21,7 +21,7 @@ function example_fit(fn_model::function_model)
     X = scaleLHC(plan,[(fn_model.lbs[i], fn_model.ubs[i]) for i=1:n_dims]);
     ineq_trees = learn_constraints(base_otc(), fn_model.ineqs, X; idxs=fn_model.ineq_idxs)
     eq_trees = learn_constraints(base_otc(), fn_model.eqs, X; idxs=fn_model.eq_idxs)
-    obj_tree = learn_objective(base_otr(), fn_model.obj, X;
+    obj_tree = learn_objective!(base_otc(), fn_model.obj, X;
                                idxs=fn_model.obj_idxs, lse=fn_model.lse)
     IAI.write_json(string("data/", fn_model.name, "_obj.json"), obj_tree);
     for i=1:size(ineq_trees,1)
@@ -38,17 +38,18 @@ end
 function example_solve(fn_model::function_model)
     """ Solves an already fitted function_model. """
     # Retrieving constraints
-    obj_tree = IAI.read_json(string("data/", fn_model.name, "_obj.json"))
+    obj_tree = IAI.read_json(string("data/", fn_model.name, "_obj.json"));
     ineq_trees = [IAI.read_json(string("data/", fn_model.name, "_ineq_", i, ".json")) for i=1:length(fn_model.ineqs)];
     eq_trees = [IAI.read_json(string("data/", fn_model.name, "_eq_", i, ".json")) for i=1:length(fn_model.eqs)];
     # Creating JuMP model
     m = Model(solver=GurobiSolver());
     n_vars = length(fn_model.lbs);
     vks = [Symbol("x",i) for i=1:n_vars];
+    obj_vks = [Symbol("x",i) for i=1:n_vars+1];
     @variable(m, x[1:n_vars])
     @variable(m, y)
     @objective(m, Min, y)
-    add_mio_constraints!(obj_tree, m, x, y, vks; M = 1e2)
+    add_feas_constraints!(obj_tree, m, [x; y], obj_vks; M = 1e2)
     for tree in ineq_trees
         add_feas_constraints!(tree, m, x, vks; M = 1e2)
     end
@@ -93,9 +94,9 @@ function test_import_sagebenchmark()
     return true
 end
 
-# @test test_import_sagebenchmark()
+@test test_import_sagebenchmark()
 
-fn_model = import_sagebenchmark(1, lse=true);
+fn_model = import_sagebenchmark(3, lse=true);
 
 @test example_fit(fn_model)
 @test example_solve(fn_model)

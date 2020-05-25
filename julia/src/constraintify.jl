@@ -1,6 +1,7 @@
 # File to generate constraints compatible with JuMP
 using JuMP
 using Gurobi
+using Random
 
 function base_otr()
     return IAI.OptimalTreeRegressor(
@@ -61,7 +62,7 @@ function learn_constraints(lnr, constraints, X; idxs = nothing)
     return feasTrees
 end
 
-function learn_objective(lnr, objective, X; idxs=nothing, lse=false)
+function learn_objective!(lnr, objective, X; idxs=nothing, lse=false)
     """
     Returns a set of feasibility trees from a set of constraints.
     Arguments:
@@ -72,24 +73,30 @@ function learn_objective(lnr, objective, X; idxs=nothing, lse=false)
     """
     n_samples, n_features = size(X)
     Y = [objective(X[j, :]) for j = 1:n_samples];
+    Y = Y[randperm(length(Y))]
     nl = deepcopy(lnr)
     if typeof(nl) == IAI.OptimalTreeClassifier
-        nX = repeat(X, n_samples);
-        nY = Y;
-        for i=2:n_samples
-            append!(nY, Y[i:n_samples, :])
-            append!(nY, Y[1:i-1, :])
-        end
-        if lse
-            nX = [nX log.(nY)];
+        nX = deepcopy(X);
+        if lse && !any(Y .<= 0)
+            nX = [nX log.(Y)];
+        elseif lse
+            print("WARNING: [Cannot fit in logspace, since objective" *
+            "has negative values. LSE option is turned off.]")
+            lse = false;
+            nX = [nX Y];
         else
-            nX = [nX nY];
+            nX = [nX Y];
         end
-        nY = [nY[j] >= objective(nX[j,:]) for j=1:size(nY,1)];
+        nY = [Y[j] >= objective(nX[j,:]) for j=1:size(Y,1)];
     else
         nX = X;
-        if lse
+        if lse && !any(Y .<= 0)
             nY = log.(Y);
+        elseif lse
+            print("WARNING: [Cannot fit in logspace, since objective" *
+            "has negative values. LSE option is turned off.]")
+            nY = Y;
+            lse = false;
         else
             nY = Y;
         end
@@ -152,7 +159,7 @@ function add_mio_constraints!(lnr, m, x, y, vks; M = 1e5, eq = false)
     """
     Creates a set of MIO constraints from a OptimalTreeRegressor
     Arguments:
-        lnr: OptimalTreeRegressor
+        lnr: OptimalTreeRegressor or OptimalTreeClassifier
         m:: JuMP Model
         x:: independent JuMPVariable (features in lnr)
         y:: dependent JuMPVariable (output of lnr)

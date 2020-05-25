@@ -1,4 +1,4 @@
-# Functions for design of experiments
+# R Functions for design of experiments
 
 using RCall
 

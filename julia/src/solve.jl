@@ -1,6 +1,21 @@
 include("constraintify.jl")
 include("../test/examples.jl")
 
+function reweight(X, x_sol, mag=2, neighbors=1.2)
+    """ Reweights existing data by proximity to previous solution.
+    Arguments:
+    - X: data
+    - x_sol: solution array with same # of columns
+    - mag: relative weighting, bigger is more.
+    - neighbors: magnitude of relative deviation where weighting is equal.
+    Returns:
+    - weights: weights of X rows, by Euclidian distance
+    """
+    distance = 0;
+    weights =[];
+    return weights
+end
+
 function solve_sagebenchmark(sagemark)
     """ Solves a benchmark of given number (1-25 for now). """
     nsamples = 1000;
@@ -22,9 +37,9 @@ function solve_sagebenchmark(sagemark)
     @variable(m, x[1:3])
     @variable(m, obj)
     @objective(m, Min, obj)
-    add_feas_constraints(constr, m, x, vks, 1000);
-    add_mio_constraints(objectivefn, m, x, obj, vks, 1000000);
-    bound_variables(m, x, fnm.lbs, fnm.ubs);
+    add_feas_constraints!(constr, m, x, vks, 1000);
+    add_mio_constraints!(objectivefn, m, x, obj, vks, 1000000);
+    bound_variables!(m, x, fnm.lbs, fnm.ubs);
     status = solve(m)
     println("Solved minimum: ", getvalue(obj))
     println("Known global bound: ", -147-2/3)
