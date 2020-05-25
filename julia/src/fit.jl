@@ -1,6 +1,18 @@
 using Gurobi
 using JuMP
 # Defining regression function, with rho and pnorm
+
+function fit_fn_model(fn_model, X; weights=ones(size(X,1)))
+    ineq_trees = learn_constraints(base_otc(), fn_model.ineqs, X; idxs=fn_model.ineq_idxs,
+                                   weights=weights)
+    eq_trees = learn_constraints(base_otc(), fn_model.eqs, X; idxs=fn_model.eq_idxs,
+                                 weights=weights)
+    obj_tree = learn_objective!(base_otc(), fn_model.obj, X;
+                               idxs=fn_model.obj_idxs, lse=fn_model.lse,
+                               weights=weights)
+    return obj_tree, ineq_trees, eq_trees
+end
+
 function regress(Y, X, rho, p, M=2.)
     m = Model(solver=GurobiSolver())
     n_points = size(X, 1); # number of data points
@@ -12,7 +24,7 @@ function regress(Y, X, rho, p, M=2.)
     @constraint(m, sum((Y - X*b - b0).^2) <= t) # The fit cost
     if p == 0.
         @variable(m, z[1:n_traits], Bin)
-        @constraint(m, scon, rho*sum(z[:]) <= s)        
+        @constraint(m, scon, rho*sum(z[:]) <= s)
         @constraint(m, b[:] .<= M*z[:])
         @constraint(m, -b[:] .<= M*z[:])
     elseif p == 1.

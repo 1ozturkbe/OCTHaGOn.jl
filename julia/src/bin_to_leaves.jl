@@ -12,16 +12,3 @@ function bin_to_leaves(lnr, X)
     leaf_index = IAI.apply(lnr, X)
     return leaf_index, all_leaves
 end
-
-function leaf_fits(lnr, all_leaves)
-# Returns the linear fit weights and constants for a given learner
-    constants = [IAI.get_regression_constant(lnr, leaf) for leaf in all_leaves]
-    weights = [IAI.get_regression_weights(lnr, leaf) for leaf in all_leaves]
-    return weights, constants
-end
-        
-function monomials(weights, constants)
-# Returns set of monomial functions for the leaves 
-    return None
-end
-            

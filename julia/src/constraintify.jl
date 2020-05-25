@@ -29,7 +29,7 @@ function base_otc()
 end
 
 
-function learn_constraints(lnr, constraints, X; idxs = nothing)
+function learn_constraints(lnr, constraints, X; idxs = nothing, weights=ones(size(X,1)))
     """
     Returns a set of feasibility trees from a set of constraints.
     Arguments:
@@ -62,7 +62,7 @@ function learn_constraints(lnr, constraints, X; idxs = nothing)
     return feasTrees
 end
 
-function learn_objective!(lnr, objective, X; idxs=nothing, lse=false)
+function learn_objective!(lnr, objective, X; idxs=nothing, lse=false, weights=ones(size(X,1)))
     """
     Returns a set of feasibility trees from a set of constraints.
     Arguments:

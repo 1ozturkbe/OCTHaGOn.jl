@@ -4,6 +4,7 @@ using LatinHypercubeSampling
 using Test
 
 include("examples.jl")
+include("../src/fit.jl")
 include("../src/constraintify.jl")
 include("../src/solve.jl")
 
@@ -19,10 +20,7 @@ function example_fit(fn_model::function_model)
     n_dims = length(fn_model.lbs);
     plan, _ = LHCoptim(n_samples, n_dims, 1);
     X = scaleLHC(plan,[(fn_model.lbs[i], fn_model.ubs[i]) for i=1:n_dims]);
-    ineq_trees = learn_constraints(base_otc(), fn_model.ineqs, X; idxs=fn_model.ineq_idxs)
-    eq_trees = learn_constraints(base_otc(), fn_model.eqs, X; idxs=fn_model.eq_idxs)
-    obj_tree = learn_objective!(base_otc(), fn_model.obj, X;
-                               idxs=fn_model.obj_idxs, lse=fn_model.lse)
+    obj_tree, ineq_trees, eq_trees = fit_fn_model(fn_model, X);
     IAI.write_json(string("data/", fn_model.name, "_obj.json"), obj_tree);
     for i=1:size(ineq_trees,1)
         IAI.write_json(string("data/", fn_model.name, "_ineq_", i, ".json"),
