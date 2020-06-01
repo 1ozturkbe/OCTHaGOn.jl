@@ -36,7 +36,7 @@ function example_fit(fn_model::function_model)
     return true
 end
 
-function example_solve(fn_model::function_model)
+function example_solve(fn_model::function_model; M=1e5)
     """ Solves an already fitted function_model. """
     # Retrieving constraints
     obj_tree = IAI.read_json(string("data/", fn_model.name, "_obj.json"));
@@ -50,12 +50,12 @@ function example_solve(fn_model::function_model)
     @variable(m, x[1:n_vars])
     @variable(m, y)
     @objective(m, Min, y)
-    add_feas_constraints!(obj_tree, m, [x; y], obj_vks; M = 1e2)
+    add_feas_constraints!(obj_tree, m, [x; y], obj_vks; M=M)
     for tree in ineq_trees
-        add_feas_constraints!(tree, m, x, vks; M = 1e2)
+        add_feas_constraints!(tree, m, x, vks; M=M)
     end
     for tree in eq_trees
-        add_feas_constraints!(tree, m, x, vks; M = 1e2)
+        add_feas_constraints!(tree, m, x, vks; M=M)
     end
     for i=1:n_vars # Bounding
         @constraint(m, x[i] <= fn_model.ubs[i])
@@ -104,7 +104,6 @@ function resample_test(fn_model)
     global X = scaleLHC(plan,[(fn_model.lbs[i], fn_model.ubs[i]) for i=1:n_dims]);
     for i=1:n_iterations
         obj_tree, ineq_trees, eq_trees = fit_fn_model(fn_model, X, weights=weights);
-
         # Creating JuMP model
         m = Model(solver=GurobiSolver());
         n_vars = length(fn_model.lbs);
@@ -132,12 +131,12 @@ function resample_test(fn_model)
                      mean_shift=0.5, std_shrink = 0.3)
     end
     # Some post processing
-    for i=1:n_iterations
-        # fig = scatter(X[1+(i-1)*n_samples: i*n_samples, 1], X[1+(i-1)*n_samples: i*n_samples, 2],
-        fig = scatter(X[1: i*n_samples, 1], X[1: i*n_samples, 2],
-        xlim=[fn_model.lbs[1],fn_model.ubs[1]], ylim=[fn_model.lbs[2],fn_model.ubs[2]]);
-        savefig(fig, "figures/"*fn_model.name*"_plot_"*string(i))
-    end
+    # for i=1:n_iterations
+    #     # fig = scatter(X[1+(i-1)*n_samples: i*n_samples, 1], X[1+(i-1)*n_samples: i*n_samples, 2],
+    #     fig = scatter(X[1: i*n_samples, 1], X[1: i*n_samples, 2],
+    #     xlim=[fn_model.lbs[1],fn_model.ubs[1]], ylim=[fn_model.lbs[2],fn_model.ubs[2]]);
+    #     savefig(fig, "figures/"*fn_model.name*"_plot_"*string(i))
+    # end
     return true
 end
 

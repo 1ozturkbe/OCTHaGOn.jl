@@ -2,6 +2,31 @@ using Gurobi
 using JuMP
 # Defining regression function, with rho and pnorm
 
+function base_otr()
+    return IAI.OptimalTreeRegressor(
+        random_seed = 1,
+        max_depth = 3,
+        cp = 1e-6,
+        minbucket = 0.03,
+        regression_sparsity = :all,
+        fast_num_support_restarts = 1,
+        hyperplane_config = (sparsity = :all,),
+        regression_lambda = 0.00001,
+        regression_weighted_betas = true,
+    )
+end
+
+function base_otc()
+    return IAI.OptimalTreeClassifier(
+        random_seed = 1,
+        max_depth = 5,
+        cp = 1e-6,
+        minbucket = 0.01,
+        fast_num_support_restarts = 1,
+        hyperplane_config = (sparsity = :all,),
+    )
+end
+
 function fit_fn_model(fn_model, X; weights=ones(size(X,1)))
     ineq_trees = learn_constraints(base_otc(), fn_model.ineqs, X; idxs=fn_model.ineq_idxs,
                                    weights=weights)

@@ -64,35 +64,3 @@ function import_sagebenchmark(idx; lse=false)
                         eqs, eq_idxs, lbs, ubs, lse);
     return ex
 end
-
-
-function example1()
-    obj(x) = 0.5*exp(x[1]-x[2]) - exp(x[1]) - 5*exp(-x[2]);
-    obj_idxs = [1,2]
-    g1(x) = 100 - exp(x[2]-x[3]) - exp(x[2]) - 0.05*exp(x[1]+x[3]);
-    ineqs = [g1]
-    ineq_idxs = [[1,2,3]]
-    eqs = []
-    eq_idxs = []
-    lbs = log.([70, 1, 0.5]);
-    ubs = log.([150, 20, 21]);
-    ex = function_model("example1", obj, obj_idxs, ineqs, ineq_idxs,
-                        eqs, eq_idxs, lbs, ubs, false)
-    return ex
-end
-
-function example2()
-    obj(x) = x[1];
-    obj_idxs = [1];
-    g1(x) = 1 - 3.7/x[1]*x[2]^0.85 - 1.98/x[1]*x[2] - 700.3/x[1]*x[3]^-0.75;
-    g2(x) = 1 - 0.7673*x[3]^0.05 + 0.05* x[2];
-    ineqs = [g1, g2];
-    ineq_idxs = [[1,2,3], [2,3]];
-    eqs = [];
-    eq_idxs = [];
-    lbs = [5, 0., 380];
-    ubs = [15, 5, 450];
-    ex = function_model("example2", obj, obj_idxs, ineqs, ineq_idxs,
-                        eqs, eq_idxs, lbs, ubs, false);
-    return ex
-end
