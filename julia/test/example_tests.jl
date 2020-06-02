@@ -14,7 +14,7 @@ include("../src/post_process.jl")
 Set of examples for which to test different examples.
 """
 
-function example_fit(fn_model::function_model)
+function example_fit(fn_model::function_model, lnr=base_otc())
     """ Fits a provided function model with feasibility and obj f'n fits and
         saves the learners.
     """
@@ -23,11 +23,11 @@ function example_fit(fn_model::function_model)
     weights = ones(n_samples)
     plan, _ = LHCoptim(n_samples, n_dims, 1);
     X = scaleLHC(plan,[(fn_model.lbs[i], fn_model.ubs[i]) for i=1:n_dims]);
-    obj_tree, ineq_trees, eq_trees = fit_fn_model(fn_model, X, weights=weights);
+    obj_tree, ineq_trees, eq_trees = fit_fn_model(fn_model, X, weights=weights, lnr=lnr)
     IAI.write_json(string("data/", fn_model.name, "_obj.json"), obj_tree);
     for i=1:size(ineq_trees,1)
         IAI.write_json(string("data/", fn_model.name, "_ineq_", i, ".json"),
-                       ineq_trees[i]);
+                       ineq_trees[i])
     end
     for i = 1:size(eq_trees, 1)
         IAI.write_json(string("data/", fn_model.name, "_eq_", i, ".json"),
@@ -141,8 +141,16 @@ function resample_test(fn_model)
 end
 
 @test test_import_sagebenchmark()
-
 fn_model = import_sagebenchmark(3, lse=true);
-
 @test example_fit(fn_model)
-@test example_solve(fn_model)
+@test example_solve(fn_model, M=1e5)
+
+# Importing MINLP cases
+# using MINLPLib
+# m = fetch_model("minlp2/blend029")
+# using Cbc, Juniper
+# ipopt = IpoptSolver(print_level=1)
+# gurobi = GurobiSolver()
+# juniper = JuniperSolver(ipopt, mip_solver=gurobi)
+# setsolver(m, juniper)
+# solve(m)

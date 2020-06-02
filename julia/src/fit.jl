@@ -9,7 +9,7 @@ function base_otr()
         cp = 1e-6,
         minbucket = 0.03,
         regression_sparsity = :all,
-        fast_num_support_restarts = 1,
+        fast_num_support_restarts = 5,
         hyperplane_config = (sparsity = :all,),
         regression_lambda = 0.00001,
         regression_weighted_betas = true,
@@ -21,18 +21,26 @@ function base_otc()
         random_seed = 1,
         max_depth = 5,
         cp = 1e-6,
-        minbucket = 0.01,
-        fast_num_support_restarts = 1,
+        minbucket = 0.03,
+        fast_num_support_restarts = 5,
         hyperplane_config = (sparsity = :all,),
     )
 end
 
-function fit_fn_model(fn_model, X; weights=ones(size(X,1)))
-    ineq_trees = learn_constraints(base_otc(), fn_model.ineqs, X; idxs=fn_model.ineq_idxs,
+function base_grid(lnr)
+    grid = IAI.GridSearch(lnr, Dict(:criterion => [:l1hinge, :misclassification],
+    :normalize_X => [true],
+    :max_depth => [3, 5],
+    :minbucket => [0.3, 0.5]))
+    return grid
+end
+
+function fit_fn_model(fn_model, X; lnr=base_otc(), weights=ones(size(X,1)))
+    ineq_trees = learn_constraints(lnr, fn_model.ineqs, X; idxs=fn_model.ineq_idxs,
                                    weights=weights)
-    eq_trees = learn_constraints(base_otc(), fn_model.eqs, X; idxs=fn_model.eq_idxs,
+    eq_trees = learn_constraints(lnr, fn_model.eqs, X; idxs=fn_model.eq_idxs,
                                  weights=weights)
-    obj_tree = learn_objective!(base_otc(), fn_model.obj, X;
+    obj_tree = learn_objective!(lnr, fn_model.obj, X;
                                idxs=fn_model.obj_idxs, lse=fn_model.lse,
                                weights=weights)
     return obj_tree, ineq_trees, eq_trees

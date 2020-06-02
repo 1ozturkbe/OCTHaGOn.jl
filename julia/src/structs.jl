@@ -10,3 +10,6 @@ struct function_model
     ubs::Array              # Upper bounds
     lse::Bool
 end
+
+struct constraint_function
+end
