@@ -6,6 +6,7 @@ import copy
 import scipy.optimize as spo
 from time import time
 import pyDOE
+import pickle
 
 def findMaxLength(kys):
     #used for the print formatting, not important
@@ -661,25 +662,8 @@ def baseline():
     dct['I_1']            = dct['I_max']
     return dct
 
-
-def input_ranges_cored():
-    """ Returns ranges around the baseline to explore """
-    ranges = {}
-    # Variables =======================
-    range['D_out'] =          np.array([0.5,1.5]) * 13 * units.cm  # Outer Diameter of the motor
-    range['D_in'] =           np.array([0.5,1.5]) * 7.6 * units.cm  # Inner Diameter of the motor
-    range['D_sh'] =           np.array([0.5,1.5]) * 1.0 * units.cm  # Diameter of motor shaft
-    range['N_coils'] =        np.array([0.5,1.5]) * 18  # Number of coils on each stator, must be =n*m_1--If motor_type==1 must be >2*p, If motor_type==2 must be >p,
-    range['TPC'] =            np.array([0.5,1.5]) * 10  # Number of turns per coil on each stator
-    range['p'] =              np.array([0.5,1.5]) * 16  # Half the number of poles on each rotor
-    range['wire_dimension'] = [np.array([0.5,1.5]) * 0.15 * units.mm,
-                               np.array([0.5,1.5]) * 3.0 * units.mm]  # Reference dimension of the wire: Diameter for circle, width for square
-    range['motor_type'] = 1
-    return range
-
-
 def input_ranges_coreless():
-    """ Returns ranges around the baseline to explore """
+    """ Returns ranges around the baseline to explore. """
     ranges = {}
     # Variables =======================
     ranges['D_out'] =          np.array([0.5,1.5]) * 13 * units.cm  # Outer Diameter of the motor
@@ -690,21 +674,44 @@ def input_ranges_coreless():
     ranges['p'] =              np.array([0.5,1.5]) * 16  # Half the number of poles on each rotor
     ranges['wire_dimension'] = [np.array([0.5,1.5]) * 0.15 * units.mm,
                                np.array([0.5,1.5]) * 3.0 * units.mm]  # Reference dimension of the wire: Diameter for circle, width for square
-    ranges['motor_type'] = 2
     return ranges
 
-def generate_dcts(n_samples, baseline, ranges):
-    n_factors = len(ranges)
-    base = deepcopy(baseline)
+def generate_dcts(n_samples, dct, ranges):
+    """ Generates array of input data to simulate motors. """
+    if dct['wire_type'] == 'circle':
+        n_factors = len(ranges)
+    else:
+        n_factors = len(ranges)+1
     dcts = []
-    lhs_samples = pyDOE.lhs(n_s)
+    lhs_samples = pyDOE.lhs(n_factors, samples=n_samples)
+    for i in range(n_samples):
+        new_dct = copy.deepcopy(dct)
+        j = 0
+        for key, value in ranges.items():
+            if key == 'wire_dimension' and isinstance(value, list):
+                new_dct[key] = [value[0][0] + (value[0][1]-value[0][0])*lhs_samples[i, j],
+                                value[1][0] + (value[1][1]-value[1][0])*lhs_samples[i, j]]
+            elif key in ['N_coils', 'TPC', 'p']:
+                new_dct[key] = round(value[0] + (value[1]-value[0])*lhs_samples[i, j])
+            else:
+                new_dct[key] = value[0] + (value[1]-value[0])*lhs_samples[i, j]
+            j += 1
+        try:
+            check_config(new_dct)
+            dcts.append(new_dct)
+        except:
+            pass
+    print("Tried to generate %s samples." % n_samples)
+    print("\nOnly %s were feasible configurations." % len(dcts))
     return dcts
+
+# def simulate_dcts(dcts, savedir=''):
 
 
 if __name__ == '__main__':
     dct = baseline()
     res = simulate_motor(dct, verbosity=1)
 
-
+    dcts = generate_dcts(100, dct, input_ranges_coreless())
 
 
