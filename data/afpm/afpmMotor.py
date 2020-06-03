@@ -600,35 +600,38 @@ def baseline():
     dct['run_losses'] = False                 # Flag whether or not to run the loss functions (cored motor only).  Model not validated, should leave false
     dct['print_roughness'] = 0.05*units.mm
     # Compute max current the motor can take =======================
-    equivalentDiameter = diameter_from_dimension(dct['wire_dimension'],dct['wire_type'])
-    maximumCurrent     = computeRatedCurrent(equivalentDiameter.to('mm').magnitude) * units.ampere
+    dct['equivalent_diameter'] = diameter_from_dimension(dct['wire_dimension'],dct['wire_type'])
+    dct['I_max']     = computeRatedCurrent(dct['equivalent_diameter'].to('mm').magnitude) * units.ampere
     # Values to be solved =======================
     dct['n_s']            = None #8000*units.rpm
-    dct['I_1']            = maximumCurrent
-    return dct, maximumCurrent
+    dct['I_1']            = dct['I_max']
+    return dct
 
-def simulate_motor(dct, maximumCurrent, throttleLevels, torqueLevels):
+def simulate_motor(dct, throttleLevels, torqueLevels):
     pass
 
-if __name__ == '__main__':
-    dct, maximumCurrent = baseline()
-
-    # Check Valid Configuration ==================
-    runCon = True
+def check_config(dct):
+    """ Checks for a valid motor configuration. """
+    error = ValueError('Invalid Motor Configuration')
     if dct['motor_type'] == 1:
         if dct['N_coils'] <= 2 * dct['p']:
-            runCon = False
+            raise error
     if dct['motor_type'] == 2:
         if dct['N_coils'] <= dct['p']:
-            runCon = False
+            raise error
     if abs(dct['N_rotors'] - dct['N_stators']) >= 2:
-        runCon = False
+        raise error
     if dct['N_coils']%dct['m_1'] != 0:
-        runCon = False
-    if dct['I_1'].to('ampere').magnitude > maximumCurrent.to('ampere').magnitude:
-        runCon = False
-    if not runCon:
-        raise ValueError('Invalid Motor Configuration')
+        raise error
+    if dct['I_1'].to('ampere').magnitude > dct['I_max'].to('ampere').magnitude:
+        raise error
+    pass
+
+
+if __name__ == '__main__':
+    dct = baseline()
+
+    check_config(dct)
 
     # Run (solve for whichever value you did not specify above) =======================
     tol = 1e-6
