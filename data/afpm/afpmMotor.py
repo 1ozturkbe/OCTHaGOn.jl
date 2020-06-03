@@ -7,6 +7,7 @@ import scipy.optimize as spo
 from time import time
 import pyDOE
 import pickle
+import progressbar
 
 def findMaxLength(kys):
     #used for the print formatting, not important
@@ -584,13 +585,13 @@ def check_config(dct):
             raise error
     if abs(dct['N_rotors'] - dct['N_stators']) >= 2:
         raise error
-    if dct['N_coils']%dct['m_1'] != 0:
+    if dct['N_coils'] % dct['m_1'] != 0:
         raise error
     if dct['I_1'].to('ampere').magnitude > dct['I_max'].to('ampere').magnitude:
         raise error
     pass
 
-def simulate_motor(dct, tol=1e-6, verbosity=0):
+def simulate_motor(dct, tol=1e-6, verbosity=0, skipfailure=False):
     """ Simulates motor for a given configuration and current level. """
     t1 = time()
     check_config(dct)
@@ -598,8 +599,9 @@ def simulate_motor(dct, tol=1e-6, verbosity=0):
     res = spo.minimize(powerResidual, 1.0, args=(dct), method='SLSQP')
     res['solve_time'] = (time()-t1)*units.s
     if res['message'] != 'Optimization terminated successfully.' or abs(res['fun']) > tol:
-        print(res)
-        raise RuntimeError('Solver did not converge')
+        if not skipfailure:
+            print(res)
+            raise RuntimeError('Solver did not converge')
     if verbosity > 0:
         print_results(res, dct)
     return res
@@ -672,8 +674,8 @@ def input_ranges_coreless():
     ranges['N_coils'] =        np.array([0.5,1.5]) * 18  # Number of coils on each stator, must be =n*m_1--If motor_type==1 must be >2*p, If motor_type==2 must be >p,
     ranges['TPC'] =            np.array([0.5,1.5]) * 10  # Number of turns per coil on each stator
     ranges['p'] =              np.array([0.5,1.5]) * 16  # Half the number of poles on each rotor
-    ranges['wire_dimension'] = [np.array([0.5,1.5]) * 0.15 * units.mm,
-                               np.array([0.5,1.5]) * 3.0 * units.mm]  # Reference dimension of the wire: Diameter for circle, width for square
+    ranges['wire_dimension'] = [np.array([0.5,1.5]) * 0.15,
+                               np.array([0.5,1.5]) * 3.0] * units.mm  # Reference dimension of the wire: Diameter for circle, width for square
     return ranges
 
 def generate_dcts(n_samples, dct, ranges):
@@ -705,13 +707,28 @@ def generate_dcts(n_samples, dct, ranges):
     print("\nOnly %s were feasible configurations." % len(dcts))
     return dcts
 
-# def simulate_dcts(dcts, savedir=''):
-
+def simulate_dcts(dcts, filename=None):
+    solns = []
+    print("\nSimulating motor over %s samples..." % len(dcts))
+    bar = progressbar.ProgressBar(maxval=len(dcts), \
+    widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
+    bar.start()
+    for i in range(len(dcts)):
+        solns.append(simulate_motor(dcts[i], skipfailure=True))
+        bar.update(i + 1)
+    bar.finish()
+    print("\nSimulation complete.")
+    completed = sum([sol['success'] for sol in solns])
+    print("\nOut of %s simulations, %s converged!" % (len(dcts), completed))
+    if filename:
+        pickle.dump(solns, open(filename + ".sol", "wb"))
+    return solns
 
 if __name__ == '__main__':
     dct = baseline()
     res = simulate_motor(dct, verbosity=1)
 
     dcts = generate_dcts(100, dct, input_ranges_coreless())
+    pickle.dump(dcts, open('dcts.inp', 'wb'))
 
-
+    solns = simulate_dcts(dcts, filename="motors")
