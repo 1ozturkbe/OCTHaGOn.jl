@@ -4,6 +4,7 @@ import numpy as np
 from math import ceil
 import copy
 import scipy.optimize as spo
+from time import time
 
 #Define functions first
 
@@ -572,6 +573,60 @@ def powerResidual(x, dct):
         output['Darcy Friction Factor'] = f_d
         return output
 
+def check_config(dct):
+    """ Checks for a valid motor configuration. """
+    error = ValueError('Invalid Motor Configuration')
+    if dct['motor_type'] == 1:
+        if dct['N_coils'] <= 2 * dct['p']:
+            raise error
+    if dct['motor_type'] == 2:
+        if dct['N_coils'] <= dct['p']:
+            raise error
+    if abs(dct['N_rotors'] - dct['N_stators']) >= 2:
+        raise error
+    if dct['N_coils']%dct['m_1'] != 0:
+        raise error
+    if dct['I_1'].to('ampere').magnitude > dct['I_max'].to('ampere').magnitude:
+        raise error
+    pass
+
+def simulate_motor(dct, tol=1e-6, verbosity=0):
+    """ Simulates motor for a given configuration and current level. """
+    t1 = time()
+    check_config(dct)
+    # Run (solve for whichever value you did not specify above) =======================
+    res = spo.minimize(powerResidual, 1.0, args=(dct), method='SLSQP')
+    res['solve_time'] = (time()-t1)*units.s
+    if res['message'] != 'Optimization terminated successfully.' or abs(res['fun']) > tol:
+        print(res)
+        raise RuntimeError('Solver did not converge')
+    if verbosity > 0:
+        print_results(res, dct)
+    return res
+
+def print_results(res, dct):
+    """ Prints the results for the simulated motor. """
+    dct_post = copy.deepcopy(dct)
+    dct_post['mode']=3
+    opt = powerResidual([res['x'][0]],dct_post)
+    cw = findMaxLength(opt.keys())
+    pstr = ''
+    for k,v in opt.items():
+        if k!='P_losses' and k!='Masses':
+            pstr += '%s : %s\n'%(k.ljust(cw,' '),v)
+        if k == 'P_loss':
+            kwd = 'P_losses'
+            cw2 = findMaxLength(opt[kwd].keys())
+            for k2, v2 in opt[kwd].items():
+                pstr += '    %s : %s\n'%(k2.ljust(cw2,' '),v2)
+        if k == 'Mass':
+            kwd = 'Masses'
+            cw2 = findMaxLength(opt[kwd].keys())
+            for k2, v2 in opt[kwd].items():
+                if k2 != 'total' and k2 != 'rotating':
+                    pstr += '    %s : %s\n'%(k2.ljust(cw2,' '),v2)
+    print(pstr)
+
 def baseline():
     """ Returns baseline inputs to motor model that closes. """
     dct = {}
@@ -607,59 +662,10 @@ def baseline():
     dct['I_1']            = dct['I_max']
     return dct
 
-def simulate_motor(dct, throttleLevels, torqueLevels):
-    pass
-
-def check_config(dct):
-    """ Checks for a valid motor configuration. """
-    error = ValueError('Invalid Motor Configuration')
-    if dct['motor_type'] == 1:
-        if dct['N_coils'] <= 2 * dct['p']:
-            raise error
-    if dct['motor_type'] == 2:
-        if dct['N_coils'] <= dct['p']:
-            raise error
-    if abs(dct['N_rotors'] - dct['N_stators']) >= 2:
-        raise error
-    if dct['N_coils']%dct['m_1'] != 0:
-        raise error
-    if dct['I_1'].to('ampere').magnitude > dct['I_max'].to('ampere').magnitude:
-        raise error
-    pass
-
-
 if __name__ == '__main__':
     dct = baseline()
-
-    check_config(dct)
-
-    # Run (solve for whichever value you did not specify above) =======================
-    tol = 1e-6
-    res = spo.minimize(powerResidual, 1.0, args=(dct), method='SLSQP')
-    if res['message'] != 'Optimization terminated successfully.' or abs(res['fun']) > tol:
-        print(res)
-        raise RuntimeError('Solver did not converge')
+    res = simulate_motor(dct, verbosity=1)
 
 
-    # Prints the results =======================
-    dct_post = copy.deepcopy(dct)
-    dct_post['mode']=3
-    opt = powerResidual([res['x'][0]],dct_post)
-    cw = findMaxLength(opt.keys())
-    pstr = ''
-    for k,v in opt.items():
-        if k!='P_losses' and k!='Masses':
-            pstr += '%s : %s\n'%(k.ljust(cw,' '),v)
-        if k == 'P_loss':
-            kwd = 'P_losses'
-            cw2 = findMaxLength(opt[kwd].keys())
-            for k2, v2 in opt[kwd].items():
-                pstr += '    %s : %s\n'%(k2.ljust(cw2,' '),v2)
-        if k == 'Mass':
-            kwd = 'Masses'
-            cw2 = findMaxLength(opt[kwd].keys())
-            for k2, v2 in opt[kwd].items():
-                if k2 != 'total' and k2 != 'rotating':
-                    pstr += '    %s : %s\n'%(k2.ljust(cw2,' '),v2)
 
-    print(pstr)
+
