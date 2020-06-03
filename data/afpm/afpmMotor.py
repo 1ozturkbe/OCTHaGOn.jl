@@ -5,8 +5,7 @@ from math import ceil
 import copy
 import scipy.optimize as spo
 from time import time
-
-#Define functions first
+import pyDOE
 
 def findMaxLength(kys):
     #used for the print formatting, not important
@@ -17,7 +16,7 @@ def findMaxLength(kys):
     return ml
 
 def computeRatedCurrent(d):
-    # Produces rated current (amps) as a function of wire diameter (mm)
+    """ Produces rated current (amps) as a function of wire diameter (mm)."""
     resistance = 22.0/d**2.0  # ohms per 1000m
     ratedCurrent = 100.0/resistance**(0.72)
     return ratedCurrent
@@ -27,14 +26,14 @@ def computeResistance(d):
     resistance = 22.0/d**2.0  # ohms per 1000m
     return resistance
 
-def diameter_from_dimension(wire_dimension,wire_type):
-    # Used to convert between square and circle as required
+def diameter_from_dimension(wire_dimension, wire_type):
+    """ Converts between different shapes of wires as required. """
     if wire_type.lower() == 'square':
-        perm = wire_dimension*4
-        return perm/np.pi
+        perm = wire_dimension * 4
+        return perm / np.pi
     elif wire_type.lower() == 'rectangle':
-        perm = 2*(wire_dimension[0] + wire_dimension[1])
-        return perm/np.pi
+        perm = 2 * (wire_dimension[0] + wire_dimension[1])
+        return perm / np.pi
     else:
         return wire_dimension
 
@@ -640,7 +639,7 @@ def baseline():
     dct['N_stators']      = 1              # Number of Stators
     dct['N_rotors']       = 2              # Number of Rotors
     dct['motor_type']     = 2              # 1: feromagnetic core with non-overlapping coils, 2: coreless with overlapping coils
-    dct['wire_dimension'] = [0.15,3.0]*units.mm   # Reference dimension of the wire: Diameter for circle, width for square
+    dct['wire_dimension'] = [0.15, 3.0]*units.mm   # Reference dimension of the wire: Diameter for circle, width for square
     dct['wire_type']      = 'rectangle'       # Wire geometry, either circle or square
     # dct['wire_dimension'] = 2*units.mm   # Reference dimension of the wire: Diameter for circle, width for square
     # dct['wire_thickness'] = 0.4 * units.mm # Thickness of copper in the wire, interior becomes coolant path
@@ -661,6 +660,46 @@ def baseline():
     dct['n_s']            = None #8000*units.rpm
     dct['I_1']            = dct['I_max']
     return dct
+
+
+def input_ranges_cored():
+    """ Returns ranges around the baseline to explore """
+    ranges = {}
+    # Variables =======================
+    range['D_out'] =          np.array([0.5,1.5]) * 13 * units.cm  # Outer Diameter of the motor
+    range['D_in'] =           np.array([0.5,1.5]) * 7.6 * units.cm  # Inner Diameter of the motor
+    range['D_sh'] =           np.array([0.5,1.5]) * 1.0 * units.cm  # Diameter of motor shaft
+    range['N_coils'] =        np.array([0.5,1.5]) * 18  # Number of coils on each stator, must be =n*m_1--If motor_type==1 must be >2*p, If motor_type==2 must be >p,
+    range['TPC'] =            np.array([0.5,1.5]) * 10  # Number of turns per coil on each stator
+    range['p'] =              np.array([0.5,1.5]) * 16  # Half the number of poles on each rotor
+    range['wire_dimension'] = [np.array([0.5,1.5]) * 0.15 * units.mm,
+                               np.array([0.5,1.5]) * 3.0 * units.mm]  # Reference dimension of the wire: Diameter for circle, width for square
+    range['motor_type'] = 1
+    return range
+
+
+def input_ranges_coreless():
+    """ Returns ranges around the baseline to explore """
+    ranges = {}
+    # Variables =======================
+    ranges['D_out'] =          np.array([0.5,1.5]) * 13 * units.cm  # Outer Diameter of the motor
+    ranges['D_in'] =           np.array([0.5,1.5]) * 7.6 * units.cm  # Inner Diameter of the motor
+    ranges['D_sh'] =           np.array([0.5,1.5]) * 1.0 * units.cm  # Diameter of motor shaft
+    ranges['N_coils'] =        np.array([0.5,1.5]) * 18  # Number of coils on each stator, must be =n*m_1--If motor_type==1 must be >2*p, If motor_type==2 must be >p,
+    ranges['TPC'] =            np.array([0.5,1.5]) * 10  # Number of turns per coil on each stator
+    ranges['p'] =              np.array([0.5,1.5]) * 16  # Half the number of poles on each rotor
+    ranges['wire_dimension'] = [np.array([0.5,1.5]) * 0.15 * units.mm,
+                               np.array([0.5,1.5]) * 3.0 * units.mm]  # Reference dimension of the wire: Diameter for circle, width for square
+    ranges['motor_type'] = 2
+    return ranges
+
+def generate_dcts(n_samples, baseline, ranges):
+    n_factors = len(ranges)
+    base = deepcopy(baseline)
+    dcts = []
+    lhs_samples = pyDOE.lhs(n_s)
+    return dcts
+
 
 if __name__ == '__main__':
     dct = baseline()
