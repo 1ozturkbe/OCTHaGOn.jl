@@ -150,7 +150,7 @@ def compute_motor_massProperties(dct):
 
 def powerResidual(x, dct):
     '''
-     This is the workhorse funciton of this analysis
+     This is the workhorse function of this analysis
      Balances shaft power with the power out from the electrical interactions
     '''
 
@@ -206,7 +206,7 @@ def powerResidual(x, dct):
 
     # Checks if mode is assigned, if not assume mode 0 -----------
     if 'mode' in list(dct.keys()):
-        mode          = dct['mode']
+        mode = dct['mode']
     else:
         mode = 0
 
@@ -538,7 +538,7 @@ def powerResidual(x, dct):
     Modes 1 and 2 are debug modes
     Mode 3 is the return mode which returns all the outputs for viewing (assumes a valid combination of I_1 and n_s)
     '''
-    if mode==0:
+    if mode == 0:
         return (P_out1.to('W').magnitude - P_out2.to('W').magnitude)**2
     if mode == 1:
         return P_out1.to('W').magnitude
@@ -597,20 +597,20 @@ def simulate_motor(dct, tol=1e-6, verbosity=0, skipfailure=False):
     check_config(dct)
     # Run (solve for whichever value you did not specify above) =======================
     res = spo.minimize(powerResidual, 1.0, args=(dct), method='SLSQP')
+    dct_post = copy.deepcopy(dct)
+    dct_post['mode'] = 3
+    opt = powerResidual([res['x'][0]],dct_post)
     res['solve_time'] = (time()-t1)*units.s
     if res['message'] != 'Optimization terminated successfully.' or abs(res['fun']) > tol:
         if not skipfailure:
             print(res)
             raise RuntimeError('Solver did not converge')
     if verbosity > 0:
-        print_results(res, dct)
-    return res
+        print_results(opt)
+    return res, opt
 
-def print_results(res, dct):
+def print_results(opt):
     """ Prints the results for the simulated motor. """
-    dct_post = copy.deepcopy(dct)
-    dct_post['mode']=3
-    opt = powerResidual([res['x'][0]],dct_post)
     cw = findMaxLength(opt.keys())
     pstr = ''
     for k,v in opt.items():
@@ -626,7 +626,7 @@ def print_results(res, dct):
             cw2 = findMaxLength(opt[kwd].keys())
             for k2, v2 in opt[kwd].items():
                 if k2 != 'total' and k2 != 'rotating':
-                    pstr += '    %s : %s\n'%(k2.ljust(cw2,' '),v2)
+                    pstr += '    %s : %s\n' % (k2.ljust(cw2, ' '), v2)
     print(pstr)
 
 def baseline():
@@ -685,7 +685,7 @@ def generate_dcts(n_samples, dct, ranges):
     else:
         n_factors = len(ranges)+1
     dcts = []
-    lhs_samples = pyDOE.lhs(n_factors, samples=n_samples)
+    lhs_samples = pyDOE.lhs(n_factors, samples=n_samples, criterion='corr')
     for i in range(n_samples):
         new_dct = copy.deepcopy(dct)
         j = 0
@@ -707,28 +707,34 @@ def generate_dcts(n_samples, dct, ranges):
     print("\nOnly %s were feasible configurations." % len(dcts))
     return dcts
 
-def simulate_dcts(dcts, filename=None):
-    solns = []
+def simulate_dcts(dcts, filename=None, tol=1e-5):
+    ress = []
+    opts = []
     print("\nSimulating motor over %s samples..." % len(dcts))
     bar = progressbar.ProgressBar(maxval=len(dcts), \
-    widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
+    widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage(), ' ', progressbar.ETA()])
     bar.start()
     for i in range(len(dcts)):
-        solns.append(simulate_motor(dcts[i], skipfailure=True))
+        res, opt = simulate_motor(dcts[i], skipfailure=True, tol=tol)
+        opts.append(opt)
+        ress.append(res)
         bar.update(i + 1)
     bar.finish()
     print("\nSimulation complete.")
-    completed = sum([sol['success'] for sol in solns])
+    completed = sum([res['success'] for res in ress])
     print("\nOut of %s simulations, %s converged!" % (len(dcts), completed))
     if filename:
-        pickle.dump(solns, open(filename + ".sol", "wb"))
-    return solns
+        pickle.dump(opts, open(filename + ".sol", "wb"))
+        pickle.dump(ress, open(filename + ".out", "wb"))
+    return ress, opts
 
 if __name__ == '__main__':
     dct = baseline()
-    res = simulate_motor(dct, verbosity=1)
+    dct['mode'] = 0
+    res, opt = simulate_motor(dct, tol=1e-3) # Experiments show 1e-3 is sufficient
 
-    dcts = generate_dcts(100, dct, input_ranges_coreless())
+    n_sims = 100
+    dcts = generate_dcts(n_sims, dct, input_ranges_coreless())
     pickle.dump(dcts, open('dcts.inp', 'wb'))
 
-    solns = simulate_dcts(dcts, filename="motors")
+    ress, opts = simulate_dcts(dcts, filename="motors", tol=1e-3)
