@@ -596,7 +596,7 @@ def simulate_motor(dct, tol=1e-6, verbosity=0, skipfailure=False):
     t1 = time()
     check_config(dct)
     # Run (solve for whichever value you did not specify above) =======================
-    res = spo.minimize(powerResidual, 1.0, args=(dct), method='SLSQP')
+    res = spo.minimize(powerResidual, 1.0, args=(dct), method='Nelder-Mead')
     dct_post = copy.deepcopy(dct)
     dct_post['mode'] = 3
     opt = powerResidual([res['x'][0]],dct_post)
@@ -733,7 +733,7 @@ if __name__ == '__main__':
     dct['mode'] = 0
     res, opt = simulate_motor(dct, tol=1e-3) # Experiments show 1e-3 is sufficient
 
-    n_sims = 100
+    n_sims = 5000
     dcts = generate_dcts(n_sims, dct, input_ranges_coreless())
     pickle.dump(dcts, open('dcts.inp', 'wb'))
 
