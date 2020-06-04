@@ -9,7 +9,7 @@ include("fit.jl")
 include("structs.jl")
 include("../test/examples.jl")
 
-export function_model, learn_constraints, learn_objective!,
+export function_model, learn_constraints!, learn_objective!,
        add_feas_constraints!, add_mio_constraints!, import_sagebenchmark,
        base_otr, base_otc
 

@@ -14,7 +14,7 @@ include("../src/post_process.jl")
 Set of examples for which to test different examples.
 """
 
-function example_fit(fn_model::function_model, lnr=base_otc())
+function example_fit(fn_model::function_model; lnr=base_otc())
     """ Fits a provided function model with feasibility and obj f'n fits and
         saves the learners.
     """
@@ -142,7 +142,10 @@ end
 
 @test test_import_sagebenchmark()
 fn_model = import_sagebenchmark(3, lse=true);
-@test example_fit(fn_model)
+@test example_fit(fn_model, lnr=base_otc())
+@test example_solve(fn_model, M=1e5)
+
+@test example_fit(fn_model,lnr=base_grid(base_otc()))
 @test example_solve(fn_model, M=1e5)
 
 # Importing MINLP cases

@@ -3,35 +3,43 @@ using JuMP
 using Gurobi
 using Random
 
-function learn_constraints(lnr, constraints, X; idxs = nothing, weights=ones(size(X,1)))
+function learn_constraints!(lnr, constraints, X; idxs = nothing, weights=ones(size(X,1)))
     """
     Returns a set of feasibility trees from a set of constraints.
     Arguments:
-        lnr: Unfit OptimalTreeClassifier or Grid
+        lnr: Unfit OptimalTreeClassifier
         constraints: set of constraint functions in std form (>= 0)
         X: samples of the free variables
     NOTE: All constraints must take in vector of all X values.
     """
-    n_samples, n_features = size(X)
-    n_constraints = length(constraints)
-    feasTrees = IAI.OptimalTreeClassifier[]
+    n_samples, n_features = size(X);
+    n_constraints = length(constraints);
+    feasTrees = typeof(lnr)[];
+    if hasproperty(lnr, :lnr)
+        param_target = lnr.lnr
+    else
+        param_target = lnr
+    end
     for i = 1:n_constraints
-        nl = deepcopy(lnr)
         Y = [constraints[i](X[j, :]) >= 0 for j = 1:n_samples]
         # Making sure that we only consider relevant features.
         if !isnothing(idxs)
-            IAI.set_params!(nl, split_features = idxs[i])
-            if typeof(nl) == IAI.OptimalTreeRegressor
-                IAI.set_params!(nl, regression_features=idxs[i])
+            IAI.set_params!(param_target, split_features = idxs[i])
+            if typeof(param_target) == IAI.OptimalTreeRegressor
+                IAI.set_params!(param_target, regression_features=idxs[i])
             end
         else
-            IAI.set_params!(nl, split_features = :all)
-            if typeof(nl) == IAI.OptimalTreeRegressor
-                IAI.set_params!(nl, regression_features=:all)
+            IAI.set_params!(param_target, split_features = :all)
+            if typeof(param_target) == IAI.OptimalTreeRegressor
+                IAI.set_params!(param_target, regression_features=:all)
             end
         end
-        IAI.fit!(nl, X, Y)
-        append!(feasTrees, [nl])
+        if hasproperty(lnr, :lnr)
+            IAI.fit!(lnr, X, Y, validation_criterion = :misclassification)
+        else
+            IAI.fit!(lnr, X, Y)
+        end
+        append!(feasTrees, [lnr])
     end
     return feasTrees
 end
@@ -48,8 +56,12 @@ function learn_objective!(lnr, objective, X; idxs=nothing, lse=false, weights=on
     n_samples, n_features = size(X)
     Y = [objective(X[j, :]) for j = 1:n_samples];
     Y = Y[randperm(length(Y))]
-    nl = deepcopy(lnr)
-    if typeof(nl) == IAI.OptimalTreeClassifier
+    if typeof(lnr) == IAI.GridSearch
+        param_target = lnr.lnr
+    else
+        param_target = lnr
+    end
+    if typeof(param_target) == IAI.OptimalTreeClassifier
         nX = deepcopy(X);
         if lse && !any(Y .<= 0)
             nX = [nX log.(Y)];
@@ -77,21 +89,25 @@ function learn_objective!(lnr, objective, X; idxs=nothing, lse=false, weights=on
     end
     # Making sure that we only consider relevant features.
     if !isnothing(idxs)
-        if typeof(nl) == IAI.OptimalTreeRegressor
-            IAI.set_params!(nl, split_features = idxs)
-            IAI.set_params!(nl, regression_features = idxs)
+        if typeof(param_target) == IAI.OptimalTreeRegressor
+            IAI.set_params!(param_target, split_features = idxs)
+            IAI.set_params!(param_target, regression_features = idxs)
         else
             nidxs = append!(copy(idxs), n_features+1)
-            IAI.set_params!(nl, split_features = nidxs)
+            IAI.set_params!(param_target, split_features = nidxs)
         end
     else
-        IAI.set_params!(nl, split_features = :all)
-        if typeof(nl) == IAI.OptimalTreeRegressor
-            IAI.set_params!(nl, regression_features=:all)
+        IAI.set_params!(param_target, split_features = :all)
+        if typeof(param_target) == IAI.OptimalTreeRegressor
+            IAI.set_params!(param_target, regression_features=:all)
         end
     end
-    IAI.fit!(nl, nX, nY)
-    return nl
+    if hasproperty(lnr, :lnr)
+            IAI.fit!(lnr, nX, nY, validation_criterion = :misclassification)
+        else
+            IAI.fit!(lnr, nX, nY)
+        end
+    return lnr
 end
 
 function add_feas_constraints!(lnr, m, x, vks; M = 1e5, eq = false)
@@ -99,7 +115,7 @@ function add_feas_constraints!(lnr, m, x, vks; M = 1e5, eq = false)
     Creates a set of binary feasibility constraints from
     a binary classification tree:
     Arguments:
-        lnr: OptimalTreeClassifier
+        lnr: OptimalTreeClassifier or GridSearch
         m:: JuMP Model
         x:: JuMPVariables (features in lnr)
         vks:: varkeys of the features in lnr
