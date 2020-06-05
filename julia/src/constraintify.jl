@@ -7,39 +7,37 @@ function learn_constraints!(lnr, constraints, X; idxs = nothing, weights=ones(si
     """
     Returns a set of feasibility trees from a set of constraints.
     Arguments:
-        lnr: Unfit OptimalTreeClassifier
+        lnr: Unfit OptimalTreeClassifier or Grid
         constraints: set of constraint functions in std form (>= 0)
         X: samples of the free variables
-    NOTE: All constraints must take in vector of all X values.
+    Returns:
+        lnr: list of Fitted Grids
+    NOTE: All constraints must take in full vector of X values.
     """
     n_samples, n_features = size(X);
     n_constraints = length(constraints);
-    feasTrees = typeof(lnr)[];
-    if hasproperty(lnr, :lnr)
-        param_target = lnr.lnr
+    feasTrees = IAI.GridSearch[];
+    if !hasproperty(lnr, :lnr)
+        grid = IAI.GridSearch(lnr);
     else
-        param_target = lnr
+        grid = lnr;
     end
     for i = 1:n_constraints
         Y = [constraints[i](X[j, :]) >= 0 for j = 1:n_samples]
         # Making sure that we only consider relevant features.
         if !isnothing(idxs)
-            IAI.set_params!(param_target, split_features = idxs[i])
-            if typeof(param_target) == IAI.OptimalTreeRegressor
-                IAI.set_params!(param_target, regression_features=idxs[i])
+            IAI.set_params!(grid.lnr, split_features = idxs[i])
+            if typeof(grid.lnr) == IAI.OptimalTreeRegressor
+                IAI.set_params!(grid.lnr, regression_features=idxs[i])
             end
         else
-            IAI.set_params!(param_target, split_features = :all)
-            if typeof(param_target) == IAI.OptimalTreeRegressor
-                IAI.set_params!(param_target, regression_features=:all)
+            IAI.set_params!(grid.lnr, split_features = :all)
+            if typeof(grid.lnr) == IAI.OptimalTreeRegressor
+                IAI.set_params!(grid.lnr, regression_features=:all)
             end
         end
-        if hasproperty(lnr, :lnr)
-            IAI.fit!(lnr, X, Y, validation_criterion = :misclassification)
-        else
-            IAI.fit!(lnr, X, Y)
-        end
-        append!(feasTrees, [lnr])
+        IAI.fit!(grid, X, Y, validation_criterion = :misclassification)
+        append!(feasTrees, [grid])
     end
     return feasTrees
 end
@@ -51,22 +49,22 @@ function learn_objective!(lnr, objective, X; idxs=nothing, lse=false, weights=on
         lnr: Unfit OptimalTreeClassifier, OptimalTreeRegressor, or Grid
         constraints: set of constraint functions in std form (>= 0)
         X: samples of the free variables
-    NOTE: All constraints must take in vector of all X values.
+    NOTE: All constraints must take in full vector of X values.
     """
     n_samples, n_features = size(X)
     Y = [objective(X[j, :]) for j = 1:n_samples];
     Y = Y[randperm(length(Y))]
-    if typeof(lnr) == IAI.GridSearch
-        param_target = lnr.lnr
+    if !hasproperty(lnr, :lnr)
+        grid = IAI.GridSearch(lnr);
     else
-        param_target = lnr
+        grid = lnr;
     end
-    if typeof(param_target) == IAI.OptimalTreeClassifier
+    if typeof(grid.lnr) == IAI.OptimalTreeClassifier
         nX = deepcopy(X);
         if lse && !any(Y .<= 0)
             nX = [nX log.(Y)];
         elseif lse
-            print("WARNING: [Cannot fit in logspace, since objective" *
+            print("WARNING: [Cannot fit in logspace, since objective " *
             "has negative values. LSE option is turned off.]")
             lse = false;
             nX = [nX Y];
@@ -79,7 +77,7 @@ function learn_objective!(lnr, objective, X; idxs=nothing, lse=false, weights=on
         if lse && !any(Y .<= 0)
             nY = log.(Y);
         elseif lse
-            print("WARNING: [Cannot fit in logspace, since objective" *
+            print("WARNING: [Cannot fit in logspace, since objective " *
             "has negative values. LSE option is turned off.]")
             nY = Y;
             lse = false;
@@ -89,43 +87,40 @@ function learn_objective!(lnr, objective, X; idxs=nothing, lse=false, weights=on
     end
     # Making sure that we only consider relevant features.
     if !isnothing(idxs)
-        if typeof(param_target) == IAI.OptimalTreeRegressor
-            IAI.set_params!(param_target, split_features = idxs)
-            IAI.set_params!(param_target, regression_features = idxs)
+        if typeof(grid.lnr) == IAI.OptimalTreeRegressor
+            IAI.set_params!(grid.lnr, split_features = idxs)
+            IAI.set_params!(grid.lnr, regression_features = idxs)
         else
             nidxs = append!(copy(idxs), n_features+1)
-            IAI.set_params!(param_target, split_features = nidxs)
+            IAI.set_params!(grid.lnr, split_features = nidxs)
         end
     else
-        IAI.set_params!(param_target, split_features = :all)
-        if typeof(param_target) == IAI.OptimalTreeRegressor
-            IAI.set_params!(param_target, regression_features=:all)
+        IAI.set_params!(grid.lnr, split_features = :all)
+        if typeof(grid.lnr) == IAI.OptimalTreeRegressor
+            IAI.set_params!(grid.lnr, regression_features=:all)
         end
     end
-    if hasproperty(lnr, :lnr)
-            IAI.fit!(lnr, nX, nY, validation_criterion = :misclassification)
-        else
-            IAI.fit!(lnr, nX, nY)
-        end
-    return lnr
+    IAI.fit!(grid, nX, nY, validation_criterion = :misclassification)
+    return grid
 end
 
-function add_feas_constraints!(lnr, m, x, vks; M = 1e5, eq = false)
+function add_feas_constraints!(grid, m, x, vks; M = 1e5, eq = false)
     """
     Creates a set of binary feasibility constraints from
     a binary classification tree:
     Arguments:
-        lnr: OptimalTreeClassifier or GridSearch
+        grid: A fitted GridSearch
         m:: JuMP Model
         x:: JuMPVariables (features in lnr)
         vks:: varkeys of the features in lnr
     """
     #TODO determine proper use for equalities
-    n_nodes = IAI.get_num_nodes(lnr)
+    lnr = IAI.get_learner(grid);
+    n_nodes = IAI.get_num_nodes(lnr);
     # Add a binary variable for each leaf
-    all_leaves = [i for i = 1:n_nodes if IAI.is_leaf(lnr, i)]
+    all_leaves = [i for i = 1:n_nodes if IAI.is_leaf(lnr, i)];
     feas_leaves =
-        [i for i in all_leaves if IAI.get_classification_label(lnr, i)]
+        [i for i in all_leaves if IAI.get_classification_label(lnr, i)];
     z = @variable(m, [1:size(feas_leaves, 1)], Bin)
     @constraint(m, sum(z) == 1)
     # Getting lnr data
@@ -145,11 +140,11 @@ function add_feas_constraints!(lnr, m, x, vks; M = 1e5, eq = false)
     return m
 end
 
-function add_mio_constraints!(lnr, m, x, y, vks; M = 1e5, eq = false)
+function add_mio_constraints!(grid, m, x, y, vks; M = 1e5, eq = false)
     """
     Creates a set of MIO constraints from a OptimalTreeRegressor
     Arguments:
-        lnr: OptimalTreeRegressor or OptimalTreeClassifier
+        grid: A fitted Grid
         m:: JuMP Model
         x:: independent JuMPVariable (features in lnr)
         y:: dependent JuMPVariable (output of lnr)
@@ -157,6 +152,7 @@ function add_mio_constraints!(lnr, m, x, y, vks; M = 1e5, eq = false)
         M:: coefficient in bigM formulation
     """
     #TODO determine proper use for equalities
+    lnr = IAI.get_learner(grid);
     n_nodes = IAI.get_num_nodes(lnr)
     # Add a binary variable for each leaf
     all_leaves = [i for i = 1:n_nodes if IAI.is_leaf(lnr, i)]

@@ -145,9 +145,6 @@ fn_model = import_sagebenchmark(3, lse=true);
 @test example_fit(fn_model, lnr=base_otc())
 @test example_solve(fn_model, M=1e5)
 
-@test example_fit(fn_model,lnr=base_grid(base_otc()))
-@test example_solve(fn_model, M=1e5)
-
 # Importing MINLP cases
 # using MINLPLib
 # m = fetch_model("minlp2/blend029")
