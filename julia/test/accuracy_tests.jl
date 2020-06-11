@@ -98,8 +98,7 @@ end
 
 # Loading trees, and scoring w.r.t. maximum of the samples
 n_samples = [100, 250, 500, 750, 1000];
-grids = [IAI.read_json(string("data/constraint",idx,"_",j,"samples",".tree")) for j in n_samples
-        for idx=1:length(ineqs)]; # inside for loop gets executed first.
+grids = [IAI.read_json(string("data/constraint",idx,"_",j,"samples",".tree")) for j in n_samples for idx=1:length(ineqs)]; # inside for loop gets executed first.
 scores = [];
 for idx=1:length(ineqs)
     fn_model = import_sagebenchmark(problem_idxs[idx], lse=true);
@@ -114,7 +113,7 @@ for idx=1:length(ineqs)
     end
     append!(scores, score_list)
 end
-scores = reshape(scores, (length(n_samples), length(ineqs)))';
+scores = transpose(reshape(scores, (length(n_samples), length(ineqs))));
 
 # Finally plot
 for i=1:length(convex_idxs)
@@ -122,7 +121,7 @@ for i=1:length(convex_idxs)
                   legend=false, color=:blue))
 end
 # Plotting trend
-display(plot!(n_samples, sum(scores, dims=1)'./size(scores,1), xlabel="Number of samples", ylabel="Accuracy",
+display(plot!(n_samples, transpose(sum(scores, dims=1))./size(scores,1), xlabel="Number of samples", ylabel="Accuracy",
                   legend=false,linewidth=4, color=:blue))
 
 # Dimension vs. accuracy

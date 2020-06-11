@@ -8,6 +8,7 @@ from time import time
 import pyDOE
 import pickle
 import progressbar
+import gpfit
 
 def findMaxLength(kys):
     #used for the print formatting, not important
@@ -738,3 +739,15 @@ if __name__ == '__main__':
     pickle.dump(dcts, open('dcts.inp', 'wb'))
 
     ress, opts = simulate_dcts(dcts, filename="motors", tol=1e-3)
+
+    dcts = pickle.load(open('dcts.inp', 'rb'))
+    ress = pickle.load(open('motors.out','rb'))
+    opts = pickle.load(open('motors.sol', 'rb'))
+    #
+    # ranges = input_ranges_coreless()
+    # indep_vars = list(ranges.keys())
+    # dep_vars = list(opts[0].keys())
+    # dep_var = 'Mass Specific Power'
+    #
+
+    # Y = [opt[dep_var] for opt in opts]

@@ -1,6 +1,9 @@
 using Test
-include("../src/structs.jl")
 using PyCall
+using MathOptInterface, MosekTools
+const MOI = MathOptInterface
+
+include("../src/structs.jl")
 
 function alphac_to_fn(alpha, c; lse=false)
     nterms, xdim = size(alpha)
@@ -64,3 +67,18 @@ function import_sagebenchmark(idx; lse=false)
                         eqs, eq_idxs, lbs, ubs, lse);
     return ex
 end
+
+function CBF_to_MOF(filename, solver=Mosek.Optimizer())
+    """ Imports a conic benchmark into a MathOptInterface format. """
+    model = MOI.FileFormats.Model(filename = filename);
+    user_model = MOI.Bridges.full_bridge_optimizer(solver , Float64)
+
+    MOI.read_from_file(model, filename)
+    MOI.copy_to(user_model, model)
+    return user_model
+end
+
+filename = "../../data/cblib.zib.de/flay02m.cbf.gz";
+solver = Mosek.Optimizer();
+model = CBF_to_MOF(filename);
+MOI.optimize!(model)
