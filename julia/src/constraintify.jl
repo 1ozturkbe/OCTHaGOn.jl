@@ -23,7 +23,7 @@ function learn_constraints!(lnr, constraints, X; idxs = nothing, weights=ones(si
         grid = lnr;
     end
     for i = 1:n_constraints
-        Y = [constraints[i](X[j, :]) >= 0 for j = 1:n_samples]
+        Y = vcat([constraints[i](X[j, :]) >= 0 for j = 1:n_samples]...);
         # Making sure that we only consider relevant features.
         if !isnothing(idxs)
             IAI.set_params!(grid.lnr, split_features = idxs[i])
@@ -52,7 +52,7 @@ function learn_objective!(lnr, objective, X; idxs=nothing, lse=false, weights=on
     NOTE: All constraints must take in full vector of X values.
     """
     n_samples, n_features = size(X)
-    Y = [objective(X[j, :]) for j = 1:n_samples];
+    Y = vcat([objective(X[j, :]) for j = 1:n_samples]...);
     Y = Y[randperm(length(Y))]
     if !hasproperty(lnr, :lnr)
         grid = IAI.GridSearch(lnr);
