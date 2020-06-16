@@ -83,18 +83,18 @@ data = Dict(
 convexity_effect = bar(data["x"], data["y"], title="Accuracy vs. convexity", legend=false,ylims=[0.9, 1.])
 
 # Retrain non-convex with different numbers of samples
-n_samples = [100, 250, 500, 750, 1000];
-lnr = base_otc()
-for idx in problem_idxs
-    fn_model = import_sagebenchmark(problem_idxs[idx], lse=true);
-    n_dims = length(fn_model.lbs);
-    for j in n_samples
-        plan, _ = LHCoptim(j, n_dims, 1);
-        X = scaleLHC(plan,[(fn_model.lbs[i], fn_model.ubs[i]) for i=1:n_dims]);
-        feas_tree = learn_constraints!(lnr, [ineqs[idx]], X);
-    IAI.write_json(string("data/constraint",idx,"_",j,"samples",".tree"), feas_tree[1]);
-    end
-end
+# n_samples = [100, 250, 500, 750, 1000];
+# lnr = base_otc()
+# for idx in problem_idxs
+#     fn_model = import_sagebenchmark(problem_idxs[idx], lse=true);
+#     n_dims = length(fn_model.lbs);
+#     for j in n_samples
+#         plan, _ = LHCoptim(j, n_dims, 1);
+#         X = scaleLHC(plan,[(fn_model.lbs[i], fn_model.ubs[i]) for i=1:n_dims]);
+#         feas_tree = learn_constraints!(lnr, [ineqs[idx]], X);
+#     IAI.write_json(string("data/constraint",idx,"_",j,"samples",".tree"), feas_tree[1]);
+#     end
+# end
 
 # Loading trees, and scoring w.r.t. maximum of the samples
 n_samples = [100, 250, 500, 750, 1000];
