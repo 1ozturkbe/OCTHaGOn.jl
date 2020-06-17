@@ -10,7 +10,7 @@ All the rest of the tests look at examples
 using Test
 
 include("../src/OptimalConstraintTree.jl");
-const OCT = OptimalConstraintTree;
+global OCT = OptimalConstraintTree;
 
 # Initialization tests
 md = OCT.ModelData(c = [1,2,3]);

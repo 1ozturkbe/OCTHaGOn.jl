@@ -4,7 +4,7 @@ using LatinHypercubeSampling
 using Test
 using Plots
 
-include("examples.jl")
+include("../src/tools.jl")
 include("../src/fit.jl")
 include("../src/constraintify.jl")
 include("../src/solve.jl")
@@ -14,18 +14,18 @@ include("../src/post_process.jl")
 Set of examples for which to test different examples.
 """
 
-function test_import_sagebenchmark()
+function test_sagemark_to_ModelData()
     """ Makes sure all sage benchmarks import properly.
         For now, just doing first 25, since polynomial
         examples are not in R+. """
     idxs = 1:25;
     # max_min = [26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38]
     for idx in idxs
-        ex = import_sagebenchmark(idx);
+        ex = sagemark_to_ModelData(idx);
     end
     idx = 1;
-    ex = import_sagebenchmark(idx; lse=false);
-    ex_lse = import_sagebenchmark(idx; lse=true);
+    ex = sagemark_to_ModelData(idx; lse=false);
+    ex_lse = sagemark_to_ModelData(idx; lse=true);
     ubs = [1, 10, 15, 1];
     lbs = [0.1, 5, 8, 0.01];
     inp = [1,1.9,3,3.9];
@@ -88,8 +88,8 @@ function resample_test(fn_model)
     return true
 end
 
-@test test_import_sagebenchmark()
-fn_model = import_sagebenchmark(3, lse=true);
+@test test_sagemark_to_ModelData()
+fn_model = sagemark_to_ModelData(3, lse=true);
 @test example_fit(fn_model, lnr=base_otc())
 @test example_solve(fn_model, M=1e5)
 
@@ -102,3 +102,10 @@ fn_model = import_sagebenchmark(3, lse=true);
 # juniper = JuniperSolver(ipopt, mip_solver=gurobi)
 # setsolver(m, juniper)
 # solve(m)
+
+# # Fitting the ModelData
+# n_samples = 1000;
+# n_dims = length(md.c);
+# fn_model.lbs = [maximum([fn_model.lbs[i], mof_vars[i]-40]) for i=1:n_dims]
+# fn_model.ubs = [minimum([fn_model.ubs[i], mof_vars[i]+40]) for i=1:n_dims]
+# example_fit(fn_model, lnr=base_otc())

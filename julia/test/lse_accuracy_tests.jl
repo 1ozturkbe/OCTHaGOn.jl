@@ -1,7 +1,6 @@
 using LatinHypercubeSampling
 include("../src/fit.jl");
 include("../src/constraintify.jl")
-# include("examples.jl");
 
 function compile_lse_constraints()
     sagemarks = pyimport("sagebenchmarks.literature.solved");
@@ -11,7 +10,7 @@ function compile_lse_constraints()
     idxs = Int64[];
     dimension = Int64[];
     for idx=1:25
-        fn_model = import_sagebenchmark(idx, lse = true);
+        fn_model = sagemark_to_ModelData(idx, lse = true);
         if !any(ismissing.(fn_model.lbs)) && !any(ismissing.(fn_model.ubs))
             println("Adding constraints from test ", string(idx))
             signomials, solver, run_fn = sagemarks.get_example(idx);
@@ -48,7 +47,7 @@ n_samples = 1000;
 # lnr_grid = base_grid(base_otc())
 # for i=1:length(ineqs)
 #     print("Fitting constraint ", i, ".")
-#     fn_model = import_sagebenchmark(problem_idxs[i], lse=true)
+#     fn_model = sagemark_to_ModelData(problem_idxs[i], lse=true)
 #     n_dims = length(fn_model.lbs);
 #     plan, _ = LHCoptim(n_samples, n_dims, 1);
 #     X = scaleLHC(plan,[(fn_model.lbs[i], fn_model.ubs[i]) for i=1:n_dims]);
@@ -86,7 +85,7 @@ convexity_effect = bar(data["x"], data["y"], title="Accuracy vs. convexity", leg
 # n_samples = [100, 250, 500, 750, 1000];
 # lnr = base_otc()
 # for idx in problem_idxs
-#     fn_model = import_sagebenchmark(problem_idxs[idx], lse=true);
+#     fn_model = sagemark_to_ModelData(problem_idxs[idx], lse=true);
 #     n_dims = length(fn_model.lbs);
 #     for j in n_samples
 #         plan, _ = LHCoptim(j, n_dims, 1);
@@ -101,7 +100,7 @@ n_samples = [100, 250, 500, 750, 1000];
 grids = [IAI.read_json(string("data/constraint",idx,"_",j,"samples",".tree")) for j in n_samples for idx=1:length(ineqs)]; # inside for loop gets executed first.
 scores = [];
 for idx=1:length(ineqs)
-    fn_model = import_sagebenchmark(problem_idxs[idx], lse=true);
+    fn_model = sagemark_to_ModelData(problem_idxs[idx], lse=true);
     n_dims = length(fn_model.lbs);
     plan, _ = LHCoptim(maximum(n_samples), n_dims, 1);
     X = scaleLHC(plan,[(fn_model.lbs[i], fn_model.ubs[i]) for i=1:n_dims]);
