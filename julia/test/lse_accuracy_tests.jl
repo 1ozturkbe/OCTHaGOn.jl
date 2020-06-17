@@ -1,7 +1,7 @@
 using LatinHypercubeSampling
 include("../src/fit.jl");
 include("../src/constraintify.jl")
-include("examples.jl");
+# include("examples.jl");
 
 function compile_lse_constraints()
     sagemarks = pyimport("sagebenchmarks.literature.solved");

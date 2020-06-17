@@ -1,18 +1,65 @@
-using Test
-using PyCall
+using ConicBenchmarkUtilities
+using LatinHypercubeSampling
 using MathOptInterface, MosekTools
 const MOI = MathOptInterface
 using MathProgBase
-using ConicBenchmarkUtilities
+using PyCall
+using Test
 
 include("../src/structs.jl");
+include("../src/fit.jl");
+
+function example_fit(md::ModelData; lnr=base_otc())
+    """ Fits a provided function model with feasibility and obj f'n fits and
+        saves the learners.
+    """
+    n_samples = 1000;
+    n_dims = length(md.lbs);
+    weights = ones(n_samples)
+    plan, _ = LHCoptim(n_samples, n_dims, 1);
+    X = scaleLHC(plan,[(md.lbs[i], md.ubs[i]) for i=1:n_dims]);
+    ineq_trees = learn_constraints!(md, md.ineq_fns, X, weights=weights, lnr=lnr)
+    for i=1:size(ineq_trees,1)
+        IAI.write_json(string("data/", md.name, "_ineq_", i, ".json"),
+                       ineq_trees[i])
+    end
+    return true
+end
+
+function example_solve(md::ModelData; M=1e5)
+    """ Solves an already fitted function_model. """
+    # Retrieving constraints
+    obj_tree = IAI.read_json(string("data/", md.name, "_obj.json"));
+    ineq_trees = [IAI.read_json(string("data/", md.name, "_ineq_", i, ".json")) for i=1:length(md.ineqs)];
+    # Creating JuMP model
+    m = Model(solver=GurobiSolver());
+    n_vars = length(md.lbs);
+    vks = [Symbol("x",i) for i=1:n_vars];
+    obj_vks = [Symbol("x",i) for i=1:n_vars+1];
+    @variable(m, x[1:n_vars])
+    @variable(m, y)
+    @objective(m, Min, y)
+    add_feas_constraints!(obj_tree, m, [x; y], obj_vks; M=M)
+    for tree in ineq_trees
+        add_feas_constraints!(tree, m, x, vks; M=M)
+    end
+    for tree in eq_trees
+        add_feas_constraints!(tree, m, x, vks; M=M)
+    end
+    for i=1:n_vars # Bounding
+        @constraint(m, x[i] <= md.ubs[i])
+        @constraint(m, x[i] >= md.lbs[i])
+    end
+    status = solve(m)
+    return true
+end
 
 function alphac_to_fn(alpha, c; lse=false)
-    nterms, xdim = size(alpha)
+    n_terms, n_vars = size(alpha)
     if lse
-        x -> sum([c[i]*exp(sum([alpha[i,j]*x[j] for j=1:xdim])) for i=1:nterms])
+        x -> sum([c[i]*exp(sum([alpha[i,j]*x[j] for j=1:n_vars])) for i=1:n_terms])
     else
-        x -> sum([c[i]*prod([x[j]^alpha[i,j] for j=1:xdim]) for i=1:nterms])
+        x -> sum([c[i]*prod([x[j]^alpha[i,j] for j=1:n_vars]) for i=1:n_terms])
     end
 end
 
@@ -28,21 +75,27 @@ function import_sagebenchmark(idx; lse=false)
     sagemarks = pyimport("sagebenchmarks.literature.solved");
     signomials, solver, run_fn = sagemarks.get_example(idx);
     f, greaters, equals = signomials;
-    xdim = size(f.alpha,2);
-    obj = alphac_to_fn(f.alpha, f.c; lse=lse);
-    obj_idxs = unique([idx[2] for idx in findall(i->i != 0, f.alpha)]);
-    ineqs = Vector{Function}();
+    n_vars = size(f.alpha,2)+1;
+    ineq_fns = Function[];
     ineq_idxs = Array[];
-    eqs = Vector{Function}();
+    eq_fns = Function[];
     eq_idxs = Array[];
-    lbs = Array{Union{Missing,Float64}}(missing, 1, xdim);
-    ubs = Array{Union{Missing,Float64}}(missing, 1, xdim);
+    # Turning objective into constraint
+    c = zeros(n_vars); c[end] = 1;
+    obj_c = vcat(-1 .* f.c, [1]);
+    obj_alpha = hcat(-1 .* f.alpha, zeros(length(c)-1));
+    obj_alpha = vcat(obj_alpha, c');
+    push!(ineq_fns, alphac_to_fn(obj_alpha, obj_c, lse=lse))
+    push!(ineq_idxs, unique([idx[2] for idx in findall(i->i != 0, obj_alpha)]));
+    # Bound initialization
+    lbs = -Inf*ones(n_vars);
+    ubs = Inf*ones(n_vars);
     for i=1:size(greaters,1)
-        alpha = greaters[i].alpha
-        c = greaters[i].c
+        alpha = hcat(greaters[i].alpha, zeros(length(c)-1))
+        c = hcat(greaters[i].c, [0])
         local idxs = findall(x->x!=0, alpha);
         if size(idxs, 1) > 1
-            append!(ineqs, [alphac_to_fn(alpha, c; lse=lse)])
+            append!(ineq_fns, [alphac_to_fn(alpha, c; lse=lse)])
             append!(ineq_idxs, [unique([idx[2] for idx in idxs])]);
         else
             local val = -((sum(c)-c[idxs[1][1]]) / c[idxs[1][1]])^(1/alpha[idxs[1]]);
@@ -57,16 +110,16 @@ function import_sagebenchmark(idx; lse=false)
         end
     end
     for i=1:size(equals, 1)
-        alpha = equals[i].alpha;
-        c = equals[i].c;
+        alpha = hcat(equals[i].alpha, zeros(length(c)-1))
+        c = hcat(equals[i].c, [0]);
         idxs = findall(x->x!=0, alpha);
         append!(eqs, [alphac_to_fn(alpha, c; lse=lse)]);
-        idxs = findall(x->x!=0, equals[i].alpha);
-        append!(eq_idxs, [unique([idx[2] for idx in idxs])])
     end
-    ex = function_model(string("example", idx),
-                        obj, obj_idxs, ineqs, ineq_idxs,
-                        eqs, eq_idxs, lbs, ubs, lse);
+    ex = ModelData(name = string("example", idx),
+                   obj_c = obj_c,
+                   ineqs = ineqs, ineq_idxs = ineq_idxs,
+                   eqs = eqs, eq_idxs, eq_idxs,
+                   lbs = lbs, ubs = ubs);
     return ex
 end
 
@@ -80,7 +133,6 @@ function CBF_to_MOF(filename, solver=Mosek.Optimizer())
 end
 
 # function MOF_to_fnmodel(mof_model)
-#     inner_variables = MOI.get(mof_model, MOI.ListOfVariableIndices())
 #     constraints = MOI.get(mof_model, MOI.ListOfConstraints())
 #     constraint_indices = MOI.get(mof_model, MOI.ListOfConstraintIndices)
 #     variable_attributes_set = MOI.get(mof_model, MOI.ListOfVariableAttributesSet())
@@ -94,7 +146,7 @@ end
 #     return ex
 # end
 
-function CBF_to_fnmodel(filename)
+function CBF_to_ModelData(filename)
     """ Converts CBF model into a fnmodel format.
         Using some code here from MathProgBase loadproblem! (technically deprecated). """
     dat = readcbfdata(filename);
@@ -112,12 +164,11 @@ function CBF_to_fnmodel(filename)
     for (cone,idxs) in var_cones
         cone in bad_cones && error("Cone type $(cone) not supported")
     end
-    num_vars = length(c);
-    obj = x -> sum(c.*x);
-    obj_idxs = findall(x -> x .!=0, c);
+    n_vars = length(c);
+    md = ModelData(c=c);
     # Variable bounds
-    l = fill(-Inf, length(c));
-    u = fill(Inf, length(c));
+    l = fill(-Inf, n_vars);
+    u = fill(Inf, n_vars);
     for (cone,idxs) in var_cones
         if cone == :SOC
             l[idxs[1]] = 0;
@@ -134,73 +185,73 @@ function CBF_to_fnmodel(filename)
         end
     end
     # Constraint functions
-    ineqs = [];
-    ineq_idxs = Array[];
-    eqs = [];
-    eq_idxs = Array[];
     for (cone, idxs) in constr_cones
     # Idxs describe which rows of A the cone applies to.
     # All cones: [:Free, :Zero, :NonNeg, :NonPos, :SOC, :SOCRotated, :SDP, :ExpPrimal, :ExpDual]
         if cone == :NonNeg
-            if length(A[idxs,:].nzval) > 1.
-                constr_fn = x -> b[idxs] - A[idxs, :]*x;
-                push!(ineqs, constr_fn);
-                push!(ineq_idxs, idxs);
-            else
+            append!(md.ineqs_b, b[idxs]);
+            push!(md.ineqs_A, A[idxs, :]);
+            if length(A[idxs,:].nzval) == 1.
                 l[findall(!iszero, A[idxs,:])[1][2]] = maximum([l[findall(!iszero, A[idxs,:])[1][2]],
                                                                 b[idxs][1]/A[idxs, :].nzval[1]]);
             end
         elseif cone == :NonPos
-            if length(idxs) > 1.
-                constr_fn = x -> -1 .* b[idxs] + A[idxs, :]*x;
-                push!(ineqs, constr_fn);
-                push!(ineq_idxs, idxs);
-            else
+            append!(md.ineqs_b, -b[idxs])
+            push!(md.ineqs_A, -1 .* A[idxs, :])
+            if length(idxs) == 1.
                 u[findall(!iszero, A[idxs,:])[1][2]] = minimum([u[findall(!iszero, A[idxs,:])[1][2]],
                                                    b[idxs][1]/A[idxs, :].nzval[1]]);
             end
         elseif cone == :Zero
-            constr_fn = x -> b[idxs] - A[idxs, :]*x;
-            push!(eqs, constr_fn);
-            push!(eq_idxs, idxs);
+            append!(md.eqs_b, b[idxs])
+            push!(md.eqs_A, A[idxs,:])
         elseif cone == :SOC
             function constr_fn(x)
                 expr = b[idxs] - A[idxs, :]*x;
-                return sum(expr[1:end-1].^2) <= expr[end].^2;
+                return expr[end].^2 - sum(expr[1:end-1].^2);
             end
-            push!(ineqs, constr_fn);
-            push!(ineq_idxs, idxs);
+            push!(md.ineq_fns, constr_fn);
+            push!(md.ineq_idxs, idxs);
         elseif cone == :SOCRotated
             function constr_fn(x)
                 expr = b[idxs] - A[idxs, :]*x;
-                return sum(expr[1:end-2].^2) <= expr[end-1]*expr[end]
+                return expr[end-1]*expr[end] - sum(expr[1:end-2].^2)
             end
-            push!(ineqs, constr_fn);
-            push!(ineq_idxs, idxs);
+            push!(md.ineq_fns, constr_fn);
+            push!(md.ineq_idxs, idxs);
         elseif cone in [:SDP, :ExpPrimal, :ExpDual]
-            print("Haven't coded feasibility for these cones yet.");
+            throw(ArgumentError("Haven't coded feasibility for these cones yet."));
         elseif cone == :Free
             pass;
         else
             print("This cone is not recognized.");
         end
     end
-    ex = function_model(filename,
-                        obj, obj_idxs, ineqs, ineq_idxs,
-                        eqs, eq_idxs, l, u, false);
-    return ex
+    update_bounds!(md, l, u);
+    @assert length(constr_cones) == length(md.ineqs_b) + length(md.eqs_b) + length(md.ineq_fns) +
+                                    length(md.eq_fns)
+    return md
 end
 
 # Solving a MOI model.
-filename = "../../data/cblib.zib.de/sambal.cbf.gz"
+filename = "../../data/cblib.zib.de/flay03m.cbf.gz";
 solver = Mosek.Optimizer();
 mof_model = CBF_to_MOF(filename);
+inner_variables = MOI.get(mof_model, MOI.ListOfVariableIndices());
 MOI.optimize!(mof_model);
 status = MOI.get(mof_model, MOI.TerminationStatus());
 mof_obj = MOI.get(mof_model, MOI.ObjectiveValue());
-@test mof_obj ≈ 3.968224074
+mof_vars = [MOI.get(mof_model, MOI.VariablePrimal(), var) for var in inner_variables];
+@test mof_obj ≈ 48.989798037382
 
-# Getting fn_model using MPB
+
+# # Getting fn_model using MPB
 filename = "../../data/cblib.zib.de/flay03m.cbf.gz";
-fn_model = CBF_to_fnmodel(filename);
+md = CBF_to_ModelData(filename);
 
+# # Fitting function model (and updating bounds
+# n_samples = 1000;
+# n_dims = length(fn_model.lbs);
+# fn_model.lbs = [maximum([fn_model.lbs[i], mof_vars[i]-40]) for i=1:n_dims]
+# fn_model.ubs = [minimum([fn_model.ubs[i], mof_vars[i]+40]) for i=1:n_dims]
+# example_fit(fn_model, lnr=base_otc())

@@ -14,58 +14,6 @@ include("../src/post_process.jl")
 Set of examples for which to test different examples.
 """
 
-function example_fit(fn_model::function_model; lnr=base_otc())
-    """ Fits a provided function model with feasibility and obj f'n fits and
-        saves the learners.
-    """
-    n_samples = 1000;
-    n_dims = length(fn_model.lbs);
-    weights = ones(n_samples)
-    plan, _ = LHCoptim(n_samples, n_dims, 1);
-    X = scaleLHC(plan,[(fn_model.lbs[i], fn_model.ubs[i]) for i=1:n_dims]);
-    obj_tree, ineq_trees, eq_trees = fit_fn_model(fn_model, X, weights=weights, lnr=lnr)
-    IAI.write_json(string("data/", fn_model.name, "_obj.json"), obj_tree);
-    for i=1:size(ineq_trees,1)
-        IAI.write_json(string("data/", fn_model.name, "_ineq_", i, ".json"),
-                       ineq_trees[i])
-    end
-    for i = 1:size(eq_trees, 1)
-        IAI.write_json(string("data/", fn_model.name, "_eq_", i, ".json"),
-                       eq_trees[i])
-    end
-    return true
-end
-
-function example_solve(fn_model::function_model; M=1e5)
-    """ Solves an already fitted function_model. """
-    # Retrieving constraints
-    obj_tree = IAI.read_json(string("data/", fn_model.name, "_obj.json"));
-    ineq_trees = [IAI.read_json(string("data/", fn_model.name, "_ineq_", i, ".json")) for i=1:length(fn_model.ineqs)];
-    eq_trees = [IAI.read_json(string("data/", fn_model.name, "_eq_", i, ".json")) for i=1:length(fn_model.eqs)];
-    # Creating JuMP model
-    m = Model(solver=GurobiSolver());
-    n_vars = length(fn_model.lbs);
-    vks = [Symbol("x",i) for i=1:n_vars];
-    obj_vks = [Symbol("x",i) for i=1:n_vars+1];
-    @variable(m, x[1:n_vars])
-    @variable(m, y)
-    @objective(m, Min, y)
-    add_feas_constraints!(obj_tree, m, [x; y], obj_vks; M=M)
-    for tree in ineq_trees
-        add_feas_constraints!(tree, m, x, vks; M=M)
-    end
-    for tree in eq_trees
-        add_feas_constraints!(tree, m, x, vks; M=M)
-    end
-    for i=1:n_vars # Bounding
-        @constraint(m, x[i] <= fn_model.ubs[i])
-        @constraint(m, x[i] >= fn_model.lbs[i])
-    end
-    status = solve(m)
-    return true
-end
-
-
 function test_import_sagebenchmark()
     """ Makes sure all sage benchmarks import properly.
         For now, just doing first 25, since polynomial
@@ -103,7 +51,7 @@ function resample_test(fn_model)
     plan, _ = LHCoptim(n_samples, n_dims, 1);
     global X = scaleLHC(plan,[(fn_model.lbs[i], fn_model.ubs[i]) for i=1:n_dims]);
     for i=1:n_iterations
-        obj_tree, ineq_trees, eq_trees = fit_fn_model(fn_model, X, weights=weights);
+        obj_tree, ineq_trees = fit_fn_model(fn_model, X, weights=weights);
         # Creating JuMP model
         m = Model(solver=GurobiSolver());
         n_vars = length(fn_model.lbs);

@@ -1,6 +1,7 @@
 using Gurobi
 using JuMP
-# Defining regression function, with rho and pnorm
+
+include("../src/constraintify.jl")
 
 function base_otr()
     return IAI.OptimalTreeRegressor(
@@ -33,17 +34,6 @@ function base_grid(lnr)
     :max_depth => [3, 4, 5],
     :minbucket => [0.3, 0.5]))
     return grid
-end
-
-function fit_fn_model(fn_model, X; lnr=base_otc(), weights=ones(size(X,1)))
-    ineq_trees = learn_constraints!(lnr, fn_model.ineqs, X; idxs=fn_model.ineq_idxs,
-                                   weights=weights)
-    eq_trees = learn_constraints!(lnr, fn_model.eqs, X; idxs=fn_model.eq_idxs,
-                                 weights=weights)
-    obj_tree = learn_objective!(lnr, fn_model.obj, X;
-                               idxs=fn_model.obj_idxs, lse=fn_model.lse,
-                               weights=weights)
-    return obj_tree, ineq_trees, eq_trees
 end
 
 function regress(Y, X, rho, p, M=2.)
