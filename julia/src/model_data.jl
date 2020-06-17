@@ -1,6 +1,12 @@
+using Gurobi
+using JuMP
+using LatinHypercubeSampling
 using Parameters
 
 @with_kw mutable struct ModelData
+"""
+Contains all required info to be able to generate a global optimization problem.
+"""
     name::String = "Model"                        # Example name
     c::Array                                      # Cost vector
     ineq_fns::Array{Function} = Array{Function}[] # Inequality (>= 0) functions
@@ -21,4 +27,38 @@ function update_bounds!(md::ModelData, lbs, ubs)
     end
     md.lbs =  [maximum([md.lbs[i], lbs[i]]) for i=1:length(md.c)];
     md.ubs =  [minimum([md.ubs[i], ubs[i]]) for i=1:length(md.c)];
+end
+
+function sample(md::ModelData; n_samples=1000)
+"""
+Samples the variables of ModelData, as long as all
+lbs and ubs are defined.
+"""
+   n_dims = length(md.c);
+   plan, _ = LHCoptim(n_samples, n_dims, 1);
+   if any(isinf.(hcat(md.lbs, md.ubs)))
+       throw(ArgumentError("Model is not properly bounded."))
+   end
+   X = scaleLHC(plan,[(fnm.lbs[i], fnm.ubs[i]) for i=1:n_dims]);
+   return X
+end
+
+function jumpit(md::ModelData; solver = GurobiSolver())
+"""
+Creates a JuMP.Model() compatible with ModelData,
+with only the linear constraints.
+"""
+    n_vars = length(md.c);
+    m = Model(solver=solver);
+    @variable(m, x[1:n_vars]);
+    @objective(m, Min, sum(md.c.*x));
+    for i=1:length(md.eqs_b)
+        @constraint(m, md.eqs_b[i] - md.eqs_A[i].*x == 0);
+    end
+    for i=1:length(md.ineqs_b)
+        @constraint(m, md.ineqs_b[i] - md.ineqs_A[i].*x >= 0);
+    end
+    @constraint(m, x .>= md.lbs)
+    @constraint(m, x .<= md.ubs)
+    return m
 end

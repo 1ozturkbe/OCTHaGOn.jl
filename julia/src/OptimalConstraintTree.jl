@@ -6,9 +6,9 @@ include("convexRegress.jl")
 include("doe.jl")
 include("constraintify.jl")
 include("fit.jl")
-include("structs.jl")
+include("model_data.jl")
 
 export ModelData, learn_constraints!, learn_objective!,
-       add_feas_constraints!, add_mio_constraints!, import_sagebenchmark,
-       base_otr, base_otc, update_bounds!
+       add_feas_constraints!, add_mio_constraints!,
+       base_otr, base_otc, update_bounds!, sample, jumpit
 end
