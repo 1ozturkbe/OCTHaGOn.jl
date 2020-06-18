@@ -76,18 +76,40 @@ function CBF_to_ModelData(filename)
         elseif cone == :SOC
             function constr_fn(x)
                 expr = b[idxs] - A[idxs, :]*x;
-                return expr[end].^2 - sum(expr[1:end-1].^2);
+                return expr[1].^2 - sum(expr[2:end].^2);
             end
             push!(md.ineq_fns, constr_fn);
             push!(md.ineq_idxs, idxs);
         elseif cone == :SOCRotated
             function constr_fn(x)
                 expr = b[idxs] - A[idxs, :]*x;
-                return expr[end-1]*expr[end] - sum(expr[1:end-2].^2)
+                return expr[1]*expr[2] - sum(expr[3:end].^2)
             end
             push!(md.ineq_fns, constr_fn);
             push!(md.ineq_idxs, idxs);
-        elseif cone in [:SDP, :ExpPrimal, :ExpDual]
+        elseif cone == :ExpPrimal
+            function constr_fn(x)
+                 (x,y,z) = b[idxs] - A[idxs, :]*x;
+                 return z - y*exp(x/y)
+            end
+            push!(md.ineq_fns, constr_fn);
+            push!(md.ineq_idxs, idxs);
+            var_idxs = findall(!iszero, A[idxs,:])[1][2];
+            l[var_idxs[2]] = maximum([l[var_idxs[2]], 0]);
+        elseif cone == :ExpDual
+            function constr_fn(x)
+                 (u,v,w) = b[idxs] - A[idxs, :]*x;
+                 if expr[1] == 0
+                     return 0 # feasible
+                 else
+                     return u*log(-u/w) - u + v
+                 end
+            end
+            var_idxs = findall(!iszero, A[idxs,:])[1][2];
+            u[var_idxs[1]] = minimum([u[var_idxs[1]], 0]);
+            l[var_idxs[2]] = maximum([l[var_idxs[2]], 0]);
+            l[var_idxs[3]] = maximum([l[var_idxs[3]], 0]);
+        elseif cone in [:SDP]
             throw(ArgumentError("Haven't coded feasibility for these cones yet."));
         elseif cone == :Free
             pass;
