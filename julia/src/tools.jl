@@ -97,14 +97,12 @@ function CBF_to_ModelData(filename)
         elseif cone == :ExpDual
             function constr_fn(x)
                  (u,v,w) = b[idxs] - A[idxs, :]*x;
-                 if u == 0
-                     if v >= 0 && w >= 0
-                        return 0 # feasible
-                     else
-                        return -1 # infeasible
-                     end
-                 else
+                 if v >= 0 && w >= 0
+                     return 0
+                 elseif u < 0 && w >= 0
                      return u*log(-u/w) - u + v
+                 else
+                     return -1 # infeasible
                  end
             end
             push!(md.ineq_fns, constr_fn);
