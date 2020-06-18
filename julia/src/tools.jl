@@ -96,6 +96,7 @@ function CBF_to_ModelData(filename)
         end
     end
     update_bounds!(md, l, u);
+    md.int_idxs = findall(x -> x .== :Int, vartypes); # Making sure integer variables are included.
     @assert length(constr_cones) == length(md.ineqs_b) + length(md.eqs_b) + length(md.ineq_fns) +
                                     length(md.eq_fns)
     return md

@@ -19,6 +19,7 @@ Contains all required info to be able to generate a global optimization problem.
     eqs_b::Array{Float64} = []                    # Linear equality b
     lbs::Array = -Inf.*ones(length(c))            # Lower bounds
     ubs::Array = Inf.*ones(length(c))             # Upper bounds
+    int_idxs::Array = []                          # Integer variable indices
 end
 
 function update_bounds!(md::ModelData, lbs, ubs)
@@ -35,11 +36,11 @@ Samples the variables of ModelData, as long as all
 lbs and ubs are defined.
 """
    n_dims = length(md.c);
-   plan, _ = LHCoptim(n_samples, n_dims, 1);
+   plan, _ = LHCoptim(n_samples, n_dims, 3);
    if any(isinf.(hcat(md.lbs, md.ubs)))
        throw(ArgumentError("Model is not properly bounded."))
    end
-   X = scaleLHC(plan,[(fnm.lbs[i], fnm.ubs[i]) for i=1:n_dims]);
+   X = scaleLHC(plan,[(md.lbs[i], md.ubs[i]) for i=1:n_dims]);
    return X
 end
 
