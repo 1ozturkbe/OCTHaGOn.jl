@@ -23,7 +23,7 @@ Contains all required info to be able to generate a global optimization problem.
 end
 
 function update_bounds!(md::ModelData, lbs, ubs)
-    if any(lbs .>= ubs)
+    if any(lbs .> ubs)
         throw(ArgumentError("Infeasible bounds."))
     end
     md.lbs =  [maximum([md.lbs[i], lbs[i]]) for i=1:length(md.c)];

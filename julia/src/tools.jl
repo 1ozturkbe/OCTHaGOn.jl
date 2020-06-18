@@ -28,7 +28,7 @@ function CBF_to_ModelData(filename)
     # If sense == :Max, you should flip the sign of c before handing off to a solver.
     # If a cone is anything other than [:Free,:Zero,:NonNeg,:NonPos,:SOC,:SOCRotated], MPB
     # would give up. But we should be able to handle it.
-    bad_cones = [:SDP, :ExpPrimal, :ExpDual];
+    bad_cones = [:SDP];
     for (cone,idxs) in var_cones
         cone in bad_cones && error("Cone type $(cone) not supported")
     end
@@ -56,17 +56,16 @@ function CBF_to_ModelData(filename)
     for (cone, idxs) in constr_cones
     # Idxs describe which rows of A the cone applies to.
     # All cones: [:Free, :Zero, :NonNeg, :NonPos, :SOC, :SOCRotated, :SDP, :ExpPrimal, :ExpDual]
+        var_idxs = unique(cart_ind[2] for cart_ind in findall(!iszero, A[idxs,:])); # CartesianIndices...
         if cone == :NonNeg
-            if length(A[idxs,:].nzval) == 1.
-                var_idx = findall(!iszero, A[idxs,:])[1][2];
-                u[var_idx] = minimum([u[var_idx], b[idxs][1]/A[idxs, :].nzval[1]]);
+            if length(var_idxs) == 1.
+                u[var_idxs[1]] = minimum([u[var_idxs[1]], b[idxs][1]/A[idxs, :].nzval[1]]);
             end
             append!(md.ineqs_b, b[idxs]);
             push!(md.ineqs_A, A[idxs, :]);
         elseif cone == :NonPos
-            if length(idxs) == 1.
-                var_idx = findall(!iszero, A[idxs,:])[1][2];
-                l[var_idxs] = maximum([l[var_idx], b[idxs][1]/A[idxs, :].nzval[1]]);
+            if length(var_idxs) == 1.
+                l[var_idxs[1]] = maximum([l[var_idxs[1]], b[idxs][1]/A[idxs, :].nzval[1]]);
             end
             append!(md.ineqs_b, -b[idxs]);
             push!(md.ineqs_A, -1 .* A[idxs, :]);
@@ -79,35 +78,38 @@ function CBF_to_ModelData(filename)
                 return expr[1].^2 - sum(expr[2:end].^2);
             end
             push!(md.ineq_fns, constr_fn);
-            push!(md.ineq_idxs, idxs);
+            push!(md.ineq_idxs, var_idxs);
         elseif cone == :SOCRotated
             function constr_fn(x)
                 expr = b[idxs] - A[idxs, :]*x;
                 return expr[1]*expr[2] - sum(expr[3:end].^2)
             end
             push!(md.ineq_fns, constr_fn);
-            push!(md.ineq_idxs, idxs);
+            push!(md.ineq_idxs, var_idxs);
         elseif cone == :ExpPrimal
             function constr_fn(x)
                  (x,y,z) = b[idxs] - A[idxs, :]*x;
                  return z - y*exp(x/y)
             end
             push!(md.ineq_fns, constr_fn);
-            push!(md.ineq_idxs, idxs);
-            var_idxs = findall(!iszero, A[idxs,:])[1][2];
+            push!(md.ineq_idxs, var_idxs);
             l[var_idxs[2]] = maximum([l[var_idxs[2]], 0]);
         elseif cone == :ExpDual
             function constr_fn(x)
                  (u,v,w) = b[idxs] - A[idxs, :]*x;
-                 if expr[1] == 0
-                     return 0 # feasible
+                 if u == 0
+                     if v >= 0 && w >= 0
+                        return 0 # feasible
+                     else
+                        return -1 # infeasible
+                     end
                  else
                      return u*log(-u/w) - u + v
                  end
             end
-            var_idxs = findall(!iszero, A[idxs,:])[1][2];
+            push!(md.ineq_fns, constr_fn);
+            push!(md.ineq_idxs, var_idxs);
             u[var_idxs[1]] = minimum([u[var_idxs[1]], 0]);
-            l[var_idxs[2]] = maximum([l[var_idxs[2]], 0]);
             l[var_idxs[3]] = maximum([l[var_idxs[3]], 0]);
         elseif cone in [:SDP]
             throw(ArgumentError("Haven't coded feasibility for these cones yet."));
@@ -118,7 +120,7 @@ function CBF_to_ModelData(filename)
         end
     end
     update_bounds!(md, l, u);
-    md.int_idxs = findall(x -> x .== :Int, vartypes); # Making sure integer variables are included.
+    md.int_idxs = findall(x -> x .== :Int, vartypes); # Integer var labeling.
     @assert length(constr_cones) == length(md.ineqs_b) + length(md.eqs_b) + length(md.ineq_fns) +
                                     length(md.eq_fns)
     return md
