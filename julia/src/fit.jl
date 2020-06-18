@@ -30,7 +30,7 @@ function base_otc()
 end
 
 function base_grid(lnr)
-    grid = IAI.GridSearch(lnr, Dict(:criterion => [:gini, :misclassification],
+    grid = IAI.GridSearch(lnr, Dict(:criterion => [:auc, :misclassification],
     :normalize_X => [true],
     :max_depth => [3, 4, 5],
     :minbucket => [0.3, 0.5]))
@@ -66,19 +66,25 @@ function regress(Y, X, rho, p, M=2.)
     return getvalue(b), getvalue(b0), getvalue(t), getvalue(s)
 end
 
-function example_fit(md::ModelData; lnr=base_otc())
+function fit(md::ModelData, X; lnr=base_otc(), weights=ones(size(X,1)), write=true)
     """ Fits a provided function model with feasibility and obj f'n fits and
         saves the learners.
     """
-    n_samples = 1000;
+    n_samples, n_features = size(X);
+    @assert n_features == length(md.c);
     n_dims = length(md.lbs);
     weights = ones(n_samples)
-    plan, _ = LHCoptim(n_samples, n_dims, 1);
-    X = scaleLHC(plan,[(md.lbs[i], md.ubs[i]) for i=1:n_dims]);
-    ineq_trees = learn_constraints!(md, md.ineq_fns, X, weights=weights, lnr=lnr)
-    for i=1:size(ineq_trees,1)
-        IAI.write_json(string("data/", md.name, "_ineq_", i, ".json"),
-                       ineq_trees[i])
+    ineq_trees = learn_constraints!(lnr, md.ineq_fns, X, idxs = md.ineq_idxs, weights = weights)
+    eq_trees = learn_constraints!(lnr, md.eq_fns, X, idxs = md.eq_idxs, weights = weights)
+    if write
+        for i=1:size(ineq_trees,1)
+            IAI.write_json(string("data/", md.name, "_ineq_", i, ".json"),
+                           ineq_trees[i])
+        end
+        for i=1:size(eq_trees,1)
+            IAI.write_json(string("data/", md.name, "_eq_", i, ".json"),
+                           eq_trees[i])
+        end
     end
-    return true
+    return ineq_trees, eq_trees
 end

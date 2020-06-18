@@ -26,7 +26,12 @@ mof_vars = [MOI.get(mof_model, MOI.VariablePrimal(), var) for var in inner_varia
 filename = "../../data/cblib.zib.de/flay03m.cbf.gz";
 md = OCT.CBF_to_ModelData(filename);
 # Setting arbitrary bounds for unbounded problem
-OCT.update_bounds!(md, mof_vars .- 40., mof_vars .+ 40.);
+OCT.update_bounds!(md, mof_vars .- 100., mof_vars .+ 100.);
+# Sampling ModelData
+X = OCT.sample(md);
+# Fitting model
+ineq_trees, eq_trees = OCT.fit(md, X, write=true);
+
 
 # Importing sagebenchmark to ModelData and checking it
 # sagebench = OCT.sagemark_to_ModelData(3)
