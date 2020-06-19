@@ -14,7 +14,7 @@ using MathOptInterface
 include("model_data.jl")
 include("fit.jl")
 
-function CBF_to_ModelData(filename)
+function CBF_to_ModelData(filename; epsilon=1e-20)
     """ Converts CBF model into a fnmodel format.
         Using some code here from MathProgBase loadproblem! (technically deprecated). """
     dat = readcbfdata(filename);
@@ -79,6 +79,7 @@ function CBF_to_ModelData(filename)
             end
             push!(md.ineq_fns, constr_fn);
             push!(md.ineq_idxs, var_idxs);
+            l[var_idxs[1]] = maximum([l[var_idxs[1]], 0]);
         elseif cone == :SOCRotated
             function constr_fn(x)
                 expr = b[idxs] - A[idxs, :]*x;
@@ -86,6 +87,8 @@ function CBF_to_ModelData(filename)
             end
             push!(md.ineq_fns, constr_fn);
             push!(md.ineq_idxs, var_idxs);
+            l[var_idxs[1]] = maximum([l[var_idxs[1]], 0]);
+            l[var_idxs[2]] = maximum([l[var_idxs[2]], 0]);
         elseif cone == :ExpPrimal
             function constr_fn(x)
                  (x,y,z) = b[idxs] - A[idxs, :]*x;
@@ -93,12 +96,12 @@ function CBF_to_ModelData(filename)
             end
             push!(md.ineq_fns, constr_fn);
             push!(md.ineq_idxs, var_idxs);
-            l[var_idxs[2]] = maximum([l[var_idxs[2]], 0]);
+            l[var_idxs[2]] = maximum([l[var_idxs[2]], epsilon]);
         elseif cone == :ExpDual
             function constr_fn(x)
                  (u,v,w) = b[idxs] - A[idxs, :]*x;
                  if v >= 0 && w >= 0
-                     return 0
+                     return 1 # feasible
                  elseif u < 0 && w >= 0
                      return u*log(-u/w) - u + v
                  else

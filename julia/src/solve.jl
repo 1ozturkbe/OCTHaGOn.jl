@@ -1,7 +1,6 @@
 include("constraintify.jl")
+include("fit.jl")
 include("tools.jl")
-
-
 
 function solve_sagebenchmark(sagemark)
     """ Solves a benchmark of given number (1-25 for now). """

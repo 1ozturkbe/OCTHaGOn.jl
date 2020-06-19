@@ -26,7 +26,7 @@ mof_vars = [MOI.get(mof_model, MOI.VariablePrimal(), var) for var in inner_varia
 md = OCT.CBF_to_ModelData(filename);
 md.name = "clay0203h";
 # Setting arbitrary bounds for unbounded problem
-OCT.update_bounds!(md, mof_vars .- 50000., mof_vars .+ 50000.);
+OCT.update_bounds!(md, mof_vars .- 100., mof_vars .+ 100.);
 # Sampling ModelData
 X = OCT.sample(md);
 # Fitting model
