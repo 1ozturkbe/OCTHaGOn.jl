@@ -2,8 +2,31 @@
 using JuMP
 using Gurobi
 using Random
+include("model_data.jl");
 
-function add_feas_constraints!(grid, m, x, vks; M = 1e5, eq = false)
+function add_linear_constraints!(m::JuMP.Model, x::Array{JuMP.Variable}, md::ModelData)
+    for i=1:length(md.eqs_b)
+        @constraint(m, md.eqs_b[i] - sum(md.eqs_A[i]*x) == 0);
+    end
+    for i=1:length(md.ineqs_b)
+        @constraint(m, md.ineqs_b[i] - sum(md.ineqs_A[i]*x) >= 0);
+    end
+    @constraint(m, x .>= md.lbs)
+    @constraint(m, x .<= md.ubs)
+    return m
+end
+
+function add_tree_constraints!(m::JuMP.Model, x::Array{JuMP.Variable}, ineq_trees, eq_trees;
+                               vks=[Symbol("x",i) for i=1:length(x)], M=1e5)
+    for tree in ineq_trees
+        add_feas_constraints!(m, x, tree, vks; M=M, eq=false)
+    end
+    for tree in eq_trees
+        add_feas_constraints!(m, x, tree, vks; M=M, eq=false)
+    end
+end
+
+function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.Variable}, grid, vks; M = 1e5, eq = false)
     """
     Creates a set of binary feasibility constraints from
     a binary classification tree:

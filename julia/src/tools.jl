@@ -162,12 +162,13 @@ function sagemark_to_ModelData(idx; lse=true)
     ubs = Inf*ones(n_vars);
     for i=1:length(greaters)
         alpha = hcat(greaters[i].alpha, zeros(size(greaters[i].alpha,1)));
+        c = greaters[i].c;
         local idxs = findall(x->x!=0, alpha);
         if size(idxs, 1) > 1
-            append!(md.ineq_fns, [alphac_to_fn(alpha, c; lse=lse)])
-            append!(md.ineq_idxs, [unique([idx[2] for idx in idxs])]);
+            push!(md.ineq_fns, alphac_to_fn(alpha, c; lse=lse))
+            push!(md.ineq_idxs, unique([idx[2] for idx in idxs]));
         else
-            local val = -((sum(c)-c[idxs[1][1]]) / c[idxs[1][1]])^(1/alpha[idxs[1]]);
+            val = -((sum(c)-c[idxs[1][1]]) / c[idxs[1][1]])^(1/alpha[idxs[1]]);
             if lse
                 val=log(val)
             end
@@ -181,7 +182,8 @@ function sagemark_to_ModelData(idx; lse=true)
     for i=1:length(equals)
         alpha = hcat(equals[i].alpha, zeros(size(equals[i].alpha,1)));
         idxs = findall(x->x!=0, alpha);
-        append!(md.eq_fns, [alphac_to_fn(alpha, c; lse=lse)]);
+        push!(md.eq_fns, alphac_to_fn(alpha, c; lse=lse));
+        push!(md.eq_idxs, unique([idx[2] for idx in idxs]));
     end
     update_bounds!(md, lbs, ubs);
     return md

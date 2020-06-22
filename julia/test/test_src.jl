@@ -24,6 +24,6 @@ OCT.update_bounds!(md, [-2,1,3], [Inf, 5, 6]);
 @test_throws ArgumentError OCT.sample(md)
 
 # Check creation of JuMP.Model() from ModelData
-jm = OCT.jumpit(md);
+jm, jx = OCT.jump_it(md);
 
 

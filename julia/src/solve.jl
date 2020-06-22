@@ -23,8 +23,8 @@ function solve_sagebenchmark(sagemark)
     @variable(m, x[1:3])
     @variable(m, obj)
     @objective(m, Min, obj)
-    add_feas_constraints!(constr, m, x, vks, 1000);
-    add_mio_constraints!(objectivefn, m, x, obj, vks, 1000000);
+    add_feas_constraints!(m, x, constr, vks, M=1000);
+    add_mio_constraints!(objectivefn, m, x, obj, vks, M=1000000);
     bound_variables!(m, x, fnm.lbs, fnm.ubs);
     status = solve(m)
     println("Solved minimum: ", getvalue(obj))

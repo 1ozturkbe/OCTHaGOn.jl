@@ -13,6 +13,7 @@ module OptimalConstraintTree
 
     export ModelData, learn_constraints!, learn_objective!,
            add_feas_constraints!, add_mio_constraints!,
-           base_otr, base_otc, update_bounds!, sample, jumpit
+           add_linear_constraints!, add_tree_constraints!,
+           base_otr, base_otc, update_bounds!, sample, jump_it
 end
 

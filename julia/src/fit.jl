@@ -167,7 +167,7 @@ function learn_objective!(lnr, objective, X; idxs=nothing, lse=false, weights=on
     return grid
 end
 
-function fit(md::ModelData, X; lnr=base_otc(), weights=ones(size(X,1)), write=true)
+function fit(md::ModelData, X; lnr=base_otc(), weights=ones(size(X,1)), dir="-")
     """ Fits a provided function model with feasibility and obj f'n fits and
         saves the learners.
     """
@@ -177,13 +177,13 @@ function fit(md::ModelData, X; lnr=base_otc(), weights=ones(size(X,1)), write=tr
     weights = ones(n_samples)
     ineq_trees = learn_constraints!(lnr, md.ineq_fns, X, idxs = md.ineq_idxs, weights = weights)
     eq_trees = learn_constraints!(lnr, md.eq_fns, X, idxs = md.eq_idxs, weights = weights)
-    if write
+    if dir != "-"
         for i=1:size(ineq_trees,1)
-            IAI.write_json(string("data/", md.name, "_ineq_", i, ".json"),
+            IAI.write_json(string(dir, "_ineq_", i, ".json"),
                            ineq_trees[i])
         end
         for i=1:size(eq_trees,1)
-            IAI.write_json(string("data/", md.name, "_eq_", i, ".json"),
+            IAI.write_json(string(dir, "_eq_", i, ".json"),
                            eq_trees[i])
         end
     end
