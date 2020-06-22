@@ -7,7 +7,7 @@
 #     # Assuming the objective has already been trained...
 #     lnr = base_otr()
 #     name = "example1"
-#     feasTrees = learn_constraints!(lnr, constraints, X, name=name)
+#     feasTrees = learn_constraints(lnr, constraints, X, name=name)
 #
 #     # Creating the model
 #     constr = IAI.read_json("data/example1_constraint_infeas.json")

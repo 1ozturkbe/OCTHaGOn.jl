@@ -154,6 +154,7 @@ function sagemark_to_ModelData(idx; lse=true)
     md = ModelData(name = string("sagemark", idx), c = c);
     obj_c = vcat(-1 .* f.c, [1]);
     obj_alpha = vcat(-1 .* f.alpha, zeros(size(f.alpha,2))');
+    obj_alpha = hcat(obj_alpha, zeros(length(obj_c)));
     obj_alpha[end, end] = 1;
     push!(md.ineq_fns, alphac_to_fn(obj_alpha, obj_c, lse=lse))
     push!(md.ineq_idxs, unique([idx[2] for idx in findall(i->i != 0, obj_alpha)]));

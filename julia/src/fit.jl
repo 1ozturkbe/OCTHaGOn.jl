@@ -30,7 +30,7 @@ function base_otc()
 end
 
 function base_grid(lnr)
-    grid = IAI.GridSearch(lnr, Dict(:criterion => [:auc, :misclassification],
+    grid = IAI.GridSearch(lnr, Dict(:criterion => [:entropy, :misclassification],
     :normalize_X => [true],
     :max_depth => [3, 4, 5],
     :minbucket => [0.3, 0.5]))
@@ -66,7 +66,8 @@ function regress(Y, X, rho, p, M=2.)
     return getvalue(b), getvalue(b0), getvalue(t), getvalue(s)
 end
 
-function learn_constraints!(lnr, constraints, X; idxs = nothing, weights=ones(size(X,1)))
+function learn_constraints(lnr, constraints, X; idxs = nothing, weights=ones(size(X,1)),
+                                                 validation_criterion=:misclassification)
     """
     Returns a set of feasibility trees from a set of constraints.
     Arguments:
@@ -99,7 +100,7 @@ function learn_constraints!(lnr, constraints, X; idxs = nothing, weights=ones(si
                 IAI.set_params!(grid.lnr, regression_features=:all)
             end
         end
-        IAI.fit!(grid, X, Y, validation_criterion = :misclassification)
+        IAI.fit!(grid, X, Y, validation_criterion = :misclassification, sample_weight=weights)
         append!(feasTrees, [grid])
     end
     return feasTrees
@@ -163,11 +164,12 @@ function learn_objective!(lnr, objective, X; idxs=nothing, lse=false, weights=on
             IAI.set_params!(grid.lnr, regression_features=:all)
         end
     end
-    IAI.fit!(grid, nX, nY, validation_criterion = :misclassification)
+    IAI.fit!(grid, nX, nY, validation_criterion = :misclassification, sample_weight=weights)
     return grid
 end
 
-function fit(md::ModelData, X; lnr=base_otc(), weights=ones(size(X,1)), dir="-")
+function fit(md::ModelData, X; lnr=base_otc(), weights=ones(size(X,1)), dir="-",
+                               validation_criterion=:misclassification)
     """ Fits a provided function model with feasibility and obj f'n fits and
         saves the learners.
     """
@@ -175,8 +177,10 @@ function fit(md::ModelData, X; lnr=base_otc(), weights=ones(size(X,1)), dir="-")
     @assert n_features == length(md.c);
     n_dims = length(md.lbs);
     weights = ones(n_samples)
-    ineq_trees = learn_constraints!(lnr, md.ineq_fns, X, idxs = md.ineq_idxs, weights = weights)
-    eq_trees = learn_constraints!(lnr, md.eq_fns, X, idxs = md.eq_idxs, weights = weights)
+    ineq_trees = learn_constraints(lnr, md.ineq_fns, X, idxs = md.ineq_idxs, weights = weights,
+                                    validation_criterion=validation_criterion)
+    eq_trees = learn_constraints(lnr, md.eq_fns, X, idxs = md.eq_idxs, weights = weights,
+                                  validation_criterion=validation_criterion)
     if dir != "-"
         for i=1:size(ineq_trees,1)
             IAI.write_json(string(dir, "_ineq_", i, ".json"),

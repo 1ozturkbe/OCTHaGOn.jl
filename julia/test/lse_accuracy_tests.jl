@@ -51,7 +51,7 @@ n_samples = 1000;
 #     n_dims = length(fn_model.lbs);
 #     plan, _ = LHCoptim(n_samples, n_dims, 1);
 #     X = scaleLHC(plan,[(fn_model.lbs[i], fn_model.ubs[i]) for i=1:n_dims]);
-#     feas_tree = learn_constraints!(lnr, [ineqs[i]], X)
+#     feas_tree = learn_constraints(lnr, [ineqs[i]], X)
 #     IAI.write_json(string("data/constraint",i,".tree"), feas_tree[1])
 # end
 
@@ -90,7 +90,7 @@ convexity_effect = bar(data["x"], data["y"], title="Accuracy vs. convexity", leg
 #     for j in n_samples
 #         plan, _ = LHCoptim(j, n_dims, 1);
 #         X = scaleLHC(plan,[(fn_model.lbs[i], fn_model.ubs[i]) for i=1:n_dims]);
-#         feas_tree = learn_constraints!(lnr, [ineqs[idx]], X);
+#         feas_tree = learn_constraints(lnr, [ineqs[idx]], X);
 #     IAI.write_json(string("data/constraint",idx,"_",j,"samples",".tree"), feas_tree[1]);
 #     end
 # end

@@ -13,7 +13,7 @@ function solve_sagebenchmark(sagemark)
     otr = base_otr()
     otc = base_otc()
     name = "example1"
-    feasTrees = learn_constraints!(otc, constraints, X, name=name)
+    feasTrees = learn_constraints(otc, constraints, X, name=name)
 
     # Creating the model
     constr = IAI.read_json("data/example1_constraint_infeas.json")

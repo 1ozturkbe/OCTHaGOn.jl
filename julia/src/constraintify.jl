@@ -22,7 +22,7 @@ function add_tree_constraints!(m::JuMP.Model, x::Array{JuMP.Variable}, ineq_tree
         add_feas_constraints!(m, x, tree, vks; M=M, eq=false)
     end
     for tree in eq_trees
-        add_feas_constraints!(m, x, tree, vks; M=M, eq=false)
+        add_feas_constraints!(m, x, tree, vks; M=M, eq=true)
     end
 end
 
