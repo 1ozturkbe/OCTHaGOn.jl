@@ -82,11 +82,12 @@ function learn_constraints(lnr, constraints, X; idxs = nothing, weights=ones(siz
     n_constraints = length(constraints);
     feasTrees = IAI.GridSearch[];
     if !hasproperty(lnr, :lnr)
-        grid = IAI.GridSearch(lnr);
+        untrained_grid = IAI.GridSearch(lnr);
     else
-        grid = lnr;
+        untrained_grid = lnr;
     end
     for i = 1:n_constraints
+        grid = deepcopy(untrained_grid);
         Y = vcat([constraints[i](X[j, :]) >= 0 for j = 1:n_samples]...);
         # Making sure that we only consider relevant features.
         if !isnothing(idxs)
