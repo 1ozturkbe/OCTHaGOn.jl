@@ -80,7 +80,6 @@ md.ubs[end]= -0;
 X = OCT.sample(md);
 ineq_trees, eq_trees = OCT.fit(md, X, lnr = OCT.base_otc(),
                                dir=string("data/",md.name));
-
 m, x = OCT.jump_it(md);
 OCT.add_linear_constraints!(m, x, md);
 OCT.add_tree_constraints!(m, x, ineq_trees, eq_trees);

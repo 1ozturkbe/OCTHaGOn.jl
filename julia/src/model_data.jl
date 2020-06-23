@@ -15,9 +15,9 @@ Contains all required info to be able to generate a global optimization problem.
     eq_fns::Array{Function} = Array{Function}[]     # Equality (>= 0) functions
     eq_idxs::Array = Array[]                        # Equality function variable indices
     ineqs_A::Array = SparseMatrixCSC[]              # Linear inequality A vector, in b-Ax>=0
-    ineqs_b::Array = []                             # Linear inequality b
+    ineqs_b::Array = Array[]                        # Linear inequality b
     eqs_A::Array = SparseMatrixCSC[]                # Linear equality A vector, in b-Ax=0
-    eqs_b::Array = []                               # Linear equality b
+    eqs_b::Array = Array[]                          # Linear equality b
     lbs::Array = -Inf.*ones(length(c))              # Lower bounds
     ubs::Array = Inf.*ones(length(c))               # Upper bounds
     int_idxs::Array = []                            # Integer variable indices
