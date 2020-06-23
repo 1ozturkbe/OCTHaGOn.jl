@@ -2,24 +2,25 @@ using Gurobi
 using JuMP
 using LatinHypercubeSampling
 using Parameters
+using SparseArrays
 
 @with_kw mutable struct ModelData
 """
 Contains all required info to be able to generate a global optimization problem.
 """
-    name::String = "Model"                        # Example name
-    c::Array                                      # Cost vector
-    ineq_fns::Array{Function} = Array{Function}[] # Inequality (>= 0) functions
-    ineq_idxs::Array = Array[]                    # Inequality function variable indices
-    eq_fns::Array{Function} = Array{Function}[]   # Equality (>= 0) functions
-    eq_idxs::Array = Array[]                      # Equality function variable indices
-    ineqs_A::Array = Array[]                      # Linear inequality A vector, in b-Ax>=0
-    ineqs_b::Array{Float64} = []                  # Linear inequality b
-    eqs_A::Array = Array[]                        # Linear equality A vector, in b-Ax=0
-    eqs_b::Array{Float64} = []                    # Linear equality b
-    lbs::Array = -Inf.*ones(length(c))            # Lower bounds
-    ubs::Array = Inf.*ones(length(c))             # Upper bounds
-    int_idxs::Array = []                          # Integer variable indices
+    name::String = "Model"                          # Example name
+    c::Array                                        # Cost vector
+    ineq_fns::Array{Function} = Array{Function}[]   # Inequality (>= 0) functions
+    ineq_idxs::Array = Array[]                      # Inequality function variable indices
+    eq_fns::Array{Function} = Array{Function}[]     # Equality (>= 0) functions
+    eq_idxs::Array = Array[]                        # Equality function variable indices
+    ineqs_A::Array = SparseMatrixCSC[]              # Linear inequality A vector, in b-Ax>=0
+    ineqs_b::Array = []                             # Linear inequality b
+    eqs_A::Array = SparseMatrixCSC[]                # Linear equality A vector, in b-Ax=0
+    eqs_b::Array = []                               # Linear equality b
+    lbs::Array = -Inf.*ones(length(c))              # Lower bounds
+    ubs::Array = Inf.*ones(length(c))               # Upper bounds
+    int_idxs::Array = []                            # Integer variable indices
 end
 
 function update_bounds!(md::ModelData, lbs, ubs)

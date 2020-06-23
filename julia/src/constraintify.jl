@@ -6,10 +6,12 @@ include("model_data.jl");
 
 function add_linear_constraints!(m::JuMP.Model, x::Array{JuMP.Variable}, md::ModelData)
     for i=1:length(md.eqs_b)
-        @constraint(m, md.eqs_b[i] - sum(md.eqs_A[i]*x) == 0);
+        terms = length(md.eqs_b[i]);
+        @constraint(m, md.eqs_b[i] .- [sum(md.eqs_A[i][j,:] .* x) for j=1:terms] .== 0);
     end
     for i=1:length(md.ineqs_b)
-        @constraint(m, md.ineqs_b[i] - sum(md.ineqs_A[i]*x) >= 0);
+        terms = length(md.ineqs_b[i]);
+        @constraint(m, md.ineqs_b[i] .- [sum(md.ineqs_A[i][j,:] .* x) for j=1:terms] .>= 0);
     end
     @constraint(m, x .>= md.lbs)
     @constraint(m, x .<= md.ubs)

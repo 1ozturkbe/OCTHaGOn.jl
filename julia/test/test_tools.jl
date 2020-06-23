@@ -44,19 +44,19 @@ function test_sagemark_to_ModelData()
 end
 
 # Solving a MOI model for comparison and bound generation
-filename = "../../data/cblib.zib.de/clay0203h.cbf.gz";
+filename = "../../data/cblib.zib.de/demb782.cbf.gz";
 mof_model = OCT.CBF_to_MOF(filename);
 inner_variables = MOI.get(mof_model, MOI.ListOfVariableIndices());
 MOI.optimize!(mof_model);
 mof_obj = MOI.get(mof_model, MOI.ObjectiveValue());
 mof_vars = [MOI.get(mof_model, MOI.VariablePrimal(), var) for var in inner_variables];
-@test mof_obj ≈ 41573.2611172422
-#
+@test mof_obj ≈ 0.6931471809242389
+
 # Importing CBF to ModelData using MathProgBase
 md = OCT.CBF_to_ModelData(filename);
-md.name = "clay0203h";
+md.name = "demb782";
 # Setting arbitrary bounds for unbounded problem
-OCT.update_bounds!(md, mof_vars .- 100., mof_vars .+ 100.);
+OCT.update_bounds!(md, mof_vars .- 2, mof_vars .+ 2);
 
 # Sampling ModelData
 X = OCT.sample(md);
@@ -72,8 +72,6 @@ solve(m);
 # TODOs
 # Document the structure to Dimitris.
 
-
-
 # Importing sagebenchmark to ModelData and checking it
 @test test_sagemark_to_ModelData()
 md = OCT.sagemark_to_ModelData(3, lse=false);
@@ -82,10 +80,6 @@ md.ubs[end]= -0;
 X = OCT.sample(md);
 ineq_trees, eq_trees = OCT.fit(md, X, lnr = OCT.base_otc(),
                                dir=string("data/",md.name));
-# For debugging
-for tree in ineq_trees
-    IAI.show_in_browser(tree.lnr)
-end
 
 m, x = OCT.jump_it(md);
 OCT.add_linear_constraints!(m, x, md);
@@ -94,4 +88,4 @@ status = solve(m);
 println("Solved minimum: ", sum(md.c .* getvalue(x)))
 println("Known global bound: ", -147-2/3)
 println("X values: ", getvalue(x))
-println("Optimal X: ", exp.([5.01063529, 3.40119660, -0.48450710]))
+println("Optimal X: ", vcat(exp.([5.01063529, 3.40119660, -0.48450710]), [-147-2/3]))

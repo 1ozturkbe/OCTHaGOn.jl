@@ -38,7 +38,11 @@ function CBF_to_ModelData(filename; epsilon=1e-20)
     l = fill(-Inf, n_vars);
     u = fill(Inf, n_vars);
     for (cone,idxs) in var_cones
-        if cone == :SOC
+        if cone == :ExpPrimal
+            l[idxs[2]] = 0;
+        elseif cone == :ExpDual
+            l[idxs[3]] = 0;
+        elseif cone == :SOC
             l[idxs[1]] = 0;
         elseif cone == :SOCRotated
             l[idxs[1]] = 0;
@@ -61,16 +65,16 @@ function CBF_to_ModelData(filename; epsilon=1e-20)
             if length(var_idxs) == 1.
                 u[var_idxs[1]] = minimum([u[var_idxs[1]], b[idxs][1]/A[idxs, :].nzval[1]]);
             end
-            append!(md.ineqs_b, b[idxs]);
+            push!(md.ineqs_b, b[idxs]);
             push!(md.ineqs_A, A[idxs, :]);
         elseif cone == :NonPos
             if length(var_idxs) == 1.
                 l[var_idxs[1]] = maximum([l[var_idxs[1]], b[idxs][1]/A[idxs, :].nzval[1]]);
             end
-            append!(md.ineqs_b, -b[idxs]);
+            push!(md.ineqs_b, -b[idxs]);
             push!(md.ineqs_A, -1 .* A[idxs, :]);
         elseif cone == :Zero
-            append!(md.eqs_b, b[idxs]);
+            push!(md.eqs_b, b[idxs]);
             push!(md.eqs_A, A[idxs,:]);
         elseif cone == :SOC
             function constr_fn(x)
@@ -122,8 +126,6 @@ function CBF_to_ModelData(filename; epsilon=1e-20)
     end
     update_bounds!(md, l, u);
     md.int_idxs = findall(x -> x .== :Int, vartypes); # Integer var labeling.
-    @assert length(constr_cones) == length(md.ineqs_b) + length(md.eqs_b) + length(md.ineq_fns) +
-                                    length(md.eq_fns)
     return md
 end
 
