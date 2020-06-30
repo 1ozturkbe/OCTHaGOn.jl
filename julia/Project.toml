@@ -4,8 +4,10 @@ authors = ["Berk Ozturk <1ozturkbe@gmail.com>"]
 version = "0.1.0"
 
 [deps]
+ImplicitEquations = "95701278-4526-5785-aba3-513cca398f19"
 LIBLINEAR = "2d691ee1-e668-5016-a719-b2531b85e0f5"
 LIBSVM = "b1bec4e5-fd48-53fe-b0cb-9723c09d164b"
+LaTeXStrings = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
 
 [compat]
 julia = "1.3"

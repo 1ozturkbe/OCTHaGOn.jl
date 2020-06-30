@@ -69,9 +69,6 @@ OCT.add_linear_constraints!(m, x, md);
 OCT.add_tree_constraints!(m, x, ineq_trees, eq_trees);
 solve(m);
 
-# TODOs
-# Document the structure to Dimitris.
-
 # Importing sagebenchmark to ModelData and checking it
 @test test_sagemark_to_ModelData()
 md = OCT.sagemark_to_ModelData(3, lse=false);

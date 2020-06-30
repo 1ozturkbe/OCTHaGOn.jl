@@ -3,6 +3,8 @@ using JuMP
 using LatinHypercubeSampling
 using Parameters
 using SparseArrays
+using Random
+Random.seed!(1);
 
 @with_kw mutable struct ModelData
 """
