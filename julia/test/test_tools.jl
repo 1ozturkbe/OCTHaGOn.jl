@@ -58,22 +58,12 @@ md.name = "demb782";
 # Setting arbitrary bounds for unbounded problem
 OCT.update_bounds!(md, mof_vars .- 2, mof_vars .+ 2);
 
-# Sampling ModelData
-X = OCT.sample(md);
-# Fitting model
-ineq_trees, eq_trees = OCT.fit(md, X, lnr = OCT.base_otc(), dir=string("data/",md.name));
-
-m, x = OCT.jump_it(md); # Creating the JuMPModel
-ineq_trees, eq_trees = OCT.import_trees(string("data/", md.name), md)
-OCT.add_linear_constraints!(m, x, md);
-OCT.add_tree_constraints!(m, x, ineq_trees, eq_trees);
-solve(m);
-
 # Importing sagebenchmark to ModelData and checking it
 @test test_sagemark_to_ModelData()
 md = OCT.sagemark_to_ModelData(3, lse=false);
 md.lbs[end] = -300;
 md.ubs[end]= -0;
+# Sampling ModelData, creating and solving a JuMP.Model
 X = OCT.sample(md);
 ineq_trees, eq_trees = OCT.fit(md, X, lnr = OCT.base_otc(),
                                dir=string("data/",md.name));

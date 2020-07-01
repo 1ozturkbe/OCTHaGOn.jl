@@ -1,5 +1,6 @@
 using Gurobi
 using JuMP
+using MosekTools
 using LatinHypercubeSampling
 using Parameters
 using SparseArrays
@@ -32,6 +33,26 @@ function update_bounds!(md::ModelData, lbs, ubs)
     md.lbs =  [maximum([md.lbs[i], lbs[i]]) for i=1:length(md.c)];
     md.ubs =  [minimum([md.ubs[i], ubs[i]]) for i=1:length(md.c)];
 end
+
+# function find_bounds!(md::ModelData; solver=Mosek.Optimizer(), feasible = zeros(length(md.c)),
+#                         n_samples=100)
+# """
+# Finds the missing md.lbs and md.ubs using rapidly exploring random trees.
+# """
+#     n_dims = length(md.c);
+#     upper_unbounded = isinf.(md.ubs);
+#     lower_unbounded = isinf.(md.lbs);
+#     lbs = deepcopy(md.lbs);
+#     ubs = deepcopy(md.ubs);
+#     # Will sample single-tailed in logspace
+#     plan, _ = LHCoptim(n_samples, n_dims, 3);
+#     log_jumps = scaleLHC(plan, [(-3, 10) for i=1:n_dims])
+#     X = scaleLHC(plan,[(md.lbs[i], md.ubs[i]) for i=1:n_dims]);
+#     feas_matrix = ones(n_samples, length(md.))
+#     for i = 1:n_dims
+#         np =
+#     m = Model(solver=solver);
+# end
 
 function sample(md::ModelData; n_samples=1000)
 """
