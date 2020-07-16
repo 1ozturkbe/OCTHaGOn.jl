@@ -83,7 +83,7 @@ function CBF_to_ModelData(filename; epsilon=1e-20)
             end
             push!(md.ineq_fns, constr_fn);
             push!(md.ineq_idxs, var_idxs);
-            l[var_idxs[1]] = maximum([l[var_idxs[1]], 0]);
+#             l[var_idxs[1]] = maximum([l[var_idxs[1]], 0]);
         elseif cone == :SOCRotated
             function constr_fn(x)
                 expr = b[idxs] - A[idxs, :]*x;
@@ -91,8 +91,8 @@ function CBF_to_ModelData(filename; epsilon=1e-20)
             end
             push!(md.ineq_fns, constr_fn);
             push!(md.ineq_idxs, var_idxs);
-            l[var_idxs[1]] = maximum([l[var_idxs[1]], 0]);
-            l[var_idxs[2]] = maximum([l[var_idxs[2]], 0]);
+#             l[var_idxs[1]] = maximum([l[var_idxs[1]], 0]);
+#             l[var_idxs[2]] = maximum([l[var_idxs[2]], 0]);
         elseif cone == :ExpPrimal
             function constr_fn(x)
                  (x,y,z) = b[idxs] - A[idxs, :]*x;
@@ -100,7 +100,7 @@ function CBF_to_ModelData(filename; epsilon=1e-20)
             end
             push!(md.ineq_fns, constr_fn);
             push!(md.ineq_idxs, var_idxs);
-            l[var_idxs[2]] = maximum([l[var_idxs[2]], epsilon]);
+#             l[var_idxs[2]] = maximum([l[var_idxs[2]], epsilon]);
         elseif cone == :ExpDual
             function constr_fn(x)
                  (u,v,w) = b[idxs] - A[idxs, :]*x;
@@ -114,8 +114,8 @@ function CBF_to_ModelData(filename; epsilon=1e-20)
             end
             push!(md.ineq_fns, constr_fn);
             push!(md.ineq_idxs, var_idxs);
-            u[var_idxs[1]] = minimum([u[var_idxs[1]], 0]);
-            l[var_idxs[3]] = maximum([l[var_idxs[3]], 0]);
+#             u[var_idxs[1]] = minimum([u[var_idxs[1]], 0]);
+#             l[var_idxs[3]] = maximum([l[var_idxs[3]], 0]);
         elseif cone in [:SDP]
             throw(ArgumentError("Haven't coded feasibility for these cones yet."));
         elseif cone == :Free
@@ -138,7 +138,7 @@ function alphac_to_fn(alpha, c; lse=false)
     end
 end
 
-function sagemark_to_ModelData(idx; lse=true)
+function sagemark_to_ModelData(idx; lse=false)
     """
     Imports sagebenchmarks example from literature.solved and
     returns as a function_model.
@@ -170,6 +170,13 @@ function sagemark_to_ModelData(idx; lse=true)
         if size(idxs, 1) > 1
             push!(md.ineq_fns, alphac_to_fn(alpha, c; lse=lse))
             push!(md.ineq_idxs, unique([idx[2] for idx in idxs]));
+            if sum(float(c .>= zeros(length(c)))) == 1
+                if lse
+                    push!(md.convex_idxs, length(md.ineq_fns))
+                else
+                    push!(md.logconvex_idxs, length(md.ineq_fns))
+                end
+            end
         else
             val = -((sum(c)-c[idxs[1][1]]) / c[idxs[1][1]])^(1/alpha[idxs[1]]);
             if lse
@@ -192,7 +199,7 @@ function sagemark_to_ModelData(idx; lse=true)
     return md
 end
 
-function CBF_to_MOF(filename, solver=Mosek.Optimizer())
+function CBF_to_MOF(filename; solver=Gurobi.Optimizer())
     """ Imports a conic benchmark into a MathOptInterface format. """
     model = MathOptInterface.FileFormats.Model(filename = filename);
     mof_model = MathOptInterface.Bridges.full_bridge_optimizer(solver , Float64)

@@ -29,7 +29,7 @@ function base_otc()
     )
 end
 
-function base_grid(lnr)
+function base_grid(lnr)add
     grid = IAI.GridSearch(lnr, Dict(:criterion => [:entropy, :misclassification],
     :normalize_X => [true],
     :max_depth => [3, 5],
@@ -66,7 +66,7 @@ function regress(Y, X, rho, p, M=2.)
     return getvalue(b), getvalue(b0), getvalue(t), getvalue(s)
 end
 
-function learn_constraints(lnr, constraints, X; idxs = nothing, weights=ones(size(X,1)),
+function learn_constraints(lnr, constraints, X; idxs = nothing, weights=:autobalance,
                                                  validation_criterion=:misclassification)
     """
     Returns a set of feasibility trees from a set of constraints.
