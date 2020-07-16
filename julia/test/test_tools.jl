@@ -13,6 +13,7 @@ global MOI = MathOptInterface;
 MOI.Silent() = true
 include("../src/OptimalConstraintTree.jl");
 global OCT = OptimalConstraintTree;
+const PROJECT_ROOT = @__DIR__
 
 function test_sagemark_to_ModelData()
     """ Makes sure all sage benchmarks import properly.
@@ -43,21 +44,6 @@ function test_sagemark_to_ModelData()
     return true
 end
 
-# Solving a MOI model for comparison and bound generation
-filename = "../../data/cblib.zib.de/demb782.cbf.gz";
-mof_model = OCT.CBF_to_MOF(filename);
-inner_variables = MOI.get(mof_model, MOI.ListOfVariableIndices());
-MOI.optimize!(mof_model);
-mof_obj = MOI.get(mof_model, MOI.ObjectiveValue());
-mof_vars = [MOI.get(mof_model, MOI.VariablePrimal(), var) for var in inner_variables];
-@test mof_obj ≈ 0.6931471809242389
-
-# Importing CBF to ModelData using MathProgBase
-md = OCT.CBF_to_ModelData(filename);
-md.name = "demb782";
-# Setting arbitrary bounds for unbounded problem
-OCT.update_bounds!(md, mof_vars .- 2, mof_vars .+ 2);
-
 # Importing sagebenchmark to ModelData and checking it
 @test test_sagemark_to_ModelData()
 md = OCT.sagemark_to_ModelData(3, lse=false);
@@ -66,9 +52,8 @@ md.ubs[end]= -0;
 # Sampling ModelData, creating and solving a JuMP.Model
 X = OCT.sample(md);
 ineq_trees, eq_trees = OCT.fit(md, X, lnr = OCT.base_otc(),
-                               dir=string("data/",md.name));
+                               dir=string("test/data/",md.name));
 m, x = OCT.jump_it(md);
-OCT.add_linear_constraints!(m, x, md);
 OCT.add_tree_constraints!(m, x, ineq_trees, eq_trees);
 status = solve(m);
 println("Solved minimum: ", sum(md.c .* getvalue(x)))

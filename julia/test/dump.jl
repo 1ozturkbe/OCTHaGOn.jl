@@ -18,7 +18,7 @@
 #     @variable(m, obj)
 #     @objective(m, Min, obj)
 #     add_feas_constraints(constr, m, x, vks, 1000);
-#     add_mio_constraints(objectivefn, m, x, obj, vks, 1000000);
+#     add_regr_constraints(objectivefn, m, x, obj, vks, 1000000);
 #     bound_variables(m, x, fn_model.lbs, fn_model.ubs);
 #     status = solve(m)
 #     println("Solved minimum: ", getvalue(obj))
@@ -38,8 +38,8 @@
 #     add_feas_constraints(eq_trees[i], m, x, vks; M = 100);
 # end
 #
-# #     add_mio_constraints(constr, m, x, 0, vks, 1000000);
-# #     add_mio_constraints(objectivefn, m, x, obj, vks, 1000000);
+# #     add_regr_constraints(constr, m, x, 0, vks, 1000000);
+# #     add_regr_constraints(objectivefn, m, x, obj, vks, 1000000);
 # #     bound_variables(m, x, fn_model.lbs, fn_model.ubs);
 # #     status = solve(m)
 # #     println("Solved minimum: ", getvalue(obj))

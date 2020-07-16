@@ -11,9 +11,10 @@ module OptimalConstraintTree
     include("model_data.jl")
     include("tools.jl")
 
-    export ModelData, learn_constraints,
-           add_feas_constraints!, add_mio_constraints!,
+    export ModelData, learn_constraints, find_bounds!
+           add_feas_constraints!, add_regr_constraints!,
            add_linear_constraints!, add_tree_constraints!,
-           base_otr, base_otc, update_bounds!, sample, jump_it
+           base_otr, base_otc, update_bounds!, sample, jump_it,
+           show_trees
 end
 

@@ -42,7 +42,7 @@ function transonic_mio_model()
     @constraint(m, x[3] <= log(maximum(M)))
     @constraint(m, log(minimum(cl)) <= x[4])
     @constraint(m, x[4] <= log(maximum(cl)))
-    m = add_mio_constraints(lnr, m, x, y, vks, M=100, eq=true);
+    m = add_regr_constraints(lnr, m, x, y, vks, M=100, eq=true);
     # Setting optimization constraints (as a demonstration)
     # Re, thickness, M, cl
     @constraint(m, x[1] >= log(20000))
