@@ -1,5 +1,6 @@
 using Gurobi
 using JuMP
+using MathOptInterface
 using MosekTools
 using LatinHypercubeSampling
 using Parameters
@@ -23,6 +24,8 @@ Contains all required info to be able to generate a global optimization problem.
     eqs_b::Array = Array[]                          # Linear equality b
     lbs::Array = -Inf.*ones(length(c))              # Lower bounds
     ubs::Array = Inf.*ones(length(c))               # Upper bounds
+    convex_idxs::Array = []                         # Convex inequality indices
+    logconvex_idxs::Array = []                      # Log-convex inequality indices
     int_idxs::Array = []                            # Integer variable indices
 end
 
@@ -68,16 +71,58 @@ lbs and ubs are defined.
    return X
 end
 
+function add_linear_constraints!(m::JuMP.Model, x::Array{JuMP.Variable}, md::ModelData)
+    for i=1:length(md.eqs_b)
+        terms = length(md.eqs_b[i]);
+        @constraint(m, md.eqs_b[i] .- [sum(md.eqs_A[i][j,:] .* x) for j=1:terms] .== 0);
+    end
+    for i=1:length(md.ineqs_b)
+        terms = length(md.ineqs_b[i]);
+        @constraint(m, md.ineqs_b[i] .- [sum(md.ineqs_A[i][j,:] .* x) for j=1:terms] .>= 0);
+    end
+    for i=1:length(md.c)
+        if !isinf(md.lbs[i])
+            @constraint(m, x[i] >= md.lbs[i])
+        end
+        if !isinf(md.ubs[i])
+            @constraint(m, x[i] <= md.ubs[i])
+        end
+    end
+    return m
+end
+
 function jump_it(md::ModelData; solver = GurobiSolver())
 """
 Creates a JuMP.Model() compatible with ModelData,
 with only the linear constraints.
 """
-    n_vars = length(md.c);
     m = Model(solver=solver);
-    @variable(m, x[1:n_vars]);
-    @objective(m, Min, sum(md.c.*x));
-    return m, x
+    @variable(m, x[1:length(md.c)])
+    aux = @variable(m, [1:length(md.int_idxs)], Int);
+    @constraint(m, x[md.int_idxs] .== aux);
+    @objective(m, Min, sum(md.c .* x));
+    add_linear_constraints!(m, x, md);
+    return m,x
+end
+
+function find_bounds!(md::ModelData; solver=GurobiSolver(), all_bounds=true)
+    m, x = jump_it(md, solver=solver)
+    lbs = -Inf.*ones(length(md.c));
+    ubs = Inf.*ones(length(md.c));
+    # Finding bounds by min/maximizing each variable
+    for i=1:length(md.c)
+        if isinf(md.lbs[i]) || all_bounds
+            @objective(m, Min, x[i]);
+            status = solve(m);
+            lbs[i] = getvalue(x)[i];
+        end
+        if isinf(md.lbs[i]) || all_bounds
+            @objective(m, Max, x[i]);
+            status = solve(m);
+            ubs[i] = getvalue(x)[i];
+        end
+    end
+    update_bounds!(md, lbs, ubs)
 end
 
 function import_trees(dir, md::ModelData)
@@ -86,4 +131,11 @@ function import_trees(dir, md::ModelData)
     ineq_trees = [IAI.read_json(string(dir, "_ineq_", i, ".json")) for i=1:length(md.ineq_fns)];
     eq_trees = [IAI.read_json(string(dir, "_eq_", i, ".json")) for i=1:length(md.eq_fns)];
     return ineq_trees, eq_trees
+end
+
+function show_trees(trees)
+    """ Shows all trees (grids) in browser. """
+    for tree in trees
+        IAI.show_in_browser(tree.lnr)
+    end
 end

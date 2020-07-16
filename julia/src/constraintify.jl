@@ -4,20 +4,6 @@ using Gurobi
 using Random
 include("model_data.jl");
 
-function add_linear_constraints!(m::JuMP.Model, x::Array{JuMP.Variable}, md::ModelData)
-    for i=1:length(md.eqs_b)
-        terms = length(md.eqs_b[i]);
-        @constraint(m, md.eqs_b[i] .- [sum(md.eqs_A[i][j,:] .* x) for j=1:terms] .== 0);
-    end
-    for i=1:length(md.ineqs_b)
-        terms = length(md.ineqs_b[i]);
-        @constraint(m, md.ineqs_b[i] .- [sum(md.ineqs_A[i][j,:] .* x) for j=1:terms] .>= 0);
-    end
-    @constraint(m, x .>= md.lbs)
-    @constraint(m, x .<= md.ubs)
-    return m
-end
-
 function add_tree_constraints!(m::JuMP.Model, x::Array{JuMP.Variable}, ineq_trees, eq_trees;
                                vks=[Symbol("x",i) for i=1:length(x)], M=1e5)
     for tree in ineq_trees
@@ -45,8 +31,13 @@ function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.Variable}, grid, vks
     all_leaves = [i for i = 1:n_nodes if IAI.is_leaf(lnr, i)];
     feas_leaves =
         [i for i in all_leaves if IAI.get_classification_label(lnr, i)];
-    z = @variable(m, [1:size(feas_leaves, 1)], Bin)
-    @constraint(m, sum(z) == 1)
+    infeas_leaves = [i for i in all_leaves if i ∉ feas_leaves];
+    z_feas = @variable(m, [1:size(feas_leaves, 1)], Bin)
+    @constraint(m, sum(z_feas) == 1)
+    if eq
+        z_infeas = @variable(m, [1:length(infeas_leaves)], Bin)
+        @constraint(m, sum(z_infeas) == 1)
+    end
     # Getting lnr data
     upperDict, lowerDict = trust_region_data(lnr, vks)
     for i = 1:size(feas_leaves, 1)
@@ -54,17 +45,31 @@ function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.Variable}, grid, vks
         # ADDING TRUST REGIONS
         for region in upperDict[leaf]
             threshold, α = region
-            @constraint(m, threshold <= sum(α .* x) + M * (1 - z[i]))
+            @constraint(m, threshold <= sum(α .* x) + M * (1 - z_feas[i]))
         end
         for region in lowerDict[leaf]
             threshold, α = region
-            @constraint(m, threshold + M * (1 - z[i]) >= sum(α .* x))
+            @constraint(m, threshold + M * (1 - z_feas[i]) >= sum(α .* x))
+        end
+    end
+    if eq
+        for i = 1:size(infeas_leaves, 1)
+            leaf = infeas_leaves[i]
+            # ADDING TRUST REGIONS
+            for region in upperDict[leaf]
+                threshold, α = region
+                @constraint(m, threshold <= sum(α .* x) + M * (1 - z_infeas[i]))
+            end
+            for region in lowerDict[leaf]
+                threshold, α = region
+                @constraint(m, threshold + M * (1 - z_infeas[i]) >= sum(α .* x))
+            end
         end
     end
     return m
 end
 
-function add_mio_constraints!(grid, m, x, y, vks; M = 1e5, eq = false)
+function add_regr_constraints!(grid, m, x, y, vks; M = 1e5, eq = false)
     """
     Creates a set of MIO constraints from a OptimalTreeRegressor
     Arguments:
