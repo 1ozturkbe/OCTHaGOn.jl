@@ -57,3 +57,48 @@ OCT_vars = getvalue(x)
 OCT_obj = sum(md.c.*OCT_vars)
 OCT.show_trees(ineq_trees)
 err = (mof_vars - OCT_vars).^2
+
+# Testing the SOC constraints.
+Y = [md.ineq_fns[1](X[j,:]) for j=1:1000];
+using ConicBenchmarkUtilities
+dat = readcbfdata(filename);
+c, A, b, constr_cones, var_cones, vartypes, sense, objoffset = cbftompb(dat);
+(cone,idxs) = constr_cones[6];
+var_idxs = unique(cart_ind[2] for cart_ind in findall(!iszero, A[idxs, :])); # CartesianIndices...
+function constr_fn(x)
+    let b = copy(b[idxs]), A = copy(A[idxs, :])
+        expr = b - A*x;
+        return expr[1].^2 - sum(expr[2:end].^2);
+    end
+end
+Y2 = [constr_fn(X[j,:]) for j=1:1000];
+@test Y == Y2
+println(sum(Y2))
+
+# Original JuliaLang example
+# a = [1,2,3,4,5];
+# idxs = [2,3,4];
+# x = [6,7,8,9,10];
+# fn = x -> sum(a[idxs].*x[idxs]);
+# fn(x)          # 74, initially.
+# idxs = [1,2];  # Changing indices...
+# fn(x)          # 20, changes value of function.
+# # Changes in 'a' have a similar effect;
+# a = [0,2,3,4,5];
+# fn(x) # 14
+
+# New JuliaLang example
+a_mat = [[1,2,3,4,5],
+         [2,3,4,5,6],
+         [3,4,5,6,7]];
+x = [6,7,8,9,10];
+fns = [];
+for i=1:3
+    function fn(x, a = deepcopy(a_mat[i]))
+        return sum(a.*x);
+    end
+    push!(fns, fn);
+end
+println([i(x) for i in fns]) # [130, 170,210]
+a_mat[2][2] = 10;
+println([i(x) for i in fns]) # [130, 219, 210]

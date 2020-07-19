@@ -10,7 +10,7 @@ using Plots
 using PyCall
 using Test
 
-include("../src/OptimalConstraintTree.jl");
+include("src/OptimalConstraintTree.jl");
 global OCT = OptimalConstraintTree;
 const PROJECT_ROOT = @__DIR__
 
@@ -21,7 +21,7 @@ function compile_lse_constraints()
     idxs = Int64[];
     dimension = Int64[];
     for idx=1:25
-        md = OCT.sagemark_to_ModelData(idx, lse = true);
+        md = OCT.sagemark_to_ModelData(idx, lse = false);
         md.lbs[end] = -200; md.ubs[end] = 200;
         if !any(isinf.(md.lbs)) && !any(isinf.(md.ubs))
             println("Adding constraints from test ", string(idx));
@@ -46,11 +46,11 @@ convex_idxs = findall(x -> x.> 0, convex);
 nonconvex_idxs =  findall(x -> x.== 0, convex);
 
 # Training base trees
-lnr = OCT.base_otc()
-# lnr_grid = OCT.base_grid(OCT.base_otc())
+lnr = OCT.base_otc();
+n_samples = 1000;
 for i=1:length(ineqs)
     print("Fitting constraint ", i, ".")
-    md = OCT.sagemark_to_ModelData(problem_idxs[i], lse=true)
+    md = OCT.sagemark_to_ModelData(problem_idxs[i], lse=false)
     md.lbs[end] = -200;
     md.ubs[end]= 200;
     n_dims = length(md.c);
@@ -65,7 +65,7 @@ grids = [IAI.read_json(string(PROJECT_ROOT, "/test/data/constraint",i,".tree")) 
 scores = [IAI.get_grid_results(grid)[1, 3] for grid in grids];
 
 # Plotting all accuracies
-data = Dict("x" => problem_idxs, "y" => scores)
+data = Dict("x" => problem_idxs, "y" => scores);
 convex_scores = bar(convex_idxs, data["y"][convex_idxs], xlabel="Constraint number",
                     xticks=1:length(ineqs), label="convex")
 nonconvex_scores = bar!(nonconvex_idxs, data["y"][nonconvex_idxs], xlabel="Constraint number",
@@ -77,29 +77,28 @@ data = Dict(
     "x" => ["convex", "non-convex"],
     "y" => [sum(scores.*convex)/sum(convex),
             sum(scores.*(1 .- convex))/(length(convex) - sum(convex))],
-)
+);
 convexity_effect = bar(data["x"], data["y"], title="Accuracy vs. convexity", legend=false,ylims=[0.9, 1.])
 
 # Retrain non-convex with different numbers of samples
-# n_samples = [100, 250, 500, 750, 1000];
-# lnr = OCT.base_otc()
-# for idx in problem_idxs
-#     md = sagemark_to_ModelData(problem_idxs[idx], lse=true);
-#     n_dims = length(md.lbs);
-#     for j in n_samples
-#         plan, _ = LHCoptim(j, n_dims, 1);
-#         X = scaleLHC(plan,[(md.lbs[i], md.ubs[i]) for i=1:n_dims]);
-#         feas_tree = learn_constraints(lnr, [ineqs[idx]], X);
-#     IAI.write_json(string(PROJECT_ROOT, "/test/data/constraint",idx,"_",j,"samples",".tree"), feas_tree[1]);
-#     end
-# end
+n_samples = [100, 250, 500, 750, 1000];
+for idx in problem_idxs
+    md = OCT.sagemark_to_ModelData(problem_idxs[idx], lse=false);
+    n_dims = length(md.lbs);
+    for j in n_samples
+        plan, _ = LHCoptim(j, n_dims, 1);
+        X = scaleLHC(plan,[(md.lbs[i], md.ubs[i]) for i=1:n_dims]);
+        feas_tree = learn_constraints(lnr, [ineqs[idx]], X);
+    IAI.write_json(string(PROJECT_ROOT, "/test/data/constraint",idx,"_",j,"samples",".tree"), feas_tree[1]);
+    end
+end
 
 # Loading trees, and scoring w.r.t. maximum of the samples
 n_samples = [100, 250, 500, 750, 1000];
 grids = [IAI.read_json(string("data/constraint",idx,"_",j,"samples",".tree")) for j in n_samples for idx=1:length(ineqs)]; # inside for loop gets executed first.
 scores = [];
 for idx=1:length(ineqs)
-    md = sagemark_to_ModelData(problem_idxs[idx], lse=true);
+    md = OCT.sagemark_to_ModelData(problem_idxs[idx], lse=false);
     n_dims = length(md.lbs);
     plan, _ = LHCoptim(maximum(n_samples), n_dims, 1);
     X = scaleLHC(plan,[(md.lbs[i], md.ubs[i]) for i=1:n_dims]);

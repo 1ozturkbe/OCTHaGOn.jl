@@ -15,6 +15,6 @@ module OptimalConstraintTree
            add_feas_constraints!, add_regr_constraints!,
            add_linear_constraints!, add_tree_constraints!,
            base_otr, base_otc, update_bounds!, sample, jump_it,
-           show_trees
+           show_trees, sagemark_to_ModelData
 end
 

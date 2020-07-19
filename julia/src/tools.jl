@@ -60,7 +60,7 @@ function CBF_to_ModelData(filename; epsilon=1e-20)
     for (cone, idxs) in constr_cones
     # Idxs describe which rows of A the cone applies to.
     # All cones: [:Free, :Zero, :NonNeg, :NonPos, :SOC, :SOCRotated, :SDP, :ExpPrimal, :ExpDual]
-        var_idxs = unique(cart_ind[2] for cart_ind in findall(!iszero, A[idxs,:])); # CartesianIndices...
+        var_idxs = unique(cart_ind[2] for cart_ind in findall(!iszero, A[idxs, :])); # CartesianIndices...
         if cone == :NonNeg
             if length(var_idxs) == 1.
                 u[var_idxs[1]] = minimum([u[var_idxs[1]], b[idxs][1]/A[idxs, :].nzval[1]]);
@@ -77,40 +77,48 @@ function CBF_to_ModelData(filename; epsilon=1e-20)
             push!(md.eqs_b, b[idxs]);
             push!(md.eqs_A, A[idxs,:]);
         elseif cone == :SOC
-            function constr_fn(x)
-                expr = b[idxs] - A[idxs, :]*x;
-                return expr[1].^2 - sum(expr[2:end].^2);
+            constr_fn = let b = b[idxs], A = A[idxs, :]
+                function (x)
+                    expr = b - A*x;
+                    return expr[1].^2 - sum(expr[2:end].^2);
+                end
             end
             push!(md.ineq_fns, constr_fn);
             push!(md.ineq_idxs, var_idxs);
 #             l[var_idxs[1]] = maximum([l[var_idxs[1]], 0]);
         elseif cone == :SOCRotated
-            function constr_fn(x)
-                expr = b[idxs] - A[idxs, :]*x;
-                return expr[1]*expr[2] - sum(expr[3:end].^2)
+            constr_fn = let b = b[idxs], A = A[idxs, :]
+                function (x)
+                    expr = b - A*x;
+                    return expr[1]*expr[2] - sum(expr[3:end].^2)
+                end
             end
             push!(md.ineq_fns, constr_fn);
             push!(md.ineq_idxs, var_idxs);
 #             l[var_idxs[1]] = maximum([l[var_idxs[1]], 0]);
 #             l[var_idxs[2]] = maximum([l[var_idxs[2]], 0]);
         elseif cone == :ExpPrimal
-            function constr_fn(x)
-                 (x,y,z) = b[idxs] - A[idxs, :]*x;
-                 return z - y*exp(x/y)
+            constr_fn = let b = b[idxs], A = A[idxs, :]
+                function (x)
+                    (x,y,z) = b - A*x;
+                    return z - y*exp(x/y)
+                end
             end
             push!(md.ineq_fns, constr_fn);
             push!(md.ineq_idxs, var_idxs);
 #             l[var_idxs[2]] = maximum([l[var_idxs[2]], epsilon]);
         elseif cone == :ExpDual
-            function constr_fn(x)
-                 (u,v,w) = b[idxs] - A[idxs, :]*x;
-                 if v >= 0 && w >= 0
-                     return 1 # feasible
-                 elseif u < 0 && w >= 0
-                     return u*log(-u/w) - u + v
-                 else
-                     return -1 # infeasible
-                 end
+            constr_fn = let b = b[idxs], A = A[idxs, :]
+                function (x)
+                    (u,v,w) = b - A*x;
+                    if v >= 0 && w >= 0
+                        return 1 # feasible
+                    elseif u < 0 && w >= 0
+                        return u*log(-u/w) - u + v
+                    else
+                        return -1 # infeasible
+                    end
+                end
             end
             push!(md.ineq_fns, constr_fn);
             push!(md.ineq_idxs, var_idxs);
