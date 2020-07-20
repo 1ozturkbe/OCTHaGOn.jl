@@ -3,6 +3,7 @@ using JuMP
 using Gurobi
 using Random
 include("model_data.jl");
+include("exceptions.jl");
 
 function add_tree_constraints!(m::JuMP.Model, x::Array{JuMP.Variable}, ineq_trees, eq_trees;
                                vks=[Symbol("x",i) for i=1:length(x)], M=1e5)
@@ -26,7 +27,15 @@ function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.Variable}, grid, vks
     """
     #TODO determine proper use for equalities
     lnr = IAI.get_learner(grid);
-    n_nodes = IAI.get_num_nodes(lnr);
+    try
+        n_nodes = IAI.get_num_nodes(lnr);
+    catch err
+        if isa(err, UndefRefError)
+            throw(OCTException("Grids/trees require training before being used in constraints!"))
+        else
+            rethrow(err)
+        end
+    end
     # Add a binary variable for each leaf
     all_leaves = [i for i = 1:n_nodes if IAI.is_leaf(lnr, i)];
     feas_leaves =
