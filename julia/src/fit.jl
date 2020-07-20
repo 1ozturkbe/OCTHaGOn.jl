@@ -29,11 +29,21 @@ function base_otc()
     )
 end
 
-function base_grid(lnr)add
+function base_grid(lnr)
     grid = IAI.GridSearch(lnr, Dict(:criterion => [:entropy, :misclassification],
     :normalize_X => [true],
     :max_depth => [3, 5],
     :minbucket => [0.3, 0.5]))
+    return grid
+end
+
+function gridify(lnr::IAI.Learner)
+    """ Turns IAI.Learners into IAI.GridSearches."""
+    if !hasproperty(lnr, :lnr)
+        grid = IAI.GridSearch(lnr);
+    else
+        grid = lnr;
+    end
     return grid
 end
 
@@ -66,56 +76,86 @@ function regress(Y, X, rho, p, M=2.)
     return getvalue(b), getvalue(b0), getvalue(t), getvalue(s)
 end
 
-function learn_constraints(lnr, constraints, X; idxs = nothing, weights=:autobalance,
-                                                 validation_criterion=:misclassification)
+function learn_from_data!(X, Y, grids; idxs=nothing,
+                         weights=:autobalance,
+                         validation_criterion=:misclassification)
+    """ Wrapper around IAI.GridSearch for constraint learning.
+    Arguments:
+        lnr: Unfit OptimalTreeClassifier or Grid
+        X: matrix of feature data
+        Y: matrix of constraint data.
+    Returns:
+        lnr: list of Fitted Grids corresponding to the data
+    NOTE: All constraints must take in full vector of X values.
+    """
+    n_samples, n_features = size(X);
+    n_samples, n_cols = size(Y);
+    for i = 1:n_cols
+        # Making sure that we only consider relevant features.
+        if !isnothing(idxs)
+            IAI.set_params!(grids[i].lnr, split_features = idxs[i])
+            if typeof(grids[i].lnr) == IAI.OptimalTreeRegressor
+                IAI.set_params!(grids[i].lnr, regression_features=idxs[i])
+            end
+        else
+            IAI.set_params!(grids[i].lnr, split_features = :all)
+            if typeof(grids[i].lnr) == IAI.OptimalTreeRegressor
+                IAI.set_params!(grids[i].lnr, regression_features=:all)
+            end
+        end
+        IAI.fit!(grids[i], X, Y, validation_criterion = :misclassification, sample_weight=weights);
+    end
+    return grids
+end
+
+function learn_constraints(lnr::IAI.OptimalTreeLearner, constraints, X;
+                                                jump_model::Union{JuMP.Model, Nothing} = nothing,
+                                                idxs::Union{Array, Nothing} = nothing,
+                                                weights=:autobalance,
+                                                validation_criterion=:misclassification,
+                                                return_samples::Bool=false)
     """
     Returns a set of feasibility trees from a set of constraints.
     Arguments:
         lnr: Unfit OptimalTreeClassifier or Grid
+        X: initial matrix of feature data
         constraints: set of constraint functions in std form (>= 0)
-        X: samples of the free variables
     Returns:
         lnr: list of Fitted Grids
     NOTE: All constraints must take in full vector of X values.
     """
     n_samples, n_features = size(X);
     n_constraints = length(constraints);
-    feasTrees = IAI.GridSearch[];
-    if !hasproperty(lnr, :lnr)
-        untrained_grid = IAI.GridSearch(lnr);
+    Y = hcat([vcat([constraints[i](X[j, :]) >= 0 for j = 1:n_samples]...) for i=1:n_constraints]...);
+    feas = [sum(Y[i]) > 0 for i= 1:n_constraints];
+    if any(feas .== 0)
+        println("Constraints ", findall(x -> x.==0, feas), " are infeasible for all samples.")
+        println("Will resample as necessary.")
+    end
+    grids = [gridify(lnr) for _ = 1:n_constraints];
+    # First train the feasible trees...
+    if any(feas .> 0)
+        grids[findall(feas)] = learn_from_data!(X, Y, grids, idxs=idxs[findall(feas)],
+                                               weights=weights, validation_criterion=:misclassification)
+    end
+    if return_samples
+        return grids, samples
     else
-        untrained_grid = lnr;
+        return grids
     end
-    for i = 1:n_constraints
-        grid = deepcopy(untrained_grid);
-        Y = vcat([constraints[i](X[j, :]) >= 0 for j = 1:n_samples]...);
-        # Making sure that we only consider relevant features.
-        if !isnothing(idxs)
-            IAI.set_params!(grid.lnr, split_features = idxs[i])
-            if typeof(grid.lnr) == IAI.OptimalTreeRegressor
-                IAI.set_params!(grid.lnr, regression_features=idxs[i])
-            end
-        else
-            IAI.set_params!(grid.lnr, split_features = :all)
-            if typeof(grid.lnr) == IAI.OptimalTreeRegressor
-                IAI.set_params!(grid.lnr, regression_features=:all)
-            end
-        end
-        IAI.fit!(grid, X, Y, validation_criterion = :misclassification, sample_weight=weights);
-        append!(feasTrees, [grid])
-    end
-    return feasTrees
 end
 
-function fit(md::ModelData, X; lnr=base_otc(), weights=ones(size(X,1)), dir="-",
-                               validation_criterion=:misclassification)
+function fit(md::ModelData; X::Union{Array, Nothing} = nothing,
+                            n_samples = 1000, jump_model::Union{JuMP.Model, Nothing} = nothing,
+                            lnr=base_otc(), weights=:autobalance, dir="-",
+                            validation_criterion=:misclassification)
     """ Fits a provided function model with feasibility and obj f'n fits and
         saves the learners.
     """
-    n_samples, n_features = size(X);
-    @assert n_features == length(md.c);
-    n_dims = length(md.lbs);
-    weights = ones(n_samples);
+    if isa(X, Nothing)
+        X = sample(md, n_samples=n_samples);
+    end
+    n_features = length(md.c);
     ineq_trees = learn_constraints(lnr, md.ineq_fns, X, idxs = md.ineq_idxs, weights = weights,
                                     validation_criterion=validation_criterion);
     eq_trees = learn_constraints(lnr, md.eq_fns, X, idxs = md.eq_idxs, weights = weights,
