@@ -77,7 +77,7 @@ function regress(Y, X, rho, p, M=2.)
 end
 
 function learn_from_data!(X, Y, grids; idxs=nothing,
-                         weights=:autobalance,
+                         weights = :autobalance,
                          validation_criterion=:misclassification)
     """ Wrapper around IAI.GridSearch for constraint learning.
     Arguments:
@@ -103,7 +103,8 @@ function learn_from_data!(X, Y, grids; idxs=nothing,
                 IAI.set_params!(grids[i].lnr, regression_features=:all)
             end
         end
-        IAI.fit!(grids[i], X, Y, validation_criterion = :misclassification, sample_weight=weights);
+        IAI.fit!(grids[i], X, Y[:,i],
+                 validation_criterion = :misclassification, sample_weight=weights);
     end
     return grids
 end
@@ -127,16 +128,21 @@ function learn_constraints(lnr::IAI.OptimalTreeLearner, constraints, X;
     n_samples, n_features = size(X);
     n_constraints = length(constraints);
     Y = hcat([vcat([constraints[i](X[j, :]) >= 0 for j = 1:n_samples]...) for i=1:n_constraints]...);
-    feas = [sum(Y[i]) > 0 for i= 1:n_constraints];
+    feas = [sum(Y[:,i]) > 0 for i= 1:n_constraints];
     if any(feas .== 0)
-        println("Constraints ", findall(x -> x.==0, feas), " are infeasible for all samples.")
-        println("Will resample as necessary.")
+        @info("Certain constraints are infeasible for all samples.")
+        @info("Will resample as necessary.")
     end
     grids = [gridify(lnr) for _ = 1:n_constraints];
     # First train the feasible trees...
     if any(feas .> 0)
-        grids[findall(feas)] = learn_from_data!(X, Y, grids, idxs=idxs[findall(feas)],
+        if isa(idxs, Nothing)
+            grids[findall(feas)] = learn_from_data!(X, Y, grids,
                                                weights=weights, validation_criterion=:misclassification)
+        else
+            grids[findall(feas)] = learn_from_data!(X, Y, grids, idxs = idxs[findall(feas)],
+                                               weights=weights, validation_criterion=:misclassification)
+        end
     end
     if return_samples
         return grids, samples
@@ -147,8 +153,9 @@ end
 
 function fit(md::ModelData; X::Union{Array, Nothing} = nothing,
                             n_samples = 1000, jump_model::Union{JuMP.Model, Nothing} = nothing,
-                            lnr=base_otc(), weights=:autobalance, dir="-",
-                            validation_criterion=:misclassification)
+                            lnr::IAI.Learner=base_otc(),
+                            weights::Union{Array, Symbol} = :autobalance, dir::String = "-",
+                            validation_criterion::Symbol = :misclassification)
     """ Fits a provided function model with feasibility and obj f'n fits and
         saves the learners.
     """

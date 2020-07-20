@@ -8,6 +8,8 @@ using SparseArrays
 using Random
 Random.seed!(1);
 
+include("exceptions.jl");
+
 @with_kw mutable struct ModelData
 """
 Contains all required info to be able to generate a global optimization problem.
@@ -136,6 +138,14 @@ end
 function show_trees(trees)
     """ Shows all trees (grids) in browser. """
     for tree in trees
-        IAI.show_in_browser(tree.lnr)
+        try
+            IAI.show_in_browser(tree.lnr)
+        catch err
+            if isa(err, UndefRefError)
+            @warn("Certain trees are untrained.")
+            else
+                rethrow(err)
+            end
+        end
     end
 end

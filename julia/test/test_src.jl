@@ -41,25 +41,18 @@ mof_obj = MOI.get(mof_model, MOI.ObjectiveValue());
 mof_vars = [MOI.get(mof_model, MOI.VariablePrimal(), var) for var in inner_variables];
 # @test mof_obj ≈ -0.0777750720542
 
-# ModelData
+# Testing CBF import to ModelData
 md = OCT.CBF_to_ModelData(filename);
 md.name = "shortfall_20_15"
-# OCT.find_bounds!(md);
 md.lbs = zeros(length(md.c));
 md.ubs = ones(length(md.c));
 
-X = OCT.sample(md, n_samples=1000);
-ineq_trees, eq_trees = OCT.fit(md, X)
-m,x = OCT.jump_it(md, solver=GurobiSolver())
-OCT.add_tree_constraints!(m, x, ineq_trees, eq_trees)
-status = solve(m)
-OCT_vars = getvalue(x)
-OCT_obj = sum(md.c.*OCT_vars)
-OCT.show_trees(ineq_trees)
-err = (mof_vars - OCT_vars).^2
+# Test sampling
+n_samples = 100;
+X = OCT.sample(md, n_samples=n_samples);
 
-# Testing the SOC constraints.
-Y = [md.ineq_fns[1](X[j,:]) for j=1:1000];
+# Testing constraint import.
+Y = [md.ineq_fns[1](X[j,:]) for j=1:n_samples];
 using ConicBenchmarkUtilities
 dat = readcbfdata(filename);
 c, A, b, constr_cones, var_cones, vartypes, sense, objoffset = cbftompb(dat);
@@ -71,34 +64,16 @@ function constr_fn(x)
         return expr[1].^2 - sum(expr[2:end].^2);
     end
 end
-Y2 = [constr_fn(X[j,:]) for j=1:1000];
+Y2 = [constr_fn(X[j,:]) for j=1:n_samples];
 @test Y == Y2
-println(sum(Y2))
 
-# Original JuliaLang example
-# a = [1,2,3,4,5];
-# idxs = [2,3,4];
-# x = [6,7,8,9,10];
-# fn = x -> sum(a[idxs].*x[idxs]);
-# fn(x)          # 74, initially.
-# idxs = [1,2];  # Changing indices...
-# fn(x)          # 20, changes value of function.
-# # Changes in 'a' have a similar effect;
-# a = [0,2,3,4,5];
-# fn(x) # 14
+# Testing fit
+m,x = OCT.jump_it(md, solver=GurobiSolver());
 
-# New JuliaLang example
-a_mat = [[1,2,3,4,5],
-         [2,3,4,5,6],
-         [3,4,5,6,7]];
-x = [6,7,8,9,10];
-fns = [];
-for i=1:3
-    function fn(x, a = deepcopy(a_mat[i]))
-        return sum(a.*x);
-    end
-    push!(fns, fn);
-end
-println([i(x) for i in fns]) # [130, 170,210]
-a_mat[2][2] = 10;
-println([i(x) for i in fns]) # [130, 219, 210]
+ineq_trees, eq_trees = OCT.fit(md)
+@test_throws OCT.OCTException OCT.add_tree_constraints!(m, x, ineq_trees, eq_trees)
+status = solve(m)
+OCT_vars = getvalue(x);
+OCT_obj = sum(md.c.*OCT_vars);
+OCT.show_trees(ineq_trees);
+err = (mof_vars - OCT_vars).^2

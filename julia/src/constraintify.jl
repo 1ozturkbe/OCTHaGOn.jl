@@ -27,6 +27,7 @@ function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.Variable}, grid, vks
     """
     #TODO determine proper use for equalities
     lnr = IAI.get_learner(grid);
+    n_nodes = 0;
     try
         n_nodes = IAI.get_num_nodes(lnr);
     catch err

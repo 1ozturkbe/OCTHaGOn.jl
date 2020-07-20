@@ -12,7 +12,6 @@ function resample_test(fn_model)
     n_samples = 1000;
     n_dims = length(fn_model.lbs);
     n_iterations = 4;
-    weights = ones(n_samples);
     plan, _ = LHCoptim(n_samples, n_dims, 1);
     global X = scaleLHC(plan,[(fn_model.lbs[i], fn_model.ubs[i]) for i=1:n_dims]);
     for i=1:n_iterations

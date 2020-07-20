@@ -49,9 +49,8 @@ end
 md = OCT.sagemark_to_ModelData(3, lse=false);
 md.lbs[end] = -300;
 md.ubs[end]= -0;
-# Sampling ModelData, creating and solving a JuMP.Model
-X = OCT.sample(md);
-ineq_trees, eq_trees = OCT.fit(md, X, lnr = OCT.base_otc(),
+# Fitting ModelData, creating and solving a JuMP.Model
+ineq_trees, eq_trees = OCT.fit(md, n_samples = 200, lnr = OCT.base_otc(),
                                dir=string("test/data/",md.name));
 m, x = OCT.jump_it(md);
 OCT.add_tree_constraints!(m, x, ineq_trees, eq_trees);
