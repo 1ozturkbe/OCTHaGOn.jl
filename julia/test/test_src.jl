@@ -30,7 +30,7 @@ OCT.update_bounds!(md, [-2,1,3], [Inf, 5, 6]);
 @test_throws ArgumentError OCT.sample(md)
 
 # Check creation of JuMP.Model() from ModelData
-jm, jx = OCT.jump_it(md);
+OCT.jump_it!(md);
 
 # Test CBF imports
 filename = string("../data/cblib.zib.de/shortfall_20_15.cbf.gz");
@@ -70,13 +70,14 @@ Y2 = [constr_fn(X[j,:]) for j=1:n_samples];
 
 # Test resampling of 'difficult' constraints
 
+
 # Testing fit
-m, x = OCT.jump_it(md, solver=GurobiSolver());
+OCT.jump_it!(md, solver=GurobiSolver());
 
 ineq_trees, eq_trees = OCT.fit(md);
-@test_throws OCT.OCTException OCT.add_tree_constraints!(m, x, ineq_trees, eq_trees)
-status = solve(m)
-OCT_vars = getvalue(x);
+@test_throws OCT.OCTException OCT.add_tree_constraints!(md.JuMP_model, md.JuMP_vars, ineq_trees, eq_trees)
+status = solve(md.JuMP_model)
+OCT_vars = getvalue(md.JuMP_vars);
 OCT_obj = sum(md.c.*OCT_vars);
 OCT.show_trees(ineq_trees);
 err = (mof_vars - OCT_vars).^2;

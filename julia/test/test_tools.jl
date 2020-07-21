@@ -52,10 +52,10 @@ md.ubs[end]= -0;
 # Fitting ModelData, creating and solving a JuMP.Model
 ineq_trees, eq_trees = OCT.fit(md, n_samples = 200, lnr = OCT.base_otc(),
                                dir=string("test/data/", md.name));
-m, x = OCT.jump_it(md);
-OCT.add_tree_constraints!(m, x, ineq_trees, eq_trees);
-status = solve(m);
-println("Solved minimum: ", sum(md.c .* getvalue(x)))
+OCT.jump_it!(md);
+OCT.add_tree_constraints!(md.JuMP_model, md.JuMP_vars, ineq_trees, eq_trees);
+status = solve(md.JuMP_model);
+println("Solved minimum: ", sum(md.c .* getvalue(md.JuMP_vars)))
 println("Known global bound: ", -147-2/3)
-println("X values: ", getvalue(x))
+println("X values: ", getvalue(md.JuMP_vars))
 println("Optimal X: ", vcat(exp.([5.01063529, 3.40119660, -0.48450710]), [-147-2/3]))

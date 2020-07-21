@@ -29,6 +29,8 @@ Contains all required info to be able to generate a global optimization problem.
     convex_idxs::Array = []                            # Convex inequality indices
     logconvex_idxs::Array = []                         # Log-convex inequality indices
     int_idxs::Array = []                               # Integer variable indices
+    JuMP_model::Union{JuMP.Model, Nothing} = nothing   # JuMP model
+    JuMP_vars::Union{Array, Nothing} = nothing         # JuMP variables
 end
 
 function add_ineq_fn!(md::ModelData, fn::Function, idxs::Union{Nothing, Array})
@@ -71,7 +73,7 @@ end
 
 function sample(md::ModelData; n_samples=1000)
 """
-Samples the variables of ModelData, as long as all
+Uniformly samples the variables of ModelData, as long as all
 lbs and ubs are defined.
 """
    n_dims = length(md.c);
@@ -103,7 +105,7 @@ function add_linear_constraints!(m::JuMP.Model, x::Array{JuMP.Variable}, md::Mod
     return m
 end
 
-function jump_it(md::ModelData; solver = GurobiSolver())
+function jump_it!(md::ModelData; solver = GurobiSolver())
 """
 Creates a JuMP.Model() compatible with ModelData,
 with only the linear constraints.
@@ -114,11 +116,14 @@ with only the linear constraints.
     @constraint(m, x[md.int_idxs] .== aux);
     @objective(m, Min, sum(md.c .* x));
     add_linear_constraints!(m, x, md);
-    return m,x
+    md.JuMP_model = m;
+    md.JuMP_vars = x;
 end
 
 function find_bounds!(md::ModelData; solver=GurobiSolver(), all_bounds=true)
-    m, x = jump_it(md, solver=solver)
+    if isa(Nothing, md.JuMP_model)
+        jump_it!(md, solver=solver)
+    end
     lbs = -Inf.*ones(length(md.c));
     ubs = Inf.*ones(length(md.c));
     # Finding bounds by min/maximizing each variable

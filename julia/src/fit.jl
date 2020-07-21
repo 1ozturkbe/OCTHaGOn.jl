@@ -109,7 +109,7 @@ function learn_from_data!(X, Y, grids; idxs=nothing,
     return grids
 end
 
-function learn_constraints(lnr::IAI.OptimalTreeLearner, constraints, X;
+function learn_constraints!(lnr::IAI.OptimalTreeLearner, constraints, X;
                                                 jump_model::Union{JuMP.Model, Nothing} = nothing,
  idxs::Array{Union{Nothing, Array}} = Union{Nothing, Array}[nothing for _ in 1:length(constraints)],
                                                 weights=:autobalance,
@@ -162,10 +162,10 @@ function fit(md::ModelData; X::Union{Array, Nothing} = nothing,
        n_samples = size(X, 1);
     end
     n_features = length(md.c);
-    ineq_trees, X = learn_constraints(lnr, md.ineq_fns, X, idxs = md.ineq_idxs, weights = weights,
+    ineq_trees, X = learn_constraints!(lnr, md.ineq_fns, X, idxs = md.ineq_idxs, weights = weights,
                                     validation_criterion=validation_criterion,
                                     return_samples=true);
-    eq_trees = learn_constraints(lnr, md.eq_fns, X, idxs = md.eq_idxs, weights = weights,
+    eq_trees = learn_constraints!(lnr, md.eq_fns, X, idxs = md.eq_idxs, weights = weights,
                                   validation_criterion=validation_criterion);
     if dir != "-"
         for i=1:size(ineq_trees,1)

@@ -56,7 +56,7 @@ for i=1:length(ineqs)
     n_dims = length(md.c);
     plan, _ = LHCoptim(n_samples, n_dims, 1);
     X = scaleLHC(plan,[(md.lbs[i], md.ubs[i]) for i=1:n_dims]);
-    feas_tree = OCT.learn_constraints(lnr, [ineqs[i]], X)
+    feas_tree = OCT.learn_constraints!(lnr, [ineqs[i]], X)
     IAI.write_json(string(PROJECT_ROOT, "/test/data/constraint",i,".tree"), feas_tree[1])
 end
 
@@ -88,7 +88,7 @@ for idx in problem_idxs
     for j in n_samples
         plan, _ = LHCoptim(j, n_dims, 1);
         X = scaleLHC(plan,[(md.lbs[i], md.ubs[i]) for i=1:n_dims]);
-        feas_tree = learn_constraints(lnr, [ineqs[idx]], X);
+        feas_tree = learn_constraints!(lnr, [ineqs[idx]], X);
     IAI.write_json(string(PROJECT_ROOT, "/test/data/constraint",idx,"_",j,"samples",".tree"), feas_tree[1]);
     end
 end

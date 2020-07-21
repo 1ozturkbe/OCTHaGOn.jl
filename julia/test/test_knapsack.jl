@@ -40,7 +40,7 @@ b = 10/2*rand();
 
 # Let's find the JuMP solution
 m = knapsack(c,a,b);
-m,x = OCT.jump_it(m)
+OCT.jump_it!(m)
 solve(m);
 x_vals = getvalue(m[:x])
 
@@ -50,7 +50,7 @@ x_vals = getvalue(m[:x])
 # fn =  x -> b - sum(a.*x)
 # dists = [Distributions.Uniform(0,1) for i=1:n];
 # X = reduce(hcat,[rand(dists[i],n_samples) for i=1:n]);
-# feas_tree = OCT.learn_constraints(OCT.base_otc(), [fn], X)
+# feas_tree = OCT.learn_constraints!(OCT.base_otc(), [fn], X)
 # IAI.show_in_browser(feas_tree[1].lnr)
 # # We only ever get one split!
 #
@@ -59,7 +59,7 @@ x_vals = getvalue(m[:x])
 # dists = [Distributions.Uniform(0,offsets[i]) for i=1:n+1];
 # fn =  x -> x[end] - sum(a.*x[1:end-1])
 # X = reduce(hcat,[rand(dists[i],n_samples) for i=1:n+1]);
-# feas_tree = OCT.learn_constraints(OCT.base_otc(), [fn], X)
+# feas_tree = OCT.learn_constraints!(OCT.base_otc(), [fn], X)
 # IAI.show_in_browser(feas_tree[1].lnr)
 # # Still only learns one split!
 #
@@ -72,7 +72,7 @@ x_vals = getvalue(m[:x])
 # lnr = OCT.base_otc()
 # IAI.set_params!(lnr, max_depth=10)
 # IAI.set_params!(lnr, hyperplane_config=(sparsity=1),)
-# feas_tree = OCT.learn_constraints(lnr, [fn], X)
+# feas_tree = OCT.learn_constraints!(lnr, [fn], X)
 # IAI.show_in_browser(feas_tree[1].lnr)
 
 
