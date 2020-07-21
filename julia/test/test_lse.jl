@@ -12,7 +12,7 @@ using Test
 
 include("src/OptimalConstraintTree.jl");
 global OCT = OptimalConstraintTree;
-const PROJECT_ROOT = @__DIR__
+global PROJECT_ROOT = @__DIR__
 
 function compile_lse_constraints()
     sagemarks = pyimport("sagebenchmarks.literature.solved");

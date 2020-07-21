@@ -147,7 +147,7 @@ function learn_constraints!(lnr::IAI.OptimalTreeLearner, constraints, X;
     end
 end
 
-function fit(md::ModelData; X::Union{Array, Nothing} = nothing,
+function fit!(md::ModelData; X::Union{Array, Nothing} = nothing,
                             n_samples = 1000, jump_model::Union{JuMP.Model, Nothing} = nothing,
                             lnr::IAI.Learner=base_otc(),
                             weights::Union{Array, Symbol} = :autobalance, dir::String = "-",

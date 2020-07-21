@@ -13,7 +13,7 @@ global MOI = MathOptInterface;
 MOI.Silent() = true
 include("../src/OptimalConstraintTree.jl");
 global OCT = OptimalConstraintTree;
-const PROJECT_ROOT = @__DIR__
+global PROJECT_ROOT = @__DIR__
 
 function test_sagemark_to_ModelData()
     """ Makes sure all sage benchmarks import properly.
@@ -50,7 +50,7 @@ md = OCT.sagemark_to_ModelData(3, lse=false);
 md.lbs[end] = -300;
 md.ubs[end]= -0;
 # Fitting ModelData, creating and solving a JuMP.Model
-ineq_trees, eq_trees = OCT.fit(md, n_samples = 200, lnr = OCT.base_otc(),
+ineq_trees, eq_trees = OCT.fit!(md, n_samples = 200, lnr = OCT.base_otc(),
                                dir=string("test/data/", md.name));
 OCT.jump_it!(md);
 OCT.add_tree_constraints!(md.JuMP_model, md.JuMP_vars, ineq_trees, eq_trees);
