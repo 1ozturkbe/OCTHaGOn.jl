@@ -15,8 +15,8 @@ using MathOptInterface
 
 include("../src/OptimalConstraintTree.jl");
 global OCT = OptimalConstraintTree;
-const MOI = MathOptInterface
-const PROJECT_ROOT = @__DIR__
+global MOI = MathOptInterface
+global PROJECT_ROOT = @__DIR__
 
 # Initialization tests
 md = OCT.ModelData(c = [1,2,3]);
@@ -58,6 +58,7 @@ dat = readcbfdata(filename);
 c, A, b, constr_cones, var_cones, vartypes, sense, objoffset = cbftompb(dat);
 (cone,idxs) = constr_cones[6];
 var_idxs = unique(cart_ind[2] for cart_ind in findall(!iszero, A[idxs, :])); # CartesianIndices...
+
 function constr_fn(x)
     let b = copy(b[idxs]), A = copy(A[idxs, :])
         expr = b - A*x;
@@ -65,15 +66,17 @@ function constr_fn(x)
     end
 end
 Y2 = [constr_fn(X[j,:]) for j=1:n_samples];
-@test Y == Y2
+@test Y == Y2;
+
+# Test resampling of 'difficult' constraints
 
 # Testing fit
-m,x = OCT.jump_it(md, solver=GurobiSolver());
+m, x = OCT.jump_it(md, solver=GurobiSolver());
 
-ineq_trees, eq_trees = OCT.fit(md)
+ineq_trees, eq_trees = OCT.fit(md);
 @test_throws OCT.OCTException OCT.add_tree_constraints!(m, x, ineq_trees, eq_trees)
 status = solve(m)
 OCT_vars = getvalue(x);
 OCT_obj = sum(md.c.*OCT_vars);
 OCT.show_trees(ineq_trees);
-err = (mof_vars - OCT_vars).^2
+err = (mof_vars - OCT_vars).^2;

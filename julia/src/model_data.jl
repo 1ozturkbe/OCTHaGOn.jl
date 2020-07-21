@@ -14,21 +14,31 @@ include("exceptions.jl");
 """
 Contains all required info to be able to generate a global optimization problem.
 """
-    name::String = "Model"                          # Example name
-    c::Array                                        # Cost vector
-    ineq_fns::Array{Function} = Array{Function}[]   # Inequality (>= 0) functions
-    ineq_idxs::Array = Array[]                      # Inequality function variable indices
-    eq_fns::Array{Function} = Array{Function}[]     # Equality (>= 0) functions
-    eq_idxs::Array = Array[]                        # Equality function variable indices
-    ineqs_A::Array = SparseMatrixCSC[]              # Linear inequality A vector, in b-Ax>=0
-    ineqs_b::Array = Array[]                        # Linear inequality b
-    eqs_A::Array = SparseMatrixCSC[]                # Linear equality A vector, in b-Ax=0
-    eqs_b::Array = Array[]                          # Linear equality b
-    lbs::Array = -Inf.*ones(length(c))              # Lower bounds
-    ubs::Array = Inf.*ones(length(c))               # Upper bounds
-    convex_idxs::Array = []                         # Convex inequality indices
-    logconvex_idxs::Array = []                      # Log-convex inequality indices
-    int_idxs::Array = []                            # Integer variable indices
+    name::String = "Model"                             # Example name
+    c::Array                                           # Cost vector
+    ineq_fns::Array{Function} = Array{Function}[]      # Inequality (>= 0) functions
+    ineq_idxs::Array{Union{Nothing, Array}} = Array[]  # Inequality function variable indices
+    eq_fns::Array{Function} = Array{Function}[]        # Equality (>= 0) functions
+    eq_idxs::Array{Union{Nothing, Array}} = Array[]    # Equality function variable indices
+    ineqs_A::Array = SparseMatrixCSC[]                 # Linear inequality A vector, in b-Ax>=0
+    ineqs_b::Array = Array[]                           # Linear inequality b
+    eqs_A::Array = SparseMatrixCSC[]                   # Linear equality A vector, in b-Ax=0
+    eqs_b::Array = Array[]                             # Linear equality b
+    lbs::Array = -Inf.*ones(length(c))                 # Lower bounds
+    ubs::Array = Inf.*ones(length(c))                  # Upper bounds
+    convex_idxs::Array = []                            # Convex inequality indices
+    logconvex_idxs::Array = []                         # Log-convex inequality indices
+    int_idxs::Array = []                               # Integer variable indices
+end
+
+function add_ineq_fn!(md::ModelData, fn::Function, idxs::Union{Nothing, Array})
+    push!(md.ineq_fns, fn)
+    push!(md.ineq_idxs, idxs)
+end
+
+function add_eq_fn!(md::ModelData, fn::Function, idxs::Union{Nothing, Array})
+    push!(md.eq_fns, fn)
+    push!(md.eq_idxs, idxs)
 end
 
 function update_bounds!(md::ModelData, lbs, ubs)

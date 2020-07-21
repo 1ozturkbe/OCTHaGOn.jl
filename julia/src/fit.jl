@@ -92,7 +92,7 @@ function learn_from_data!(X, Y, grids; idxs=nothing,
     n_samples, n_cols = size(Y);
     for i = 1:n_cols
         # Making sure that we only consider relevant features.
-        if !isnothing(idxs)
+        if !isnothing(idxs[i])
             IAI.set_params!(grids[i].lnr, split_features = idxs[i])
             if typeof(grids[i].lnr) == IAI.OptimalTreeRegressor
                 IAI.set_params!(grids[i].lnr, regression_features=idxs[i])
@@ -111,7 +111,7 @@ end
 
 function learn_constraints(lnr::IAI.OptimalTreeLearner, constraints, X;
                                                 jump_model::Union{JuMP.Model, Nothing} = nothing,
-                                                idxs::Union{Array, Nothing} = nothing,
+ idxs::Array{Union{Nothing, Array}} = Union{Nothing, Array}[nothing for _ in 1:length(constraints)],
                                                 weights=:autobalance,
                                                 validation_criterion=:misclassification,
                                                 return_samples::Bool=false)
@@ -136,16 +136,12 @@ function learn_constraints(lnr::IAI.OptimalTreeLearner, constraints, X;
     grids = [gridify(lnr) for _ = 1:n_constraints];
     # First train the feasible trees...
     if any(feas .> 0)
-        if isa(idxs, Nothing)
-            grids[findall(feas)] = learn_from_data!(X, Y, grids,
-                                               weights=weights, validation_criterion=:misclassification)
-        else
-            grids[findall(feas)] = learn_from_data!(X, Y, grids, idxs = idxs[findall(feas)],
-                                               weights=weights, validation_criterion=:misclassification)
-        end
+        grids[findall(feas)] = learn_from_data!(X, Y, grids, idxs = idxs[findall(feas)],
+                                               weights=weights,
+                                               validation_criterion=:misclassification);
     end
     if return_samples
-        return grids, samples
+        return grids, X
     else
         return grids
     end
@@ -155,16 +151,20 @@ function fit(md::ModelData; X::Union{Array, Nothing} = nothing,
                             n_samples = 1000, jump_model::Union{JuMP.Model, Nothing} = nothing,
                             lnr::IAI.Learner=base_otc(),
                             weights::Union{Array, Symbol} = :autobalance, dir::String = "-",
-                            validation_criterion::Symbol = :misclassification)
+                            validation_criterion::Symbol = :misclassification,
+                            return_samples = false)
     """ Fits a provided function model with feasibility and obj f'n fits and
         saves the learners.
     """
     if isa(X, Nothing)
         X = sample(md, n_samples=n_samples);
+    else
+       n_samples = size(X, 1);
     end
     n_features = length(md.c);
-    ineq_trees = learn_constraints(lnr, md.ineq_fns, X, idxs = md.ineq_idxs, weights = weights,
-                                    validation_criterion=validation_criterion);
+    ineq_trees, X = learn_constraints(lnr, md.ineq_fns, X, idxs = md.ineq_idxs, weights = weights,
+                                    validation_criterion=validation_criterion,
+                                    return_samples=true);
     eq_trees = learn_constraints(lnr, md.eq_fns, X, idxs = md.eq_idxs, weights = weights,
                                   validation_criterion=validation_criterion);
     if dir != "-"
