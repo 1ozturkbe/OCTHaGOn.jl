@@ -12,47 +12,56 @@ using ExperimentalDesign
 using Gurobi
 using JuMP
 using Random
-Random.seed!(1);
 include("../src/OptimalConstraintTree.jl");
 global OCT = OptimalConstraintTree;
-
 
 function knapsack(c, a, b; name="knapsack", lbs = zeros(length(c)), ubs = ones(length(c)),
                   int_idxs = [i for i=1:length(c)])
     """ Creates a knapsack ModelData problem"""
-    return OCT.ModelData(c=-c, name=name,
-                      ineqs_A = [-a], ineqs_b = [b], lbs=lbs, ubs=ubs, int_idxs=int_idxs)
+    md = OCT.ModelData(c=-c, name=name, lbs=lbs, ubs=ubs, int_idxs=int_idxs)
+    OCT.add_linear_ineq!(md, a, b)
+    return md
 end
 
-# function knapsack_jump(c,a,b)
-#     m = Model(solver=GurobiSolver())
-#     @variable(m, x[1:length(c)], Bin)
-#     @constraint(m, sum(a.*x) <= b)
-#     @objective(m, Max, sum(c.*x))
-#     return m
-# end
+function knapsack_jump(c,a,b)
+    m = Model(solver=GurobiSolver())
+    @variable(m, x[1:length(c)], Bin)
+    @constraint(m, sum(a*x) <= b)
+    @objective(m, Max, sum(c*x))
+    return m
+end
 
 # Example knapsack
-n = 10;
-a = rand(n);
-c = rand(n);
-b = 10/2*rand();
+n = 20;
+a = rand(1, n);
+c = rand(1, n);
+b = 6.;
 
 # Let's find the JuMP solution
-m = knapsack(c,a,b);
-OCT.jump_it!(m)
-solve(m);
-x_vals = getvalue(m[:x])
+md = knapsack(c,a,b);
+OCT.jump_it!(md);
+solve(md.JuMP_model);
+strict_jm = knapsack_jump(c, a, b);
+solve(strict_jm);
+x_vals = getvalue(md.JuMP_vars);
+println("Comparing costs: ", getvalue(strict_jm.obj), " vs ", getvalue(md.JuMP_model.obj));
+println("Knapsack_MD picks: ", x_vals);
+println("Knapsack_JuMP picks: ", getvalue(strict_jm[:x]));
+@assert all(x_vals ≈ getvalue(strict_jm[:x]));
 
 # TRAIN ONLY OVER X
-# Hyperplanes try to guess a and b in the beginning.
-# n_samples = 2000;
-# fn =  x -> b - sum(a.*x)
-# dists = [Distributions.Uniform(0,1) for i=1:n];
-# X = reduce(hcat,[rand(dists[i],n_samples) for i=1:n]);
-# feas_tree = OCT.learn_constraints!(OCT.base_otc(), [fn], X)
-# IAI.show_in_browser(feas_tree[1].lnr)
-# # We only ever get one split!
+# Hyperplanes with sparsity
+n_samples = 5000;
+fn =  x -> b - sum(a*x)
+dists = [Distributions.Uniform(0,1) for i=1:n];
+X = reduce(hcat,[rand(dists[i],n_samples) for i=1:n]);
+lnr = OCT.base_otc();
+IAI.set_params!(lnr, max_depth = 6);
+
+# sparsities = [1,2,3]
+# IAI.set_params!(lnr, hyperplane_config = (sparsity=3,));
+# feas_tree = OCT.learn_constraints!(lnr, [fn], X);
+# IAI.show_in_browser(IAI.get_learner(feas_tree[1]))
 #
 # # TRAIN OVER X AND B
 # offsets = ones(n+1); offsets[end] = offsets[end]*5;
@@ -108,10 +117,9 @@ x_vals = getvalue(m[:x])
 # Y = DataFrame(y=optimum);
 # IAI.fit!(lnr, X, optimum)
 
-
 # Feature-wise training of OCTS
-lnr = OCT.base_otc
-lnrs = []
+# lnr = OCT.base_otc
+# lnrs = []
 # for i=1:n
 #     nl = lnr()
 #     IAI.fit!(nl, regressor_data, xs_sorted[:,i])

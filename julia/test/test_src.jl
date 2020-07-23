@@ -70,7 +70,6 @@ Y2 = [constr_fn(X[j,:]) for j=1:n_samples];
 
 # Test resampling of 'difficult' constraints
 
-
 # Testing fit
 OCT.jump_it!(md, solver=GurobiSolver());
 
@@ -78,6 +77,6 @@ ineq_trees, eq_trees = OCT.fit!(md);
 @test_throws OCT.OCTException OCT.add_tree_constraints!(md.JuMP_model, md.JuMP_vars, ineq_trees, eq_trees)
 status = solve(md.JuMP_model);
 OCT_vars = getvalue(md.JuMP_vars);
-OCT_obj = sum(md.c.*OCT_vars);
+OCT_obj = sum(md.c .* OCT_vars);
 OCT.show_trees(ineq_trees);
 err = (mof_vars - OCT_vars).^2;

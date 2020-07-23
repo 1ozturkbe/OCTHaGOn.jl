@@ -43,6 +43,36 @@ function add_eq_fn!(md::ModelData, fn::Function, idxs::Union{Nothing, Array})
     push!(md.eq_idxs, idxs)
 end
 
+function add_linear_ineq!(md::ModelData, A::Union{SparseMatrixCSC, Array}, b::Union{Array, Float64})
+    if isa(b, Float64)
+        @assert size(A, 1) == 1
+        push!(md.ineqs_A, A);
+        push!(md.ineqs_b, [b]);
+    else
+        @assert size(A, 1) == size(b, 1)
+        push!(md.ineqs_A, A);
+        push!(md.ineqs_b, b);
+    end
+    if !isa(md.JuMP_model, Nothing)
+        @constraint(m, md.ineqs_b[end] - md.ineqs_A[end] * x .>= 0);
+    end
+end
+
+function add_linear_eq!(md::ModelData,  A::Union{SparseMatrixCSC, Array}, b::Union{Array, Float64})
+    if isa(b, Float64)
+        @assert size(A, 1) == 1
+        push!(md.eqs_A, A);
+        push!(md.eqs_b, [b]);
+    else
+        @assert size(A, 1) == size(b, 1)
+        push!(md.eqs_A, A);
+        push!(md.eqs_b, b);
+    end
+    if !isa(md.JuMP_model, Nothing)
+        @constraint(m, md.eqs_b[end] - md.eqs_A[end] * x .== 0);
+    end
+end
+
 function update_bounds!(md::ModelData, lbs, ubs)
     if any(lbs .> ubs)
         throw(ArgumentError("Infeasible bounds."))
@@ -87,12 +117,10 @@ end
 
 function add_linear_constraints!(m::JuMP.Model, x::Array{JuMP.Variable}, md::ModelData)
     for i=1:length(md.eqs_b)
-        terms = length(md.eqs_b[i]);
-        @constraint(m, md.eqs_b[i] .- [sum(md.eqs_A[i][j,:] .* x) for j=1:terms] .== 0);
+        @constraint(m, md.eqs_b[i] - md.eqs_A[i] * x .== 0);
     end
     for i=1:length(md.ineqs_b)
-        terms = length(md.ineqs_b[i]);
-        @constraint(m, md.ineqs_b[i] .- [sum(md.ineqs_A[i][j,:] .* x) for j=1:terms] .>= 0);
+        @constraint(m, md.ineqs_b[i] .- md.ineqs_A[i] * x .>= 0);
     end
     for i=1:length(md.c)
         if !isinf(md.lbs[i])
@@ -114,7 +142,7 @@ with only the linear constraints.
     @variable(m, x[1:length(md.c)])
     aux = @variable(m, [1:length(md.int_idxs)], Int);
     @constraint(m, x[md.int_idxs] .== aux);
-    @objective(m, Min, sum(md.c .* x));
+    @objective(m, Min, sum(md.c[i] * x[i] for i=1:length(x)));
     add_linear_constraints!(m, x, md);
     md.JuMP_model = m;
     md.JuMP_vars = x;

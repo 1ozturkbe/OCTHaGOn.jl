@@ -65,17 +65,14 @@ function CBF_to_ModelData(filename; epsilon=1e-20)
             if length(var_idxs) == 1.
                 u[var_idxs[1]] = minimum([u[var_idxs[1]], b[idxs][1]/A[idxs, :].nzval[1]]);
             end
-            push!(md.ineqs_b, b[idxs]);
-            push!(md.ineqs_A, A[idxs, :]);
+            add_linear_ineq!(md, A[idxs,:], b[idxs]);
         elseif cone == :NonPos
             if length(var_idxs) == 1.
                 l[var_idxs[1]] = maximum([l[var_idxs[1]], b[idxs][1]/A[idxs, :].nzval[1]]);
             end
-            push!(md.ineqs_b, -b[idxs]);
-            push!(md.ineqs_A, -1 .* A[idxs, :]);
+            add_linear_ineq!(md, -1. .* A[idxs,:], -b[idxs]);
         elseif cone == :Zero
-            push!(md.eqs_b, b[idxs]);
-            push!(md.eqs_A, A[idxs,:]);
+            add_linear_eq!(md, A[idxs,:], b[idxs]);
         elseif cone == :SOC
             constr_fn = let b = b[idxs], A = A[idxs, :]
                 function (x)

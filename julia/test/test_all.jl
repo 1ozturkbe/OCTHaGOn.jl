@@ -13,7 +13,10 @@ using Test
     @test 1+1 == 2
 
     include("test_src.jl")
+
     include("test_tools.jl")
+
+    include("test_knapsack.jl")
 end
 
 
