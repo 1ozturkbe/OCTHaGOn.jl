@@ -102,7 +102,7 @@ function add_feas_constraints!(m::JuMP.Model, x::Array, grid::IAI.GridSearch,
     end
 end
 
-function add_regr_constraints!(m::JuMP.Model, x::Array, grid::IAI.Learner, vks::Array;
+function add_regr_constraints!(m::JuMP.Model, x::Array, y, grid::IAI.GridSearch, vks::Array;
                                M::Float64 = 1.e5, eq = false,
                                return_constraints::Bool = false)
     """

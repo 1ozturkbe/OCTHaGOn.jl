@@ -3,6 +3,9 @@ all_tests:
 - Julia version: 
 - Author: Berk
 - Date: 2020-07-01
+Note: All tests should be run from a julia REPR within the julia folder, using:
+      julia --project
+      include("test/test_all.jl")
 =#
 
 
@@ -19,6 +22,8 @@ using Test
     include("test_knapsack.jl")
 end
 
+# Other tests to try later
 
+# include("test/test_transonic.jl");
 
 
