@@ -9,38 +9,28 @@ using Random
 Random.seed!(1);
 
 include("exceptions.jl");
+include("black_box_function.jl");
 
 @with_kw mutable struct ModelData
 """
 Contains all required info to be able to generate a global optimization problem.
 """
-    name::String = "Model"                             # Example name
-    c::Array                                           # Cost vector
-    ineq_fns::Array{Function} = Array{Function}[]      # Inequality (>= 0) functions
-    ineq_idxs::Array{Union{Nothing, Array}} = Array[]  # Inequality function variable indices
-    eq_fns::Array{Function} = Array{Function}[]        # Equality (>= 0) functions
-    eq_idxs::Array{Union{Nothing, Array}} = Array[]    # Equality function variable indices
-    ineqs_A::Array = SparseMatrixCSC[]                 # Linear inequality A vector, in b-Ax>=0
-    ineqs_b::Array = Array[]                           # Linear inequality b
-    eqs_A::Array = SparseMatrixCSC[]                   # Linear equality A vector, in b-Ax=0
-    eqs_b::Array = Array[]                             # Linear equality b
-    lbs::Array = -Inf.*ones(length(c))                 # Lower bounds
-    ubs::Array = Inf.*ones(length(c))                  # Upper bounds
-    convex_idxs::Array = []                            # Convex inequality indices
-    logconvex_idxs::Array = []                         # Log-convex inequality indices
-    int_idxs::Array = []                               # Integer variable indices
-    JuMP_model::Union{JuMP.Model, Nothing} = nothing   # JuMP model
-    JuMP_vars::Union{Array, Nothing} = nothing         # JuMP variables
+    name::String = "Model"                                 # Example name
+    c::Array                                               # Cost vector
+    fns::Array{BlackBoxFn} = Array{BlackBoxFn}[]      # Black box (>/= 0) functions
+    ineqs_A::Array = SparseMatrixCSC[]                     # Linear inequality A vector, in b-Ax>=0
+    ineqs_b::Array = Array[]                               # Linear inequality b
+    eqs_A::Array = SparseMatrixCSC[]                       # Linear equality A vector, in b-Ax=0
+    eqs_b::Array = Array[]                                 # Linear equality b
+    lbs::Array = -Inf.*ones(length(c))                     # Lower bounds
+    ubs::Array = Inf.*ones(length(c))                      # Upper bounds
+    int_idxs::Array = []                                   # Integer variable indices
+    JuMP_model::Union{JuMP.Model, Nothing} = nothing       # JuMP model
+    JuMP_vars::Union{Array, Nothing} = nothing             # JuMP variables
 end
 
-function add_ineq_fn!(md::ModelData, fn::Function, idxs::Union{Nothing, Array})
-    push!(md.ineq_fns, fn)
-    push!(md.ineq_idxs, idxs)
-end
-
-function add_eq_fn!(md::ModelData, fn::Function, idxs::Union{Nothing, Array})
-    push!(md.eq_fns, fn)
-    push!(md.eq_idxs, idxs)
+function add_fn!(md::ModelData, fn::BlackBoxFn)
+    push!(md.fns, fn)
 end
 
 function add_linear_ineq!(md::ModelData, A::Union{SparseMatrixCSC, Array}, b::Union{Array, Float64})
@@ -153,9 +143,8 @@ end
 function import_trees(dir, md::ModelData)
     """ Returns trees trained over given ModelData,
     where filename points to the model name. """
-    ineq_trees = [IAI.read_json(string(dir, "_ineq_", i, ".json")) for i=1:length(md.ineq_fns)];
-    eq_trees = [IAI.read_json(string(dir, "_eq_", i, ".json")) for i=1:length(md.eq_fns)];
-    return ineq_trees, eq_trees
+    trees = [IAI.read_json(string(dir, "_tree_", i, ".json")) for i=1:length(md.fns)];
+    return trees
 end
 
 function show_trees(trees)

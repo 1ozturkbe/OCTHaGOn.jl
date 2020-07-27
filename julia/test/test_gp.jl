@@ -23,15 +23,22 @@ global PROJECT_ROOT = @__DIR__
 md = OCT.sagemark_to_ModelData(3, lse=false);
 md.lbs[end] = -300;
 md.ubs[end]= -0;
-n_samples = 200;
+n_samples = 20;
 X = OCT.sample(md, n_samples = n_samples);
-Y = [md.ineq_fns[1](X[j,:]) for j = 1:n_samples];
+fn = md.ineq_fns[1];
+Y = [fn(X[j,:]) for j = 1:n_samples];
 
 # Set-up mean and kernel, and then the GP
 se = SE(1., 1.)
 m = MeanZero()
 gp = GP(X', Y, m, se)
-# Plot mean and variance
-# p1 = plot(gp; title="Mean of GP")
-# p2 = plot(gp; var=true, title="Variance of GP", fill=true)
-# plot(p1, p2; fmt=:png)
+dense_X = OCT.sample(md, n_samples=1000);
+
+# Optimize GP, and then predict dense_X locations
+optimize!(gp);
+μ_p, k_p = predict_f(gp, Matrix(dense_X'));
+
+# Functions that might be useful from the documentation:
+# http://stor-i.github.io/GaussianProcesses.jl/latest/
+# mcmc (Markov Chain Monte Carlo)
+# optimize (for the optimization of parameters of the GP)

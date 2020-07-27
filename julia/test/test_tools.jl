@@ -38,9 +38,9 @@ function test_sagemark_to_ModelData()
         @test md_lse.ubs[i] ≈ log(ubs[i])
         @test md_lse.lbs[i] ≈ log(lbs[i])
     end
-    @test md.ineq_fns[2](inp) >= 0
-    @test md.ineq_fns[3](inp) <= 0
-    @test md.ineq_fns[2](inp) ≈ md_lse.ineq_fns[2](log.(inp))
+    @test md.fns[2](inp) >= 0
+    @test md.fns[3](inp) <= 0
+    @test md.fns[2](inp) ≈ md_lse.fns[2](log.(inp))
     return true
 end
 
@@ -50,10 +50,10 @@ md = OCT.sagemark_to_ModelData(3, lse=false);
 md.lbs[end] = -300;
 md.ubs[end]= -0;
 # Fitting ModelData, creating and solving a JuMP.Model
-ineq_trees, eq_trees = OCT.fit!(md, n_samples = 200, lnr = OCT.base_otc(),
+trees = OCT.fit!(md, n_samples = 200, lnr = OCT.base_otc(),
                                dir=string("test/data/", md.name));
 OCT.jump_it!(md);
-OCT.add_tree_constraints!(md.JuMP_model, md.JuMP_vars, ineq_trees, eq_trees);
+OCT.add_tree_constraints!(md.JuMP_model, md.JuMP_vars, trees);
 status = solve(md.JuMP_model);
 println("Solved minimum: ", sum(md.c .* getvalue(md.JuMP_vars)))
 println("Known global bound: ", -147-2/3)

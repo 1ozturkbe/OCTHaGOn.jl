@@ -80,7 +80,7 @@ function CBF_to_ModelData(filename; epsilon=1e-20)
                     return expr[1].^2 - sum(expr[2:end].^2);
                 end
             end
-            add_ineq_fn!(md, constr_fn, var_idxs);
+            add_fn!(md, BlackBoxFn(fn = constr_fn, idxs = var_idxs));
 #             l[var_idxs[1]] = maximum([l[var_idxs[1]], 0]);
         elseif cone == :SOCRotated
             constr_fn = let b = b[idxs], A = A[idxs, :]
@@ -89,7 +89,7 @@ function CBF_to_ModelData(filename; epsilon=1e-20)
                     return expr[1]*expr[2] - sum(expr[3:end].^2)
                 end
             end
-            add_ineq_fn!(md, constr_fn, var_idxs);
+            add_fn!(md, BlackBoxFn(fn = constr_fn, idxs = var_idxs));
 #             l[var_idxs[1]] = maximum([l[var_idxs[1]], 0]);
 #             l[var_idxs[2]] = maximum([l[var_idxs[2]], 0]);
         elseif cone == :ExpPrimal
@@ -99,7 +99,7 @@ function CBF_to_ModelData(filename; epsilon=1e-20)
                     return z - y*exp(x/y)
                 end
             end
-            add_ineq_fn!(md, constr_fn, var_idxs);
+            add_fn!(md, BlackBoxFn(fn = constr_fn, idxs = var_idxs));
 #             l[var_idxs[2]] = maximum([l[var_idxs[2]], epsilon]);
         elseif cone == :ExpDual
             constr_fn = let b = b[idxs], A = A[idxs, :]
@@ -114,7 +114,7 @@ function CBF_to_ModelData(filename; epsilon=1e-20)
                     end
                 end
             end
-            add_ineq_fn!(md, constr_fn, var_idxs);
+            add_fn!(md, BlackBoxFn(fn = constr_fn, idxs = var_idxs));
 #             u[var_idxs[1]] = minimum([u[var_idxs[1]], 0]);
 #             l[var_idxs[3]] = maximum([l[var_idxs[3]], 0]);
         elseif cone in [:SDP]
@@ -160,8 +160,8 @@ function sagemark_to_ModelData(idx; lse=false)
     obj_alpha = hcat(obj_alpha, zeros(length(obj_c)));
     obj_alpha[end, end] = 1;
     obj_constr = alphac_to_fn(obj_alpha, obj_c, lse=lse)
-    idxs = unique([idx[2] for idx in findall(i->i != 0, obj_alpha)]);
-    add_ineq_fn!(md, obj_constr, idxs);
+    idxs = unique([i[2] for i in findall(i->i != 0, obj_alpha)]);
+    add_fn!(md, BlackBoxFn(fn = obj_constr, idxs=idxs));
     # Bound initialization
     lbs = -Inf*ones(n_vars);
     ubs = Inf*ones(n_vars);
@@ -170,12 +170,13 @@ function sagemark_to_ModelData(idx; lse=false)
         c = greaters[i].c;
         local idxs = findall(x->x!=0, alpha);
         if size(idxs, 1) > 1
-            add_ineq_fn!(md, alphac_to_fn(alpha, c; lse=lse), unique([idx[2] for idx in idxs]))
+            add_fn!(md, BlackBoxFn(fn = alphac_to_fn(alpha, c, lse=lse),
+                                   idxs = unique([i[2] for i in idxs])));
             if sum(float(c .>= zeros(length(c)))) == 1
                 if lse
-                    push!(md.convex_idxs, length(md.ineq_fns))
+                    push!(md.fns[end].tags, "convex")
                 else
-                    push!(md.logconvex_idxs, length(md.ineq_fns))
+                    push!(md.fns[end].tags, "logconvex")
                 end
             end
         else
@@ -193,7 +194,9 @@ function sagemark_to_ModelData(idx; lse=false)
     for i=1:length(equals)
         alpha = hcat(equals[i].alpha, zeros(size(equals[i].alpha,1)));
         idxs = findall(x->x!=0, alpha);
-        add_eq_fn!(md, alphac_to_fn(alpha, c; lse=lse), unique([idx[2] for idx in idxs]));
+        add_fn!(md, BlackBoxFn(fn = alphac_to_fn(alpha, c, lse=lse),
+                               idxs = unique([i[2] for i in idxs]),
+                               equality = true));
     end
     update_bounds!(md, lbs, ubs);
     return md

@@ -56,13 +56,33 @@ fn =  x -> b - sum(a*x)
 dists = [Distributions.Uniform(0,1) for i=1:n];
 X = reduce(hcat,[rand(dists[i],n_samples) for i=1:n]);
 lnr = OCT.base_otc();
-IAI.set_params!(lnr, max_depth = 6);
+IAI.set_params!(lnr, max_depth = 6);                     # set high depth,
+IAI.set_params!(lnr, hyperplane_config = (sparsity=3,)); #     low sparsity.
+feas_tree = OCT.learn_constraints!(lnr, [fn], X);
+OCT.show_trees(feas_tree);
 
-# sparsities = [1,2,3]
-# IAI.set_params!(lnr, hyperplane_config = (sparsity=3,));
-# feas_tree = OCT.learn_constraints!(lnr, [fn], X);
-# IAI.show_in_browser(IAI.get_learner(feas_tree[1]))
-#
+# TRAIN OVER OPTIMAL KNAPSACKS
+# n_samples=2000; n = 10;
+# as = rand(n_samples, n);
+# bs = n/4*ones(n_samples);
+# cs = ones(n_samples, n);
+# xs = zeros(n_samples, n);
+# optimum = zeros(n_samples);
+# for i=1:n_samples
+#     print("Sample ", i)
+#     m = knapsack_jump(cs[i,:], as[i,:], bs[i]);
+#     solve(m);
+#     xs[i,:] = getvalue(m[:x]);
+#     optimum[i] = sum(cs[i,:].*xs[i,:]);
+# end
+# # ORT over optimal solutions
+# lnr = OCT.base_otr()
+# IAI.set_params!(lnr, hyperplane_config = (sparsity=1,)); #     low sparsity.
+# X = DataFrame(as)
+# Y = DataFrame(y=optimum);
+# IAI.fit!(lnr, X, optimum)
+# IAI.show_in_browser(lnr);
+
 # # TRAIN OVER X AND B
 # offsets = ones(n+1); offsets[end] = offsets[end]*5;
 # dists = [Distributions.Uniform(0,offsets[i]) for i=1:n+1];
@@ -70,7 +90,6 @@ IAI.set_params!(lnr, max_depth = 6);
 # X = reduce(hcat,[rand(dists[i],n_samples) for i=1:n+1]);
 # feas_tree = OCT.learn_constraints!(OCT.base_otc(), [fn], X)
 # IAI.show_in_browser(feas_tree[1].lnr)
-# # Still only learns one split!
 #
 # # SEEMS LIKE WE SHOULD TRAIN OVER A, B, C, X
 # n=10; n_samples=2000;

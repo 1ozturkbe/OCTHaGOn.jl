@@ -52,7 +52,7 @@ n_samples = 100;
 X = OCT.sample(md, n_samples=n_samples);
 
 # Testing constraint import.
-Y = [md.ineq_fns[1](X[j,:]) for j=1:n_samples];
+Y = [md.fns[1](X[j,:]) for j=1:n_samples];
 using ConicBenchmarkUtilities
 dat = readcbfdata(filename);
 c, A, b, constr_cones, var_cones, vartypes, sense, objoffset = cbftompb(dat);
@@ -73,10 +73,10 @@ Y2 = [constr_fn(X[j,:]) for j=1:n_samples];
 # Testing fit
 OCT.jump_it!(md, solver=GurobiSolver());
 
-ineq_trees, eq_trees = OCT.fit!(md);
-@test_throws OCT.OCTException OCT.add_tree_constraints!(md.JuMP_model, md.JuMP_vars, ineq_trees, eq_trees)
+trees = OCT.fit!(md);
+@test_throws OCT.OCTException OCT.add_tree_constraints!(md.JuMP_model, md.JuMP_vars, trees)
 status = solve(md.JuMP_model);
 OCT_vars = getvalue(md.JuMP_vars);
 OCT_obj = sum(md.c .* OCT_vars);
-OCT.show_trees(ineq_trees);
+OCT.show_trees(trees);
 err = (mof_vars - OCT_vars).^2;
