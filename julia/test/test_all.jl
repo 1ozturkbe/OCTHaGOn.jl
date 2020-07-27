@@ -24,7 +24,7 @@ using Test
 
     include("test_knapsack.jl")
 
-    include("test/test_gp.jl")
+    include("test/test_bbf.jl")
 
 end
 

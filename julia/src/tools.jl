@@ -155,6 +155,9 @@ function sagemark_to_ModelData(idx; lse=false)
     # Turning objective into constraint
     c = zeros(n_vars); c[end] = 1;
     md = ModelData(name = string("sagemark", idx), c = c);
+    lbs = -Inf*ones(n_vars);
+    ubs = Inf*ones(n_vars);
+    update_bounds!(md, lbs, ubs);
     obj_c = vcat(-1 .* f.c, [1]);
     obj_alpha = vcat(-1 .* f.alpha, zeros(size(f.alpha,2))');
     obj_alpha = hcat(obj_alpha, zeros(length(obj_c)));
@@ -163,8 +166,6 @@ function sagemark_to_ModelData(idx; lse=false)
     idxs = unique([i[2] for i in findall(i->i != 0, obj_alpha)]);
     add_fn!(md, BlackBoxFn(fn = obj_constr, idxs=idxs));
     # Bound initialization
-    lbs = -Inf*ones(n_vars);
-    ubs = Inf*ones(n_vars);
     for i=1:length(greaters)
         alpha = hcat(greaters[i].alpha, zeros(size(greaters[i].alpha,1)));
         c = greaters[i].c;

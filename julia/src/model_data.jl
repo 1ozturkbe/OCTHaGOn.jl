@@ -30,6 +30,7 @@ Contains all required info to be able to generate a global optimization problem.
 end
 
 function add_fn!(md::ModelData, fn::BlackBoxFn)
+    update_bounds!(fn, md.lbs, md.ubs)
     push!(md.fns, fn)
 end
 
@@ -63,12 +64,27 @@ function add_linear_eq!(md::ModelData,  A::Union{SparseMatrixCSC, Array}, b::Uni
     end
 end
 
-function update_bounds!(md::ModelData, lbs, ubs)
+function update_bounds!(md::Union{ModelData, BlackBoxFn}, lbs, ubs)
+    """ Updates the outer bounds of ModelData and its BlackBoxFns, or the bounds
+    of a single BlackBoxFn. """
     if any(lbs .> ubs)
         throw(ArgumentError("Infeasible bounds."))
     end
-    md.lbs =  [maximum([md.lbs[i], lbs[i]]) for i=1:length(md.c)];
-    md.ubs =  [minimum([md.ubs[i], ubs[i]]) for i=1:length(md.c)];
+    if md.lbs != []
+        md.lbs =  [maximum([md.lbs[i], lbs[i]]) for i=1:length(lbs)];
+    else
+        md.lbs = lbs
+    end
+    if md.ubs != []
+        md.ubs =  [minimum([md.ubs[i], ubs[i]]) for i=1:length(ubs)];
+    else
+        md.ubs = ubs
+    end
+    if isa(md, ModelData)
+        for fn in md.fns
+            update_bounds!(fn, md.lbs, md.ubs);
+        end
+    end
 end
 
 function sample(md::ModelData; n_samples=1000)
