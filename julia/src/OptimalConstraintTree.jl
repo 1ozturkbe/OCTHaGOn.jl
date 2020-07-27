@@ -8,6 +8,7 @@ module OptimalConstraintTree
     include("constraintify.jl")
     include("convexRegress.jl")
     include("fit.jl")
+    include("learners.jl")
     include("model_data.jl")
     include("tools.jl")
 

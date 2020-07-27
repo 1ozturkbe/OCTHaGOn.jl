@@ -4,49 +4,8 @@ using JuMP
 include("constraintify.jl")
 include("exceptions.jl")
 include("model_data.jl")
-
-function base_otr()
-    return IAI.OptimalTreeRegressor(
-        random_seed = 1,
-        max_depth = 3,
-        cp = 1e-6,
-        minbucket = 0.03,
-        regression_sparsity = :all,
-        fast_num_support_restarts = 5,
-        hyperplane_config = (sparsity = :all,),
-        regression_lambda = 0.00001,
-        regression_weighted_betas = true,
-    )
-end
-
-function base_otc()
-    return IAI.OptimalTreeClassifier(
-        random_seed = 1,
-        max_depth = 5,
-        cp = 1e-6,
-        minbucket = 0.03,
-        fast_num_support_restarts = 5,
-        hyperplane_config = (sparsity = :all,),
-    )
-end
-
-function base_grid(lnr)
-    grid = IAI.GridSearch(lnr, Dict(:criterion => [:entropy, :misclassification],
-    :normalize_X => [true],
-    :max_depth => [3, 5],
-    :minbucket => [0.3, 0.5]))
-    return grid
-end
-
-function gridify(lnr::IAI.Learner)
-    """ Turns IAI.Learners into IAI.GridSearches."""
-    if !hasproperty(lnr, :lnr)
-        grid = IAI.GridSearch(lnr);
-    else
-        grid = lnr;
-    end
-    return grid
-end
+include("black_box_function.jl")
+include("learners.jl")
 
 function learn_from_data!(X::AbstractArray, Y::AbstractArray, grid; idxs=Union{Nothing, Array},
                          weights = :autobalance,
@@ -125,7 +84,7 @@ function fit!(md::ModelData; X::Union{Array, Nothing} = nothing,
     """ Fits a provided function model with feasibility and obj f'n fits and
         saves the learners.
     """
-    if isa(X, Nothing)
+    if isnothing(X)
         X = sample(md, n_samples=n_samples);
     else
        n_samples = size(X, 1);

@@ -25,7 +25,7 @@ md.lbs[end] = -300;
 md.ubs[end]= -0;
 n_samples = 20;
 X = OCT.sample(md, n_samples = n_samples);
-fn = md.ineq_fns[1];
+fn = md.fns[1];
 Y = [fn(X[j,:]) for j = 1:n_samples];
 
 # Set-up mean and kernel, and then the GP
