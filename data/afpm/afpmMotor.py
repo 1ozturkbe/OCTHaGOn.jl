@@ -3,12 +3,15 @@ units = UnitRegistry()
 import numpy as np
 from math import ceil
 import copy
+import csv
 import scipy.optimize as spo
 from time import time
 import pyDOE
 import pickle
 import progressbar
+from gpkit.small_scripts import mag
 import gpfit
+import pandas as pd
 
 def findMaxLength(kys):
     #used for the print formatting, not important
@@ -744,10 +747,24 @@ if __name__ == '__main__':
     ress = pickle.load(open('motors.out','rb'))
     opts = pickle.load(open('motors.sol', 'rb'))
     #
-    # ranges = input_ranges_coreless()
-    # indep_vars = list(ranges.keys())
-    # dep_vars = list(opts[0].keys())
-    # dep_var = 'Mass Specific Power'
-    #
+    ranges = input_ranges_coreless()
+    indep_vars = list(ranges.keys())
+    dep_vars = list(opts[0].keys())
 
-    # Y = [opt[dep_var] for opt in opts]
+    # Prepping data for DataFrames
+    inputs = pd.DataFrame()
+    for i in indep_vars:
+        if i == "wire_dimension":
+            small = [mag(dct[i][0]) for dct in dcts]
+            large = [mag(dct[i][1])  for dct in dcts]
+            inputs["wire_w"] = small
+            inputs["wire_h"] = large
+        else:
+            dat = [mag(dct[i]) for dct in dcts]
+            inputs[i] = dat
+    outputs = pd.DataFrame()
+    for i in dep_vars:
+        dat = [mag(opt[i]) for opt in opts]
+        outputs[i] = dat
+    inputs.to_csv("afpm_inputs.csv")
+    outputs.to_csv("afpm_outputs.csv")
