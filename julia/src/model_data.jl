@@ -162,18 +162,3 @@ function import_trees(dir, md::ModelData)
     trees = [IAI.read_json(string(dir, "_tree_", i, ".json")) for i=1:length(md.fns)];
     return trees
 end
-
-function show_trees(trees)
-    """ Shows all trees (grids) in browser. """
-    for tree in trees
-        try
-            IAI.show_in_browser(tree.lnr)
-        catch err
-            if isa(err, UndefRefError)
-            @warn("Certain trees are untrained.")
-            else
-                rethrow(err)
-            end
-        end
-    end
-end

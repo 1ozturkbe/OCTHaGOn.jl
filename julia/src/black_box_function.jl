@@ -8,6 +8,8 @@ sample_data:
 using DataFrames
 using Parameters
 using GaussianProcesses
+using Plots
+
 
 include("exceptions.jl")
 include("learners.jl")
@@ -34,7 +36,7 @@ function (bbf::BlackBoxFn)(x)
     return bbf.fn(x)
 end
 
-function eval!(bbf::BlackBoxFn, X::AbstractArray)
+function eval!(bbf::BlackBoxFn, X::Union{AbstractArray, DataFrame})
     df = DataFrame(X);
     if isnothing(bbf.samples)
         bbf.samples = df;
@@ -52,27 +54,29 @@ function predict(bbf::BlackBoxFn, X::AbstractArray)
 end
 
 function optimize_gp!(bbf::BlackBoxFn)
+    """ Optimizes a GaussianProcess over a BlackBoxFn. """
     if isnothing(bbf.gp)
-        bbf.gp = ElasticGPE(Matrix(bbf.samples), bbf.values, # data
-        MeanConst(sum(bbf.values)/length(bbf.values)),       # constant mean
-        SEArd(log.((bbf.ubs - bbf.lbs)./20.), -5.))          # SE kernel
+#         bbf.gp = ElasticGPE(length(bbf.idxs), # data
+#         mean = MeanConst(sum(bbf.values)/length(bbf.values)), logNoise = -10)
+        bbf.gp = GPE(transpose(Array(bbf.samples)), bbf.values, # data
+        MeanConst(sum(bbf.values)/length(bbf.values)),
+        SEArd(log.((bbf.ubs - bbf.lbs)./20.), -5.))
+        optimize!(bbf.gp);
+    else
+        optimize!(bbf.gp)        #SEArd(log.((bbf.ubs - bbf.lbs)./20.), -5.))
     end
-    optimize!(bbf.gp)
 end
 
 
-# function sample_and_eval!(bbf, md::ModelData; n_samples=1000)
-#     if isnothing(idxs)
-#         bbf.idxs = [i for i=1:length(md.c)];
-#     end
-#     n_dims = length(bbf.idxs);
-#     if isnothing(bbf.gp)
-#        plan, _ = LHCoptim(n_samples, n_dims, 3);
-#        if any(isinf.(hcat(md.lbs, md.ubs)))
-#            throw(ArgumentError("Model is not properly bounded."))
-#        end
-#        df = DataFrame(scaleLHC(plan,[(md.lbs[i], md.ubs[i]) for i=1:n_dims]));
-#        eval!(bbf, df);
-#     end
-#     return
-# end
+function sample_and_eval!(bbf; n_samples=1000)
+    n_dims = length(bbf.idxs);
+    if isnothing(bbf.gp)
+       plan, _ = LHCoptim(n_samples, n_dims, 3);
+       if any(isinf.(hcat(bbf.lbs, bbf.ubs)))
+           throw(ArgumentError("Model is not properly bounded."))
+       end
+       df = DataFrame(scaleLHC(plan,[(bbf.lbs[i], bbf.ubs[i]) for i=1:n_dims]));
+       eval!(bbf, df);
+    end
+    return
+end
