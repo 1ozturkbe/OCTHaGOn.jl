@@ -103,3 +103,23 @@ function fit!(md::ModelData; X::Union{Array, Nothing} = nothing,
     return trees
 end
 
+# function fit!(bbf::BlackBoxFn; lnr::IAI.Learner=base_otc(),
+#                             weights::Union{Array, Symbol} = :autobalance, dir::String = "-",
+#                             validation_criterion::Symbol = :misclassification,
+#                             return_samples = false)
+#     """ Fits a provided function model with feasibility and obj f'n fits and
+#         saves the learners.
+#     """
+#     n_samples, n_features = size(bbf.samples)
+#     trees, X = learn_constraints!(lnr, md.fns, X, weights = weights,
+#                                     validation_criterion=validation_criterion,
+#                                     return_samples=true);
+#
+#     if dir != "-"
+#         for i=1:size(trees, 1)
+#             IAI.write_json(string(dir, "_tree_", i, ".json"),
+#                            trees[i]);
+#         end
+#     end
+#     return trees
+# end

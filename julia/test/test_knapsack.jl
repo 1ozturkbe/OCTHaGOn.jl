@@ -35,7 +35,7 @@ end
 n = 20;
 a = rand(1, n);
 c = rand(1, n);
-b = 6.;
+b = 4.;
 
 # Let's find the JuMP solution
 md = knapsack(c,a,b);
@@ -52,14 +52,17 @@ println("Knapsack_JuMP picks: ", getvalue(strict_jm[:x]));
 # TRAIN ONLY OVER X
 # Hyperplanes with sparsity
 n_samples = 5000;
-fn =  x -> b - sum(a*x)
-dists = [Distributions.Uniform(0,1) for i=1:n];
+bbf =  OCT.BlackBoxFn(fn = x -> b - sum(a*x));
+dists = [Binomial(1) for i=1:n];
 X = reduce(hcat,[rand(dists[i],n_samples) for i=1:n]);
 lnr = OCT.base_otc();
+Y = [bbf(X[j,:]) for j=1:n_samples];
+println("Percent feasible samples: ", sum(Y.>=0)/n_samples)
 IAI.set_params!(lnr, max_depth = 6);                     # set high depth,
-IAI.set_params!(lnr, hyperplane_config = (sparsity=3,)); #     low sparsity.
-feas_tree = OCT.learn_constraints!(lnr, [fn], X);
-OCT.show_trees(feas_tree);
+IAI.set_params!(lnr, hyperplane_config = (sparsity=3,)); # low sparsity,
+IAI.set_params!(lnr, minbucket=0.01);                    # small buckets.
+feas_tree = OCT.learn_constraints!(lnr, [bbf], X);
+OCT.plot.(feas_tree);
 
 # TRAIN OVER OPTIMAL KNAPSACKS
 # n_samples=2000; n = 10;

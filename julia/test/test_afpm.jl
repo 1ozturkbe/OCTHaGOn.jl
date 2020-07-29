@@ -8,17 +8,26 @@ include("../src/OptimalConstraintTree.jl")
 global OCT = OptimalConstraintTree
 global PROJECT_ROOT = @__DIR__
 
-function fit_afpmModel()
-    @info "Trains over axial flux motor data."
-    lnr = OCT.base_otr()
-    # Getting data from aerospace database.
-    vks = ["Re", "thick", "M", "C_L"];
-    X = CSV.read("../data/airfoil/airfoil_X.csv",
-                 copycols=true, header=vks, delim=",");
-    Y = CSV.read("../data/airfoil/airfoil_y.csv",
-                 copycols=true, header=["C_D"], delim=",");
-        return lnr
-end
+@info "Trains over axial flux motor data."
+lnr = OCT.base_otr()
+# Getting data from aerospace database.
+X = CSV.read("../data/afpm/afpm_inputs.csv",
+                 copycols=true, delim=",");
+Y = CSV.read("../data/afpm/afpm_outputs.csv",
+                 copycols=true, delim=",");
+X = select!(X, Not(:Column1))
+Y = select!(Y, Not(:Column1))
+valid_idxs = findall(x -> x .>= 0.5, Y.Efficiency);
+X = X[valid_idxs,:];
+Y = Y[valid_idxs,:];
 
-@test fit_afpmModel()
+# Learning specific power
+lnr = IAI.fit!(OCT.gridify(lnr), log.(X), log.(Y[!, Symbol("Mass Specific Power")]))
+IAI.write_json(string(PROJECT_ROOT,"/test/data/afpm_specpower_learner.json"), lnr)
 
+# Learning mass
+lnr = IAI.fit!(OCT.gridify(lnr), log.(X), log.(Y[!, Symbol("Mass")]))
+IAI.write_json(string(PROJECT_ROOT,"/test/data/afpm_mass_learner.json"), lnr)
+
+
+specpower_learner = IAI.read_json(string(PROJECT_ROOT,"/test/data/afpm_learner.json"))

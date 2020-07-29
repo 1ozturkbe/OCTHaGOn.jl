@@ -78,5 +78,5 @@ trees = OCT.fit!(md);
 status = solve(md.JuMP_model);
 OCT_vars = getvalue(md.JuMP_vars);
 OCT_obj = sum(md.c .* OCT_vars);
-OCT.show_trees(trees);
+OCT.plot.(trees);
 err = (mof_vars - OCT_vars).^2;

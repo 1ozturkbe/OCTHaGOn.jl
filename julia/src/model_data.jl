@@ -87,12 +87,12 @@ function update_bounds!(md::Union{ModelData, BlackBoxFn}, lbs, ubs)
     end
 end
 
-function sample(md::ModelData; n_samples=1000)
+function sample(md::Union{ModelData,BlackBoxFn}; n_samples=1000)
 """
 Uniformly samples the variables of ModelData, as long as all
 lbs and ubs are defined.
 """
-   n_dims = length(md.c);
+   n_dims = length(md.lbs)
    plan, _ = LHCoptim(n_samples, n_dims, 3);
    if any(isinf.(hcat(md.lbs, md.ubs)))
        throw(ArgumentError("Model is not properly bounded."))

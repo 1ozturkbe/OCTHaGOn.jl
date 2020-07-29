@@ -5,15 +5,23 @@ plot:
 - Date: 2020-07-28
 =#
 
+using Plots
+using GaussianProcesses
 include("black_box_function.jl")
+include("exceptions.jl")
 
 function plot(bbf::BlackBoxFn)
     """ Plots a BlackBoxFn, which is either a 2D scatter plot or a 2D Gaussian Process. """
     if !isnothing(bbf.gp)
-        plot(gp, xlabel="x", ylabel="y", title="Gaussian process", legend=false, fmt=:png)
+        if bbf.gp.dim > 1
+            throw(OCTException("plot(BlackBoxFn) only works in 2D."))
+        end
+        plot(bbf.gp, legend=false, fmt=:png)
     else
-        scatter(Matrix(bbf.samples), bbf.values, xlabel="x", ylabel="y",
-             title="Gaussian process", legend=false, fmt=:png)
+        if size(bbf.samples, 2) > 1
+            throw(OCTException("plot(BlackBoxFn) only works in 2D."))
+        end
+        scatter(Matrix(bbf.samples), bbf.values, legend=false, fmt=:png)
     end
 end
 

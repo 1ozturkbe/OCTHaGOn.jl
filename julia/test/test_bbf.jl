@@ -7,35 +7,27 @@ Tests BlackBoxFn and its functions, including GaussianProcesses
 =#
 using Test
 using GaussianProcesses
+using Plots
 
 include("../src/OptimalConstraintTree.jl")
 global OCT = OptimalConstraintTree;
-global MOI = MathOptInterface
 global PROJECT_ROOT = @__DIR__
 
+bbf = OCT.BlackBoxFn(fn = x -> x[1]^2 * sin(x[1]) + 2,
+                    idxs = [1], lbs = [-5.], ubs = [5.]);
 
-md = OCT.sagemark_to_ModelData(3, lse=false);
-md.lbs[end] = -300;
-md.ubs[end]= -0;
+# Sampling and plotting raw data.
+n_samples = 5;
+OCT.sample_and_eval!(bbf, n_samples=n_samples);
+OCT.plot(bbf)
 
-n_samples = 20;
-X = OCT.sample(md, n_samples = n_samples);
-
-bbf = md.fns[1];
-Y = [bbf(X[j,:]) for j = 1:n_samples];
-
-# Set-up mean and kernel, and then the GP
-X = OCT.sample(md, n_samples=20);
-OCT.eval!(bbf, X);
-OCT.update_bounds!(bbf, md.lbs, md.ubs)
-
-# Optimize GP, and then predict dense_X locations
+# Optimize first gp
 OCT.optimize_gp!(bbf)
-dense_X = OCT.sample(md, n_samples = 1000);
-μ_p, k_p = OCT.predict(bbf, dense_X);
+plot(bbf.gp)
+#
+# # Sample and plot again
+OCT.sample_and_eval!(bbf, n_samples=n_samples);
+OCT.optimize_gp!(bbf)
+plot(bbf.gp)
 
 
-# Functions that might be useful from the documentation:
-# http://stor-i.github.io/GaussianProcesses.jl/latest/
-# mcmc (Markov Chain Monte Carlo)
-# optimize (for the optimization of parameters of the GP)
