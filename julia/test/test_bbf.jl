@@ -14,20 +14,20 @@ global OCT = OptimalConstraintTree;
 global PROJECT_ROOT = @__DIR__
 
 bbf = OCT.BlackBoxFn(fn = x -> x[1]^2 * sin(x[1]) + 2,
-                    idxs = [1], lbs = [-5.], ubs = [5.]);
+                    idxs = [1], lbs = [-5.], ubs = [5.],
+                    n_samples = 5);
+x = range(-5,stop=5, step=0.1);
+plot(x, bbf.fn.(x))
 
 # Sampling and plotting raw data.
-n_samples = 5;
-OCT.sample_and_eval!(bbf, n_samples=n_samples);
-OCT.plot(bbf)
+OCT.sample_and_eval!(bbf);
+OCT.optimize_gp!(bbf)
+plot(bbf.gp)
 
-# Optimize first gp
-OCT.optimize_gp!(bbf)
-plot(bbf.gp)
-#
 # # Sample and plot again
-OCT.sample_and_eval!(bbf, n_samples=n_samples);
-OCT.optimize_gp!(bbf)
-plot(bbf.gp)
+@time OCT.sample_and_eval!(bbf);
+@time OCT.optimize_gp!(bbf)
+plot(x, bbf.fn.(x))
+plot!(bbf.gp)
 
 

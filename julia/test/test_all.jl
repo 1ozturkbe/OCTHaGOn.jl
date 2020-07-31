@@ -22,8 +22,6 @@ using Test
 
     include("test_tools.jl")
 
-    include("test_knapsack.jl")
-
     include("test/test_bbf.jl")
 
 end
