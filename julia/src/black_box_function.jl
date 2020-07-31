@@ -31,8 +31,9 @@ Contains all required info to be able to generate a global optimization problem.
     equality::Bool = false                             # Equality check
     gp::Union{GPE, Nothing} = nothing                  # Gaussian Process
     learners::Array{IAI.GridSearch} = []               # Learners...
-    constraints::Array{Array} = Array[]                # and their corresponding constraints
-    n_samples::Int = 100                               # for incremental sampling
+    constraints::Array{Array} = Array[]                # and their corresponding constraints,
+    accuracies::Array{Float64} = []                    # and their scores.
+    n_samples::Int = 100                               # For next set of samples.
     tags::Array{String} = []                           # Other tags
 end
 

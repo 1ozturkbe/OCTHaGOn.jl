@@ -38,27 +38,36 @@ function learn_from_data!(X::AbstractArray, Y::AbstractArray, grid; idxs=Union{N
     return grid
 end
 
-# function learn_constraint!(lnr::IAI.OptimalTreeLearner, bbf::Array{BlackBoxFn};
-#                                                 X::Union{Array, Nothing} = nothing,
-#                                                 jump_model::Union{JuMP.Model, Nothing} = nothing,
-#                                                 weights=:autobalance,
-#                                                 validation_criterion=:misclassification,
-#                                                 return_samples::Bool=false)
-#     """
-#     Return a constraint tree from a BlackBoxFn.
-#     Arguments:
-#         lnr: Unfit OptimalTreeClassifier or Grid
-#         constraint: BlackBoxFn in std form (>= 0)
-#         X: new data to add to BlackBoxFn
-#     Returns:
-#         lnr: Fitted Grid
-#     """
-#     if !isa(X, Nothing)
-#         eval!(bbf, X)
-#     end
-#     n_samples, n_features = size(bbf.samples)
-#     feas = sum(bbf.values[:,i] .> 0)
-#     if bbf.feas
+function learn_constraint!(bbf::BlackBoxFn; lnr::IAI.OptimalTreeLearner = base_otc(),
+                                                X::Union{Array, Nothing} = nothing,
+                                                jump_model::Union{JuMP.Model, Nothing} = nothing,
+                                                weights=:autobalance,
+                                                validation_criterion=:misclassification)
+    """
+    Return a constraint tree from a BlackBoxFn.
+    Arguments:
+        lnr: Unfit OptimalTreeClassifier or Grid
+        constraint: BlackBoxFn in std form (>= 0)
+        X: new data to add to BlackBoxFn and evaluate
+    Returns:
+        lnr: Fitted Grid
+    """
+    if !isa(X, Nothing)
+        eval!(bbf, X)
+    end
+    n_samples, n_features = size(bbf.samples)
+    if bbf.feas_ratio >= bbf.feas_min
+        # TODO: optimize Matrix/DataFrame conversion. Perhaps change the choice.
+        nl = learn_from_data!(Matrix(bbf.samples), bbf.values .>= 0,
+                              gridify(lnr), idxs = bbf.idxs,
+                              weights=weights,
+                              validation_criterion=:misclassification);
+        push!(bbf.learners, nl);
+        push!(bbf.accuracies, IAI.score(nl, Matrix(bbf.samples), bbf.values .>= 0))
+    else
+        @warn "Not enough feasible samples."
+    end
+end
 
 
 function learn_constraints!(lnr::IAI.OptimalTreeLearner, constraints::Array{BlackBoxFn}, X;

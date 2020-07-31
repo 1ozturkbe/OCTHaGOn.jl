@@ -18,7 +18,7 @@ module OptimalConstraintTree
            # Functions on IAI objects
            gridify, learn_constraints!, learn_from_data!, find_bounds!,
            # Functions on BlackBoxFns
-           eval!, sample_and_eval!, plot
+           eval!, sample_and_eval!, plot, learn_constraint!,
            add_fn!, add_linear_ineq!, add_linear_eq!,
            # Functions on JuMP.Models
            add_feas_constraints!, add_regr_constraints!,
