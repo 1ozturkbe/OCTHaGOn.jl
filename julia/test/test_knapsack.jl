@@ -56,13 +56,13 @@ bbf =  OCT.BlackBoxFn(fn = x -> b - sum(a*x));
 dists = [Binomial(1) for i=1:n];
 X = reduce(hcat,[rand(dists[i],n_samples) for i=1:n]);
 lnr = OCT.base_otc();
-Y = [bbf(X[j,:]) for j=1:n_samples];
-println("Percent feasible samples: ", sum(Y.>=0)/n_samples)
+OCT.eval!(bbf, X)
+println("Percent feasible samples: ", bbf.feas_ratio)
 IAI.set_params!(lnr, max_depth = 6);                     # set high depth,
-IAI.set_params!(lnr, hyperplane_config = (sparsity=3,)); # low sparsity,
+IAI.set_params!(lnr, hyperplane_config = (sparsity=1,)); # low sparsity,
 IAI.set_params!(lnr, minbucket=0.01);                    # small buckets.
-feas_tree = OCT.learn_constraints!(lnr, [bbf], X);
-OCT.plot.(feas_tree);
+feas_tree = OCT.learn_constraint!(bbf);
+OCT.plot.(bbf.learners);
 
 # TRAIN OVER OPTIMAL KNAPSACKS
 # n_samples=2000; n = 10;

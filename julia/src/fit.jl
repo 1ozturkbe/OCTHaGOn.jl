@@ -41,7 +41,7 @@ end
 function learn_constraint!(bbf::BlackBoxFn; lnr::IAI.OptimalTreeLearner = base_otc(),
                                                 X::Union{Array, Nothing} = nothing,
                                                 jump_model::Union{JuMP.Model, Nothing} = nothing,
-                                                weights=:autobalance,
+                                                weights::Union{Array, Symbol} = :autobalance, dir::String = "-",
                                                 validation_criterion=:misclassification)
     """
     Return a constraint tree from a BlackBoxFn.
@@ -67,12 +67,16 @@ function learn_constraint!(bbf::BlackBoxFn; lnr::IAI.OptimalTreeLearner = base_o
     else
         @warn "Not enough feasible samples."
     end
+    if dir != "-"
+        IAI.write_json(string(dir, bbf.name, "_tree_", length(bbf.learners), ".json"),
+                           bbf.learners[end]);
+    end
 end
 
 
 function learn_constraints!(lnr::IAI.OptimalTreeLearner, constraints::Array{BlackBoxFn}, X;
                                                 jump_model::Union{JuMP.Model, Nothing} = nothing,
-                                                weights=:autobalance,
+                                                weights::Union{Array, Symbol} = :autobalance,
                                                 validation_criterion=:misclassification,
                                                 return_samples::Bool=false)
     """
@@ -136,22 +140,16 @@ function fit!(md::ModelData; X::Union{Array, Nothing} = nothing,
 end
 
 function fit!(bbf::BlackBoxFn; lnr::IAI.Learner=base_otc(),
-                            weights::Union{Array, Symbol} = :autobalance, dir::String = "-",
+                            weights::Union{Array, Symbol} = :autobalance,
                             validation_criterion::Symbol = :misclassification,
                             return_samples = false)
     """ Fits a provided function model with feasibility and obj f'n fits and
         saves the learners.
     """
-    n_samples, n_features = size(bbf.samples)
-    trees, X = learn_constraints!(lnr, md.fns, X, weights = weights,
+    learn_constraint!(lnr, md.fns, X, weights = weights,
                                     validation_criterion=validation_criterion,
                                     return_samples=true);
 
-    if dir != "-"
-        for i=1:size(trees, 1)
-            IAI.write_json(string(dir, "_tree_", i, ".json"),
-                           trees[i]);
-        end
-    end
+
     return trees
 end

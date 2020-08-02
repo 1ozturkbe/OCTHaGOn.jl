@@ -45,7 +45,7 @@ function eval!(bbf::BlackBoxFn, X::Union{AbstractArray, DataFrame})
     df = DataFrame(X);
     if isnothing(bbf.samples)
         bbf.samples = df;
-        bbf.values = [bbf(df[i,:]) for i=1:size(df,1)];
+        bbf.values = [bbf(Array(df[i,:])) for i=1:size(df,1)];
         bbf.feas_ratio = sum(bbf.values .>= 0)/length(bbf.values);
     else
         values = [bbf(df[i,:]) for i=1:size(df,1)];

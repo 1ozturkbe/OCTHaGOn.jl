@@ -22,11 +22,12 @@ plot(x, bbf.fn.(x))
 # Sampling and plotting raw data.
 OCT.sample_and_eval!(bbf);
 OCT.optimize_gp!(bbf)
-# plot(bbf.gp)
+plot!(bbf.gp)
 
 # # Sample and plot again
-@time OCT.sample_and_eval!(bbf);
-@time OCT.optimize_gp!(bbf)
+OCT.sample_and_eval!(bbf);
+OCT.optimize_gp!(bbf)
+plot!(bbf.gp)
 
 # Finally learning constraint
 OCT.learn_constraint!(bbf);

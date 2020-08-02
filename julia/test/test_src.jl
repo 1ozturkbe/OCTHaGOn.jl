@@ -46,6 +46,7 @@ md = OCT.CBF_to_ModelData(filename);
 md.name = "shortfall_20_15"
 md.lbs = zeros(length(md.c));
 md.ubs = ones(length(md.c));
+OCT.find_bounds!(md);
 
 # Test sampling
 n_samples = 100;
