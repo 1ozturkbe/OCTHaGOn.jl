@@ -55,15 +55,15 @@ function learn_constraint!(bbf::BlackBoxFn; lnr::IAI.OptimalTreeLearner = base_o
     if !isa(X, Nothing)
         eval!(bbf, X)
     end
-    n_samples, n_features = size(bbf.samples)
+    n_samples, n_features = size(bbf.X)
     if bbf.feas_ratio >= bbf.feas_min
         # TODO: optimize Matrix/DataFrame conversion. Perhaps change the choice.
-        nl = learn_from_data!(Matrix(bbf.samples), bbf.values .>= 0,
+        nl = learn_from_data!(Matrix(bbf.X), bbf.Y .>= 0,
                               gridify(lnr), idxs = bbf.idxs,
                               weights=weights,
                               validation_criterion=:misclassification);
         push!(bbf.learners, nl);
-        push!(bbf.accuracies, IAI.score(nl, Matrix(bbf.samples), bbf.values .>= 0))
+        push!(bbf.accuracies, IAI.score(nl, Matrix(bbf.X), bbf.Y .>= 0))
     else
         @warn "Not enough feasible samples."
     end

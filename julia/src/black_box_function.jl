@@ -43,15 +43,15 @@ end
 
 function eval!(bbf::BlackBoxFn, X::Union{AbstractArray, DataFrame})
     df = DataFrame(X);
-    if isnothing(bbf.samples)
-        bbf.samples = df;
-        bbf.values = [bbf(Array(df[i,:])) for i=1:size(df,1)];
-        bbf.feas_ratio = sum(bbf.values .>= 0)/length(bbf.values);
+    if isnothing(bbf.X)
+        bbf.X = df;
+        bbf.Y = [bbf(Array(df[i,:])) for i=1:size(df,1)];
+        bbf.feas_ratio = sum(bbf.Y .>= 0)/length(bbf.Y);
     else
         values = [bbf(df[i,:]) for i=1:size(df,1)];
-        append!(bbf.samples, df, cols=:setequal);
-        append!(bbf.values, values);
-        bbf.feas_ratio = sum(bbf.values .>= 0)/length(bbf.values); #TODO: optimize.
+        append!(bbf.X, df, cols=:setequal);
+        append!(bbf.Y, values);
+        bbf.feas_ratio = sum(bbf.Y .>= 0)/length(bbf.Y); #TODO: optimize.
     end
     return
 end
@@ -65,10 +65,10 @@ function optimize_gp!(bbf::BlackBoxFn)
     """ Optimizes a GaussianProcess over a BlackBoxFn,
     with adaptively changing kernel. """
 #         bbf.gp = ElasticGPE(length(bbf.idxs), # data
-#         mean = MeanConst(sum(bbf.values)/length(bbf.values)), logNoise = -10)
-    bbf.gp = GPE(transpose(Array(bbf.samples)), bbf.values, # data
-    MeanConst(sum(bbf.values)/length(bbf.values)),
-    SEArd(log.((bbf.ubs - bbf.lbs)./(2*length(bbf.values))), -5.))
+#         mean = MeanConst(sum(bbf.Y)/length(bbf.Y)), logNoise = -10)
+    bbf.gp = GPE(transpose(Array(bbf.X)), bbf.Y, # data
+    MeanConst(sum(bbf.Y)/length(bbf.Y)),
+    SEArd(log.((bbf.ubs - bbf.lbs)./(2*length(bbf.Y))), -5.))
     optimize!(bbf.gp); #TODO: optimize GP
                        # Instead of regenerating at every run, figure out
                        # how to update.

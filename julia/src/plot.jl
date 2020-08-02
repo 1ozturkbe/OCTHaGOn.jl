@@ -18,10 +18,10 @@ function plot(bbf::BlackBoxFn)
         end
         plot(bbf.gp, legend=false, fmt=:png)
     else
-        if size(bbf.samples, 2) > 1
+        if size(bbf.X, 2) > 1
             throw(OCTException("plot(BlackBoxFn) only works in 2D."))
         end
-        scatter(Matrix(bbf.samples), bbf.values, legend=false, fmt=:png)
+        scatter(Matrix(bbf.X), bbf.Y, legend=false, fmt=:png)
     end
 end
 
