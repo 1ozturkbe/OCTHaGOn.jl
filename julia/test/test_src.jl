@@ -48,11 +48,11 @@ md.lbs = zeros(length(md.c));
 md.ubs = ones(length(md.c));
 OCT.find_bounds!(md);
 
-# Test sampling
+# # Test sampling
 n_samples = 100;
 X = OCT.sample(md, n_samples=n_samples);
 
-# Testing constraint import.
+# # Testing constraint import.
 Y = [md.fns[1](X[j,:]) for j=1:n_samples];
 using ConicBenchmarkUtilities
 dat = readcbfdata(filename);
@@ -68,16 +68,15 @@ function constr_fn(x)
 end
 Y2 = [constr_fn(X[j,:]) for j=1:n_samples];
 @test Y == Y2;
-
-# Test resampling of 'difficult' constraints
+#
 
 # Testing fit
 OCT.jump_it!(md, solver=GurobiSolver());
-
-trees = OCT.fit!(md);
-@test_throws OCT.OCTException OCT.add_tree_constraints!(md.JuMP_model, md.JuMP_vars, trees)
-status = solve(md.JuMP_model);
-OCT_vars = getvalue(md.JuMP_vars);
-OCT_obj = sum(md.c .* OCT_vars);
-OCT.plot.(trees);
-err = (mof_vars - OCT_vars).^2;
+#
+# trees = OCT.fit!(md);
+# @test_throws OCT.OCTException OCT.add_tree_constraints!(md.JuMP_model, md.JuMP_vars, trees)
+# status = solve(md.JuMP_model);
+# OCT_vars = getvalue(md.JuMP_vars);
+# OCT_obj = sum(md.c .* OCT_vars);
+# OCT.plot.(trees);
+# err = (mof_vars - OCT_vars).^2;

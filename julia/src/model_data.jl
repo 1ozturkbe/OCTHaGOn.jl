@@ -119,10 +119,10 @@ function add_linear_constraints!(m::JuMP.Model, x::Array{JuMP.Variable}, md::Mod
     return m
 end
 
-function jump_it!(md::ModelData; solver = GurobiSolver())
+function jump_it!(md::ModelData; solver = GurobiSolver(), trees::Bool = false)
 """
-Creates a JuMP.Model() compatible with ModelData,
-with only the linear constraints.
+Creates a JuMP.Model() compatible with ModelData.
+trees boolean dictates whether tree constraints should be included.
 """
     m = Model(solver=solver);
     @variable(m, x[1:length(md.c)])
@@ -132,15 +132,18 @@ with only the linear constraints.
     add_linear_constraints!(m, x, md);
     md.JuMP_model = m;
     md.JuMP_vars = x;
+    return
 end
 
 function find_bounds!(md::ModelData; solver=GurobiSolver(), all_bounds=true)
-    if isa(Nothing, md.JuMP_model)
-        jump_it!(md, solver=solver)
+    if isnothing(md.JuMP_model)
+        jump_it!(md, solver=solver, trees = false)
     end
     lbs = -Inf.*ones(length(md.c));
     ubs = Inf.*ones(length(md.c));
     # Finding bounds by min/maximizing each variable
+    m = md.JuMP_model;
+    x = md.JuMP_vars;
     for i=1:length(md.c)
         if isinf(md.lbs[i]) || all_bounds
             @objective(m, Min, x[i]);
@@ -153,7 +156,9 @@ function find_bounds!(md::ModelData; solver=GurobiSolver(), all_bounds=true)
             ubs[i] = getvalue(x)[i];
         end
     end
+    @objective(m, Min, sum(md.c[i] * x[i] for i=1:length(x))); #revert objective
     update_bounds!(md, lbs, ubs)
+    return
 end
 
 function import_trees(dir, md::ModelData)
