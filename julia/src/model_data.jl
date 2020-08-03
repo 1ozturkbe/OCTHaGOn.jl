@@ -17,21 +17,23 @@ Contains all required info to be able to generate a global optimization problem.
 """
     name::String = "Model"                                 # Example name
     c::Array                                               # Cost vector
-    fns::Array{BlackBoxFn} = Array{BlackBoxFn}[]      # Black box (>/= 0) functions
+    fns::Array{BlackBoxFn} = Array{BlackBoxFn}[]           # Black box (>/= 0) functions
     ineqs_A::Array = SparseMatrixCSC[]                     # Linear inequality A vector, in b-Ax>=0
     ineqs_b::Array = Array[]                               # Linear inequality b
     eqs_A::Array = SparseMatrixCSC[]                       # Linear equality A vector, in b-Ax=0
     eqs_b::Array = Array[]                                 # Linear equality b
-    lbs::Array = -Inf.*ones(length(c))                     # Lower bounds
-    ubs::Array = Inf.*ones(length(c))                      # Upper bounds
+    vks::Array = [Symbol("x",i) for i=1:length(c)]         # Varkeys
+    lbs::Dict = Dict(vks .=> -Inf)                         # Variable lower bounds
+    ubs::Dict = Dict(vks .=> Inf)                          # Variable upper bounds
     int_idxs::Array = []                                   # Integer variable indices
     JuMP_model::Union{JuMP.Model, Nothing} = nothing       # JuMP model
     JuMP_vars::Union{Array, Nothing} = nothing             # JuMP variables
 end
 
-function add_fn!(md::ModelData, fn::BlackBoxFn)
-    update_bounds!(fn, md.lbs, md.ubs)
-    push!(md.fns, fn)
+function add_fn!(md::ModelData, bbf::BlackBoxFn)
+    update_bounds!(bbf, md.lbs, md.ubs)
+    update_bounds!(md, bbf.lbs, bbf.ubs) # TODO: optimize
+    push!(md.fns, bbf)
 end
 
 function add_linear_ineq!(md::ModelData, A::Union{SparseMatrixCSC, Array}, b::Union{Array, Float64})
@@ -64,27 +66,32 @@ function add_linear_eq!(md::ModelData,  A::Union{SparseMatrixCSC, Array}, b::Uni
     end
 end
 
-function update_bounds!(md::Union{ModelData, BlackBoxFn}, lbs, ubs)
+function get_max(a, b)
+    return maximum([a,b])
+end
+
+function get_min(a,b)
+    return minimum([a,b])
+end
+
+function update_bounds!(md::Union{ModelData, BlackBoxFn};
+                        lbs::Dict = Dict(), ubs::Dict = Dict())
     """ Updates the outer bounds of ModelData and its BlackBoxFns, or the bounds
     of a single BlackBoxFn. """
-    if any(lbs .> ubs)
-        throw(ArgumentError("Infeasible bounds."))
+    nlbs = merge(get_max, md.lbs, lbs);
+    nubs = merge(get_min, md.ubs, ubs)
+    if any([nlbs[vk] .> nubs[vk] for vk in md.vks])
+        throw(OCTException("Infeasible bounds."))
     end
-    if md.lbs != []
-        md.lbs =  [maximum([md.lbs[i], lbs[i]]) for i=1:length(lbs)];
-    else
-        md.lbs = lbs
-    end
-    if md.ubs != []
-        md.ubs =  [minimum([md.ubs[i], ubs[i]]) for i=1:length(ubs)];
-    else
-        md.ubs = ubs
-    end
+    md.lbs = Dict(vk => nlbs[vk] for vk in keys(md.lbs));
+    md.ubs = Dict(vk => nubs[vk] for vk in keys(md.ubs));
     if isa(md, ModelData)
         for fn in md.fns
-            update_bounds!(fn, md.lbs, md.ubs);
+            update_bounds!(fn, Dict(fn.vk => md.lbs[vk] for vk in fn.vks),
+                               Dict(fn.vk => md.ubs[vk] for vk in fn.vks)); # TODO: check that it works.
         end
     end
+    return
 end
 
 function sample(md::Union{ModelData,BlackBoxFn}; n_samples=1000)
@@ -130,6 +137,8 @@ trees boolean dictates whether tree constraints should be included.
     @constraint(m, x[md.int_idxs] .== aux);
     @objective(m, Min, sum(md.c[i] * x[i] for i=1:length(x)));
     add_linear_constraints!(m, x, md);
+    if trees
+    end
     md.JuMP_model = m;
     md.JuMP_vars = x;
     return

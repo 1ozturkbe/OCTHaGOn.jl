@@ -38,6 +38,14 @@ function learn_from_data!(X::AbstractArray, Y::AbstractArray, grid; idxs=Union{N
     return grid
 end
 
+function feasibility_check(bbf::BlackBoxFn)
+    return bbf.feas_ratio >= bbf.threshold_feasibility
+end
+
+function accuracy_check(bbf::BlackBoxFn)
+    return bbf.accuracies[end] >= bbf.threshold_accuracy
+end
+
 function learn_constraint!(bbf::BlackBoxFn; lnr::IAI.OptimalTreeLearner = base_otc(),
                                                 X::Union{Array, Nothing} = nothing,
                                                 jump_model::Union{JuMP.Model, Nothing} = nothing,
@@ -55,8 +63,11 @@ function learn_constraint!(bbf::BlackBoxFn; lnr::IAI.OptimalTreeLearner = base_o
     if !isa(X, Nothing)
         eval!(bbf, X)
     end
+    if isa(bbf.X, Nothing)
+        sample_and_eval!(bbf)
+    end
     n_samples, n_features = size(bbf.X)
-    if bbf.feas_ratio >= bbf.feas_min
+    if feasibility_check(bbf)
         # TODO: optimize Matrix/DataFrame conversion. Perhaps change the choice.
         nl = learn_from_data!(Matrix(bbf.X), bbf.Y .>= 0,
                               gridify(lnr), idxs = bbf.idxs,
@@ -136,20 +147,5 @@ function fit!(md::ModelData; X::Union{Array, Nothing} = nothing,
                            trees[i]);
         end
     end
-    return trees
-end
-
-function fit!(bbf::BlackBoxFn; lnr::IAI.Learner=base_otc(),
-                            weights::Union{Array, Symbol} = :autobalance,
-                            validation_criterion::Symbol = :misclassification,
-                            return_samples = false)
-    """ Fits a provided function model with feasibility and obj f'n fits and
-        saves the learners.
-    """
-    learn_constraint!(lnr, md.fns, X, weights = weights,
-                                    validation_criterion=validation_criterion,
-                                    return_samples=true);
-
-
     return trees
 end

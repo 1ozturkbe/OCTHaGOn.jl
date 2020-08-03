@@ -11,7 +11,6 @@ using Parameters
 using GaussianProcesses
 using Plots
 
-
 include("exceptions.jl")
 include("learners.jl")
 
@@ -83,7 +82,7 @@ function sample_and_eval!(bbf::BlackBoxFn; ratio=10.)
     if isnothing(bbf.gp) # If we don't have any GPs yet, uniform sample.
        plan, _ = LHCoptim(bbf.n_samples, n_dims, 3);
        if any(isinf.(values(bbf.lbs))) || any(isinf.(values(bbf.ubs)))
-           throw(ArgumentError("Model is not properly bounded."))
+           throw(OCTException("Model is not properly bounded."))
        end
        df = DataFrame(scaleLHC(plan,[(bbf.lbs[i], bbf.ubs[i]) for i in vks]), vks);
        eval!(bbf, df);
