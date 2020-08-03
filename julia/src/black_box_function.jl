@@ -32,7 +32,7 @@ Contains all required info to be able to generate a global optimization problem.
     constraints::Array{Array} = Array[]                # and their corresponding constraints,
     accuracies::Array{Float64} = []                    # and their scores.
     threshold_accuracy::Float64 = 0.95                 # Minimum tree accuracy
-    threshold_feasibility::Float64 = 0.25              # Minimum feas_ratio
+    threshold_feasibility::Float64 = 0.15              # Minimum feas_ratio
     n_samples::Int = 100                               # For next set of samples.
     tags::Array{String} = []                           # Other tags
 end
@@ -47,13 +47,13 @@ function (bbf::BlackBoxFn)(x::Union{DataFrame,Dict,DataFrameRow})
     end
 end
 
-function eval!(bbf::BlackBoxFn, X::Union{AbstractArray, DataFrame})
+function eval!(bbf::BlackBoxFn, X::DataFrame)
     if isnothing(bbf.X)
         bbf.X = X;
-        bbf.Y = [bbf(X[i,:]) for i=1:size(X,1)];
+        bbf.Y = bbf(X);
         bbf.feas_ratio = sum(bbf.Y .>= 0)/length(bbf.Y);
     else
-        values = [bbf(X[i,:]) for i=1:size(X,1)];
+        values = bbf(X);
         append!(bbf.X, X, cols=:setequal);
         append!(bbf.Y, values);
         bbf.feas_ratio = sum(bbf.Y .>= 0)/length(bbf.Y); #TODO: optimize.
@@ -71,9 +71,11 @@ function optimize_gp!(bbf::BlackBoxFn)
     with adaptively changing kernel. """
 #         bbf.gp = ElasticGPE(length(bbf.idxs), # data
 #         mean = MeanConst(sum(bbf.Y)/length(bbf.Y)), logNoise = -10)
+    lbs = [bbf.lbs[key] for key in bbf.vks];
+    ubs = [bbf.ubs[key] for key in bbf.vks];
     bbf.gp = GPE(transpose(Array(bbf.X)), bbf.Y, # data
     MeanConst(sum(bbf.Y)/length(bbf.Y)),
-    SEArd(log.((bbf.ubs - bbf.lbs)./(2*length(bbf.Y))), -5.))
+    SEArd(log.((ubs-lbs)./(2*sqrt(length(bbf.Y)))), -5.))
     optimize!(bbf.gp); #TODO: optimize GP
                        # Instead of regenerating at every run, figure out
                        # how to update.
@@ -101,8 +103,9 @@ function sample_and_eval!(bbf::BlackBoxFn; ratio=10.)
         # Sample places with high probability of being near boundary (0),
         # but also balance feasibility ratio.
         p = bbf.feas_ratio
-        balance_point = -1/0.5^2*(p-0.5)^3 + 0.5;
-        indices = sortperm(abs.(cdf_0 .- balance_point));
+#         balance_fn = x -> -1*tan(2*atan(-0.5)*(x-0.5)) + 0.5
+        balance_fn = x -> -1/0.5^2*(x-0.5)^3 + 0.5;
+        indices = sortperm(abs.(cdf_0 .- balance_fn(p)));
         samples = DataFrame(random_samples[indices[1:bbf.n_samples],:], vks);
         eval!(bbf, samples);
     end

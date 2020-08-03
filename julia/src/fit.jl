@@ -7,7 +7,7 @@ include("model_data.jl")
 include("black_box_function.jl")
 include("learners.jl")
 
-function learn_from_data!(X::AbstractArray, Y::AbstractArray, grid; idxs=Union{Nothing, Array},
+function learn_from_data!(X::DataFrame, Y::AbstractArray, grid; idxs::Union{Nothing, Array}=nothing,
                          weights = :autobalance,
                          validation_criterion=:misclassification)
     """ Wrapper around IAI.GridSearch for constraint learning.
@@ -25,7 +25,7 @@ function learn_from_data!(X::AbstractArray, Y::AbstractArray, grid; idxs=Union{N
     if !isnothing(idxs)
         IAI.set_params!(grid.lnr, split_features = idxs)
         if typeof(grid.lnr) == IAI.OptimalTreeRegressor
-            IAI.set_params!(grid.lnr, regression_features=idxs)
+            IAI.set_params!(grid.lnr, regression_features = idxs)
         end
     else
         IAI.set_params!(grid.lnr, split_features = :all)
@@ -39,7 +39,7 @@ function learn_from_data!(X::AbstractArray, Y::AbstractArray, grid; idxs=Union{N
 end
 
 function feasibility_check(bbf::BlackBoxFn)
-    return bbf.feas_ratio >= bbf.threshold_feasibility
+    return bbf.feas_ratio >= bbf.threshold_feasibility && bbf.feas_ratio <= 1 - bbf.threshold_feasibility
 end
 
 function accuracy_check(bbf::BlackBoxFn)
@@ -47,7 +47,6 @@ function accuracy_check(bbf::BlackBoxFn)
 end
 
 function learn_constraint!(bbf::BlackBoxFn; lnr::IAI.OptimalTreeLearner = base_otc(),
-                                                X::Union{Array, Nothing} = nothing,
                                                 jump_model::Union{JuMP.Model, Nothing} = nothing,
                                                 weights::Union{Array, Symbol} = :autobalance, dir::String = "-",
                                                 validation_criterion=:misclassification)
@@ -60,17 +59,14 @@ function learn_constraint!(bbf::BlackBoxFn; lnr::IAI.OptimalTreeLearner = base_o
     Returns:
         lnr: Fitted Grid
     """
-    if !isa(X, Nothing)
-        eval!(bbf, X)
-    end
     if isa(bbf.X, Nothing)
         sample_and_eval!(bbf)
     end
     n_samples, n_features = size(bbf.X)
     if feasibility_check(bbf)
         # TODO: optimize Matrix/DataFrame conversion. Perhaps change the choice.
-        nl = learn_from_data!(Matrix(bbf.X), bbf.Y .>= 0,
-                              gridify(lnr), idxs = bbf.idxs,
+        nl = learn_from_data!(bbf.X, bbf.Y .>= 0,
+                              gridify(lnr),
                               weights=weights,
                               validation_criterion=:misclassification);
         push!(bbf.learners, nl);
@@ -111,7 +107,7 @@ function learn_constraints!(lnr::IAI.OptimalTreeLearner, constraints::Array{Blac
     grids = [gridify(lnr) for _ = 1:n_constraints];
     # First train the feasible trees...
     for i in findall(feas)
-        grids[i] = learn_from_data!(X, Y[:,i], grids[i], idxs = constraints[i].idxs,
+        grids[i] = learn_from_data!(X, Y[:,i], grids[i], vks = constraints[i].vks,
                                                weights=weights,
                                                validation_criterion=:misclassification);
     end

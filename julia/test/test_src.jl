@@ -20,14 +20,17 @@ global PROJECT_ROOT = @__DIR__
 
 # Initialization tests
 md = OCT.ModelData(c = [1,2,3]);
-@test md.lbs == -Inf.*ones(length(md.c))
+
 
 # Check infeasible bounds for Model Data
-OCT.update_bounds!(md, [-2,1,3], [Inf, 5, 6]);
-@test_throws ArgumentError OCT.update_bounds!(md, [-2,1,3], [Inf, -1, 6]);
+lbs = Dict(md.vks .=> [-2,1,3]);
+ubs = Dict(md.vks .=> [Inf, 5, 6])
+OCT.update_bounds!(md, lbs=lbs, ubs=ubs);
+ubs = Dict(md.vks .=> [Inf, -1, 6])
+@test_throws OCT.OCTException OCT.update_bounds!(md, ubs = ubs);
 
 # Check sampling Model Data
-@test_throws ArgumentError OCT.sample(md)
+@test_throws OCT.OCTException X = OCT.sample(md, n_samples=100)
 
 # Check creation of JuMP.Model() from ModelData
 OCT.jump_it!(md);
@@ -44,34 +47,32 @@ mof_vars = [MOI.get(mof_model, MOI.VariablePrimal(), var) for var in inner_varia
 # Testing CBF import to ModelData
 md = OCT.CBF_to_ModelData(filename);
 md.name = "shortfall_20_15"
-md.lbs = zeros(length(md.c));
-md.ubs = ones(length(md.c));
 OCT.find_bounds!(md);
 
 # # Test sampling
-n_samples = 100;
-X = OCT.sample(md, n_samples=n_samples);
-
-# # Testing constraint import.
-Y = [md.fns[1](X[j,:]) for j=1:n_samples];
-using ConicBenchmarkUtilities
-dat = readcbfdata(filename);
-c, A, b, constr_cones, var_cones, vartypes, sense, objoffset = cbftompb(dat);
-(cone,idxs) = constr_cones[6];
-var_idxs = unique(cart_ind[2] for cart_ind in findall(!iszero, A[idxs, :])); # CartesianIndices...
-
-function constr_fn(x)
-    let b = copy(b[idxs]), A = copy(A[idxs, :])
-        expr = b - A*x;
-        return expr[1].^2 - sum(expr[2:end].^2);
-    end
-end
-Y2 = [constr_fn(X[j,:]) for j=1:n_samples];
-@test Y == Y2;
+# n_samples = 100;
+# X = OCT.sample(md, n_samples=n_samples);
 #
-
-# Testing fit
-OCT.jump_it!(md, solver=GurobiSolver());
+# # # Testing constraint import.
+# Y = [md.fns[1](X[j,:]) for j=1:n_samples];
+# using ConicBenchmarkUtilities
+# dat = readcbfdata(filename);
+# c, A, b, constr_cones, var_cones, vartypes, sense, objoffset = cbftompb(dat);
+# (cone,idxs) = constr_cones[6];
+# var_idxs = unique(cart_ind[2] for cart_ind in findall(!iszero, A[idxs, :])); # CartesianIndices...
+#
+# function constr_fn(x)
+#     let b = copy(b[idxs]), A = copy(A[idxs, :])
+#         expr = b - A*x;
+#         return expr[1].^2 - sum(expr[2:end].^2);
+#     end
+# end
+# Y2 = [constr_fn(X[j,:]) for j=1:n_samples];
+# @test Y == Y2;
+# #
+#
+# # Testing fit
+# OCT.jump_it!(md, solver=GurobiSolver());
 #
 # trees = OCT.fit!(md);
 # @test_throws OCT.OCTException OCT.add_tree_constraints!(md.JuMP_model, md.JuMP_vars, trees)

@@ -16,7 +16,7 @@ function plot(bbf::BlackBoxFn)
         if bbf.gp.dim > 1
             throw(OCTException("plot(BlackBoxFn) only works in 2D."))
         end
-        plot(bbf.gp, legend=false, fmt=:png)
+        Plots.plot(bbf.gp, legend=false, fmt=:png)
     else
         if size(bbf.X, 2) > 1
             throw(OCTException("plot(BlackBoxFn) only works in 2D."))

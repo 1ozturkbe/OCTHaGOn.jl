@@ -99,12 +99,12 @@ function sample(md::Union{ModelData,BlackBoxFn}; n_samples=1000)
 Uniformly samples the variables of ModelData, as long as all
 lbs and ubs are defined.
 """
-   n_dims = length(md.lbs)
+   n_dims = length(md.vks)
    plan, _ = LHCoptim(n_samples, n_dims, 3);
-   if any(isinf.(hcat(md.lbs, md.ubs)))
-       throw(ArgumentError("Model is not properly bounded."))
+   if any(isinf.(values(md.lbs))) || any(isinf.(values(md.ubs)))
+       throw(OCTException("Model is not properly bounded."))
    end
-   X = scaleLHC(plan,[(md.lbs[i], md.ubs[i]) for i=1:n_dims]);
+   X = scaleLHC(plan,[(md.lbs[vk], md.ubs[vk]) for vk in md.vks]);
    return X
 end
 

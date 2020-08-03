@@ -40,25 +40,21 @@ OCT.update_bounds!(bbf, lbs=lbs);
 @test bbf.lbs[:x1] == -3;
 @test_throws OCT.OCTException OCT.update_bounds!(bbf, ubs = Dict(:x1 => -6)) # check infeasible bounds
 @test bbf.ubs[:x1] == 5;
-#
-#
-#
-# # Check sampling and plotting in 1D
-# bbf = OCT.BlackBoxFn(fn = x -> x[:x1]^2 * sin(x[:x1]) + 2,
-#                      vks = [:x1], lbs = Dict(:x1 => -5), ubs = Dict(:x1 => 5),
-#                     n_samples = 20);
-# x = DataFrame(:x1 => range(-5,stop=5, step=0.1));
-# plot(Array(x), bbf(x));
+
+# Check sampling and plotting in 1D
+bbf = OCT.BlackBoxFn(fn = x -> x[:x1]^2 * sin(x[:x1]) + 2,
+                     vks = [:x1], lbs = Dict(:x1 => -5), ubs = Dict(:x1 => 5),
+                    n_samples = 20);
+OCT.sample_and_eval!(bbf);
+OCT.plot(bbf)
 
 # Sampling and plotting raw data.
-# OCT.sample_and_eval!(bbf);
-# OCT.optimize_gp!(bbf)
-# plot!(bbf.gp)
-#
-# # # Sample and plot again
-# OCT.sample_and_eval!(bbf);
-# OCT.optimize_gp!(bbf)
-# plot!(bbf.gp)
-#
-# # Finally learning constraint
-# OCT.learn_constraint!(bbf);
+for _=1:2
+    OCT.sample_and_eval!(bbf)
+    OCT.optimize_gp!(bbf)
+    OCT.plot(bbf)
+end
+
+# Finally learning constraint
+OCT.learn_constraint!(bbf);
+@test bbf.accuracies[end] == 1.
