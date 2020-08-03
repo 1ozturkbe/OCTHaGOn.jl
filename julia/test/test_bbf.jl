@@ -18,17 +18,18 @@ global PROJECT_ROOT = @__DIR__
 bbf = OCT.BlackBoxFn(fn = x -> x[:x1] + x[:x3]^3,
                     vks = [:x1, :x3], n_samples = 50);
 
-# Check evaluation of samples from Dict and DataFrame
+# Check evaluation of samples from Dict, DataFrameRow and DataFrame
 samples = DataFrame(rand(4,4), [Symbol("x",i) for i=1:4]);
 val1 = bbf(samples[1,:]);
 sample = Dict(:x1 => samples[1,1], :x3 => samples[1,3])
 val2 = bbf(sample);
-@test val1 == val2 == samples[1,1] + samples[1,3]^3;
+val3 = bbf(samples);
+@test val1 == val2 == val3[1] == samples[1,1] + samples[1,3]^3;
 
 # Check unbounded sampling
 @test_throws OCT.OCTException OCT.sample_and_eval!(bbf);
-
-# Check proper bounding
+#
+# # Check proper bounding
 lbs = Dict(:x1 => -5, :x3 => -5);
 ubs = Dict(:x1 => 5, :x3 => 5);
 OCT.update_bounds!(bbf, lbs=lbs, ubs=ubs);
@@ -39,18 +40,15 @@ OCT.update_bounds!(bbf, lbs=lbs);
 @test bbf.lbs[:x1] == -3;
 @test_throws OCT.OCTException OCT.update_bounds!(bbf, ubs = Dict(:x1 => -6)) # check infeasible bounds
 @test bbf.ubs[:x1] == 5;
-
-# Check invalid bounds
-# @test
-# @test size(bbf.X, 1) == length(bbf.Y);
 #
-
-
-# bbf = OCT.BlackBoxFn(fn = x -> x[1]^2 * sin(x[1]) + 2,
-#                     idxs = [1], lbs = [-5.], ubs = [5.],
-#                     n_samples = 50);
-# x = range(-5,stop=5, step=0.1);
-# plot(x, bbf.fn.(x))
+#
+#
+# # Check sampling and plotting in 1D
+# bbf = OCT.BlackBoxFn(fn = x -> x[:x1]^2 * sin(x[:x1]) + 2,
+#                      vks = [:x1], lbs = Dict(:x1 => -5), ubs = Dict(:x1 => 5),
+#                     n_samples = 20);
+# x = DataFrame(:x1 => range(-5,stop=5, step=0.1));
+# plot(Array(x), bbf(x));
 
 # Sampling and plotting raw data.
 # OCT.sample_and_eval!(bbf);

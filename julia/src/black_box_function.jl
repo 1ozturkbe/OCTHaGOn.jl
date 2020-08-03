@@ -37,8 +37,14 @@ Contains all required info to be able to generate a global optimization problem.
     tags::Array{String} = []                           # Other tags
 end
 
-function (bbf::BlackBoxFn)(x::Union{DataFrameRow, Dict})
-    return bbf.fn(x)
+function (bbf::BlackBoxFn)(x::Union{DataFrame,Dict,DataFrameRow})
+    if isa(x, Union{DataFrameRow, Dict})
+        return bbf.fn(x);
+    elseif isa(x, DataFrame)
+        return [bbf.fn(x[i,:]) for i=1:size(x,1)]
+    else
+        throw(OCT.OCTException("This datatype is not supported for BlackBoxFn evaluation."))
+    end
 end
 
 function eval!(bbf::BlackBoxFn, X::Union{AbstractArray, DataFrame})
