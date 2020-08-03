@@ -25,9 +25,9 @@ Contains all required info to be able to generate a global optimization problem.
     vks::Array = [Symbol("x",i) for i=1:length(c)]         # Varkeys
     lbs::Dict = Dict(vks .=> -Inf)                         # Variable lower bounds
     ubs::Dict = Dict(vks .=> Inf)                          # Variable upper bounds
-    int_idxs::Array = []                                   # Integer variable indices
+    int_vks::Array = []                                   # Integer variable indices
     JuMP_model::Union{JuMP.Model, Nothing} = nothing       # JuMP model
-    JuMP_vars::Union{Array, Nothing} = nothing             # JuMP variables
+    JuMP_vars::Union{JuMP.JuMPArray, Nothing} = nothing             # JuMP variables
 end
 
 function add_fn!(md::ModelData, bbf::BlackBoxFn)
@@ -108,19 +108,20 @@ lbs and ubs are defined.
    return X
 end
 
-function add_linear_constraints!(m::JuMP.Model, x::Array{JuMP.Variable}, md::ModelData)
+function add_linear_constraints!(m::JuMP.Model, x::JuMP.JuMPArray, md::ModelData)
+    var_list = [x[vk] for vk in md.vks]
     for i=1:length(md.eqs_b)
-        @constraint(m, md.eqs_b[i] - md.eqs_A[i] * x .== 0);
+        @constraint(m, md.eqs_b[i] - md.eqs_A[i] * var_list .== 0);
     end
     for i=1:length(md.ineqs_b)
-        @constraint(m, md.ineqs_b[i] .- md.ineqs_A[i] * x .>= 0);
+        @constraint(m, md.ineqs_b[i] .- md.ineqs_A[i] * var_list .>= 0);
     end
-    for i=1:length(md.c)
-        if !isinf(md.lbs[i])
-            @constraint(m, x[i] >= md.lbs[i])
+    for vk in md.vks
+        if !isinf(md.lbs[vk])
+            @constraint(m, x[vk] >= md.lbs[vk])
         end
-        if !isinf(md.ubs[i])
-            @constraint(m, x[i] <= md.ubs[i])
+        if !isinf(md.ubs[vk])
+            @constraint(m, x[vk] <= md.ubs[vk])
         end
     end
     return m
@@ -132,13 +133,13 @@ Creates a JuMP.Model() compatible with ModelData.
 trees boolean dictates whether tree constraints should be included.
 """
     m = Model(solver=solver);
-    @variable(m, x[1:length(md.c)])
-    aux = @variable(m, [1:length(md.int_idxs)], Int);
-    @constraint(m, x[md.int_idxs] .== aux);
-    @objective(m, Min, sum(md.c[i] * x[i] for i=1:length(x)));
-    add_linear_constraints!(m, x, md);
-    if trees
+    @variable(m, x[vk in md.vks])
+    if !isempty(md.int_vks)
+        aux = @variable(m, [vk in md.int_vks], Int);
+        @constraint(m, x[md.int_vks] .== aux);
     end
+    @objective(m, Min, sum(md.c[i] * x[md.vks[i]] for i=1:length(md.vks)));
+    add_linear_constraints!(m, x, md);
     md.JuMP_model = m;
     md.JuMP_vars = x;
     return
@@ -148,8 +149,8 @@ function find_bounds!(md::ModelData; solver=GurobiSolver(), all_bounds=true)
     if isnothing(md.JuMP_model)
         jump_it!(md, solver=solver, trees = false)
     end
-    lbs = -Inf.*ones(length(md.c));
-    ubs = Inf.*ones(length(md.c));
+    ubs = Dict(md.vks .=> Inf)
+    lbs = Dict(md.vks .=> -Inf)
     # Finding bounds by min/maximizing each variable
     m = md.JuMP_model;
     x = md.JuMP_vars;

@@ -16,9 +16,9 @@ include("../src/OptimalConstraintTree.jl");
 global OCT = OptimalConstraintTree;
 
 function knapsack(c, a, b; name="knapsack", lbs = zeros(length(c)), ubs = ones(length(c)),
-                  int_idxs = [i for i=1:length(c)])
+                  int_vks = [i for i=1:length(c)])
     """ Creates a knapsack ModelData problem"""
-    md = OCT.ModelData(c=-c, name=name, lbs=lbs, ubs=ubs, int_idxs=int_idxs)
+    md = OCT.ModelData(c=-c, name=name, lbs=lbs, ubs=ubs, int_vks=int_vks)
     OCT.add_linear_ineq!(md, a, b)
     return md
 end

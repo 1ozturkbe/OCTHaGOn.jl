@@ -32,8 +32,10 @@ ubs = Dict(md.vks .=> [Inf, -1, 6])
 # Check sampling Model Data
 @test_throws OCT.OCTException X = OCT.sample(md, n_samples=100)
 
-# Check creation of JuMP.Model() from ModelData
+# # Check creation of JuMP.Model() from ModelData
 OCT.jump_it!(md);
+@test length(md.JuMP_model.linconstr) == 5;
+
 
 # Test CBF imports
 filename = string("../data/cblib.zib.de/shortfall_20_15.cbf.gz");
@@ -42,12 +44,12 @@ inner_variables = MOI.get(mof_model, MOI.ListOfVariableIndices());
 MOI.optimize!(mof_model);
 mof_obj = MOI.get(mof_model, MOI.ObjectiveValue());
 mof_vars = [MOI.get(mof_model, MOI.VariablePrimal(), var) for var in inner_variables];
-# @test mof_obj ≈ -0.0777750720542
-
-# Testing CBF import to ModelData
-md = OCT.CBF_to_ModelData(filename);
-md.name = "shortfall_20_15"
-OCT.find_bounds!(md);
+@test mof_obj ≈ -1.0792654303
+#
+# # Testing CBF import to ModelData
+# md = OCT.CBF_to_ModelData(filename);
+# md.name = "shortfall_20_15"
+# OCT.find_bounds!(md);
 
 # # Test sampling
 # n_samples = 100;

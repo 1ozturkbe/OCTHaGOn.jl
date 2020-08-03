@@ -126,7 +126,7 @@ function CBF_to_ModelData(filename; epsilon=1e-20)
         end
     end
     update_bounds!(md, l, u);
-    md.int_idxs = findall(x -> x .== :Int, vartypes); # Integer var labeling.
+    md.int_vks = findall(x -> x .== :Int, vartypes); # Integer var labeling.
     return md
 end
 

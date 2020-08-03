@@ -7,7 +7,6 @@ Tests BlackBoxFn and its functions, including GaussianProcesses
 =#
 using DataFrames
 using Test
-using GaussianProcesses
 using Plots
 using Random
 
@@ -36,7 +35,7 @@ OCT.update_bounds!(bbf, lbs=lbs, ubs=ubs);
 @test bbf.ubs == ubs
 lbs = Dict(:x1 => -3, :x2 => 2); # check update with vk not in bbf
 OCT.update_bounds!(bbf, lbs=lbs);
-@test !(:x2 in keys(md.lbs))
+@test !(:x2 in keys(bbf.lbs))
 @test bbf.lbs[:x1] == -3;
 @test_throws OCT.OCTException OCT.update_bounds!(bbf, ubs = Dict(:x1 => -6)) # check infeasible bounds
 @test bbf.ubs[:x1] == 5;
