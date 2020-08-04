@@ -23,21 +23,21 @@ Contains all required info to be able to generate a global optimization problem.
     eqs_A::Array = SparseMatrixCSC[]                       # Linear equality A vector, in b-Ax=0
     eqs_b::Array = Array[]                                 # Linear equality b
     vks::Array = [Symbol("x",i) for i=1:length(c)]         # Varkeys
-    lbs::Dict = Dict(vks .=> -Inf)                         # Variable lower bounds
-    ubs::Dict = Dict(vks .=> Inf)                          # Variable upper bounds
-    int_vks::Array = []                                   # Integer variable indices
+    lbs::Dict{Symbol, <:Real} = Dict(vks .=> -Inf)        # Variable lower bounds
+    ubs::Dict{Symbol, <:Real} = Dict(vks .=> Inf)         # Variable upper bounds
+    int_vks::Array{Symbol} = []                            # Integer variable indices
     JuMP_model::Union{JuMP.Model, Nothing} = nothing       # JuMP model
-    JuMP_vars::Union{JuMP.JuMPArray, Nothing} = nothing             # JuMP variables
+    JuMP_vars::Union{JuMP.JuMPArray, Nothing} = nothing    # JuMP variables
 end
 
 function add_fn!(md::ModelData, bbf::BlackBoxFn)
-    update_bounds!(bbf, md.lbs, md.ubs)
-    update_bounds!(md, bbf.lbs, bbf.ubs) # TODO: optimize
+    update_bounds!(bbf, lbs = md.lbs, ubs = md.ubs)
+    update_bounds!(md, lbs = bbf.lbs, ubs = bbf.ubs) # TODO: optimize
     push!(md.fns, bbf)
 end
 
-function add_linear_ineq!(md::ModelData, A::Union{SparseMatrixCSC, Array}, b::Union{Array, Float64})
-    if isa(b, Float64)
+function add_linear_ineq!(md::ModelData, A::Union{SparseMatrixCSC, Array}, b::Union{Array, <:Real})
+    if isa(b, Real)
         @assert size(A, 1) == 1
         push!(md.ineqs_A, A);
         push!(md.ineqs_b, [b]);
@@ -51,8 +51,8 @@ function add_linear_ineq!(md::ModelData, A::Union{SparseMatrixCSC, Array}, b::Un
     end
 end
 
-function add_linear_eq!(md::ModelData,  A::Union{SparseMatrixCSC, Array}, b::Union{Array, Float64})
-    if isa(b, Float64)
+function add_linear_eq!(md::ModelData,  A::Union{SparseMatrixCSC, Array}, b::Union{Array, Real})
+    if isa(b, Real)
         @assert size(A, 1) == 1
         push!(md.eqs_A, A);
         push!(md.eqs_b, [b]);
@@ -75,7 +75,8 @@ function get_min(a,b)
 end
 
 function update_bounds!(md::Union{ModelData, BlackBoxFn};
-                        lbs::Dict = Dict(), ubs::Dict = Dict())
+                        lbs::Dict{Symbol, <:Real} = Dict{Symbol, Float64}(),
+                        ubs::Dict{Symbol, <:Real} = Dict{Symbol, Float64}())
     """ Updates the outer bounds of ModelData and its BlackBoxFns, or the bounds
     of a single BlackBoxFn. """
     nlbs = merge(get_max, md.lbs, lbs);
@@ -87,8 +88,8 @@ function update_bounds!(md::Union{ModelData, BlackBoxFn};
     md.ubs = Dict(vk => nubs[vk] for vk in keys(md.ubs));
     if isa(md, ModelData)
         for fn in md.fns
-            update_bounds!(fn, Dict(fn.vk => md.lbs[vk] for vk in fn.vks),
-                               Dict(fn.vk => md.ubs[vk] for vk in fn.vks)); # TODO: check that it works.
+            update_bounds!(fn, lbs = Dict(vk => md.lbs[vk] for vk in fn.vks),
+                               ubs = Dict(vk => md.ubs[vk] for vk in fn.vks)); # TODO: check that it works.
         end
     end
     return

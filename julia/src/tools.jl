@@ -61,6 +61,7 @@ function CBF_to_ModelData(filename; epsilon=1e-20)
     # Idxs describe which rows of A the cone applies to.
     # All cones: [:Free, :Zero, :NonNeg, :NonPos, :SOC, :SOCRotated, :SDP, :ExpPrimal, :ExpDual]
         var_idxs = unique(cart_ind[2] for cart_ind in findall(!iszero, A[idxs, :])); # CartesianIndices...
+        vks = [Symbol("x", i) for i in var_idxs];
         if cone == :NonNeg
             if length(var_idxs) == 1.
                 u[var_idxs[1]] = minimum([u[var_idxs[1]], b[idxs][1]/A[idxs, :].nzval[1]]);
@@ -74,37 +75,41 @@ function CBF_to_ModelData(filename; epsilon=1e-20)
         elseif cone == :Zero
             add_linear_eq!(md, A[idxs,:], b[idxs]);
         elseif cone == :SOC
-            constr_fn = let b = b[idxs], A = A[idxs, :]
+            constr_fn = let b = b[idxs], A = A[idxs, :], vks = vks
                 function (x)
-                    expr = b - A*x;
+                    vars = x[vks];
+                    expr = b - A*vars;
                     return expr[1].^2 - sum(expr[2:end].^2);
                 end
             end
-            add_fn!(md, BlackBoxFn(fn = constr_fn, idxs = var_idxs));
-#             l[var_idxs[1]] = maximum([l[var_idxs[1]], 0]);
+            add_fn!(md, BlackBoxFn(fn = constr_fn, vks = vks));
+            l[var_idxs[1]] = maximum([l[var_idxs[1]], 0]);
         elseif cone == :SOCRotated
-            constr_fn = let b = b[idxs], A = A[idxs, :]
+            constr_fn = let b = b[idxs], A = A[idxs, :], vks = vks
                 function (x)
-                    expr = b - A*x;
+                    vars = x[vks];
+                    expr = b - A*vars;
                     return expr[1]*expr[2] - sum(expr[3:end].^2)
                 end
             end
-            add_fn!(md, BlackBoxFn(fn = constr_fn, idxs = var_idxs));
-#             l[var_idxs[1]] = maximum([l[var_idxs[1]], 0]);
-#             l[var_idxs[2]] = maximum([l[var_idxs[2]], 0]);
+            add_fn!(md, BlackBoxFn(fn = constr_fn, vks = vks));
+            l[var_idxs[1]] = maximum([l[var_idxs[1]], 0]);
+            l[var_idxs[2]] = maximum([l[var_idxs[2]], 0]);
         elseif cone == :ExpPrimal
-            constr_fn = let b = b[idxs], A = A[idxs, :]
+            constr_fn = let b = b[idxs], A = A[idxs, :], vks = vks
                 function (x)
-                    (x,y,z) = b - A*x;
+                    vars = x[vks];
+                    (x,y,z) = b - A*vars;
                     return z - y*exp(x/y)
                 end
             end
-            add_fn!(md, BlackBoxFn(fn = constr_fn, idxs = var_idxs));
-#             l[var_idxs[2]] = maximum([l[var_idxs[2]], epsilon]);
+            add_fn!(md, BlackBoxFn(fn = constr_fn, vks = vks));
+            l[var_idxs[2]] = maximum([l[var_idxs[2]], epsilon]);
         elseif cone == :ExpDual
-            constr_fn = let b = b[idxs], A = A[idxs, :]
+            constr_fn = let b = b[idxs], A = A[idxs, :], vks =vks
                 function (x)
-                    (u,v,w) = b - A*x;
+                    vars = x[vks];
+                    (u,v,w) = b - A*vars;
                     if v >= 0 && w >= 0
                         return 1 # feasible
                     elseif u < 0 && w >= 0
@@ -114,9 +119,9 @@ function CBF_to_ModelData(filename; epsilon=1e-20)
                     end
                 end
             end
-            add_fn!(md, BlackBoxFn(fn = constr_fn, idxs = var_idxs));
-#             u[var_idxs[1]] = minimum([u[var_idxs[1]], 0]);
-#             l[var_idxs[3]] = maximum([l[var_idxs[3]], 0]);
+            add_fn!(md, BlackBoxFn(fn = constr_fn, vks = vks));
+            u[var_idxs[1]] = minimum([u[var_idxs[1]], 0]);
+            l[var_idxs[3]] = maximum([l[var_idxs[3]], 0]);
         elseif cone in [:SDP]
             throw(ArgumentError("Haven't coded feasibility for these cones yet."));
         elseif cone == :Free
@@ -125,8 +130,9 @@ function CBF_to_ModelData(filename; epsilon=1e-20)
             print("This cone is not recognized.");
         end
     end
-    update_bounds!(md, l, u);
-    md.int_vks = findall(x -> x .== :Int, vartypes); # Integer var labeling.
+    update_bounds!(md, lbs = Dict(md.vks .=> l),
+                       ubs = Dict(md.vks .=> u));
+    md.int_vks = [Symbol("x", i) for i in findall(x -> x .== :Int, vartypes)]; # Integer var labels
     return md
 end
 

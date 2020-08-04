@@ -47,8 +47,8 @@ mof_vars = [MOI.get(mof_model, MOI.VariablePrimal(), var) for var in inner_varia
 @test mof_obj ≈ -1.0792654303
 #
 # # Testing CBF import to ModelData
-# md = OCT.CBF_to_ModelData(filename);
-# md.name = "shortfall_20_15"
+md = OCT.CBF_to_ModelData(filename);
+md.name = "shortfall_20_15"
 # OCT.find_bounds!(md);
 
 # # Test sampling
