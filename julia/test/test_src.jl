@@ -49,33 +49,32 @@ mof_vars = [MOI.get(mof_model, MOI.VariablePrimal(), var) for var in inner_varia
 # # Testing CBF import to ModelData
 md = OCT.CBF_to_ModelData(filename);
 md.name = "shortfall_20_15"
-# OCT.find_bounds!(md);
+OCT.find_bounds!(md, all_bounds = true);
 
 # # Test sampling
-# n_samples = 100;
-# X = OCT.sample(md, n_samples=n_samples);
+n_samples = 100;
+X = OCT.sample(md, n_samples=n_samples);
 #
 # # # Testing constraint import.
-# Y = [md.fns[1](X[j,:]) for j=1:n_samples];
-# using ConicBenchmarkUtilities
-# dat = readcbfdata(filename);
-# c, A, b, constr_cones, var_cones, vartypes, sense, objoffset = cbftompb(dat);
-# (cone,idxs) = constr_cones[6];
-# var_idxs = unique(cart_ind[2] for cart_ind in findall(!iszero, A[idxs, :])); # CartesianIndices...
-#
-# function constr_fn(x)
-#     let b = copy(b[idxs]), A = copy(A[idxs, :])
-#         expr = b - A*x;
-#         return expr[1].^2 - sum(expr[2:end].^2);
-#     end
-# end
-# Y2 = [constr_fn(X[j,:]) for j=1:n_samples];
-# @test Y == Y2;
-# #
-#
-# # Testing fit
-# OCT.jump_it!(md, solver=GurobiSolver());
-#
+bbf = md.fns[1];
+Y = md.fns[1](X);
+using ConicBenchmarkUtilities
+dat = readcbfdata(filename);
+c, A, b, constr_cones, var_cones, vartypes, sense, objoffset = cbftompb(dat);
+(cone,idxs) = constr_cones[6];
+var_idxs = unique(cart_ind[2] for cart_ind in findall(!iszero, A[idxs, :])); # CartesianIndices...
+function constr_fn(x)
+    let b = copy(b[idxs]), A = copy(A[idxs, var_idxs])
+        expr = b - A*x;
+        return expr[1].^2 - sum(expr[2:end].^2);
+    end
+end
+Y2 = [constr_fn(Array(X[j,var_idxs])) for j=1:n_samples];
+@test Y == Y2;
+
+# Testing fit
+OCT.jump_it!(md, solver=GurobiSolver());
+
 # trees = OCT.fit!(md);
 # @test_throws OCT.OCTException OCT.add_tree_constraints!(md.JuMP_model, md.JuMP_vars, trees)
 # status = solve(md.JuMP_model);

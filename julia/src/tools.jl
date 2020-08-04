@@ -75,9 +75,9 @@ function CBF_to_ModelData(filename; epsilon=1e-20)
         elseif cone == :Zero
             add_linear_eq!(md, A[idxs,:], b[idxs]);
         elseif cone == :SOC
-            constr_fn = let b = b[idxs], A = A[idxs, :], vks = vks
+            constr_fn = let b = b[idxs], A = A[idxs, var_idxs], vks = vks
                 function (x)
-                    vars = x[vks];
+                    vars = [x[vk] for vk in vks];
                     expr = b - A*vars;
                     return expr[1].^2 - sum(expr[2:end].^2);
                 end
@@ -85,9 +85,9 @@ function CBF_to_ModelData(filename; epsilon=1e-20)
             add_fn!(md, BlackBoxFn(fn = constr_fn, vks = vks));
             l[var_idxs[1]] = maximum([l[var_idxs[1]], 0]);
         elseif cone == :SOCRotated
-            constr_fn = let b = b[idxs], A = A[idxs, :], vks = vks
+            constr_fn = let b = b[idxs], A = A[idxs, var_idxs], vks = vks
                 function (x)
-                    vars = x[vks];
+                    vars = [x[vk] for vk in vks];
                     expr = b - A*vars;
                     return expr[1]*expr[2] - sum(expr[3:end].^2)
                 end
@@ -96,9 +96,9 @@ function CBF_to_ModelData(filename; epsilon=1e-20)
             l[var_idxs[1]] = maximum([l[var_idxs[1]], 0]);
             l[var_idxs[2]] = maximum([l[var_idxs[2]], 0]);
         elseif cone == :ExpPrimal
-            constr_fn = let b = b[idxs], A = A[idxs, :], vks = vks
+            constr_fn = let b = b[idxs], A = A[idxs, var_idxs], vks = vks
                 function (x)
-                    vars = x[vks];
+                    vars = [x[vk] for vk in vks];
                     (x,y,z) = b - A*vars;
                     return z - y*exp(x/y)
                 end
@@ -106,9 +106,9 @@ function CBF_to_ModelData(filename; epsilon=1e-20)
             add_fn!(md, BlackBoxFn(fn = constr_fn, vks = vks));
             l[var_idxs[2]] = maximum([l[var_idxs[2]], epsilon]);
         elseif cone == :ExpDual
-            constr_fn = let b = b[idxs], A = A[idxs, :], vks =vks
+            constr_fn = let b = b[idxs], A = A[idxs, var_idxs], vks = vks
                 function (x)
-                    vars = x[vks];
+                    vars = [x[vk] for vk in vks];
                     (u,v,w) = b - A*vars;
                     if v >= 0 && w >= 0
                         return 1 # feasible

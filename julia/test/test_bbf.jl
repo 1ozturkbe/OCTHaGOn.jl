@@ -23,11 +23,15 @@ val1 = bbf(samples[1,:]);
 sample = Dict(:x1 => samples[1,1], :x3 => samples[1,3])
 val2 = bbf(sample);
 val3 = bbf(samples);
-@test val1 == val2 == val3[1] == samples[1,1] + samples[1,3]^3;
+sample = Dict(:x1 => samples[1,1], :x2 => 2, :x3 => samples[1,3]);
+val4 = bbf(sample);
+sample = DataFrame(sample);
+val5 = bbf(sample);
+@test val1 == val2 == val3[1] == val4 == val5[1] == samples[1,1] + samples[1,3]^3;
 
 # Check unbounded sampling
 @test_throws OCT.OCTException OCT.sample_and_eval!(bbf);
-#
+
 # # Check proper bounding
 lbs = Dict(:x1 => -5, :x3 => -5);
 ubs = Dict(:x1 => 5, :x3 => 5);

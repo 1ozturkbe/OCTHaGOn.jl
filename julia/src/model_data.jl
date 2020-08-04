@@ -106,7 +106,7 @@ lbs and ubs are defined.
        throw(OCTException("Model is not properly bounded."))
    end
    X = scaleLHC(plan,[(md.lbs[vk], md.ubs[vk]) for vk in md.vks]);
-   return X
+   return DataFrame(X, md.vks)
 end
 
 function add_linear_constraints!(m::JuMP.Model, x::JuMP.JuMPArray, md::ModelData)
@@ -137,7 +137,8 @@ trees boolean dictates whether tree constraints should be included.
     @variable(m, x[vk in md.vks])
     if !isempty(md.int_vks)
         aux = @variable(m, [vk in md.int_vks], Int);
-        @constraint(m, x[md.int_vks] .== aux);
+        int_vars = [x[vk] for vk in md.int_vks];
+        @constraint(m, int_vars .== aux[:]);
     end
     @objective(m, Min, sum(md.c[i] * x[md.vks[i]] for i=1:length(md.vks)));
     add_linear_constraints!(m, x, md);
@@ -155,20 +156,20 @@ function find_bounds!(md::ModelData; solver=GurobiSolver(), all_bounds=true)
     # Finding bounds by min/maximizing each variable
     m = md.JuMP_model;
     x = md.JuMP_vars;
-    for i=1:length(md.c)
-        if isinf(md.lbs[i]) || all_bounds
-            @objective(m, Min, x[i]);
+    for vk in md.vks
+        if isinf(md.lbs[vk]) || all_bounds
+            @objective(m, Min, x[vk]);
             status = solve(m);
-            lbs[i] = getvalue(x)[i];
+            lbs[vk] = getvalue(x)[vk];
         end
-        if isinf(md.lbs[i]) || all_bounds
-            @objective(m, Max, x[i]);
+        if isinf(md.lbs[vk]) || all_bounds
+            @objective(m, Max, x[vk]);
             status = solve(m);
-            ubs[i] = getvalue(x)[i];
+            ubs[vk] = getvalue(x)[vk];
         end
     end
-    @objective(m, Min, sum(md.c[i] * x[i] for i=1:length(x))); #revert objective
-    update_bounds!(md, lbs, ubs)
+    @objective(m, Min, sum(md.c[i] * x[md.vks[i]] for i=1:length(x))); #revert objective
+    update_bounds!(md, lbs=lbs, ubs=ubs)
     return
 end
 
