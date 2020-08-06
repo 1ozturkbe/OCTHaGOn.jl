@@ -47,7 +47,6 @@ function accuracy_check(bbf::BlackBoxFn)
 end
 
 function learn_constraint!(bbf::BlackBoxFn; lnr::IAI.OptimalTreeLearner = base_otc(),
-                                                jump_model::Union{JuMP.Model, Nothing} = nothing,
                                                 weights::Union{Array, Symbol} = :autobalance, dir::String = "-",
                                                 validation_criterion=:misclassification)
     """
@@ -77,44 +76,6 @@ function learn_constraint!(bbf::BlackBoxFn; lnr::IAI.OptimalTreeLearner = base_o
     if dir != "-"
         IAI.write_json(string(dir, bbf.name, "_tree_", length(bbf.learners), ".json"),
                            bbf.learners[end]);
-    end
-end
-
-
-function learn_constraints!(lnr::IAI.OptimalTreeLearner, constraints::Array{BlackBoxFn}, X;
-                                                jump_model::Union{JuMP.Model, Nothing} = nothing,
-                                                weights::Union{Array, Symbol} = :autobalance,
-                                                validation_criterion=:misclassification,
-                                                return_samples::Bool=false)
-    """
-    Returns a set of feasibility trees from a set of constraints.
-    Arguments:
-        lnr: Unfit OptimalTreeClassifier or Grid
-        X: initial matrix of feature data
-        constraints: set of BlackBoxFns in std form (>= 0)
-    Returns:
-        lnr: list of Fitted Grids
-    NOTE: All constraints must take in full vector of X values.
-    """
-    n_samples, n_features = size(X);
-    n_constraints = length(constraints);
-    Y = hcat([vcat([constraints[i](X[j, :]) >= 0 for j = 1:n_samples]...) for i=1:n_constraints]...);
-    feas = [sum(Y[:,i]) > 0 for i= 1:n_constraints];
-    if any(feas .== 0)
-        @info("Certain constraints are infeasible for all samples.")
-        @info("Will resample as necessary.")
-    end
-    grids = [gridify(lnr) for _ = 1:n_constraints];
-    # First train the feasible trees...
-    for i in findall(feas)
-        grids[i] = learn_from_data!(X, Y[:,i], grids[i], vks = constraints[i].vks,
-                                               weights=weights,
-                                               validation_criterion=:misclassification);
-    end
-    if return_samples
-        return grids, X
-    else
-        return grids
     end
 end
 
