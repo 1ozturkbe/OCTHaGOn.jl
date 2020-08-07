@@ -17,23 +17,15 @@ function check_if_trained(lnr::IAI.OptimalTreeLearner)
     end
 end
 
-function add_tree_constraints!(md::ModelData; trees::Array = [],
-                               vks=[Symbol("x",i) for i=1:length(md.JuMP_vars)], M=1e5,
-                               return_constraints::Bool = false)
-    constraints = [];
-    if trees != []
-        trees = [m.learners[end] for m in md.fns];
-    end
-    for tree in trees
-        constrs = add_feas_constraints!(md.JuMP_model, md.JuMP_vars, tree, vks;
-                              M=M, eq=false,
-                              return_constraints=return_constraints);
-        push!(constraints, constrs) #TODO: make sure equalities work later.
-    end
-    if return_constraints
-        return constraints
-    else
-        return
+function add_tree_constraints!(md::ModelData; M=1e5)
+    for bbf in md.fns
+        grid = bbf.learners[end];
+        constrs = add_feas_constraints!(md.JuMP_model,
+                                        [md.JuMP_vars[vk] for vk in bbf.vks],
+                                        bbf.learners[end], bbf.vks;
+                              M=M, eq=bbf.equality,
+                              return_constraints = true);
+        bbf.constraints = constrs; #TODO: make sure we can remove all constraints.
     end
 end
 

@@ -29,7 +29,7 @@ Contains all required info to be able to generate a global optimization problem.
     equality::Bool = false                             # Equality check
     gp::Union{GPE, Nothing} = nothing                  # Gaussian Process
     learners::Array{IAI.GridSearch} = []               # Learners...
-    constraints::Array{Array} = Array[]                # and their corresponding constraints,
+    constraints::Dict = Dict()                         # and their corresponding constraints,
     accuracies::Array{Float64} = []                    # and their scores.
     threshold_accuracy::Float64 = 0.95                 # Minimum tree accuracy
     threshold_feasibility::Float64 = 0.15              # Minimum feas_ratio

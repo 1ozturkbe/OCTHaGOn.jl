@@ -47,15 +47,17 @@ end
 # Importing sagebenchmark to ModelData and checking it
 @test test_sagemark_to_ModelData()
 md = OCT.sagemark_to_ModelData(3, lse=false);
-md.lbs[:x4] = -300;
-md.ubs[:x4] = -0;
-# Fitting ModelData, creating and solving a JuMP.Model
-# trees = OCT.fit!(md, n_samples = 200, lnr = OCT.base_otc(),
-#                                dir=string("test/data/", md.name));
-# OCT.jump_it!(md);
-# OCT.add_tree_constraints!(md.JuMP_model, md.JuMP_vars, trees);
-# status = solve(md.JuMP_model);
-# println("Solved minimum: ", sum(md.c .* getvalue(md.JuMP_vars)))
-# println("Known global bound: ", -147-2/3)
-# println("X values: ", getvalue(md.JuMP_vars))
-# println("Optimal X: ", vcat(exp.([5.01063529, 3.40119660, -0.48450710]), [-147-2/3]))
+OCT.update_bounds!(md, lbs = Dict(:x4 => -300), ubs = Dict(:x4 => 0))
+
+# Fitting all fns, and solving model
+for fn in md.fns
+    fn.n_samples = 1500;
+    OCT.sample_and_eval!(fn);
+    OCT.learn_constraint!(fn);
+    println("Accuracy:", fn.accuracies[end])
+end
+OCT.jump_it!(md);
+OCT.add_tree_constraints!(md)
+status = solve(md.JuMP_model);
+println("X values: ", getvalue(md.JuMP_vars))
+println("Optimal X: ", vcat(exp.([5.01063529, 3.40119660, -0.48450710]), [-147-2/3]))
