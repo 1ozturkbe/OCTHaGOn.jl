@@ -138,10 +138,13 @@ end
 
 function alphac_to_fn(alpha, c; lse=false)
     n_terms, n_vars = size(alpha)
+    idxs = unique([i[2] for i in findall(i->i != 0, alpha)]);
+    alpha = alpha[:,idxs];
+    vks = [Symbol("x", i) for i in idxs];
     if lse
-        x -> sum([c[i]*exp(sum([alpha[i,j]*x[j] for j=1:n_vars])) for i=1:n_terms])
+        x -> sum([c[i]*exp(sum([alpha[i,j]*x[vks[j]] for j=1:length(vks)])) for i=1:n_terms])
     else
-        x -> sum([c[i]*prod([x[j]^alpha[i,j] for j=1:n_vars]) for i=1:n_terms])
+        x -> sum([c[i]*prod([x[vks[j]]^alpha[i,j] for j=1:length(vks)]) for i=1:n_terms])
     end
 end
 
@@ -161,24 +164,19 @@ function sagemark_to_ModelData(idx; lse=false)
     # Turning objective into constraint
     c = zeros(n_vars); c[end] = 1;
     md = ModelData(name = string("sagemark", idx), c = c);
-    lbs = -Inf*ones(n_vars);
-    ubs = Inf*ones(n_vars);
-    update_bounds!(md, lbs, ubs);
     obj_c = vcat(-1 .* f.c, [1]);
-    obj_alpha = vcat(-1 .* f.alpha, zeros(size(f.alpha,2))');
+    obj_alpha = vcat(f.alpha, zeros(size(f.alpha,2))');
     obj_alpha = hcat(obj_alpha, zeros(length(obj_c)));
     obj_alpha[end, end] = 1;
-    obj_constr = alphac_to_fn(obj_alpha, obj_c, lse=lse)
-    idxs = unique([i[2] for i in findall(i->i != 0, obj_alpha)]);
-    add_fn!(md, BlackBoxFn(fn = obj_constr, idxs=idxs));
+    obj_fn = alphac_to_fn(obj_alpha, obj_c, lse=lse);
+    add_fn!(md, BlackBoxFn(fn = obj_fn, vks = obj_fn.vks));
     # Bound initialization
     for i=1:length(greaters)
         alpha = hcat(greaters[i].alpha, zeros(size(greaters[i].alpha,1)));
         c = greaters[i].c;
-        local idxs = findall(x->x!=0, alpha);
-        if size(idxs, 1) > 1
-            add_fn!(md, BlackBoxFn(fn = alphac_to_fn(alpha, c, lse=lse),
-                                   idxs = unique([i[2] for i in idxs])));
+        constr_fn = alphac_to_fn(alpha, c, lse=lse);
+        if length(constr_fn.vks) > 1
+            add_fn!(md, BlackBoxFn(fn = constr_fn, vks = constr_fn.vks));
             if sum(float(c .>= zeros(length(c)))) == 1
                 if lse
                     push!(md.fns[end].tags, "convex")
@@ -187,25 +185,25 @@ function sagemark_to_ModelData(idx; lse=false)
                 end
             end
         else
-            val = -((sum(c)-c[idxs[1][1]]) / c[idxs[1][1]])^(1/alpha[idxs[1]]);
+            idx = unique([i for i in findall(i->i != 0, alpha)])[1]; #idx[1] is monomial index,
+            vk = md.vks[idx[2]];                                     #idx[2] is variable index.
+            val = -((sum(c)-c[idx[1]]) / c[idx[1]])^(1/alpha[idx]);
             if lse
                 val=log(val)
             end
-            if c[idxs[1][1]] <= 0 && (ismissing(ubs[idxs[1][2]]) || ubs[idxs[1][2]] >= val)
-                ubs[idxs[1][2]] = val;
-            elseif ismissing(lbs[idxs[1][2]]) || lbs[idxs[1][2]] <= val
-                lbs[idxs[1][2]] = val;
+            if c[idx[1]] <= 0
+                update_bounds!(md, ubs = Dict(md.vks[idx[2]] => val));
+            else
+                update_bounds!(md, lbs = Dict(md.vks[idx[2]] => val));
             end
         end
     end
     for i=1:length(equals)
         alpha = hcat(equals[i].alpha, zeros(size(equals[i].alpha,1)));
-        idxs = findall(x->x!=0, alpha);
-        add_fn!(md, BlackBoxFn(fn = alphac_to_fn(alpha, c, lse=lse),
-                               idxs = unique([i[2] for i in idxs]),
-                               equality = true));
+        c = equals[i].c;
+        constr_fn = alphac_to_fn(alpha, c, lse=lse);
+        add_fn!(md, BlackBoxFn(fn = constr_fn, vks = constr_fn.vks, equality = true));
     end
-    update_bounds!(md, lbs, ubs);
     return md
 end
 

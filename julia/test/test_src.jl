@@ -52,7 +52,7 @@ md.name = "shortfall_20_15"
 OCT.find_bounds!(md, all_bounds = true);
 
 # # Test sampling
-n_samples = 100;
+n_samples = 500;
 X = OCT.sample(md, n_samples=n_samples);
 #
 # # # Testing constraint import.
@@ -72,8 +72,11 @@ end
 Y2 = [constr_fn(Array(X[j,var_idxs])) for j=1:n_samples];
 @test Y == Y2;
 
-# Testing fit
-OCT.jump_it!(md, solver=GurobiSolver());
+# Testing fitting of a difficult function
+bbf = md.fns[1];
+OCT.eval!(bbf, X);
+OCT.optimize_gp!(bbf);
+OCT.sample_and_eval!(bbf);
 
 # trees = OCT.fit!(md);
 # @test_throws OCT.OCTException OCT.add_tree_constraints!(md.JuMP_model, md.JuMP_vars, trees)
