@@ -51,11 +51,11 @@ md = OCT.CBF_to_ModelData(filename);
 md.name = "shortfall_20_15"
 OCT.find_bounds!(md, all_bounds = true);
 
-# # Test sampling
+# Test sampling
 n_samples = 500;
 X = OCT.sample(md, n_samples=n_samples);
 #
-# # # Testing constraint import.
+# Testing constraint import.
 bbf = md.fns[1];
 Y = md.fns[1](X);
 using ConicBenchmarkUtilities
@@ -78,7 +78,6 @@ OCT.eval!(bbf, X);
 OCT.optimize_gp!(bbf);
 OCT.sample_and_eval!(bbf);
 
-# trees = OCT.fit!(md);
 # @test_throws OCT.OCTException OCT.add_tree_constraints!(md.JuMP_model, md.JuMP_vars, trees)
 # status = solve(md.JuMP_model);
 # OCT_vars = getvalue(md.JuMP_vars);

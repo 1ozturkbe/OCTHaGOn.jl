@@ -56,8 +56,9 @@ for fn in md.fns
     OCT.learn_constraint!(fn);
     println("Accuracy:", fn.accuracies[end])
 end
+
 OCT.jump_it!(md);
-OCT.add_tree_constraints!(md)
+OCT.add_tree_constraints!(md);
 status = solve(md.JuMP_model);
 println("X values: ", getvalue(md.JuMP_vars))
 println("Optimal X: ", vcat(exp.([5.01063529, 3.40119660, -0.48450710]), [-147-2/3]))

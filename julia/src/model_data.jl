@@ -128,10 +128,9 @@ function add_linear_constraints!(m::JuMP.Model, x::JuMP.JuMPArray, md::ModelData
     return m
 end
 
-function jump_it!(md::ModelData; solver = GurobiSolver(), trees::Bool = false)
+function jump_it!(md::ModelData; solver = GurobiSolver())
 """
-Creates a JuMP.Model() compatible with ModelData.
-trees boolean dictates whether tree constraints should be included.
+Creates a JuMP.Model() from the linear constraints of ModelData.
 """
     m = Model(solver=solver);
     @variable(m, x[vk in md.vks])
@@ -148,6 +147,7 @@ trees boolean dictates whether tree constraints should be included.
 end
 
 function find_bounds!(md::ModelData; solver=GurobiSolver(), all_bounds=true)
+
     if isnothing(md.JuMP_model)
         jump_it!(md, solver=solver, trees = false)
     end

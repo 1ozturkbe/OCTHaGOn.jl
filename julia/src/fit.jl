@@ -39,10 +39,12 @@ function learn_from_data!(X::DataFrame, Y::AbstractArray, grid; idxs::Union{Noth
 end
 
 function feasibility_check(bbf::BlackBoxFn)
+    """ Checks that a BlackBoxFn has enough feasible/infeasible samples. """
     return bbf.feas_ratio >= bbf.threshold_feasibility && bbf.feas_ratio <= 1 - bbf.threshold_feasibility
 end
 
 function accuracy_check(bbf::BlackBoxFn)
+    """ Checks that a BlackBoxFn.learner has adequate accuracy."""
     return bbf.accuracies[end] >= bbf.threshold_accuracy
 end
 
@@ -77,32 +79,4 @@ function learn_constraint!(bbf::BlackBoxFn; lnr::IAI.OptimalTreeLearner = base_o
         IAI.write_json(string(dir, bbf.name, "_tree_", length(bbf.learners), ".json"),
                            bbf.learners[end]);
     end
-end
-
-function fit!(md::ModelData; X::Union{Array, Nothing} = nothing,
-                            n_samples = 1000, jump_model::Union{JuMP.Model, Nothing} = nothing,
-                            lnr::IAI.Learner=base_otc(),
-                            weights::Union{Array, Symbol} = :autobalance, dir::String = "-",
-                            validation_criterion::Symbol = :misclassification,
-                            return_samples = false)
-    """ Fits a provided function model with feasibility and obj f'n fits and
-        saves the learners.
-    """
-    if isnothing(X)
-        X = sample(md, n_samples=n_samples);
-    else
-       n_samples = size(X, 1);
-    end
-    n_features = length(md.c);
-    trees, X = learn_constraints!(lnr, md.fns, X, weights = weights,
-                                    validation_criterion=validation_criterion,
-                                    return_samples=true);
-
-    if dir != "-"
-        for i=1:size(trees, 1)
-            IAI.write_json(string(dir, "_tree_", i, ".json"),
-                           trees[i]);
-        end
-    end
-    return trees
 end

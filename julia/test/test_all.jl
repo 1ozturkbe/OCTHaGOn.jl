@@ -19,7 +19,7 @@ using Test
 
     include("test_src.jl")
 
-#     include("test_tools.jl")
+    include("test_tools.jl")
 
     include("test/test_bbf.jl")
 
