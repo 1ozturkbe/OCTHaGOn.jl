@@ -10,16 +10,16 @@ using GaussianProcesses
 include("black_box_function.jl")
 include("exceptions.jl")
 
-function plot(bbf::BlackBoxFn)
-    """ Plots a BlackBoxFn, which is either a 2D scatter plot or a 2D Gaussian Process. """
+function plot(bbf::BlackBoxFunction)
+    """ Plots a BlackBoxFunction, which is either a 2D scatter plot or a 2D Gaussian Process. """
     if !isnothing(bbf.gp)
         if bbf.gp.dim > 1
-            throw(OCTException("plot(BlackBoxFn) only works in 2D."))
+            throw(OCTException("plot(BlackBoxFunction) only works in 2D."))
         end
         Plots.plot(bbf.gp, legend=false, fmt=:png)
     else
         if size(bbf.X, 2) > 1
-            throw(OCTException("plot(BlackBoxFn) only works in 2D."))
+            throw(OCTException("plot(BlackBoxFunction) only works in 2D."))
         end
         scatter(Matrix(bbf.X), bbf.Y, legend=false, fmt=:png)
     end

@@ -3,7 +3,7 @@ test_bbf:
 - Julia version: 
 - Author: Berk
 - Date: 2020-07-27
-Tests BlackBoxFn and its functions, including GaussianProcesses
+Tests BlackBoxFunction and its functions, including GaussianProcesses
 =#
 using DataFrames
 using Test
@@ -14,7 +14,7 @@ include("../src/OptimalConstraintTree.jl")
 global OCT = OptimalConstraintTree;
 global PROJECT_ROOT = @__DIR__
 
-bbf = OCT.BlackBoxFn(fn = x -> x[:x1] + x[:x3]^3,
+bbf = OCT.BlackBoxFunction(fn = x -> x[:x1] + x[:x3]^3,
                     vks = [:x1, :x3], n_samples = 50);
 
 # Check evaluation of samples from Dict, DataFrameRow and DataFrame
@@ -45,7 +45,7 @@ OCT.update_bounds!(bbf, lbs=lbs);
 @test bbf.ubs[:x1] == 5;
 
 # Check sampling and plotting in 1D
-bbf = OCT.BlackBoxFn(fn = x -> x[:x1]^2 * sin(x[:x1]) + 2,
+bbf = OCT.BlackBoxFunction(fn = x -> x[:x1]^2 * sin(x[:x1]) + 2,
                      vks = [:x1], lbs = Dict(:x1 => -5), ubs = Dict(:x1 => 5),
                     n_samples = 20);
 OCT.sample_and_eval!(bbf);

@@ -52,7 +52,7 @@ println("Knapsack_JuMP picks: ", getvalue(strict_jm[:x]));
 # TRAIN ONLY OVER X
 # Hyperplanes with sparsity
 n_samples = 5000;
-bbf =  OCT.BlackBoxFn(fn = x -> b - sum(a*x));
+bbf =  OCT.BlackBoxFunction(fn = x -> b - sum(a*x));
 dists = [Binomial(1) for i=1:n];
 X = reduce(hcat,[rand(dists[i],n_samples) for i=1:n]);
 lnr = OCT.base_otc();

@@ -2,6 +2,7 @@ using Gurobi
 using JuMP
 using MathOptInterface
 using MosekTools
+using NearestNeighbors
 using LatinHypercubeSampling
 using Parameters
 using SparseArrays
@@ -17,7 +18,7 @@ Contains all required info to be able to generate a global optimization problem.
 """
     name::String = "Model"                                 # Example name
     c::Array                                               # Cost vector
-    fns::Array{BlackBoxFn} = Array{BlackBoxFn}[]           # Black box (>/= 0) functions
+    fns::Array{BlackBoxFunction} = Array{BlackBoxFunction}[]           # Black box (>/= 0) functions
     ineqs_A::Array = SparseMatrixCSC[]                     # Linear inequality A vector, in b-Ax>=0
     ineqs_b::Array = Array[]                               # Linear inequality b
     eqs_A::Array = SparseMatrixCSC[]                       # Linear equality A vector, in b-Ax=0
@@ -30,7 +31,7 @@ Contains all required info to be able to generate a global optimization problem.
     JuMP_vars::Union{JuMP.JuMPArray, Nothing} = nothing    # JuMP variables
 end
 
-function add_fn!(md::ModelData, bbf::BlackBoxFn)
+function add_fn!(md::ModelData, bbf::BlackBoxFunction)
     update_bounds!(bbf, lbs = md.lbs, ubs = md.ubs)
     update_bounds!(md, lbs = bbf.lbs, ubs = bbf.ubs) # TODO: optimize
     push!(md.fns, bbf)
@@ -74,11 +75,11 @@ function get_min(a,b)
     return minimum([a,b])
 end
 
-function update_bounds!(md::Union{ModelData, BlackBoxFn};
+function update_bounds!(md::Union{ModelData, BlackBoxFunction};
                         lbs::Dict{Symbol, <:Real} = Dict{Symbol, Float64}(),
                         ubs::Dict{Symbol, <:Real} = Dict{Symbol, Float64}())
-    """ Updates the outer bounds of ModelData and its BlackBoxFns, or the bounds
-    of a single BlackBoxFn. """
+    """ Updates the outer bounds of ModelData and its BlackBoxFunctions, or the bounds
+    of a single BlackBoxFunction. """
     nlbs = merge(get_max, md.lbs, lbs);
     nubs = merge(get_min, md.ubs, ubs)
     if any([nlbs[vk] .> nubs[vk] for vk in md.vks])
@@ -95,7 +96,7 @@ function update_bounds!(md::Union{ModelData, BlackBoxFn};
     return
 end
 
-function sample(md::Union{ModelData,BlackBoxFn}; n_samples=1000)
+function sample(md::Union{ModelData,BlackBoxFunction}; n_samples=1000)
 """
 Uniformly samples the variables of ModelData, as long as all
 lbs and ubs are defined.
@@ -149,7 +150,7 @@ end
 function find_bounds!(md::ModelData; solver=GurobiSolver(), all_bounds=true)
 
     if isnothing(md.JuMP_model)
-        jump_it!(md, solver=solver, trees = false)
+        jump_it!(md, solver=solver)
     end
     ubs = Dict(md.vks .=> Inf)
     lbs = Dict(md.vks .=> -Inf)

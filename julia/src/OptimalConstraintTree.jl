@@ -11,13 +11,14 @@ module OptimalConstraintTree
     include("learners.jl")
     include("model_data.jl")
     include("plot.jl")
+    include("root_finding.jl")
     include("tools.jl")
 
            # Structs
-    export ModelData, BlackBoxFn,
+    export ModelData, BlackBoxFunction,
            # Functions on IAI objects
            gridify, learn_constraints!, learn_from_data!, find_bounds!,
-           # Functions on BlackBoxFns
+           # Functions on BlackBoxFunctions
            eval!, sample_and_eval!, plot, learn_constraint!,
            add_fn!, add_linear_ineq!, add_linear_eq!,
            # Functions on JuMP.Models

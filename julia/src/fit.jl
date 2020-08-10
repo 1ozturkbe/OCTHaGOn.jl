@@ -38,25 +38,25 @@ function learn_from_data!(X::DataFrame, Y::AbstractArray, grid; idxs::Union{Noth
     return grid
 end
 
-function feasibility_check(bbf::BlackBoxFn)
-    """ Checks that a BlackBoxFn has enough feasible/infeasible samples. """
+function feasibility_check(bbf::BlackBoxFunction)
+    """ Checks that a BlackBoxFunction has enough feasible/infeasible samples. """
     return bbf.feas_ratio >= bbf.threshold_feasibility && bbf.feas_ratio <= 1 - bbf.threshold_feasibility
 end
 
-function accuracy_check(bbf::BlackBoxFn)
-    """ Checks that a BlackBoxFn.learner has adequate accuracy."""
+function accuracy_check(bbf::BlackBoxFunction)
+    """ Checks that a BlackBoxFunction.learner has adequate accuracy."""
     return bbf.accuracies[end] >= bbf.threshold_accuracy
 end
 
-function learn_constraint!(bbf::BlackBoxFn; lnr::IAI.OptimalTreeLearner = base_otc(),
+function learn_constraint!(bbf::BlackBoxFunction; lnr::IAI.OptimalTreeLearner = base_otc(),
                                                 weights::Union{Array, Symbol} = :autobalance, dir::String = "-",
                                                 validation_criterion=:misclassification)
     """
-    Return a constraint tree from a BlackBoxFn.
+    Return a constraint tree from a BlackBoxFunction.
     Arguments:
         lnr: Unfit OptimalTreeClassifier or Grid
-        constraint: BlackBoxFn in std form (>= 0)
-        X: new data to add to BlackBoxFn and evaluate
+        constraint: BlackBoxFunction in std form (>= 0)
+        X: new data to add to BlackBoxFunction and evaluate
     Returns:
         lnr: Fitted Grid
     """
@@ -79,4 +79,13 @@ function learn_constraint!(bbf::BlackBoxFn; lnr::IAI.OptimalTreeLearner = base_o
         IAI.write_json(string(dir, bbf.name, "_tree_", length(bbf.learners), ".json"),
                            bbf.learners[end]);
     end
+end
+
+function regress(points::DataFrame, values::Array; weights = Union{Array, Nothing} = nothing)
+    lnr= IAI.OptimalFeatureSelectionRegressor(sparsity = :all); # TODO: optimize regression method.
+    if isnothing(weights)
+        weights = ones(length(values));
+    end
+    IAI.fit!(lnr, points, values, sample_weight=weights)
+    return lnr
 end

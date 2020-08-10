@@ -7,14 +7,14 @@ sample_data:
 
 using DataFrames
 using Distributions
-using Parameters
 using GaussianProcesses
-using Plots
+using NearestNeighbors
+using Parameters
 
 include("exceptions.jl")
 include("learners.jl")
 
-@with_kw mutable struct BlackBoxFn
+@with_kw mutable struct BlackBoxFunction
 """
 Contains all required info to be able to generate a global optimization problem.
 """
@@ -34,20 +34,21 @@ Contains all required info to be able to generate a global optimization problem.
     threshold_accuracy::Float64 = 0.95                 # Minimum tree accuracy
     threshold_feasibility::Float64 = 0.15              # Minimum feas_ratio
     n_samples::Int = 100                               # For next set of samples.
+    knn_tree::Union{KDTree, Nothing} = nothing         # KNN tree
     tags::Array{String} = []                           # Other tags
 end
 
-function (bbf::BlackBoxFn)(x::Union{DataFrame,Dict,DataFrameRow})
+function (bbf::BlackBoxFunction)(x::Union{DataFrame,Dict,DataFrameRow})
     if isa(x, Union{DataFrameRow, Dict})
         return bbf.fn(x);
     elseif isa(x, DataFrame)
         return [bbf.fn(x[i,:]) for i=1:size(x,1)]
     else
-        throw(OCT.OCTException("This datatype is not supported for BlackBoxFn evaluation."))
+        throw(OCT.OCTException("This datatype is not supported for BlackBoxFunction evaluation."))
     end
 end
 
-function eval!(bbf::BlackBoxFn, X::DataFrame)
+function eval!(bbf::BlackBoxFunction, X::DataFrame)
     if isnothing(bbf.X)
         bbf.X = X[:, bbf.vks];
         bbf.Y = bbf(X);
@@ -61,13 +62,13 @@ function eval!(bbf::BlackBoxFn, X::DataFrame)
     return
 end
 
-function predict(bbf::BlackBoxFn, X::AbstractArray)
+function predict(bbf::BlackBoxFunction, X::AbstractArray)
     μ, σ = predict_f(bbf.gp, transpose(X))
     return μ, σ
 end
 
-function optimize_gp!(bbf::BlackBoxFn)
-    """ Optimizes a GaussianProcess over a BlackBoxFn,
+function optimize_gp!(bbf::BlackBoxFunction)
+    """ Optimizes a GaussianProcess over a BlackBoxFunction,
     with adaptively changing kernel. """
 #         bbf.gp = ElasticGPE(length(bbf.idxs), # data
 #         mean = MeanConst(sum(bbf.Y)/length(bbf.Y)), logNoise = -10)
@@ -82,9 +83,9 @@ function optimize_gp!(bbf::BlackBoxFn)
 end
 
 
-function sample_and_eval!(bbf::BlackBoxFn;
+function sample_and_eval!(bbf::BlackBoxFunction;
                           ratio=10.)
-    """ Samples and evaluates BlackBoxFn, with n_samples new samples.
+    """ Samples and evaluates BlackBoxFunction, with n_samples new samples.
     ratio*n_samples is how many random LHC samples are generated for prediction from GP. """
     vks = bbf.vks;
     n_dims = length(vks);

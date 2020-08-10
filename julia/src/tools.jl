@@ -82,7 +82,7 @@ function CBF_to_ModelData(filename; epsilon=1e-20)
                     return expr[1].^2 - sum(expr[2:end].^2);
                 end
             end
-            add_fn!(md, BlackBoxFn(fn = constr_fn, vks = vks));
+            add_fn!(md, BlackBoxFunction(fn = constr_fn, vks = vks));
             l[var_idxs[1]] = maximum([l[var_idxs[1]], 0]);
         elseif cone == :SOCRotated
             constr_fn = let b = b[idxs], A = A[idxs, var_idxs], vks = vks
@@ -92,7 +92,7 @@ function CBF_to_ModelData(filename; epsilon=1e-20)
                     return expr[1]*expr[2] - sum(expr[3:end].^2)
                 end
             end
-            add_fn!(md, BlackBoxFn(fn = constr_fn, vks = vks));
+            add_fn!(md, BlackBoxFunction(fn = constr_fn, vks = vks));
             l[var_idxs[1]] = maximum([l[var_idxs[1]], 0]);
             l[var_idxs[2]] = maximum([l[var_idxs[2]], 0]);
         elseif cone == :ExpPrimal
@@ -103,7 +103,7 @@ function CBF_to_ModelData(filename; epsilon=1e-20)
                     return z - y*exp(x/y)
                 end
             end
-            add_fn!(md, BlackBoxFn(fn = constr_fn, vks = vks));
+            add_fn!(md, BlackBoxFunction(fn = constr_fn, vks = vks));
             l[var_idxs[2]] = maximum([l[var_idxs[2]], epsilon]);
         elseif cone == :ExpDual
             constr_fn = let b = b[idxs], A = A[idxs, var_idxs], vks = vks
@@ -119,7 +119,7 @@ function CBF_to_ModelData(filename; epsilon=1e-20)
                     end
                 end
             end
-            add_fn!(md, BlackBoxFn(fn = constr_fn, vks = vks));
+            add_fn!(md, BlackBoxFunction(fn = constr_fn, vks = vks));
             u[var_idxs[1]] = minimum([u[var_idxs[1]], 0]);
             l[var_idxs[3]] = maximum([l[var_idxs[3]], 0]);
         elseif cone in [:SDP]
@@ -169,14 +169,14 @@ function sagemark_to_ModelData(idx; lse=false)
     obj_alpha = hcat(obj_alpha, zeros(length(obj_c)));
     obj_alpha[end, end] = 1;
     obj_fn = alphac_to_fn(obj_alpha, obj_c, lse=lse);
-    add_fn!(md, BlackBoxFn(fn = obj_fn, vks = obj_fn.vks));
+    add_fn!(md, BlackBoxFunction(fn = obj_fn, vks = obj_fn.vks));
     # Bound initialization
     for i=1:length(greaters)
         alpha = hcat(greaters[i].alpha, zeros(size(greaters[i].alpha,1)));
         c = greaters[i].c;
         constr_fn = alphac_to_fn(alpha, c, lse=lse);
         if length(constr_fn.vks) > 1
-            add_fn!(md, BlackBoxFn(fn = constr_fn, vks = constr_fn.vks));
+            add_fn!(md, BlackBoxFunction(fn = constr_fn, vks = constr_fn.vks));
             if sum(float(c .>= zeros(length(c)))) == 1
                 if lse
                     push!(md.fns[end].tags, "convex")
@@ -202,7 +202,7 @@ function sagemark_to_ModelData(idx; lse=false)
         alpha = hcat(equals[i].alpha, zeros(size(equals[i].alpha,1)));
         c = equals[i].c;
         constr_fn = alphac_to_fn(alpha, c, lse=lse);
-        add_fn!(md, BlackBoxFn(fn = constr_fn, vks = constr_fn.vks, equality = true));
+        add_fn!(md, BlackBoxFunction(fn = constr_fn, vks = constr_fn.vks, equality = true));
     end
     return md
 end
