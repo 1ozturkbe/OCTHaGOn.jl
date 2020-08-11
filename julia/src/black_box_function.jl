@@ -82,34 +82,3 @@ function optimize_gp!(bbf::BlackBoxFunction)
                        # how to update.
 end
 
-
-function sample_and_eval!(bbf::BlackBoxFunction;
-                          ratio=10.)
-    """ Samples and evaluates BlackBoxFunction, with n_samples new samples.
-    ratio*n_samples is how many random LHC samples are generated for prediction from GP. """
-    vks = bbf.vks;
-    n_dims = length(vks);
-    if isnothing(bbf.gp) # If we don't have any GPs yet, uniform sample.
-       plan, _ = LHCoptim(bbf.n_samples, n_dims, 3);
-       if any(isinf.(values(bbf.lbs))) || any(isinf.(values(bbf.ubs)))
-           throw(OCTException("Model is not properly bounded."))
-       end
-       df = DataFrame(scaleLHC(plan,[(bbf.lbs[i], bbf.ubs[i]) for i in vks]), vks);
-       eval!(bbf, df);
-    else
-        plan = randomLHC(Int(round(bbf.n_samples*ratio)), n_dims);
-        random_samples = scaleLHC(plan,[(bbf.lbs[i], bbf.ubs[i]) for i in vks]);
-        μ, σ = predict_f(bbf.gp, random_samples');
-        cdf_0 = [Distributions.cdf(Distributions.Normal(μ[i], σ[i]),0) for i=1:size(random_samples,1)];
-         #TODO: add criterion for information as well (something like sortperm(σ))
-        # Sample places with high probability of being near boundary (0),
-        # but also balance feasibility ratio.
-        p = bbf.feas_ratio
-#         balance_fn = x -> -1*tan(2*atan(-0.5)*(x-0.5)) + 0.5
-        balance_fn = x -> -1/0.5^2*(x-0.5)^3 + 0.5;
-        indices = sortperm(abs.(cdf_0 .- balance_fn(p)));
-        samples = DataFrame(random_samples[indices[1:bbf.n_samples],:], vks);
-        eval!(bbf, samples);
-    end
-    return
-end

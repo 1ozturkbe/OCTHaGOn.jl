@@ -63,8 +63,5 @@ end
 md = speed_reducer()
 
 # Initial sampling
-for bbf in md.fns
-    bbf.n_samples = 200;
-    OCT.sample_and_eval!(bbf);
-    println("Constraint ", bbf.name, " feasibility ratio: ", bbf.feas_ratio)
-end
+OCT.sample_and_eval!(md, n_samples=200, iterations=2)
+println("Constraint feasibilities: ", [fn.feas_ratio for fn in md.fns])

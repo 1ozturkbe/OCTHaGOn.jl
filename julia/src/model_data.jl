@@ -128,6 +128,47 @@ lbs and ubs are defined.
    return DataFrame(X, md.vks)
 end
 
+function sample_and_eval!(bbf::Union{BlackBoxFunction, ModelData};
+                          n_samples = Union{Int64, Nothing} = nothing,
+                          iterations::Int64 = 3,
+                          ratio=10.)
+    """ Samples and evaluates BlackBoxFunction, with n_samples new samples.
+    n_samples overwrites the bbf.n_samples.
+    iterations is the number of GA populations for LHC sampling (0 is a random LH.)
+    If there is an optimized gp, ratio*n_samples is how many random LHC samples are generated
+    for prediction from GP. """
+    if isa(bbf, ModelData)
+        for fn in bbf.fns
+            sample_and_eval!(fn, n_samples = n_samples, iterations = iterations, ratio = ratio);
+        end
+        return
+    end
+    if !isnothing(n_samples)
+        bbf.n_samples = n_samples
+    end
+    vks = bbf.vks;
+    n_dims = length(vks);
+    if isnothing(bbf.gp) # If we don't have any GPs yet, uniform sample.
+       df = sample(bbf, iterations = iterations, n_samples = bbf.n_samples)
+       eval!(bbf, df);
+    else
+        plan = randomLHC(Int(round(bbf.n_samples*ratio)), n_dims);
+        random_samples = scaleLHC(plan,[(bbf.lbs[i], bbf.ubs[i]) for i in vks]);
+        μ, σ = predict_f(bbf.gp, random_samples');
+        cdf_0 = [Distributions.cdf(Distributions.Normal(μ[i], σ[i]),0) for i=1:size(random_samples,1)];
+         #TODO: add criterion for information as well (something like sortperm(σ))
+        # Sample places with high probability of being near boundary (0),
+        # but also balance feasibility ratio.
+        p = bbf.feas_ratio
+#         balance_fn = x -> -1*tan(2*atan(-0.5)*(x-0.5)) + 0.5
+        balance_fn = x -> -1/0.5^2*(x-0.5)^3 + 0.5;
+        indices = sortperm(abs.(cdf_0 .- balance_fn(p)));
+        samples = DataFrame(random_samples[indices[1:bbf.n_samples],:], vks);
+        eval!(bbf, samples);
+    end
+    return
+end
+
 function add_bounds!(m::JuMP.Model, x::JuMP.JuMPArray, md::Union{ModelData, BlackBoxFunction})
     """Adds outer bounds to JuMP Model from ModelData.lbs/ubs. """
     for vk in md.vks
