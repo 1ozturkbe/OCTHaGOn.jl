@@ -50,7 +50,8 @@ end
 
 function learn_constraint!(bbf::BlackBoxFunction; lnr::IAI.OptimalTreeLearner = base_otc(),
                                                 weights::Union{Array, Symbol} = :autobalance, dir::String = "-",
-                                                validation_criterion=:misclassification)
+                                                validation_criterion=:misclassification,
+                                                ignore_checks::Bool = false)
     """
     Return a constraint tree from a BlackBoxFunction.
     Arguments:
@@ -64,7 +65,7 @@ function learn_constraint!(bbf::BlackBoxFunction; lnr::IAI.OptimalTreeLearner = 
         sample_and_eval!(bbf)
     end
     n_samples, n_features = size(bbf.X)
-    if feasibility_check(bbf)
+    if feasibility_check(bbf) || ignore_checks
         # TODO: optimize Matrix/DataFrame conversion. Perhaps change the choice.
         nl = learn_from_data!(bbf.X, bbf.Y .>= 0,
                               gridify(lnr),
@@ -81,7 +82,7 @@ function learn_constraint!(bbf::BlackBoxFunction; lnr::IAI.OptimalTreeLearner = 
     end
 end
 
-function regress(points::DataFrame, values::Array; weights = Union{Array, Nothing} = nothing)
+function regress(points::DataFrame, values::Array; weights::Union{Array, Nothing} = nothing)
     lnr= IAI.OptimalFeatureSelectionRegressor(sparsity = :all); # TODO: optimize regression method.
     if isnothing(weights)
         weights = ones(length(values));
