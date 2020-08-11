@@ -31,6 +31,20 @@ Contains all required info to be able to generate a global optimization problem.
     JuMP_vars::Union{JuMP.JuMPArray, Nothing} = nothing    # JuMP variables
 end
 
+function (md::ModelData)(name::Union{String, Int64})
+    fn_names = getfield.(md.fns, :name);
+    fns = md.fns[findall(x -> x == name, fn_names)];
+    if length(fns) == 1
+        return fns[1]
+    elseif length(fns) == 0
+        @warn("No constraint with name ", name)
+        return
+    else
+        @warn("Multiple constraints with name ", name)
+        return fns
+    end
+end
+
 function add_fn!(md::ModelData, bbf::BlackBoxFunction)
     update_bounds!(bbf, lbs = md.lbs, ubs = md.ubs)
     update_bounds!(md, lbs = bbf.lbs, ubs = bbf.ubs) # TODO: optimize
