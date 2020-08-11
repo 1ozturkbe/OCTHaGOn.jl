@@ -34,6 +34,9 @@ end
 function add_fn!(md::ModelData, bbf::BlackBoxFunction)
     update_bounds!(bbf, lbs = md.lbs, ubs = md.ubs)
     update_bounds!(md, lbs = bbf.lbs, ubs = bbf.ubs) # TODO: optimize
+    if bbf.name == ""
+        bbf.name = length(md.fns)+1;
+    end
     push!(md.fns, bbf)
 end
 
@@ -96,28 +99,23 @@ function update_bounds!(md::Union{ModelData, BlackBoxFunction};
     return
 end
 
-function sample(md::Union{ModelData,BlackBoxFunction}; n_samples=1000)
+function sample(md::Union{ModelData,BlackBoxFunction}; iterations::Int64 = 3,
+                n_samples::Int64 = 1000)
 """
 Uniformly samples the variables of ModelData, as long as all
 lbs and ubs are defined.
 """
-   n_dims = length(md.vks)
-   plan, _ = LHCoptim(n_samples, n_dims, 3);
    if any(isinf.(values(md.lbs))) || any(isinf.(values(md.ubs)))
        throw(OCTException("Model is not properly bounded."))
    end
+   n_dims = length(md.vks)
+   plan, _ = LHCoptim(n_samples, n_dims, iterations);
    X = scaleLHC(plan,[(md.lbs[vk], md.ubs[vk]) for vk in md.vks]);
    return DataFrame(X, md.vks)
 end
 
-function add_linear_constraints!(m::JuMP.Model, x::JuMP.JuMPArray, md::ModelData)
-    var_list = [x[vk] for vk in md.vks]
-    for i=1:length(md.eqs_b)
-        @constraint(m, md.eqs_b[i] - md.eqs_A[i] * var_list .== 0);
-    end
-    for i=1:length(md.ineqs_b)
-        @constraint(m, md.ineqs_b[i] .- md.ineqs_A[i] * var_list .>= 0);
-    end
+function add_bounds!(m::JuMP.Model, x::JuMP.JuMPArray, md::Union{ModelData, BlackBoxFunction})
+    """Adds outer bounds to JuMP Model from ModelData.lbs/ubs. """
     for vk in md.vks
         if !isinf(md.lbs[vk])
             @constraint(m, x[vk] >= md.lbs[vk])
@@ -126,6 +124,19 @@ function add_linear_constraints!(m::JuMP.Model, x::JuMP.JuMPArray, md::ModelData
             @constraint(m, x[vk] <= md.ubs[vk])
         end
     end
+    return
+end
+
+function add_linear_constraints!(m::JuMP.Model, x::JuMP.JuMPArray, md::ModelData)
+    """Adds all linear constraints from ModelData into a JuMP.Model."""
+    var_list = [x[vk] for vk in md.vks]
+    for i=1:length(md.eqs_b)
+        @constraint(m, md.eqs_b[i] - md.eqs_A[i] * var_list .== 0);
+    end
+    for i=1:length(md.ineqs_b)
+        @constraint(m, md.ineqs_b[i] .- md.ineqs_A[i] * var_list .>= 0);
+    end
+    add_bounds!(m, x, md);
     return m
 end
 
