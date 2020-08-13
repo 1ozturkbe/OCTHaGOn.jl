@@ -134,39 +134,41 @@ function choose(big::Int64, small::Int64)
     return Int64(factorial(big) / (factorial(big-small)*factorial(small)))
 end
 
-function boundary_sample(md::Union{BlackBoxFunction};
-                         choosing::Union{Int64, Nothing} = nothing)
-""" *Smartly* samples the constraint along the variable boundaries. """
-    n_vars = length(md.vks)
-    n_comb = 0;
-    if isnothing(choosing)
-        actual_n_comb = 2^n_vars;
-    else
-        actual_n_comb = sum(choose(n_vars, i) for i=1:choosing);
-    end
-    if isa(md, BlackBoxFunction) && actual_n_comb >= md.n_samples
-        @warn("Can't exhaustively sample the boundary of constraint", md.name)
-        actual_n_comb = 2*n_vars+2; # Everything is double because we choose min's and max's
+function boundary_sample(bbf::Union{ModelData,BlackBoxFunction})
+""" *Smartly* samples the constraint along the variable boundaries.
+    NOTE: Because we are sampling symmetrically for lower and upper bounds,
+    the choose coefficient has to be less than ceil(half of number of dims). """
+    n_vars = length(bbf.vks)
+    n_comb = sum(choose(n_vars, i) for i=0:n_vars);
+    nX = DataFrame();
+    if isa(bbf, BlackBoxFunction) && n_comb >= bbf.n_samples
+        @warn("Can't exhaustively sample the boundary of constraint", bbf.name)
+        n_comb = 2*n_vars+2; # Everything is double because we choose min's and max's
         choosing = 1;
-        while actual_n_comb <= md.n_samples
-            global choosing, actual_n_comb
+        while n_comb <= bbf.n_samples
             choosing = choosing + 1;
-            actual_n_comb += 2*choose(n_vars, choosing);
+            n_comb += 2*choose(n_vars, choosing);
         end
         choosing = choosing - 1; # Determined maximum 'choose' coefficient
+        sample_indices = reduce(vcat,collect(combinations(1:n_vars,i)) for i=0:choosing); # Choose 1 and above
+        for i in sample_indices
+            lbs = DataFrame(bbf.lbs); ubs = DataFrame(bbf.ubs);
+            lbs[:, bbf.vks[i]] = ubs[:, bbf.vks[i]];
+            append!(nX, lbs);
+            lbs = DataFrame(bbf.lbs); ubs = DataFrame(bbf.ubs);
+            ubs[:, bbf.vks[i]] = lbs[:, bbf.vks[i]];
+            append!(nX, ubs);
+        end
+        return nX
+    else
+        sample_indices = reduce(vcat,collect(combinations(1:n_vars,i)) for i=0:n_vars); # Choose 1 and above
+        for i in sample_indices
+            lbs = DataFrame(bbf.lbs); ubs = DataFrame(bbf.ubs);
+            lbs[:, bbf.vks[i]] = ubs[:, bbf.vks[i]];
+            append!(nX, lbs);
+        end
+        return nX
     end
-    sample_indices = reduce(vcat,collect(combinations(1:n_vars,i)) for i=1:choosing); # Choose 1 and above
-    nX = DataFrame(md.lbs) # Choose 0s...
-    push!(nX, md.ubs)
-    for i in sample_indices
-        lbs = DataFrame(md.lbs); ubs = DataFrame(md.ubs);
-        lbs[:, md.vks[i]] = ubs[:, md.vks[i]];
-        append!(nX, lbs);
-        lbs = DataFrame(md.lbs); ubs = DataFrame(md.ubs);
-        ubs[:, md.vks[i]] = lbs[:, md.vks[i]];
-        append!(nX, ubs)
-    end
-    return nX
 end
 
 function sample_and_eval!(bbf::Union{BlackBoxFunction, ModelData};

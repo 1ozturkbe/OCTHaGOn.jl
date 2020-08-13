@@ -65,11 +65,19 @@ md = speed_reducer()
 # Initial sampling
 OCT.sample_and_eval!(md, n_samples=200, iterations=1)
 println("Constraint feasibilities: ", [fn.feas_ratio for fn in md.fns])
-feas_names, infeas_names = OCT.fns_by_feasibility(md)
 
+# See if boundary sampling makes a difference for infeasible constraints!
+feas_names, infeas_names = OCT.fns_by_feasibility(md)
 for name in infeas_names
-    bbf = md(name);
-    OCT.build_knn_tree(bbf);
-    idxs, dists = OCT.find_knn(bbf, k=10);
-    class_dict = OCT.classify_patches(bbf, idxs);
+    bbf = md(name)
+    X = OCT.boundary_sample(bbf)
+    OCT.eval!(bbf, X)
 end
+println("Constraint feasibilities: ", [fn.feas_ratio for fn in md.fns])
+
+# for name in infeas_names
+#     bbf = md(name);
+#     OCT.build_knn_tree(bbf);
+#     idxs, dists = OCT.find_knn(bbf, k=10);
+#     class_dict = OCT.classify_patches(bbf, idxs);
+# end
