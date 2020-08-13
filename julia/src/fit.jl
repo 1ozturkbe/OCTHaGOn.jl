@@ -40,12 +40,21 @@ end
 
 function feasibility_check(bbf::BlackBoxFunction)
     """ Checks that a BlackBoxFunction has enough feasible/infeasible samples. """
-    return bbf.feas_ratio >= bbf.threshold_feasibility && bbf.feas_ratio <= 1 - bbf.threshold_feasibility
+    return bbf.feas_ratio >= bbf.threshold_feasibility
 end
 
 function accuracy_check(bbf::BlackBoxFunction)
     """ Checks that a BlackBoxFunction.learner has adequate accuracy."""
     return bbf.accuracies[end] >= bbf.threshold_accuracy
+end
+
+function fns_by_feasibility(md::ModelData)
+    """Classifies and returns names of functions that pass/fail the feasibility check. """
+    arr = [feasibility_check(fn) for fn in md.fns];
+    infeas_idxs = findall(x -> x .== 0, arr);
+    feas_idxs = findall(x -> x .!= 0, arr);
+    names = [fn.name for fn in md.fns];
+    return names[feas_idxs], names[infeas_idxs]
 end
 
 function learn_constraint!(bbf::BlackBoxFunction; lnr::IAI.OptimalTreeLearner = base_otc(),
