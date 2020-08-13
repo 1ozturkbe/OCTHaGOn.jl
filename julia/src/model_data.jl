@@ -1,3 +1,5 @@
+using Combinatorics
+using DataFrames
 using Gurobi
 using JuMP
 using MathOptInterface
@@ -113,10 +115,10 @@ function update_bounds!(md::Union{ModelData, BlackBoxFunction};
     return
 end
 
-function sample(md::Union{ModelData,BlackBoxFunction}; iterations::Int64 = 3,
+function lh_sample(md::Union{ModelData,BlackBoxFunction}; iterations::Int64 = 3,
                 n_samples::Int64 = 1000)
 """
-Uniformly samples the variables of ModelData, as long as all
+Uniformly Latin Hypercube samples the variables of ModelData, as long as all
 lbs and ubs are defined.
 """
    if any(isinf.(values(md.lbs))) || any(isinf.(values(md.ubs)))
@@ -126,6 +128,45 @@ lbs and ubs are defined.
    plan, _ = LHCoptim(n_samples, n_dims, iterations);
    X = scaleLHC(plan,[(md.lbs[vk], md.ubs[vk]) for vk in md.vks]);
    return DataFrame(X, md.vks)
+end
+
+function choose(big::Int64, small::Int64)
+    return Int64(factorial(big) / (factorial(big-small)*factorial(small)))
+end
+
+function boundary_sample(md::Union{BlackBoxFunction};
+                         choosing::Union{Int64, Nothing} = nothing)
+""" *Smartly* samples the constraint along the variable boundaries. """
+    n_vars = length(md.vks)
+    n_comb = 0;
+    if isnothing(choosing)
+        actual_n_comb = 2^n_vars;
+    else
+        actual_n_comb = sum(choose(n_vars, i) for i=1:choosing);
+    end
+    if isa(md, BlackBoxFunction) && actual_n_comb >= md.n_samples
+        @warn("Can't exhaustively sample the boundary of constraint", md.name)
+        actual_n_comb = 2*n_vars+2; # Everything is double because we choose min's and max's
+        choosing = 1;
+        while actual_n_comb <= md.n_samples
+            global choosing, actual_n_comb
+            choosing = choosing + 1;
+            actual_n_comb += 2*choose(n_vars, choosing);
+        end
+        choosing = choosing - 1; # Determined maximum 'choose' coefficient
+    end
+    sample_indices = reduce(vcat,collect(combinations(1:n_vars,i)) for i=1:choosing); # Choose 1 and above
+    nX = DataFrame(md.lbs) # Choose 0s...
+    push!(nX, md.ubs)
+    for i in sample_indices
+        lbs = DataFrame(md.lbs); ubs = DataFrame(md.ubs);
+        lbs[:, md.vks[i]] = ubs[:, md.vks[i]];
+        append!(nX, lbs);
+        lbs = DataFrame(md.lbs); ubs = DataFrame(md.ubs);
+        ubs[:, md.vks[i]] = lbs[:, md.vks[i]];
+        append!(nX, ubs)
+    end
+    return nX
 end
 
 function sample_and_eval!(bbf::Union{BlackBoxFunction, ModelData};
@@ -149,22 +190,23 @@ function sample_and_eval!(bbf::Union{BlackBoxFunction, ModelData};
     vks = bbf.vks;
     n_dims = length(vks);
     if isnothing(bbf.gp) # If we don't have any GPs yet, uniform sample.
-       df = sample(bbf, iterations = iterations, n_samples = bbf.n_samples)
+       df = lh_sample(bbf, iterations = iterations, n_samples = bbf.n_samples)
        eval!(bbf, df);
     else
-        plan = randomLHC(Int(round(bbf.n_samples*ratio)), n_dims);
-        random_samples = scaleLHC(plan,[(bbf.lbs[i], bbf.ubs[i]) for i in vks]);
-        μ, σ = predict_f(bbf.gp, random_samples');
-        cdf_0 = [Distributions.cdf(Distributions.Normal(μ[i], σ[i]),0) for i=1:size(random_samples,1)];
-         #TODO: add criterion for information as well (something like sortperm(σ))
-        # Sample places with high probability of being near boundary (0),
-        # but also balance feasibility ratio.
-        p = bbf.feas_ratio
-#         balance_fn = x -> -1*tan(2*atan(-0.5)*(x-0.5)) + 0.5
-        balance_fn = x -> -1/0.5^2*(x-0.5)^3 + 0.5;
-        indices = sortperm(abs.(cdf_0 .- balance_fn(p)));
-        samples = DataFrame(random_samples[indices[1:bbf.n_samples],:], vks);
-        eval!(bbf, samples);
+        print("Enter KNN based sampling here!")
+#         plan = randomLHC(Int(round(bbf.n_samples*ratio)), n_dims);
+#         random_samples = scaleLHC(plan,[(bbf.lbs[i], bbf.ubs[i]) for i in vks]);
+#         μ, σ = predict_f(bbf.gp, random_samples');
+#         cdf_0 = [Distributions.cdf(Distributions.Normal(μ[i], σ[i]),0) for i=1:size(random_samples,1)];
+#          #TODO: add criterion for information as well (something like sortperm(σ))
+#         # Sample places with high probability of being near boundary (0),
+#         # but also balance feasibility ratio.
+#         p = bbf.feas_ratio
+# #         balance_fn = x -> -1*tan(2*atan(-0.5)*(x-0.5)) + 0.5
+#         balance_fn = x -> -1/0.5^2*(x-0.5)^3 + 0.5;
+#         indices = sortperm(abs.(cdf_0 .- balance_fn(p)));
+#         samples = DataFrame(random_samples[indices[1:bbf.n_samples],:], vks);
+#         eval!(bbf, samples);
     end
     return
 end

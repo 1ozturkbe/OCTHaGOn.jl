@@ -8,8 +8,9 @@ test_sampling:
 using Test
 using Combinatorics
 using Gurobi
-using MosekTools
 using JuMP
+using LatinHypercubeSampling
+using MosekTools
 using MathOptInterface
 using NearestNeighbors
 
@@ -27,37 +28,43 @@ OCT.update_bounds!(md, ubs = Dict(vk => 1 for vk in md.vks));
 
 # Pick one of the functions, and sample.
 bbf = md.fns[1];
-bbf.n_samples= 200;
+bbf.n_samples= 500;
 OCT.sample_and_eval!(bbf);
 
 # Create a NearestNeighbors Tree and compute gradients
 OCT.build_knn_tree(bbf);
-k=5;
-combs = collect(combinations(1:k,2));
-idxs, dists = knn(kdtree, normalized_X', k+1);
-cluster_values = Array[];
-for i = 1:length(idxs)
-    push!(cluster_values, bbf.Y[j for j in idxs[i]])
-end
-cluster_values = [bbf.Y[i for i in idx] for idx in idxs]
-# Doing a central difference for the gradient, based on KNN
-grads = Array[];
+idxs, dists = OCT.find_knn(bbf, k=10);
+@test all(i in idxs[i] for i = 1:size(bbf.X, 1));
+class_dict = OCT.classify_patches(bbf, idxs);
 
-for i = 1:n_samples
-    idx = filter!(x -> x != i, idxs[i]);
-    points = Matrix(bbf.X[idx, :]);
-    values = bbf.Y[idx];
-    all_grad = [(values[comb[1]] - values[comb[2]]) ./ (points[comb[1],:] - points[comb[2], :]) for comb in combs]
-    push!(grads, sum(all_grad)./length(all_grad));
-end
+# Check random sampling vs. optimal sampling
 
-function local_grad(points::Matrix, values::Array, combs::Union{Nothing, Array} = nothing)
-""" Uses central differencing over all point combinations to approximate the gradient"""
-    grad = [];
-    n_points, n_dims = size(points);
-    if isnothing(combs)
-        combs = collect(combinations(1:n_points,2))
-    end
-    for i in combs
-        grad
-end
+
+
+# combs = collect(combinations(1:k,2));
+# cluster_values = Array[];
+# for i = 1:length(idxs)
+#     push!(cluster_values, bbf.Y[j for j in idxs[i]])
+# end
+# cluster_values = [bbf.Y[i for i in idx] for idx in idxs]
+# # Doing a central difference for the gradient, based on KNN
+# grads = Array[];
+#
+# for i = 1:n_samples
+#     idx = filter!(x -> x != i, idxs[i]);
+#     points = Matrix(bbf.X[idx, :]);
+#     values = bbf.Y[idx];
+#     all_grad = [(values[comb[1]] - values[comb[2]]) ./ (points[comb[1],:] - points[comb[2], :]) for comb in combs]
+#     push!(grads, sum(all_grad)./length(all_grad));
+# end
+#
+# function local_grad(points::Matrix, values::Array, combs::Union{Nothing, Array} = nothing)
+# """ Uses central differencing over all point combinations to approximate the gradient"""
+#     grad = [];
+#     n_points, n_dims = size(points);
+#     if isnothing(combs)
+#         combs = collect(combinations(1:n_points,2))
+#     end
+#     for i in combs
+#         grad
+# end

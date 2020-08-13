@@ -30,7 +30,7 @@ ubs = Dict(md.vks .=> [Inf, -1, 6])
 @test_throws OCT.OCTException OCT.update_bounds!(md, ubs = ubs);
 
 # Check sampling Model Data
-@test_throws OCT.OCTException X = OCT.sample(md, n_samples=100)
+@test_throws OCT.OCTException X = OCT.lh_sample(md, n_samples=100)
 
 # # Check creation of JuMP.Model() from ModelData
 OCT.jump_it!(md);
@@ -53,7 +53,7 @@ OCT.find_bounds!(md, all_bounds = true);
 
 # Test sampling
 n_samples = 500;
-X = OCT.sample(md, n_samples=n_samples);
+X = OCT.lh_sample(md, n_samples=n_samples);
 #
 # Testing constraint import.
 bbf = md.fns[1];
@@ -75,8 +75,8 @@ Y2 = [constr_fn(Array(X[j,var_idxs])) for j=1:n_samples];
 # Testing fitting of a difficult function
 bbf = md.fns[1];
 OCT.eval!(bbf, X);
-OCT.optimize_gp!(bbf);
-OCT.sample_and_eval!(bbf);
+# OCT.optimize_gp!(bbf);
+# OCT.sample_and_eval!(bbf);
 
 # @test_throws OCT.OCTException OCT.add_tree_constraints!(md.JuMP_model, md.JuMP_vars, trees)
 # status = solve(md.JuMP_model);

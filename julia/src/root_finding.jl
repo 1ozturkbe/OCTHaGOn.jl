@@ -31,7 +31,7 @@ function build_knn_tree(bbf::BlackBoxFunction)
     return
 end
 
-function find_knn(bbf::BlackBoxFunction; k::Int64 = 5)
+function find_knn(bbf::BlackBoxFunction; k::Int64 = 10)
     """ Returns idxs and Euclidian distances of KNNs of each data point. """
     idxs, dists = knn(bbf.knn_tree, bbf.knn_tree.data, k+1);
     return idxs, dists
@@ -52,7 +52,11 @@ function classify_patches(bbf::BlackBoxFunction, idxs::Array)
     return class_dict
 end
 
-function generate_zero_samples(bbf, idx::Array)
+# function sampling_policy(bbf::BlackBoxFunction, idxs::Array)
+#     class_dict = classify_patches(bbf, idxs)
+#     feas_ratio = bbf.feas_ratio
+
+function secant_method(bbf, idx::Array)
     """ Generates samples estimated to be near a zero from a KNN patch with mixed feasibility. """
     X = Matrix(bbf.X[idx, :]);
     Y = bbf.Y[idx, :];

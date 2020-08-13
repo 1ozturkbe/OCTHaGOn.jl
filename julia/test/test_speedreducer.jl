@@ -63,5 +63,13 @@ end
 md = speed_reducer()
 
 # Initial sampling
-OCT.sample_and_eval!(md, n_samples=200, iterations=2)
+OCT.sample_and_eval!(md, n_samples=200, iterations=1)
 println("Constraint feasibilities: ", [fn.feas_ratio for fn in md.fns])
+feas_names, infeas_names = OCT.fns_by_feasibility(md)
+
+for name in infeas_names
+    bbf = md(name);
+    OCT.build_knn_tree(bbf);
+    idxs, dists = OCT.find_knn(bbf, k=10);
+    class_dict = OCT.classify_patches(bbf, idxs);
+end
