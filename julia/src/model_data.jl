@@ -35,6 +35,7 @@ Contains all required info to be able to generate a global optimization problem.
 end
 
 function (md::ModelData)(name::Union{String, Int64})
+    """ Calls a BlackBoxFunction in ModelData by name. """
     fn_names = getfield.(md.fns, :name);
     fns = md.fns[findall(x -> x == name, fn_names)];
     if length(fns) == 1
@@ -45,6 +46,24 @@ function (md::ModelData)(name::Union{String, Int64})
     else
         @warn("Multiple constraints with name ", name)
         return fns
+    end
+end
+
+function feasibility(bbf::Union{ModelData, BlackBoxFunction})
+    """ Returns the feasibility of data points in a BBF or MD. """
+    if isa(bbf, BlackBoxFunction)
+        return bbf.feas_ratio
+    else
+        return [feasibility(fn) for fn in bbf.fns]
+    end
+end
+
+function accuracy(bbf::Union{ModelData, BlackBoxFunction})
+    """ Returns the accuracy of learners in a BBF or MD. """
+    if isa(bbf, BlackBoxFunction)
+        return bbf.accuracies[end]
+    else
+        return [accuracy(fn) for fn in bbf.fns]
     end
 end
 

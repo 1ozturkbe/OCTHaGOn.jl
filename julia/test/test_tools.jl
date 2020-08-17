@@ -49,11 +49,12 @@ end
 md = OCT.sagemark_to_ModelData(3, lse=false);
 OCT.update_bounds!(md, lbs = Dict(:x4 => -300), ubs = Dict(:x4 => 0))
 
-# Fitting all fns, and solving model
+# Fitting all fns
 OCT.sample_and_eval!(md, n_samples=200)
 OCT.learn_constraint!(md);
 println("Approximation accuracies: ", [fn.accuracies[end] for fn in md.fns])
 
+# Solving the model.
 OCT.jump_it!(md);
 OCT.add_tree_constraints!(md);
 status = solve(md.JuMP_model);

@@ -38,14 +38,22 @@ function learn_from_data!(X::DataFrame, Y::AbstractArray, grid; idxs::Union{Noth
     return grid
 end
 
-function feasibility_check(bbf::BlackBoxFunction)
+function feasibility_check(bbf::Union{ModelData, BlackBoxFunction})
     """ Checks that a BlackBoxFunction has enough feasible/infeasible samples. """
-    return bbf.feas_ratio >= bbf.threshold_feasibility
+    if isa(bbf, BlackBoxFunction)
+        return bbf.feas_ratio >= bbf.threshold_feasibility
+    else
+        return [feasibility_check(fn) for fn in bbf.fns]
+    end
 end
 
-function accuracy_check(bbf::BlackBoxFunction)
+function accuracy_check(bbf::Union{ModelData, BlackBoxFunction})
     """ Checks that a BlackBoxFunction.learner has adequate accuracy."""
-    return bbf.accuracies[end] >= bbf.threshold_accuracy
+    if isa(bbf, BlackBoxFunction)
+        return bbf.accuracies[end] >= bbf.threshold_accuracy
+    else
+        return [accuracy_check(fn) for fn in bbf.fns]
+    end
 end
 
 function fns_by_feasibility(md::ModelData)
