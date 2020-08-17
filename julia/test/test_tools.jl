@@ -50,15 +50,17 @@ md = OCT.sagemark_to_ModelData(3, lse=false);
 OCT.update_bounds!(md, lbs = Dict(:x4 => -300), ubs = Dict(:x4 => 0))
 
 # Fitting all fns, and solving model
-for fn in md.fns
-    fn.n_samples = 1500;
-    OCT.sample_and_eval!(fn);
-    OCT.learn_constraint!(fn);
-    println("Accuracy:", fn.accuracies[end])
-end
+OCT.sample_and_eval!(md, n_samples=200)
+OCT.learn_constraint!(md);
+println("Approximation accuracies: ", [fn.accuracies[end] for fn in md.fns])
 
 OCT.jump_it!(md);
 OCT.add_tree_constraints!(md);
 status = solve(md.JuMP_model);
 println("X values: ", getvalue(md.JuMP_vars))
 println("Optimal X: ", vcat(exp.([5.01063529, 3.40119660, -0.48450710]), [-147-2/3]))
+
+# Resampling and resolving via KNN
+OCT.sample_and_eval!(md)
+OCT.learn_constraint!(md);
+println("Approximation accuracies: ", [fn.accuracies[end] for fn in md.fns])

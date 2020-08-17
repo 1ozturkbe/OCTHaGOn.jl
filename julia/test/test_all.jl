@@ -23,6 +23,8 @@ using Test
 
     include("test/test_bbf.jl")
 
+    include("test/test_sampling.jl")
+
 end
 
 # Other tests to try later

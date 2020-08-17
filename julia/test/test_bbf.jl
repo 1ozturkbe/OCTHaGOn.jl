@@ -60,4 +60,3 @@ end
 
 # Finally learning constraint
 OCT.learn_constraint!(bbf);
-@test bbf.accuracies[end] == 1.
