@@ -50,16 +50,10 @@ end
 
 function eval!(bbf::BlackBoxFunction, X::DataFrame)
     """ Evaluates BlackBoxFunction at all X and stores the resulting data. """
-    if isnothing(bbf.X)
-        bbf.X = X[:, bbf.vks];
-        bbf.Y = bbf(X);
-        bbf.feas_ratio = sum(bbf.Y .>= 0)/length(bbf.Y);
-    else
-        values = bbf(X);
-        append!(bbf.X, X[:,bbf.vks], cols=:setequal)
-        append!(bbf.Y, values);
-        bbf.feas_ratio = sum(bbf.Y .>= 0)/length(bbf.Y); #TODO: optimize.
-    end
+    values = bbf(X);
+    append!(bbf.X, X[:,bbf.vks], cols=:setequal)
+    append!(bbf.Y, values);
+    bbf.feas_ratio = sum(bbf.Y .>= 0)/length(bbf.Y); #TODO: optimize.
     return
 end
 

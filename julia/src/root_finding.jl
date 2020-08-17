@@ -9,13 +9,11 @@ Root-finding methods sampling nonlinear functions
 using Combinatorics
 using DataFrames
 using Gurobi
-using JuMP
 
 include("exceptions.jl");
 include("black_box_function.jl");
-include("model_data.jl");
 
-function normalized_data(bbf::Union{BlackBoxFunction, ModelData})
+function normalized_data(bbf::BlackBoxFunction)
     """ Normalizes and returns data (0-1) by lower and upper bounds."""
     lbs_arr = [bbf.lbs[vk] for vk in bbf.vks];
     ubs_arr = [bbf.ubs[vk] for vk in bbf.vks];
@@ -25,7 +23,7 @@ end
 
 function build_knn_tree(bbf::BlackBoxFunction)
     """ Builds an efficient KNN tree over existing data."""
-    X = normalized_data(bbf);
+    X = normalized_data(bbf); #TODO: optimize calls to normalize data.
     kdtree = KDTree(X', reorder = false);
     bbf.knn_tree = kdtree;
     return
@@ -38,15 +36,16 @@ function find_knn(bbf::BlackBoxFunction; k::Int64 = 10)
 end
 
 function classify_patches(bbf::BlackBoxFunction, idxs::Array)
+    """ Classifies KNN domains by feasibility. """
     class_dict = Dict("feas" => Array[], "mixed" => Array[], "infeas" => Array[])
     for idx in idxs
-        values = [bbf.Y[i] for i in idx];
-        if all(values .>= 0)
-            push!(class_dict["feas"], idxs)
-        elseif all(values .<= 0)
-            push!(class_dict["infeas"], idxs)
+        signs = [bbf.Y[i] for i in idx];
+        if all(signs .>= 0)
+            push!(class_dict["feas"], idx)
+        elseif all(signs .<= 0)
+            push!(class_dict["infeas"], idx)
         else
-            push!(class_dict["mixed"], idxs)
+            push!(class_dict["mixed"], idx)
         end
     end
     return class_dict
@@ -56,37 +55,16 @@ end
 #     class_dict = classify_patches(bbf, idxs)
 #     feas_ratio = bbf.feas_ratio
 
-function secant_method(bbf, idx::Array)
-    """ Generates samples estimated to be near a zero from a KNN patch with mixed feasibility. """
-    X = Matrix(bbf.X[idx, :]);
-    Y = bbf.Y[idx, :];
+function secant_method(X::DataFrame, Y::Array)
+    """ Generates samples estimated to be near a zero from X and Y data with mixed feasibility. """
     feas = Y .>= 0;
-    np = Array[];
-    m = Model(solver=GurobiSolver())
-    @variable(m, x[vk in bbf.vks])
-    @variable(m, y)
-    @objective(m, Min, y^2)
-    OCT.add_bounds!(m, x, bbf);
+    np = DataFrame([Float64 for i in propertynames(X)], propertynames(X))
     for i = 1:length(feas)
         for j = i+1:length(feas)
-            if feas[i] + feas[j] >= 0
-                grad = (Y[j] - Y[i]) ./ (X[j,:] - X[i,:]);
-                @constraint(m, con, y >= grad*(x - X[j,:]) + X[j,:])
-                solve(m)
-                ns = getvalue(x);
-                push!(np, ns)
-                delete(model, con)
+            if feas[i] + feas[j] == 1
+                push!(np, Array(X[j,:]) - (Array(X[j,:]) - Array(X[i,:])) ./ (Y[j] - Y[i]) * Y[j]);
             end
         end
     end
-    np = reduce(hcat, np)
+    return np
 end
-
-function generate_projection_samples(bbf, idxs::Array)
-    """ Generates samples using a local linear model from a KNN patch with full in/feasibility. """
-end
-
-# function grad_and_Hessian(points::AbstractArray)
-#     k, n_dims = size(points);
-#     @assert k >= 2*n_dims + n_dims^2/2
-# end

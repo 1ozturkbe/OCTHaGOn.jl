@@ -13,6 +13,7 @@ Random.seed!(1);
 
 include("exceptions.jl");
 include("black_box_function.jl");
+include("root_finding.jl");
 
 @with_kw mutable struct ModelData
 """
@@ -171,6 +172,16 @@ function boundary_sample(bbf::Union{ModelData,BlackBoxFunction}; fraction::Float
     end
 end
 
+function knn_sample(bbf::BlackBoxFunction; k::Int64 = 5)
+    """ Does KNN and interval arithmetic based sampling once there is at least one feasible
+        sample to a BlackBoxFunction. """
+    build_knn_tree(bbf);
+    idxs, dists = find_knn(bbf, k=k);
+    class_dict = classify_patches(bbf, idxs);
+    df = reduce(vcat,[secant_method(bbf.X[idx, :], bbf.Y[idx, :]) for idx in class_dict["mixed"]])
+    return df
+end
+
 function sample_and_eval!(bbf::Union{BlackBoxFunction, ModelData};
                           n_samples:: Union{Int64, Nothing} = nothing,
                           boundary_fraction::Float64 = 0.5,
@@ -186,7 +197,7 @@ function sample_and_eval!(bbf::Union{BlackBoxFunction, ModelData};
     for prediction from GP. """
     if isa(bbf, ModelData)
         for fn in bbf.fns
-            sample_and_eval!(fn, n_samples = n_samples, fraction = boundary_fraction,
+            sample_and_eval!(fn, n_samples = n_samples, boundary_fraction = boundary_fraction,
                              iterations = iterations, ratio = ratio);
         end
         return
@@ -196,26 +207,14 @@ function sample_and_eval!(bbf::Union{BlackBoxFunction, ModelData};
     end
     vks = bbf.vks;
     n_dims = length(vks);
-    if isnothing(bbf.gp) # If we don't have any GPs yet, uniform sample.
+    if size(bbf.X,1) == 0 # If we don't have data yet, uniform and boundary sample.
        df = boundary_sample(bbf, fraction = boundary_fraction)
        eval!(bbf, df)
        df = lh_sample(bbf, iterations = iterations, n_samples = bbf.n_samples - size(df, 1))
        eval!(bbf, df);
-    else
-        print("Enter KNN based sampling here!")
-#         plan = randomLHC(Int(round(bbf.n_samples*ratio)), n_dims);
-#         random_samples = scaleLHC(plan,[(bbf.lbs[i], bbf.ubs[i]) for i in vks]);
-#         μ, σ = predict_f(bbf.gp, random_samples');
-#         cdf_0 = [Distributions.cdf(Distributions.Normal(μ[i], σ[i]),0) for i=1:size(random_samples,1)];
-#          #TODO: add criterion for information as well (something like sortperm(σ))
-#         # Sample places with high probability of being near boundary (0),
-#         # but also balance feasibility ratio.
-#         p = bbf.feas_ratio
-# #         balance_fn = x -> -1*tan(2*atan(-0.5)*(x-0.5)) + 0.5
-#         balance_fn = x -> -1/0.5^2*(x-0.5)^3 + 0.5;
-#         indices = sortperm(abs.(cdf_0 .- balance_fn(p)));
-#         samples = DataFrame(random_samples[indices[1:bbf.n_samples],:], vks);
-#         eval!(bbf, samples);
+    else                  # otherwise, KNN sample!
+        df = knn_sample(bbf)
+        eval!(bbf, df)
     end
     return
 end

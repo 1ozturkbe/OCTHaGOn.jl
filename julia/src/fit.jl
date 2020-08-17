@@ -57,10 +57,11 @@ function fns_by_feasibility(md::ModelData)
     return names[feas_idxs], names[infeas_idxs]
 end
 
-function learn_constraint!(bbf::BlackBoxFunction; lnr::IAI.OptimalTreeLearner = base_otc(),
-                                                weights::Union{Array, Symbol} = :autobalance, dir::String = "-",
-                                                validation_criterion=:misclassification,
-                                                ignore_checks::Bool = false)
+function learn_constraint!(bbf::Union{ModelData, BlackBoxFunction};
+                           lnr::IAI.OptimalTreeLearner = base_otc(),
+                           weights::Union{Array, Symbol} = :autobalance, dir::String = "-",
+                           validation_criterion=:misclassification,
+                           ignore_checks::Bool = false)
     """
     Return a constraint tree from a BlackBoxFunction.
     Arguments:
@@ -70,6 +71,13 @@ function learn_constraint!(bbf::BlackBoxFunction; lnr::IAI.OptimalTreeLearner = 
     Returns:
         lnr: Fitted Grid
     """
+    if isa(bbf, ModelData)
+        for fn in bbf.fns
+            learn_constraint!(fn, lnr=lnr, weights=weights, dir=dir,
+                              validation_criterion = validation_criterion, ignore_checks=ignore_checks)
+        end
+        return
+    end
     if isa(bbf.X, Nothing)
         sample_and_eval!(bbf)
     end
