@@ -16,7 +16,7 @@ include("learners.jl")
 
 @with_kw mutable struct BlackBoxFunction
 """
-Contains all required info to be able to generate a global optimization problem.
+Contains all required info to be able to generate a global optimization constraint.
 """
     name::Union{String, Int} = ""                      # Function name
     fn::Function                                       # The function
@@ -49,6 +49,7 @@ function (bbf::BlackBoxFunction)(x::Union{DataFrame,Dict,DataFrameRow})
 end
 
 function eval!(bbf::BlackBoxFunction, X::DataFrame)
+    """ Evaluates BlackBoxFunction at all X and stores the resulting data. """
     if isnothing(bbf.X)
         bbf.X = X[:, bbf.vks];
         bbf.Y = bbf(X);

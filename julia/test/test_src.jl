@@ -8,9 +8,6 @@ All the rest of the tests look at examples
 =#
 
 using Test
-using Gurobi
-using MosekTools
-using JuMP
 using MathOptInterface
 
 include("../src/OptimalConstraintTree.jl");
@@ -36,7 +33,6 @@ ubs = Dict(md.vks .=> [Inf, -1, 6])
 OCT.jump_it!(md);
 @test length(md.JuMP_model.linconstr) == 5;
 
-
 # Test CBF imports
 filename = string("../data/cblib.zib.de/shortfall_20_15.cbf.gz");
 mof_model = OCT.CBF_to_MOF(filename);
@@ -58,6 +54,8 @@ X = OCT.lh_sample(md, n_samples=n_samples);
 # Testing constraint import.
 bbf = md.fns[1];
 Y = md.fns[1](X);
+
+# Testing proper CBF constraint import.
 using ConicBenchmarkUtilities
 dat = readcbfdata(filename);
 c, A, b, constr_cones, var_cones, vartypes, sense, objoffset = cbftompb(dat);
@@ -72,15 +70,19 @@ end
 Y2 = [constr_fn(Array(X[j,var_idxs])) for j=1:n_samples];
 @test Y == Y2;
 
-# Testing fitting of a difficult function
+# Testing sample_and_eval for combined LH and boundary sampling.
 bbf = md.fns[1];
-OCT.eval!(bbf, X);
-# OCT.optimize_gp!(bbf);
-# OCT.sample_and_eval!(bbf);
+bbf.n_samples = 1000;
+OCT.sample_and_eval!(bbf);
+@test size(bbf.X) == (1000,length(bbf.vks))
 
-# @test_throws OCT.OCTException OCT.add_tree_constraints!(md.JuMP_model, md.JuMP_vars, trees)
+# Testing use of Gaussian Processes.
+# optimize_gp!(bbf);
+# sample_and_eval!(bbf);
+
+# @test_throws OCTException add_tree_constraints!(md.JuMP_model, md.JuMP_vars, trees)
 # status = solve(md.JuMP_model);
 # OCT_vars = getvalue(md.JuMP_vars);
 # OCT_obj = sum(md.c .* OCT_vars);
-# OCT.plot.(trees);
+# plot.(trees);
 # err = (mof_vars - OCT_vars).^2;

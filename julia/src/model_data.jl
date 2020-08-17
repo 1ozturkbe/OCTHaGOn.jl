@@ -130,22 +130,22 @@ lbs and ubs are defined.
    return DataFrame(X, md.vks)
 end
 
-function choose(big::Int64, small::Int64)
-    return Int64(factorial(big) / (factorial(big-small)*factorial(small)))
+function choose(large::Int64, small::Int64)
+    return Int64(factorial(big(large)) / (factorial(big(large-small))*factorial(big(small))))
 end
 
-function boundary_sample(bbf::Union{ModelData,BlackBoxFunction})
+function boundary_sample(bbf::Union{ModelData,BlackBoxFunction}; fraction::Float64 = 0.5)
 """ *Smartly* samples the constraint along the variable boundaries.
     NOTE: Because we are sampling symmetrically for lower and upper bounds,
     the choose coefficient has to be less than ceil(half of number of dims). """
     n_vars = length(bbf.vks)
     n_comb = sum(choose(n_vars, i) for i=0:n_vars);
     nX = DataFrame();
-    if isa(bbf, BlackBoxFunction) && n_comb >= bbf.n_samples
+    if isa(bbf, BlackBoxFunction) && n_comb >= fraction*bbf.n_samples
         @warn("Can't exhaustively sample the boundary of constraint", bbf.name)
         n_comb = 2*n_vars+2; # Everything is double because we choose min's and max's
         choosing = 1;
-        while n_comb <= bbf.n_samples
+        while n_comb <= fraction*bbf.n_samples
             choosing = choosing + 1;
             n_comb += 2*choose(n_vars, choosing);
         end
@@ -172,17 +172,22 @@ function boundary_sample(bbf::Union{ModelData,BlackBoxFunction})
 end
 
 function sample_and_eval!(bbf::Union{BlackBoxFunction, ModelData};
-                          n_samples = Union{Int64, Nothing} = nothing,
+                          n_samples:: Union{Int64, Nothing} = nothing,
+                          boundary_fraction::Float64 = 0.5,
                           iterations::Int64 = 3,
                           ratio=10.)
     """ Samples and evaluates BlackBoxFunction, with n_samples new samples.
-    n_samples overwrites the bbf.n_samples.
-    iterations is the number of GA populations for LHC sampling (0 is a random LH.)
+    Arguments
+    n_samples: number of samples, overwrites bbf.n_samples.
+    boundary_fraction: maximum ratio of boundary samples
+    iterations: number of GA populations for LHC sampling (0 is a random LH.)
+    ratio:
     If there is an optimized gp, ratio*n_samples is how many random LHC samples are generated
     for prediction from GP. """
     if isa(bbf, ModelData)
         for fn in bbf.fns
-            sample_and_eval!(fn, n_samples = n_samples, iterations = iterations, ratio = ratio);
+            sample_and_eval!(fn, n_samples = n_samples, fraction = boundary_fraction,
+                             iterations = iterations, ratio = ratio);
         end
         return
     end
@@ -192,7 +197,9 @@ function sample_and_eval!(bbf::Union{BlackBoxFunction, ModelData};
     vks = bbf.vks;
     n_dims = length(vks);
     if isnothing(bbf.gp) # If we don't have any GPs yet, uniform sample.
-       df = lh_sample(bbf, iterations = iterations, n_samples = bbf.n_samples)
+       df = boundary_sample(bbf, fraction = boundary_fraction)
+       eval!(bbf, df)
+       df = lh_sample(bbf, iterations = iterations, n_samples = bbf.n_samples - size(df, 1))
        eval!(bbf, df);
     else
         print("Enter KNN based sampling here!")

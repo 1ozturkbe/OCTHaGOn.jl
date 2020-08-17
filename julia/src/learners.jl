@@ -6,6 +6,7 @@ learners:
 =#
 
 function base_otr()
+    """ Returns the baseline OptimalTreeRegressor. """
     return IAI.OptimalTreeRegressor(
         random_seed = 1,
         max_depth = 3,
@@ -20,6 +21,7 @@ function base_otr()
 end
 
 function base_otc()
+    """ Returns the baseline OptimalTreeClassifier. """
     return IAI.OptimalTreeClassifier(
         random_seed = 1,
         max_depth = 5,
