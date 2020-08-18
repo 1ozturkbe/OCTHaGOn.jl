@@ -217,8 +217,11 @@ function sample_and_eval!(bbf::Union{BlackBoxFunction, ModelData};
        eval!(bbf, df)
        df = lh_sample(bbf, iterations = iterations, n_samples = bbf.n_samples - size(df, 1))
        eval!(bbf, df);
-    elseif bbf.feas_ratio in [0.0, 1.0]
-        @warn(bbf.name * " was not sampled since it has " * string(bbf.feas_ratio) * " feasibility.")
+    elseif bbf.feas_ratio == 1.0
+        @warn(bbf.name * " was not KNN sampled since it has " * string(bbf.feas_ratio) * " feasibility.")
+    elseif bbf.feas_ratio == 0.0
+        throw(OCTException(bbf.name * " was not KNN sampled since it has " * string(bbf.feas_ratio) * " feasibility.
+                            Please find at least one feasible sample and try again. "))
     else                  # otherwise, KNN sample!
         df = knn_sample(bbf)
         eval!(bbf, df)
@@ -279,8 +282,29 @@ function globalsolve(md::ModelData; solver = GurobiSolver())
     return status
 end
 
-# function post_check(md::ModelData)
+function get_solution(md::ModelData)
+    """ Returns the optimal solution of the solved global optimization model. """
+    vals = getvalue(md.JuMP_vars)
+    return DataFrame(Dict(vk => vals[vk] for vk in md.vks))
+end
 
+function evaluate_feasibility(md::ModelData)
+    """ Evaluates each constraint at solution to make sure it is feasible. """
+    soln = get_solution(md);
+    feas = [];
+    for fn in md.fns
+        eval!(fn, soln)
+    end
+    fn_names = getfield.(md.fns, :name);
+    infeas_idxs = fn_names[findall(vk -> md(vk).Y[end] .< 0, fn_names)]
+    infeas_idxs = fn_names[findall(vk -> md(vk).Y[end] .>= 0, fn_names)]
+    return feas_idxs, infeas_idxs
+end
+
+    infeas_idxs = findall(x -> x .== 0, arr);
+    feas_idxs = findall(x -> x .!= 0, arr);
+    names = [fn.name for fn in md.fns];
+    return names[feas_idxs], names[infeas_idxs]
 
 function find_bounds!(md::ModelData; solver=GurobiSolver(), all_bounds=true)
     """Finds the outer variable bounds of ModelData by solving over the linear constraints. """

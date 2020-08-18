@@ -19,6 +19,9 @@ function add_tree_constraints!(md::ModelData; M=1e5)
             @warn("Constraint " * bbf.name * " is INFEASIBLE but you tried to include it in
                    your global problem. For now, the constraint is OMITTED.
                    Find at least one feasible solution, train and try again.")
+        elseif isempty(bbf.learners)
+            throw(OCTException("Constraint " * bbf.name * " must be learned before tree constraints
+                                can be generated."))
         else
             grid = bbf.learners[end];
             constrs = add_feas_constraints!(md.JuMP_model,
