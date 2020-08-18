@@ -25,13 +25,15 @@ Random.seed!(1);
 MOI.Silent() = true
 
 @testset "OptimalConstraintTree" begin
-    include("test/test_bbf.jl")
+#     include(string(PROJECT_ROOT,"/test_bbf.jl"))
+#
+#     include(string(PROJECT_ROOT,"/test_src.jl"))
+#
+#     include(string(PROJECT_ROOT,"/test_tools.jl"))
+#
+#     include(string(PROJECT_ROOT,"/test_sampling.jl"))
 
-    include("test/test_src.jl")
-
-    include("test/test_tools.jl")
-
-    include("test/test_sampling.jl")
+    include(string(PROJECT_ROOT,"/test_speedreducer.jl"))
 end
 
 # Other tests to try later

@@ -177,6 +177,10 @@ end
 function knn_sample(bbf::BlackBoxFunction; k::Int64 = 5)
     """ Does KNN and interval arithmetic based sampling once there is at least one feasible
         sample to a BlackBoxFunction. """
+    if bbf.feas_ratio == 0. || bbf.feas_ratio == 1.0
+        throw(OCTException("Constraints must have at least one feasible or infeasible sample
+                            to be KNN-sampled!" * bbf.name))
+    end
     build_knn_tree(bbf);
     idxs, dists = find_knn(bbf, k=k);
     class_dict = classify_patches(bbf, idxs);
@@ -187,8 +191,7 @@ end
 function sample_and_eval!(bbf::Union{BlackBoxFunction, ModelData};
                           n_samples:: Union{Int64, Nothing} = nothing,
                           boundary_fraction::Float64 = 0.5,
-                          iterations::Int64 = 3,
-                          ratio=10.)
+                          iterations::Int64 = 3)
     """ Samples and evaluates BlackBoxFunction, with n_samples new samples.
     Arguments
     n_samples: number of samples, overwrites bbf.n_samples.
@@ -200,7 +203,7 @@ function sample_and_eval!(bbf::Union{BlackBoxFunction, ModelData};
     if isa(bbf, ModelData)
         for fn in bbf.fns
             sample_and_eval!(fn, n_samples = n_samples, boundary_fraction = boundary_fraction,
-                             iterations = iterations, ratio = ratio);
+                             iterations = iterations);
         end
         return
     end
@@ -214,6 +217,8 @@ function sample_and_eval!(bbf::Union{BlackBoxFunction, ModelData};
        eval!(bbf, df)
        df = lh_sample(bbf, iterations = iterations, n_samples = bbf.n_samples - size(df, 1))
        eval!(bbf, df);
+    elseif bbf.feas_ratio in [0.0, 1.0]
+        @warn(bbf.name * " was not sampled since it has " * string(bbf.feas_ratio) * " feasibility.")
     else                  # otherwise, KNN sample!
         df = knn_sample(bbf)
         eval!(bbf, df)
@@ -273,6 +278,9 @@ function globalsolve(md::ModelData; solver = GurobiSolver())
     status = JuMP.solve(md.JuMP_model);
     return status
 end
+
+# function post_check(md::ModelData)
+
 
 function find_bounds!(md::ModelData; solver=GurobiSolver(), all_bounds=true)
     """Finds the outer variable bounds of ModelData by solving over the linear constraints. """

@@ -49,7 +49,8 @@ module OptimalConstraintTree
            # Functions on BlackBoxFunctions
            eval!, sample_and_eval!, plot, learn_constraint!,
            add_fn!, add_linear_ineq!, add_linear_eq!,
-           secant_method, knn_sample,
+           secant_method, knn_sample, build_knn_tree,
+           find_knn, classify_patches,
            # Functions on JuMP.Models
            add_feas_constraints!, add_regr_constraints!,
            add_linear_constraints!, add_tree_constraints!,

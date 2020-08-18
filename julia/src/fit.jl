@@ -81,7 +81,9 @@ function learn_constraint!(bbf::Union{ModelData, BlackBoxFunction};
         sample_and_eval!(bbf)
     end
     n_samples, n_features = size(bbf.X)
-    if feasibility_check(bbf) || ignore_checks
+    if bbf.feas_ratio == 1.0
+        return
+    elseif feasibility_check(bbf) || ignore_checks
         # TODO: optimize Matrix/DataFrame conversion. Perhaps change the choice.
         nl = learn_from_data!(bbf.X, bbf.Y .>= 0,
                               gridify(lnr),
@@ -90,12 +92,13 @@ function learn_constraint!(bbf::Union{ModelData, BlackBoxFunction};
         push!(bbf.learners, nl);
         push!(bbf.accuracies, IAI.score(nl, Matrix(bbf.X), bbf.Y .>= 0))
     else
-        @warn "Not enough feasible samples."
+        @warn("Not enough feasible samples for constraint " * bbf.name * ".")
     end
     if dir != "-"
         IAI.write_json(string(dir, bbf.name, "_tree_", length(bbf.learners), ".json"),
                            bbf.learners[end]);
     end
+    return
 end
 
 function regress(points::DataFrame, values::Array; weights::Union{Array, Nothing} = nothing)
