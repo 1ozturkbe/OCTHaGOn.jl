@@ -37,6 +37,8 @@ mof_vars = [MOI.get(mof_model, MOI.VariablePrimal(), var) for var in inner_varia
 md = CBF_to_ModelData(filename);
 md.name = "shortfall_20_15"
 find_bounds!(md, all_bounds = true);
+update_bounds!(md, lbs = Dict(vk => 0 for vk in md.vks));
+update_bounds!(md, ubs = Dict(vk => 1 for vk in md.vks));
 
 # Test sampling
 n_samples = 500;
@@ -67,9 +69,13 @@ sample_and_eval!(md, n_samples=500);
 @test all(feasibility(md) .>= 0)
 
 # Testing use KNN sampling and building trees
-sample_and_eval!(md, n_samples=500);
+while any(feasibility(md) .<= 0.15)
+    sample_and_eval!(md, n_samples=500);
+end
+
 learn_constraint!(md);
 
 # Solving the model
 status = globalsolve(md)
 OCT_vars = JuMP.getvalue(md.JuMP_vars);
+feasible, infeasible = evaluate_feasibility(md);

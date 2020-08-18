@@ -145,7 +145,7 @@ function boundary_sample(bbf::Union{ModelData,BlackBoxFunction}; fraction::Float
     n_comb = sum(choose(n_vars, i) for i=0:n_vars);
     nX = DataFrame();
     if isa(bbf, BlackBoxFunction) && n_comb >= fraction*bbf.n_samples
-        @warn("Can't exhaustively sample the boundary of Constraint " * bbf.name * ".")
+        @warn("Can't exhaustively sample the boundary of Constraint " * string(bbf.name) * ".")
         n_comb = 2*n_vars+2; # Everything is double because we choose min's and max's
         choosing = 1;
         while n_comb <= fraction*bbf.n_samples
@@ -174,17 +174,26 @@ function boundary_sample(bbf::Union{ModelData,BlackBoxFunction}; fraction::Float
     end
 end
 
-function knn_sample(bbf::BlackBoxFunction; k::Int64 = 5)
+function knn_sample(bbf::BlackBoxFunction; k::Int64 = 15)
     """ Does KNN and interval arithmetic based sampling once there is at least one feasible
         sample to a BlackBoxFunction. """
     if bbf.feas_ratio == 0. || bbf.feas_ratio == 1.0
-        throw(OCTException("Constraints must have at least one feasible or infeasible sample
-                            to be KNN-sampled!" * bbf.name))
+        throw(OCTException("Constraint " * string(bbf.name) * " must have at least one feasible or
+                            infeasible sample to be KNN-sampled!"))
     end
+    df = DataFrame([Float64 for i in bbf.vks], bbf.vks)
     build_knn_tree(bbf);
     idxs, dists = find_knn(bbf, k=k);
-    class_dict = classify_patches(bbf, idxs);
-    df = reduce(vcat,[secant_method(bbf.X[idx, :], bbf.Y[idx, :]) for idx in class_dict["mixed"]])
+    positives = findall(x -> x .>= 0 , bbf.Y);
+    feas_class = classify_patches(bbf, idxs);
+    for center_node in positives # This loop is for making sure that every possible root is sampled only once.
+        if feas_class[center_node] == "mixed"
+            nodes = [idx for idx in idxs[center_node] if bbf.Y[idx] < 0];
+            push!(nodes, center_node)
+            np = secant_method(bbf.X[nodes, :], bbf.Y[nodes, :])
+            append!(df, np);
+        end
+    end
     return df
 end
 
@@ -218,9 +227,9 @@ function sample_and_eval!(bbf::Union{BlackBoxFunction, ModelData};
        df = lh_sample(bbf, iterations = iterations, n_samples = bbf.n_samples - size(df, 1))
        eval!(bbf, df);
     elseif bbf.feas_ratio == 1.0
-        @warn(bbf.name * " was not KNN sampled since it has " * string(bbf.feas_ratio) * " feasibility.")
+        @warn(string(bbf.name) * " was not KNN sampled since it has " * string(bbf.feas_ratio) * " feasibility.")
     elseif bbf.feas_ratio == 0.0
-        throw(OCTException(bbf.name * " was not KNN sampled since it has " * string(bbf.feas_ratio) * " feasibility.
+        throw(OCTException(string(bbf.name) * " was not KNN sampled since it has " * string(bbf.feas_ratio) * " feasibility.
                             Please find at least one feasible sample and try again. "))
     else                  # otherwise, KNN sample!
         df = knn_sample(bbf)
@@ -297,14 +306,9 @@ function evaluate_feasibility(md::ModelData)
     end
     fn_names = getfield.(md.fns, :name);
     infeas_idxs = fn_names[findall(vk -> md(vk).Y[end] .< 0, fn_names)]
-    infeas_idxs = fn_names[findall(vk -> md(vk).Y[end] .>= 0, fn_names)]
+    feas_idxs = fn_names[findall(vk -> md(vk).Y[end] .>= 0, fn_names)]
     return feas_idxs, infeas_idxs
 end
-
-    infeas_idxs = findall(x -> x .== 0, arr);
-    feas_idxs = findall(x -> x .!= 0, arr);
-    names = [fn.name for fn in md.fns];
-    return names[feas_idxs], names[infeas_idxs]
 
 function find_bounds!(md::ModelData; solver=GurobiSolver(), all_bounds=true)
     """Finds the outer variable bounds of ModelData by solving over the linear constraints. """

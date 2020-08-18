@@ -47,15 +47,24 @@ function speed_reducer()
 end
 
 md = speed_reducer()
+n_samples = 100
 
 # Initial sampling (boundary and interior)
-sample_and_eval!(md, n_samples=200, iterations=1)
+sample_and_eval!(md, n_samples=n_samples)
 println("Constraint feasibilities: ", feasibility(md))
 
 # See if KNN sampling makes a difference for feasibility!
-sample_and_eval!(md, n_samples=200, iterations=1)
+sample_and_eval!(md)
 println("Constraint feasibilities: ", feasibility(md))
+
+feas, infeas = fns_by_feasibility(md)
+for idx in infeas
+    sample_and_eval!(md(idx))
+end
 
 learn_constraint!(md)
 
 globalsolve(md)
+
+x_vals = getvalue(md.JuMP_vars);
+feasible, infeasible = evaluate_feasibility(md);

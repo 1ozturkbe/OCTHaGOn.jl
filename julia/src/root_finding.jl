@@ -30,18 +30,18 @@ end
 
 function classify_patches(bbf::BlackBoxFunction, idxs::Array)
     """ Classifies KNN domains by feasibility. """
-    class_dict = Dict("feas" => Array[], "mixed" => Array[], "infeas" => Array[])
+    arr = []
     for idx in idxs
         signs = [bbf.Y[i] for i in idx];
         if all(signs .>= 0)
-            push!(class_dict["feas"], idx)
-        elseif all(signs .<= 0)
-            push!(class_dict["infeas"], idx)
+            push!(arr, "feas")
+        elseif all(signs .< 0)
+            push!(arr, "infeas")
         else
-            push!(class_dict["mixed"], idx)
+            push!(arr, "mixed")
         end
     end
-    return class_dict
+    return arr
 end
 
 # function sampling_policy(bbf::BlackBoxFunction, idxs::Array)

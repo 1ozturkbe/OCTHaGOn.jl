@@ -92,7 +92,7 @@ function learn_constraint!(bbf::Union{ModelData, BlackBoxFunction};
         push!(bbf.learners, nl);
         push!(bbf.accuracies, IAI.score(nl, Matrix(bbf.X), bbf.Y .>= 0))
     else
-        @warn("Not enough feasible samples for constraint " * bbf.name * ".")
+        @warn("Not enough feasible samples for constraint " * string(bbf.name) * ".")
     end
     if dir != "-"
         IAI.write_json(string(dir, bbf.name, "_tree_", length(bbf.learners), ".json"),
