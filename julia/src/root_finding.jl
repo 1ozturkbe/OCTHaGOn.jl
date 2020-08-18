@@ -6,13 +6,6 @@ root_finding:
 Root-finding methods sampling nonlinear functions
 =#
 
-using Combinatorics
-using DataFrames
-using Gurobi
-
-include("exceptions.jl");
-include("black_box_function.jl");
-
 function normalized_data(bbf::BlackBoxFunction)
     """ Normalizes and returns data (0-1) by lower and upper bounds."""
     lbs_arr = [bbf.lbs[vk] for vk in bbf.vks];

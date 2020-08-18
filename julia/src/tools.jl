@@ -6,14 +6,6 @@ tools:
 Adds tools to mainly import optimization problems from other sources.
 =#
 
-using ConicBenchmarkUtilities
-using MosekTools
-using PyCall
-using MathOptInterface
-
-include("model_data.jl")
-include("fit.jl")
-
 function CBF_to_ModelData(filename; epsilon=1e-20)
     """ Converts CBF model into a fnmodel format.
         Using some code here from MathProgBase loadproblem! (technically deprecated). """

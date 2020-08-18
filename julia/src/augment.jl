@@ -1,5 +1,3 @@
-using DataFrames
-
 function normalize(X)
     # Normalizes each column by the standard normal
     n,p = size(X)

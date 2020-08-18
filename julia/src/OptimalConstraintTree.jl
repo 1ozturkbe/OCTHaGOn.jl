@@ -1,17 +1,44 @@
 module OptimalConstraintTree
-
+    using Combinatorics
+    using ConicBenchmarkUtilities
+    using DataFrames
+    using Distributions
+    using GaussianProcesses
+    using Gurobi
+    using JuMP
+    using LatinHypercubeSampling
     using Main.IAI
+    using MathOptInterface
+    using NearestNeighbors
+    using Parameters
+    using Plots
+    using PyCall
+    using Random
+    using SparseArrays
+
+    include("learners.jl")
+
+    include("exceptions.jl")
+
+    include("black_box_function.jl")
+
+    include("root_finding.jl")
+
+    include("post_process.jl")
+
+    include("bin_to_leaves.jl")
 
     include("augment.jl")
-    include("black_box_function.jl")
-    include("bin_to_leaves.jl")
-    include("constraintify.jl")
-    include("convexRegress.jl")
-    include("fit.jl")
-    include("learners.jl")
+
     include("model_data.jl")
+
+    include("constraintify.jl")
+    include("fit.jl")
+
+    include("convexRegress.jl")
+
     include("plot.jl")
-    include("root_finding.jl")
+
     include("tools.jl")
 
            # Structs
@@ -19,7 +46,7 @@ module OptimalConstraintTree
            # Functions on ModelData and BlackBoxFunctions
            gridify, learn_from_data!, find_bounds!, update_bounds!
            lh_sample, boundary_sample, add_bounds!,
-           accuracy, feasibility, accuracy_check, feasibility_check,
+           accuracy, feasibility, accuracy_check, feasibility_check, solve,
            # Functions on BlackBoxFunctions
            eval!, sample_and_eval!, plot, learn_constraint!,
            add_fn!, add_linear_ineq!, add_linear_eq!,

@@ -18,7 +18,6 @@ global PROJECT_ROOT = @__DIR__
 # Initialization tests
 md = OCT.ModelData(c = [1,2,3]);
 
-
 # Check infeasible bounds for Model Data
 lbs = Dict(md.vks .=> [-2,1,3]);
 ubs = Dict(md.vks .=> [Inf, 5, 6])
@@ -71,18 +70,14 @@ Y2 = [constr_fn(Array(X[j,var_idxs])) for j=1:n_samples];
 @test Y == Y2;
 
 # Testing sample_and_eval for combined LH and boundary sampling.
-bbf = md.fns[1];
-bbf.n_samples = 1000;
-OCT.sample_and_eval!(bbf);
-@test size(bbf.X) == (1000,length(bbf.vks))
+OCT.sample_and_eval!(md, n_samples=500);
+@test size(bbf.X) == (500,length(bbf.vks))
+@test all(OCT.feasibility(md) .>= 0)
 
-# Testing use of Gaussian Processes.
-# optimize_gp!(bbf);
-# sample_and_eval!(bbf);
+# Testing use KNN sampling and building trees
+OCT.sample_and_eval!(md, n_samples=500);
+OCT.learn_constraint!(md)
 
-# @test_throws OCTException add_tree_constraints!(md.JuMP_model, md.JuMP_vars, trees)
-# status = solve(md.JuMP_model);
-# OCT_vars = getvalue(md.JuMP_vars);
-# OCT_obj = sum(md.c .* OCT_vars);
-# plot.(trees);
-# err = (mof_vars - OCT_vars).^2;
+# Solving the model
+status = OCT.solve(md)
+OCT_vars = getvalue(md.JuMP_vars);

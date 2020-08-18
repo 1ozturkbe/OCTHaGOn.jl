@@ -5,15 +5,6 @@ sample_data:
 - Date: 2020-07-26
 =#
 
-using DataFrames
-using Distributions
-using GaussianProcesses
-using NearestNeighbors
-using Parameters
-
-include("exceptions.jl")
-include("learners.jl")
-
 @with_kw mutable struct BlackBoxFunction
 """
 Contains all required info to be able to generate a global optimization constraint.

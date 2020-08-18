@@ -65,3 +65,8 @@ println("Optimal X: ", vcat(exp.([5.01063529, 3.40119660, -0.48450710]), [-147-2
 OCT.sample_and_eval!(md)
 OCT.learn_constraint!(md);
 println("Approximation accuracies: ", [fn.accuracies[end] for fn in md.fns])
+
+# Solving again
+solve(md)
+println("X values: ", getvalue(md.JuMP_vars))
+println("Optimal X: ", vcat(exp.([5.01063529, 3.40119660, -0.48450710]), [-147-2/3]))

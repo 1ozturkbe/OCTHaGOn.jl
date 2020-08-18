@@ -5,11 +5,6 @@ plot:
 - Date: 2020-07-28
 =#
 
-using Plots
-using GaussianProcesses
-include("black_box_function.jl")
-include("exceptions.jl")
-
 function plot(bbf::BlackBoxFunction)
     """ Plots a BlackBoxFunction, which is either a 2D scatter plot or a 2D Gaussian Process. """
     if !isnothing(bbf.gp)

@@ -1,10 +1,4 @@
 # File to generate constraints compatible with JuMP
-using JuMP
-using Gurobi
-using Random
-include("model_data.jl");
-include("exceptions.jl");
-
 function check_if_trained(lnr::IAI.OptimalTreeLearner)
     try
         n_nodes = IAI.get_num_nodes(lnr);

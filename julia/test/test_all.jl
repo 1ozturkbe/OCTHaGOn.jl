@@ -13,7 +13,10 @@ Note: All tests should be run from a julia REPR within the julia folder, using:
 
 
 include("../src/OptimalConstraintTree.jl")
+using .OptimalConstraintTree
 using Test
+using Random
+Random.seed!(1);
 
 @testset "OptimalConstraintTree" begin
 

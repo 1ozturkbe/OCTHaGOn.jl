@@ -1,5 +1,3 @@
-using Distributions
-
 function reweight(X, x_sol, mag=1)
     """ Gaussian reweighting of existing data by proximity to previous solution.
     Arguments:

@@ -1,20 +1,3 @@
-using Combinatorics
-using DataFrames
-using Gurobi
-using JuMP
-using MathOptInterface
-using MosekTools
-using NearestNeighbors
-using LatinHypercubeSampling
-using Parameters
-using SparseArrays
-using Random
-Random.seed!(1);
-
-include("exceptions.jl");
-include("black_box_function.jl");
-include("root_finding.jl");
-
 @with_kw mutable struct ModelData
 """
 Contains all required info to be able to generate a global optimization problem.
@@ -282,8 +265,15 @@ Creates a JuMP.Model() from the linear constraints of ModelData.
     return
 end
 
-function find_bounds!(md::ModelData; solver=GurobiSolver(), all_bounds=true)
+function solve(md::ModelData; solver = GurobiSolver())
+    jump_it!(md, solver=solver)
+    add_tree_constraints!(md);
+    status = JuMP.solve(md.JuMP_model);
+    return
+end
 
+function find_bounds!(md::ModelData; solver=GurobiSolver(), all_bounds=true)
+    """Finds the outer variable bounds of ModelData by solving over the linear constraints. """
     if isnothing(md.JuMP_model)
         jump_it!(md, solver=solver)
     end
@@ -295,12 +285,12 @@ function find_bounds!(md::ModelData; solver=GurobiSolver(), all_bounds=true)
     for vk in md.vks
         if isinf(md.lbs[vk]) || all_bounds
             @objective(m, Min, x[vk]);
-            status = solve(m);
+            JuMP.solve(m);
             lbs[vk] = getvalue(x)[vk];
         end
         if isinf(md.lbs[vk]) || all_bounds
             @objective(m, Max, x[vk]);
-            status = solve(m);
+            JuMP.solve(m);
             ubs[vk] = getvalue(x)[vk];
         end
     end
