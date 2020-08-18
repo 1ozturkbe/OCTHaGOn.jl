@@ -145,7 +145,7 @@ function boundary_sample(bbf::Union{ModelData,BlackBoxFunction}; fraction::Float
     n_comb = sum(choose(n_vars, i) for i=0:n_vars);
     nX = DataFrame();
     if isa(bbf, BlackBoxFunction) && n_comb >= fraction*bbf.n_samples
-        @warn("Can't exhaustively sample the boundary of constraint", bbf.name)
+        @warn("Can't exhaustively sample the boundary of Constraint " * bbf.name * ".")
         n_comb = 2*n_vars+2; # Everything is double because we choose min's and max's
         choosing = 1;
         while n_comb <= fraction*bbf.n_samples

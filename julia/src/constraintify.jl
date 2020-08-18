@@ -13,14 +13,23 @@ end
 
 function add_tree_constraints!(md::ModelData; M=1e5)
     for bbf in md.fns
-        grid = bbf.learners[end];
-        constrs = add_feas_constraints!(md.JuMP_model,
+        if bbf.feas_ratio == 1.0
+            return
+        elseif bbf.feas_ratio == 0.0
+            @warn("Constraint " * bbf.name * " is INFEASIBLE but you tried to include it in
+                   your global problem. For now, the constraint is OMITTED.
+                   Find at least one feasible solution, train and try again.")
+        else
+            grid = bbf.learners[end];
+            constrs = add_feas_constraints!(md.JuMP_model,
                                         [md.JuMP_vars[vk] for vk in bbf.vks],
                                         bbf.learners[end], bbf.vks;
                               M=M, eq=bbf.equality,
                               return_constraints = true);
-        bbf.constraints = constrs; #TODO: make sure we can remove all constraints.
+            bbf.constraints = constrs; #TODO: make sure we can remove all constraints.
+        end
     end
+    return
 end
 
 function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.Variable}, grid::IAI.GridSearch,

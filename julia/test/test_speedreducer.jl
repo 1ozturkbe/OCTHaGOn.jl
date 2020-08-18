@@ -58,3 +58,4 @@ println("Constraint feasibilities: ", feasibility(md))
 
 learn_constraint!(md)
 
+globalsolve(md)
