@@ -265,11 +265,13 @@ Creates a JuMP.Model() from the linear constraints of ModelData.
     return
 end
 
-function solve(md::ModelData; solver = GurobiSolver())
+function globalsolve(md::ModelData; solver = GurobiSolver())
+    """ Creates and solves the global optimization model using the linear constraints from ModelData,
+        and approximated nonlinear constraints from inside its BlackBoxFunctions."""
     jump_it!(md, solver=solver)
     add_tree_constraints!(md);
     status = JuMP.solve(md.JuMP_model);
-    return
+    return status
 end
 
 function find_bounds!(md::ModelData; solver=GurobiSolver(), all_bounds=true)

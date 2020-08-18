@@ -18,7 +18,6 @@ Contains all required info to be able to generate a global optimization constrai
     Y::Array = []                                      # Function values
     feas_ratio::Float64 = 0.                           # Feasible sample proportion
     equality::Bool = false                             # Equality check
-    gp::Union{GPE, Nothing} = nothing                  # Gaussian Process
     learners::Array{IAI.GridSearch} = []               # Learners...
     constraints::Dict = Dict()                         # and their corresponding constraints,
     accuracies::Array{Float64} = []                    # and their scores.
@@ -46,25 +45,5 @@ function eval!(bbf::BlackBoxFunction, X::DataFrame)
     append!(bbf.Y, values);
     bbf.feas_ratio = sum(bbf.Y .>= 0)/length(bbf.Y); #TODO: optimize.
     return
-end
-
-function predict(bbf::BlackBoxFunction, X::AbstractArray)
-    μ, σ = predict_f(bbf.gp, transpose(X))
-    return μ, σ
-end
-
-function optimize_gp!(bbf::BlackBoxFunction)
-    """ Optimizes a GaussianProcess over a BlackBoxFunction,
-    with adaptively changing kernel. """
-#         bbf.gp = ElasticGPE(length(bbf.idxs), # data
-#         mean = MeanConst(sum(bbf.Y)/length(bbf.Y)), logNoise = -10)
-    lbs = [bbf.lbs[key] for key in bbf.vks];
-    ubs = [bbf.ubs[key] for key in bbf.vks];
-    bbf.gp = GPE(transpose(Array(bbf.X)), bbf.Y, # data
-    MeanConst(sum(bbf.Y)/length(bbf.Y)),
-    SEArd(log.((ubs-lbs)./(2*sqrt(length(bbf.Y)))), -5.))
-    optimize!(bbf.gp); #TODO: optimize GP
-                       # Instead of regenerating at every run, figure out
-                       # how to update.
 end
 

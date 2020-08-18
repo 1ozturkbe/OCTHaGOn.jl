@@ -5,16 +5,9 @@ test_bbf:
 - Date: 2020-07-27
 Tests BlackBoxFunction and its functions, including GaussianProcesses
 =#
-using DataFrames
-using Test
-using Plots
-using Random
 
-include("../src/OptimalConstraintTree.jl")
-global OCT = OptimalConstraintTree;
-global PROJECT_ROOT = @__DIR__
 
-bbf = OCT.BlackBoxFunction(fn = x -> x[:x1] + x[:x3]^3,
+bbf = BlackBoxFunction(fn = x -> x[:x1] + x[:x3]^3,
                     vks = [:x1, :x3], n_samples = 50);
 
 # Check evaluation of samples from Dict, DataFrameRow and DataFrame
@@ -30,33 +23,32 @@ val5 = bbf(sample);
 @test val1 == val2 == val3[1] == val4 == val5[1] == samples[1,1] + samples[1,3]^3;
 
 # Check unbounded sampling
-@test_throws OCT.OCTException OCT.sample_and_eval!(bbf);
+@test_throws OCTException sample_and_eval!(bbf);
 
 # # Check proper bounding
 lbs = Dict(:x1 => -5, :x3 => -5);
 ubs = Dict(:x1 => 5, :x3 => 5);
-OCT.update_bounds!(bbf, lbs=lbs, ubs=ubs);
+update_bounds!(bbf, lbs=lbs, ubs=ubs);
 @test bbf.ubs == ubs
 lbs = Dict(:x1 => -3, :x2 => 2); # check update with vk not in bbf
-OCT.update_bounds!(bbf, lbs=lbs);
+update_bounds!(bbf, lbs=lbs);
 @test !(:x2 in keys(bbf.lbs))
 @test bbf.lbs[:x1] == -3;
-@test_throws OCT.OCTException OCT.update_bounds!(bbf, ubs = Dict(:x1 => -6)) # check infeasible bounds
+@test_throws OCTException update_bounds!(bbf, ubs = Dict(:x1 => -6)) # check infeasible bounds
 @test bbf.ubs[:x1] == 5;
 
 # Check sampling and plotting in 1D
-bbf = OCT.BlackBoxFunction(fn = x -> x[:x1]^2 * sin(x[:x1]) + 2,
+bbf = BlackBoxFunction(fn = x -> x[:x1]^2 * sin(x[:x1]) + 2,
                      vks = [:x1], lbs = Dict(:x1 => -5), ubs = Dict(:x1 => 5),
                     n_samples = 20);
-OCT.sample_and_eval!(bbf);
-OCT.plot(bbf)
+sample_and_eval!(bbf);
+# plot(bbf)
 
 # Sampling and plotting raw data.
 for _=1:2
-    OCT.sample_and_eval!(bbf)
-    OCT.optimize_gp!(bbf)
-    OCT.plot(bbf)
+    sample_and_eval!(bbf)
 end
 
 # Finally learning constraint
-OCT.learn_constraint!(bbf);
+learn_constraint!(bbf);
+IAI.show_in_browser(bbf.learners[end].lnr)

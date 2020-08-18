@@ -3,7 +3,6 @@ module OptimalConstraintTree
     using ConicBenchmarkUtilities
     using DataFrames
     using Distributions
-    using GaussianProcesses
     using Gurobi
     using JuMP
     using LatinHypercubeSampling
@@ -11,7 +10,6 @@ module OptimalConstraintTree
     using MathOptInterface
     using NearestNeighbors
     using Parameters
-    using Plots
     using PyCall
     using Random
     using SparseArrays
@@ -33,6 +31,7 @@ module OptimalConstraintTree
     include("model_data.jl")
 
     include("constraintify.jl")
+
     include("fit.jl")
 
     include("convexRegress.jl")
@@ -44,9 +43,9 @@ module OptimalConstraintTree
            # Structs
     export ModelData, BlackBoxFunction,
            # Functions on ModelData and BlackBoxFunctions
-           gridify, learn_from_data!, find_bounds!, update_bounds!
+           gridify, learn_from_data!, find_bounds!, update_bounds!,
            lh_sample, boundary_sample, add_bounds!,
-           accuracy, feasibility, accuracy_check, feasibility_check, solve,
+           accuracy, feasibility, accuracy_check, feasibility_check, globalsolve,
            # Functions on BlackBoxFunctions
            eval!, sample_and_eval!, plot, learn_constraint!,
            add_fn!, add_linear_ineq!, add_linear_eq!,
@@ -55,7 +54,8 @@ module OptimalConstraintTree
            add_feas_constraints!, add_regr_constraints!,
            add_linear_constraints!, add_tree_constraints!,
            base_otr, base_otc, update_bounds!, sample, jump_it!,
-           sagemark_to_ModelData,
+           # Functions to import global optimization problems,
+           sagemark_to_ModelData, CBF_to_MOF, CBF_to_ModelData,
            # Exceptions
            OCTException
 end

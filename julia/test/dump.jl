@@ -111,3 +111,38 @@
 #         indices = sortperm(abs.(cdf_0 .- balance_fn(p)));
 #         samples = DataFrame(random_samples[indices[1:bbf.n_samples],:], vks);
 #         eval!(bbf, samples);
+
+# function predict(bbf::BlackBoxFunction, X::AbstractArray)
+#     μ, σ = predict_f(bbf.gp, transpose(X))
+#     return μ, σ
+# end
+#
+# function optimize_gp!(bbf::BlackBoxFunction)
+#     """ Optimizes a GaussianProcess over a BlackBoxFunction,
+#     with adaptively changing kernel. """
+# #         bbf.gp = ElasticGPE(length(bbf.idxs), # data
+# #         mean = MeanConst(sum(bbf.Y)/length(bbf.Y)), logNoise = -10)
+#     lbs = [bbf.lbs[key] for key in bbf.vks];
+#     ubs = [bbf.ubs[key] for key in bbf.vks];
+#     bbf.gp = GPE(transpose(Array(bbf.X)), bbf.Y, # data
+#     MeanConst(sum(bbf.Y)/length(bbf.Y)),
+#     SEArd(log.((ubs-lbs)./(2*sqrt(length(bbf.Y)))), -5.))
+#     optimize!(bbf.gp); #TODO: optimize GP
+#                        # Instead of regenerating at every run, figure out
+#                        # how to update.
+# end
+
+# function plot(bbf::BlackBoxFunction)
+#     """ Plots a BlackBoxFunction, which is either a 2D scatter plot or a 2D Gaussian Process. """
+#     if !isnothing(bbf.gp)
+#         if bbf.gp.dim > 1
+#             throw(OCTException("plot(BlackBoxFunction) only works in 2D."))
+#         end
+#         Plots.plot(bbf.gp, legend=false, fmt=:png)
+#     else
+#         if size(bbf.X, 2) > 1
+#             throw(OCTException("plot(BlackBoxFunction) only works in 2D."))
+#         end
+#         scatter(Matrix(bbf.X), bbf.Y, legend=false, fmt=:png)
+#     end
+# end

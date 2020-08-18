@@ -6,15 +6,6 @@ test_tools:
 Tests src/tools.jl.
 =#
 
-using Test
-using MathOptInterface;
-using JuMP;
-global MOI = MathOptInterface;
-MOI.Silent() = true
-include("../src/OptimalConstraintTree.jl");
-global OCT = OptimalConstraintTree;
-global PROJECT_ROOT = @__DIR__
-
 function test_sagemark_to_ModelData()
     """ Makes sure all sage benchmarks import properly.
         For now, just doing first 25, since polynomial
@@ -23,11 +14,11 @@ function test_sagemark_to_ModelData()
     idxs = 1:25;
     # max_min = [26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38]
     for idx in idxs
-        ex = OCT.sagemark_to_ModelData(idx);
+        ex = sagemark_to_ModelData(idx);
     end
     idx = 1;
-    md = OCT.sagemark_to_ModelData(idx; lse=false);
-    md_lse = OCT.sagemark_to_ModelData(idx; lse=true);
+    md = sagemark_to_ModelData(idx; lse=false);
+    md_lse = sagemark_to_ModelData(idx; lse=true);
     ubs = Dict(md.vks .=> [1, 10, 15, 1, Inf]);
     lbs = Dict(md.vks .=> [0.1, 5, 8, 0.01, -Inf]);
     inp = Dict(md.vks .=> [1,1.9,3,3.9, 10]);
@@ -46,27 +37,27 @@ end
 
 # Importing sagebenchmark to ModelData and checking it
 @test test_sagemark_to_ModelData()
-md = OCT.sagemark_to_ModelData(3, lse=false);
-OCT.update_bounds!(md, lbs = Dict(:x4 => -300), ubs = Dict(:x4 => 0))
+md = sagemark_to_ModelData(3, lse=false);
+update_bounds!(md, lbs = Dict(:x4 => -300), ubs = Dict(:x4 => 0))
 
 # Fitting all fns
-OCT.sample_and_eval!(md, n_samples=200)
-OCT.learn_constraint!(md);
+sample_and_eval!(md, n_samples=200)
+learn_constraint!(md);
 println("Approximation accuracies: ", [fn.accuracies[end] for fn in md.fns])
 
 # Solving the model.
-OCT.jump_it!(md);
-OCT.add_tree_constraints!(md);
+jump_it!(md);
+add_tree_constraints!(md);
 status = solve(md.JuMP_model);
 println("X values: ", getvalue(md.JuMP_vars))
 println("Optimal X: ", vcat(exp.([5.01063529, 3.40119660, -0.48450710]), [-147-2/3]))
 
 # Resampling and resolving via KNN
-OCT.sample_and_eval!(md)
-OCT.learn_constraint!(md);
+sample_and_eval!(md);
+learn_constraint!(md);
 println("Approximation accuracies: ", [fn.accuracies[end] for fn in md.fns])
 
 # Solving again
-solve(md)
+globalsolve(md);
 println("X values: ", getvalue(md.JuMP_vars))
 println("Optimal X: ", vcat(exp.([5.01063529, 3.40119660, -0.48450710]), [-147-2/3]))
