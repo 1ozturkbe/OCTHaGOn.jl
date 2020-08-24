@@ -10,6 +10,7 @@ module OptimalConstraintTree
     using MathOptInterface
     using NearestNeighbors
     using Parameters
+    using Plots
     using PyCall
     using Random
     using SparseArrays
@@ -61,6 +62,8 @@ module OptimalConstraintTree
            # Functions to import global optimization problems,
            sagemark_to_ModelData, CBF_to_MOF, CBF_to_ModelData,
            # Exceptions
-           OCTException
+           OCTException,
+           # Display and plotting
+           show_trees, plot_2d, plot_2d_predictions
 end
 

@@ -97,11 +97,17 @@ function get_min(a,b)
     return minimum([a,b])
 end
 
-function update_bounds!(md::Union{ModelData, BlackBoxFunction};
+function update_bounds!(md::Union{ModelData, BlackBoxFunction, Array{BlackBoxFunction}};
                         lbs::Dict{Symbol, <:Real} = Dict{Symbol, Float64}(),
                         ubs::Dict{Symbol, <:Real} = Dict{Symbol, Float64}())
     """ Updates the outer bounds of ModelData and its BlackBoxFunctions, or the bounds
     of a single BlackBoxFunction. """
+    if isa(md, Array{BlackBoxFunction})
+        for fn in md
+            update_bounds!(fn, lbs=lbs, ubs=ubs)
+        end
+        return
+    end
     nlbs = merge(get_max, md.lbs, lbs);
     nubs = merge(get_min, md.ubs, ubs)
     if any([nlbs[vk] .> nubs[vk] for vk in md.vks])
@@ -143,7 +149,7 @@ function boundary_sample(bbf::Union{ModelData,BlackBoxFunction}; fraction::Float
     the choose coefficient has to be less than ceil(half of number of dims). """
     n_vars = length(bbf.vks)
     n_comb = sum(choose(n_vars, i) for i=0:n_vars);
-    nX = DataFrame();
+    nX = DataFrame([Float64 for i in bbf.vks], bbf.vks)
     if isa(bbf, BlackBoxFunction) && n_comb >= fraction*bbf.n_samples
         @warn("Can't exhaustively sample the boundary of Constraint " * string(bbf.name) * ".")
         n_comb = 2*n_vars+2; # Everything is double because we choose min's and max's
@@ -197,7 +203,7 @@ function knn_sample(bbf::BlackBoxFunction; k::Int64 = 15)
     return df
 end
 
-function sample_and_eval!(bbf::Union{BlackBoxFunction, ModelData};
+function sample_and_eval!(bbf::Union{BlackBoxFunction, Array{BlackBoxFunction}, ModelData};
                           n_samples:: Union{Int64, Nothing} = nothing,
                           boundary_fraction::Float64 = 0.5,
                           iterations::Int64 = 3)
@@ -211,6 +217,12 @@ function sample_and_eval!(bbf::Union{BlackBoxFunction, ModelData};
     for prediction from GP. """
     if isa(bbf, ModelData)
         for fn in bbf.fns
+            sample_and_eval!(fn, n_samples = n_samples, boundary_fraction = boundary_fraction,
+                             iterations = iterations);
+        end
+        return
+    elseif isa(bbf, Array{BlackBoxFunction})
+        for fn in bbf
             sample_and_eval!(fn, n_samples = n_samples, boundary_fraction = boundary_fraction,
                              iterations = iterations);
         end

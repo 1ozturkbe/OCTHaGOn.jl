@@ -56,7 +56,7 @@ function fns_by_feasibility(md::ModelData)
     return names[feas_idxs], names[infeas_idxs]
 end
 
-function learn_constraint!(bbf::Union{ModelData, BlackBoxFunction};
+function learn_constraint!(bbf::Union{ModelData, Array{BlackBoxFunction}, BlackBoxFunction};
                            lnr::IAI.OptimalTreeLearner = base_otc(),
                            weights::Union{Array, Symbol} = :autobalance, dir::String = "-",
                            validation_criterion=:misclassification,
@@ -72,6 +72,12 @@ function learn_constraint!(bbf::Union{ModelData, BlackBoxFunction};
     """
     if isa(bbf, ModelData)
         for fn in bbf.fns
+            learn_constraint!(fn, lnr=lnr, weights=weights, dir=dir,
+                              validation_criterion = validation_criterion, ignore_checks=ignore_checks)
+        end
+        return
+    elseif isa(bbf, Array{BlackBoxFunction})
+        for fn in bbf
             learn_constraint!(fn, lnr=lnr, weights=weights, dir=dir,
                               validation_criterion = validation_criterion, ignore_checks=ignore_checks)
         end
