@@ -31,7 +31,9 @@ MOI.Silent() = true
 
     include(string(PROJECT_ROOT,"/test_tools.jl"))
 
-#     include(string(PROJECT_ROOT,"/test_speedreducer.jl"))
+    include(string(PROJECT_ROOT,"/test_speedreducer.jl"))
+
+    include(string(PROJECT_ROOT,"/test_lse.jl"))
 end
 
 # Other tests to try later

@@ -37,18 +37,27 @@ update_bounds!(bbf, lbs=lbs);
 @test_throws OCTException update_bounds!(bbf, ubs = Dict(:x1 => -6)) # check infeasible bounds
 @test bbf.ubs[:x1] == 5;
 
-# Check sampling and plotting in 1D
-bbf = BlackBoxFunction(fn = x -> x[:x1]^2 * sin(x[:x1]) + 2,
-                     vks = [:x1], lbs = Dict(:x1 => -5), ubs = Dict(:x1 => 5),
-                    n_samples = 20);
+# Check sampling and plotting in 1D or 2D
+# bbf = BlackBoxFunction(fn = x -> x[:x1]^2 * sin(x[:x1]) + 2,
+#                      vks = [:x1], lbs = Dict(:x1 => -5), ubs = Dict(:x1 => 5),
+#                     n_samples = 20);
+
+bbf = BlackBoxFunction(fn = x -> x[:x1]^2 + x[:x1]*sin(x[:x1]* x[:x2]) -5,
+ vks = [:x1, :x2], lbs = Dict([:x1, :x2] .=> -5), ubs = Dict([:x1, :x2] .=> 5),
+n_samples = 50);
 sample_and_eval!(bbf);
-# plot(bbf)
 
 # Sampling and plotting raw data.
-for _=1:2
-    sample_and_eval!(bbf)
-end
+sample_and_eval!(bbf);
+plot_2d(bbf);
+
+sample_and_eval!(bbf);
+plot_2d(bbf);
 
 # Finally learning constraint
 learn_constraint!(bbf);
-IAI.show_in_browser(bbf.learners[end].lnr)
+IAI.show_in_browser(bbf.learners[end].lnr);
+
+# Showing correct vs incorrect predictions
+plot_2d_predictions(bbf);
+

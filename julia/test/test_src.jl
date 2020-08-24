@@ -25,7 +25,7 @@ jump_it!(md);
 @test length(md.JuMP_model.linconstr) == 5;
 
 # Test CBF imports
-filename = string("../data/cblib.zib.de/shortfall_20_15.cbf.gz");
+filename = string("../data/cblib/shortfall_20_15.cbf.gz");
 mof_model = CBF_to_MOF(filename);
 inner_variables = MOI.get(mof_model, MOI.ListOfVariableIndices());
 MOI.optimize!(mof_model);
