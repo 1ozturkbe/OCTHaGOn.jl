@@ -1,6 +1,5 @@
 #=
 test_src:
-- Julia version: 1.3.1
 - Author: Berk
 - Date: 2020-06-16
 This tests everything to do with the core of the OptimalConstraintTree code.
@@ -22,16 +21,16 @@ ubs = Dict(md.vks .=> [Inf, -1, 6])
 
 # # Check creation of JuMP.Model() from ModelData
 jump_it!(md);
-@test length(md.JuMP_model.linconstr) == 5;
+# TODO: add check for number of linear constraints in md.JuMP_Model.
 
 # Test CBF imports
 filename = string("data/cblib/shortfall_20_15.cbf.gz");
-mof_model = CBF_to_MOF(filename);
-inner_variables = MOI.get(mof_model, MOI.ListOfVariableIndices());
-MOI.optimize!(mof_model);
-mof_obj = MOI.get(mof_model, MOI.ObjectiveValue());
-mof_vars = [MOI.get(mof_model, MOI.VariablePrimal(), var) for var in inner_variables];
-@test mof_obj ≈ -1.0792654303
+moi_model = CBF_to_MOI(filename);
+inner_variables = MOI.get(moi_model, MOI.ListOfVariableIndices());
+MOI.optimize!(moi_model);
+moi_obj = MOI.get(moi_model, MOI.ObjectiveValue());
+moi_vars = [MOI.get(moi_model, MOI.VariablePrimal(), var) for var in inner_variables];
+@test moi_obj ≈ -1.0792654303
 #
 # # Testing CBF import to ModelData
 md = CBF_to_ModelData(filename);
@@ -77,5 +76,5 @@ learn_constraint!(md);
 
 # Solving the model
 status = globalsolve(md)
-OCT_vars = JuMP.getvalue(md.JuMP_vars);
+OCT_vars = JuMP.getvalue.(md.JuMP_vars);
 feasible, infeasible = evaluate_feasibility(md);

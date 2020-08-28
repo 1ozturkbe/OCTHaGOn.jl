@@ -19,9 +19,9 @@ function learn_from_data!(X::DataFrame, Y::AbstractArray, grid; idxs::Union{Noth
             IAI.set_params!(grid.lnr, regression_features = idxs)
         end
     else
-        IAI.set_params!(grid.lnr, split_features = :all)
+        IAI.set_params!(grid.lnr, split_features = All())
         if typeof(grid.lnr) == IAI.OptimalTreeRegressor
-            IAI.set_params!(grid.lnr, regression_features=:all)
+            IAI.set_params!(grid.lnr, regression_features = All())
         end
     end
     IAI.fit!(grid, X, Y,

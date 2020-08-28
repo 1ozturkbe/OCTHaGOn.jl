@@ -24,7 +24,8 @@ function knapsack(c, a, b; name="knapsack", lbs = zeros(length(c)), ubs = ones(l
 end
 
 function knapsack_jump(c,a,b)
-    m = Model(solver=GurobiSolver())
+    m = Model();
+    set_optimizer(m, Gurobi.Optimizer)
     @variable(m, x[1:length(c)], Bin)
     @constraint(m, sum(a*x) <= b)
     @objective(m, Max, sum(c*x))
@@ -40,14 +41,14 @@ b = 4.;
 # Let's find the JuMP solution
 md = knapsack(c,a,b);
 OCT.jump_it!(md);
-solve(md.JuMP_model);
+optimize!(md.JuMP_model);
 strict_jm = knapsack_jump(c, a, b);
-solve(strict_jm);
-x_vals = getvalue(md.JuMP_vars);
-println("Comparing costs: ", getvalue(strict_jm.obj), " vs ", getvalue(md.JuMP_model.obj));
+optimize!(strict_jm);
+x_vals = getvalue.(md.JuMP_vars);
+println("Comparing costs: ", getvalue.(strict_jm.obj), " vs ", getvalue.(md.JuMP_model.obj));
 println("Knapsack_MD picks: ", x_vals);
-println("Knapsack_JuMP picks: ", getvalue(strict_jm[:x]));
-@assert all(x_vals ≈ getvalue(strict_jm[:x]));
+println("Knapsack_JuMP picks: ", getvalue.(strict_jm[:x]));
+@assert all(x_vals ≈ getvalue.(strict_jm[:x]));
 
 # TRAIN ONLY OVER X
 # Hyperplanes with sparsity
@@ -75,7 +76,7 @@ OCT.plot.(bbf.learners);
 #     print("Sample ", i)
 #     m = knapsack_jump(cs[i,:], as[i,:], bs[i]);
 #     solve(m);
-#     xs[i,:] = getvalue(m[:x]);
+#     xs[i,:] = getvalue.(m[:x]);
 #     optimum[i] = sum(cs[i,:].*xs[i,:]);
 # end
 # # ORT over optimal solutions
@@ -118,7 +119,7 @@ OCT.plot.(bbf.learners);
 #     print("Sample", i)
 #     m = knapsack_jump(cs[i,:],as[i,:],bs[i]);
 #     solve(m);
-#     xs[i,:] = getvalue(m[:x]);
+#     xs[i,:] = getvalue.(m[:x]);
 #     optimum[i] = sum(cs[i,:].*xs[i,:]);
 # end
 

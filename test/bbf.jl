@@ -44,7 +44,7 @@ update_bounds!(bbf, lbs=lbs);
 
 bbf = BlackBoxFunction(fn = x -> x[:x1]^2 + x[:x1]*sin(x[:x1]* x[:x2]) -5,
  vks = [:x1, :x2], lbs = Dict([:x1, :x2] .=> -5), ubs = Dict([:x1, :x2] .=> 5),
-n_samples = 50);
+n_samples = 100);
 sample_and_eval!(bbf);
 
 # Sampling and plotting raw data.

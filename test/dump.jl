@@ -20,10 +20,10 @@
 #     add_feas_constraints(constr, m, x, vks, 1000);
 #     add_regr_constraints(objectivefn, m, x, obj, vks, 1000000);
 #     bound_variables(m, x, fn_model.lbs, fn_model.ubs);
-#     status = solve(m)
-#     println("Solved minimum: ", getvalue(obj))
+#     status = optimize!(m)
+#     println("Solved minimum: ", getvalue.(obj))
 #     println("Known global bound: ", -147-2/3)
-#     println("X values: ", getvalue(x))
+#     println("X values: ", getvalue.(x))
 #     println("Optimal X: ", [5.01063529, 3.40119660, -0.48450710])
 # end
 
@@ -41,10 +41,10 @@
 # #     add_regr_constraints(constr, m, x, 0, vks, 1000000);
 # #     add_regr_constraints(objectivefn, m, x, obj, vks, 1000000);
 # #     bound_variables(m, x, fn_model.lbs, fn_model.ubs);
-# #     status = solve(m)
-# #     println("Solved minimum: ", getvalue(obj))
+# #     status = optimize!(m)
+# #     println("Solved minimum: ", getvalue.(obj))
 # #     println("Known global bound: ", -147-2/3)
-# #     println("X values: ", getvalue(x))
+# #     println("X values: ", getvalue.(x))
 # #     println("Optimal X: ", [5.01063529, 3.40119660, -0.48450710])
 #
 # n_samples, n_features = size(X)
@@ -69,7 +69,7 @@
 #     return lnr
 
 # TODO: turn into ModelData_solve
-# function example_solve(md::ModelData; M=1e5)
+# function example_optimize!(md::ModelData; M=1e5)
 #     """ Solves an already fitted function_model. """
 #     # Retrieving constraints
 #     obj_tree = IAI.read_json(string("data/", md.name, "_obj.json"));
@@ -93,7 +93,7 @@
 #         @constraint(m, x[i] <= md.ubs[i])
 #         @constraint(m, x[i] >= md.lbs[i])
 #     end
-#     status = solve(m)
+#     status = optimize!(m)
 #     return true
 # end
 

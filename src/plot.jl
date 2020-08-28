@@ -46,3 +46,12 @@ function show_trees(bbf::BlackBoxFunction)
         IAI.show_in_browser(grid.lnr)
     end
 end
+
+function plot_accuracies(obj::Union{ModelData, Array{BlackBoxFunction}})
+    if isa(obj, ModelData)
+        plot_accuracies(obj.fns)
+    else
+        bar(1:length(obj), [bbf.accuracies[end] for bbf in obj], xlabel="Constraint number",
+                    xticks=1:length(ineqs), title="Constraint accuracies", legend=false)
+    end
+end

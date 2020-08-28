@@ -33,7 +33,7 @@ MOI.Silent() = true
 
     include(string(PROJECT_ROOT,"/speedreducer.jl"))
 
-    include(string(PROJECT_ROOT,"/lse.jl"))
+#     include(string(PROJECT_ROOT,"/lse.jl"))
 end
 
 # Other tests to try later

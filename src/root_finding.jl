@@ -1,6 +1,5 @@
 #=
 root_finding:
-- Julia version: 1.3.1
 - Author: Berk
 - Date: 2020-08-07
 Root-finding methods sampling nonlinear functions

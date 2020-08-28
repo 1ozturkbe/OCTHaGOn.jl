@@ -36,7 +36,7 @@ function base_grid(lnr)
     grid = IAI.GridSearch(lnr, Dict(:criterion => [:entropy, :misclassification],
     :normalize_X => [true],
     :max_depth => [3, 5],
-    :minbucket => [0.3, 0.5]))
+    :minbucket => [0.03, 0.05]))
     return grid
 end
 

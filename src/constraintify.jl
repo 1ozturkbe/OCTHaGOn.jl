@@ -35,7 +35,7 @@ function add_tree_constraints!(md::ModelData; M=1e5)
     return
 end
 
-function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.Variable}, grid::IAI.GridSearch,
+function add_feas_constraints!(m::JuMP.Model, x, grid::IAI.GridSearch,
                                vks::Array; M::Float64 = 1.e5, eq = false,
                                return_constraints::Bool = false)
     """

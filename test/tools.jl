@@ -48,8 +48,8 @@ println("Approximation accuracies: ", [fn.accuracies[end] for fn in md.fns])
 # Solving the model.
 jump_it!(md);
 add_tree_constraints!(md);
-status = solve(md.JuMP_model);
-println("X values: ", getvalue(md.JuMP_vars))
+status = optimize!(md.JuMP_model);
+println("X values: ", getvalue.(md.JuMP_vars))
 println("Optimal X: ", vcat(exp.([5.01063529, 3.40119660, -0.48450710]), [-147-2/3]))
 
 # Resampling and resolving via KNN
@@ -59,5 +59,5 @@ println("Approximation accuracies: ", [fn.accuracies[end] for fn in md.fns])
 
 # Solving again
 globalsolve(md);
-println("X values: ", getvalue(md.JuMP_vars))
+println("X values: ", getvalue.(md.JuMP_vars))
 println("Optimal X: ", vcat(exp.([5.01063529, 3.40119660, -0.48450710]), [-147-2/3]))

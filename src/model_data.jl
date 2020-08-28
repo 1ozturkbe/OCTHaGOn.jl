@@ -14,7 +14,7 @@ Contains all required info to be able to generate a global optimization problem.
     ubs::Dict{Symbol, <:Real} = Dict(vks .=> Inf)         # Variable upper bounds
     int_vks::Array{Symbol} = []                            # Integer variable indices
     JuMP_model::Union{JuMP.Model, Nothing} = nothing       # JuMP model
-    JuMP_vars::Union{JuMP.JuMPArray, Nothing} = nothing    # JuMP variables
+    JuMP_vars = nothing    # JuMP variables
 end
 
 function (md::ModelData)(name::Union{String, Int64})
@@ -32,10 +32,12 @@ function (md::ModelData)(name::Union{String, Int64})
     end
 end
 
-function feasibility(bbf::Union{ModelData, BlackBoxFunction})
+function feasibility(bbf::Union{ModelData, Array{BlackBoxFunction}, BlackBoxFunction})
     """ Returns the feasibility of data points in a BBF or MD. """
     if isa(bbf, BlackBoxFunction)
         return bbf.feas_ratio
+    elseif isa(bbf, Array{BlackBoxFunction})
+        return [feasibility(fn) for fn in bbf]
     else
         return [feasibility(fn) for fn in bbf.fns]
     end
@@ -250,7 +252,7 @@ function sample_and_eval!(bbf::Union{BlackBoxFunction, Array{BlackBoxFunction}, 
     return
 end
 
-function add_bounds!(m::JuMP.Model, x::JuMP.JuMPArray, md::Union{ModelData, BlackBoxFunction})
+function add_bounds!(m::JuMP.Model, x, md::Union{ModelData, BlackBoxFunction})
     """Adds outer bounds to JuMP Model from ModelData.lbs/ubs. """
     for vk in md.vks
         if !isinf(md.lbs[vk])
@@ -263,7 +265,7 @@ function add_bounds!(m::JuMP.Model, x::JuMP.JuMPArray, md::Union{ModelData, Blac
     return
 end
 
-function add_linear_constraints!(m::JuMP.Model, x::JuMP.JuMPArray, md::ModelData)
+function add_linear_constraints!(m::JuMP.Model, x, md::ModelData)
     """Adds all linear constraints from ModelData into a JuMP.Model."""
     var_list = [x[vk] for vk in md.vks]
     for i=1:length(md.eqs_b)
@@ -276,16 +278,17 @@ function add_linear_constraints!(m::JuMP.Model, x::JuMP.JuMPArray, md::ModelData
     return m
 end
 
-function jump_it!(md::ModelData; solver = GurobiSolver())
+function jump_it!(md::ModelData; solver = Gurobi.Optimizer)
 """
 Creates a JuMP.Model() from the linear constraints of ModelData.
 """
-    m = Model(solver=solver);
+    m = Model();
+    set_optimizer(m, solver)
     @variable(m, x[vk in md.vks])
     if !isempty(md.int_vks)
-        aux = @variable(m, [vk in md.int_vks], Int);
-        int_vars = [x[vk] for vk in md.int_vks];
-        @constraint(m, int_vars .== aux[:]);
+        for vk in md.int_vks
+            set_integer(x[vk])
+        end
     end
     @objective(m, Min, sum(md.c[i] * x[md.vks[i]] for i=1:length(md.vks)));
     add_linear_constraints!(m, x, md);
@@ -294,18 +297,18 @@ Creates a JuMP.Model() from the linear constraints of ModelData.
     return
 end
 
-function globalsolve(md::ModelData; solver = GurobiSolver())
+function globalsolve(md::ModelData; solver = Gurobi.Optimizer)
     """ Creates and solves the global optimization model using the linear constraints from ModelData,
         and approximated nonlinear constraints from inside its BlackBoxFunctions."""
     jump_it!(md, solver=solver)
     add_tree_constraints!(md);
-    status = JuMP.solve(md.JuMP_model);
+    status = JuMP.optimize!(md.JuMP_model);
     return status
 end
 
 function get_solution(md::ModelData)
     """ Returns the optimal solution of the solved global optimization model. """
-    vals = getvalue(md.JuMP_vars)
+    vals = getvalue.(md.JuMP_vars)
     return DataFrame(Dict(vk => vals[vk] for vk in md.vks))
 end
 
@@ -322,7 +325,7 @@ function evaluate_feasibility(md::ModelData)
     return feas_idxs, infeas_idxs
 end
 
-function find_bounds!(md::ModelData; solver=GurobiSolver(), all_bounds=true)
+function find_bounds!(md::ModelData; solver=Gurobi.Optimizer, all_bounds=true)
     """Finds the outer variable bounds of ModelData by solving over the linear constraints. """
     if isnothing(md.JuMP_model)
         jump_it!(md, solver=solver)
@@ -335,13 +338,13 @@ function find_bounds!(md::ModelData; solver=GurobiSolver(), all_bounds=true)
     for vk in md.vks
         if isinf(md.lbs[vk]) || all_bounds
             @objective(m, Min, x[vk]);
-            JuMP.solve(m);
-            lbs[vk] = getvalue(x)[vk];
+            JuMP.optimize!(m);
+            lbs[vk] = getvalue.(x)[vk];
         end
         if isinf(md.lbs[vk]) || all_bounds
             @objective(m, Max, x[vk]);
-            JuMP.solve(m);
-            ubs[vk] = getvalue(x)[vk];
+            JuMP.optimize!(m);
+            ubs[vk] = getvalue.(x)[vk];
         end
     end
     @objective(m, Min, sum(md.c[i] * x[md.vks[i]] for i=1:length(x))); #revert objective

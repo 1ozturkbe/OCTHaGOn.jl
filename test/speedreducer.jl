@@ -66,5 +66,5 @@ learn_constraint!(md)
 
 globalsolve(md)
 
-x_vals = getvalue(md.JuMP_vars);
+x_vals = getvalue.(md.JuMP_vars);
 feasible, infeasible = evaluate_feasibility(md);

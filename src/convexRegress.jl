@@ -4,7 +4,8 @@ using JuMP
 using Random
 function convexRegress(Y, X, gamma, cut_fraction=1.0, epsilon = 1e-5)
     n = size(X,1); p = size(X,2);
-    m = Model(solver=GurobiSolver())
+    m = Model();
+    set_optimizer(m, Gurobi.Optimizer);
     @variable(m, theta[1:n])
     @variable(m, ksi[1:n, 1:p])
     @objective(m, Min, 0.5*sum((Y-theta).^2) + 1/(2*gamma)*sum([sum(ksi[i,:].^2) for i=1:n-1]))
@@ -19,8 +20,8 @@ function convexRegress(Y, X, gamma, cut_fraction=1.0, epsilon = 1e-5)
     violation = epsilon;
     cut_count = 1;
     while violation >= epsilon && cut_count <= size(X,1)^2/2*cut_fraction
-        solve(m)
-        ksis = getvalue(ksi); thetas = getvalue(theta);
+        optimize!(m)
+        ksis = getvalue.(ksi); thetas = getvalue.(theta);
         for i=1:n
             violation = 0;
             cut_index = 0;
@@ -38,12 +39,12 @@ function convexRegress(Y, X, gamma, cut_fraction=1.0, epsilon = 1e-5)
         end
     end
     println("Cuts added: ", cut_count)
-    return getvalue(theta), getvalue(ksi)
+    return getvalue.(theta), getvalue.(ksi)
 end
 
 # function convexRegressDual(Y, X, gamma, k)
 #     n = size(X,1); p = size(X,2);
-#     m = Model(solver=GurobiSolver())
+#     m = Model(solver=Gurobi.Optimizer)
 #     @variable(m, z[1:p], Bin)
 #     @variable(m, nu)
 #     @variable(m, mu[1:n, 1:n])
@@ -68,5 +69,5 @@ end
 #     z0 = zeros(p)
 #     z0[1:k] .= 1;
         
-#     return getvalue(theta), getvalue(ksi)
+#     return getvalue.(theta), getvalue.(ksi)
 # end

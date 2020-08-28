@@ -1,6 +1,5 @@
 #=
 test_src:
-- Julia version: 1.3.1
 - Author: Berk
 - Date: 2020-06-16
 This tests lse approximations.
@@ -8,15 +7,17 @@ This tests lse approximations.
 
 using PyCall
 
-function compile_lse_constraints()
+function compile_lse_constraints(n_samples = 300)
     sagemarks = pyimport("sagebenchmarks.literature.solved");
     ineq_constraints = BlackBoxFunction[];
     for idx=1:25
         md = sagemark_to_ModelData(idx, lse = false);
-        md.lbs[md.vks[end]] = -200; md.ubs[md.vks[end]] = 200;
+        update_bounds!(md, lbs = Dict(md.vks[end] => -200), ubs= Dict(md.vks[end] => 200))
         if !any(isinf.(values(md.lbs))) && !any(isinf.(values(md.ubs)))
             println("Adding constraints from test ", string(idx));
             for i=1:length(md.fns)
+                md.fns[i].n_samples = n_samples;
+                md.fns[i].name = Float64(idx) + i/10.;
                 push!(ineq_constraints, md.fns[i]);
             end
         end
@@ -26,30 +27,28 @@ function compile_lse_constraints()
 end
 
 ineqs = compile_lse_constraints();
-n_samples = 300;
 
-for i in ineqs
-println("LBS: ", i.lbs)
-println("UBS: ", i.ubs)
-end
+sample_and_eval!(ineqs);
+ineqs = ineqs[findall(x -> x.feas_ratio > 0, ineqs)];
+sample_and_eval!(ineqs);
 
-update_bounds!(ineqs, lbs=Dict(:x1 => -Inf))
-# sample_and_eval!(ineqs);
+learn_constraint!(ineqs)
 
+# Plotting all accuracies (non-convex approximation)
+ineqs = ineqs[findall(x -> length(x.accuracies) > 0, ineqs)]
+plot_accuracies(ineqs)
 
-#
-# # Loading the trees
-# grids = [IAI.read_json(string(PROJECT_ROOT, "/test/data/constraint",i,".tree")) for i=1:length(ineqs)];
-# scores = [IAI.get_grid_results(grid)[1, 3] for grid in grids];
-#
-# # Plotting all accuracies
-# data = Dict("x" => problem_idxs, "y" => scores);
-# convex_scores = bar(convex_idxs, data["y"][convex_idxs], xlabel="Constraint number",
-#                     xticks=1:length(ineqs), label="convex")
-# nonconvex_scores = bar!(nonconvex_idxs, data["y"][nonconvex_idxs], xlabel="Constraint number",
+convex_idxs = findall(x -> "logconvex" in x.tags, ineqs);
+nonconvex_idxs = findall(x -> x ∉ convex_idxs, [1:length(ineqs)]);
+
+plot_accuracies(ineqs[convex_idxs])
+plot_accuracies(ineqs[nonconvex_idxs])
+
+# nonconvex_scores = bar!(nonconvex_idxs, [ineq.accuracies[end] for ineq in ineqs[nonconvex_idxs]],
+#                   xlabel="Constraint number",
 #                         title="Accuracy over all constraints", xticks=1:length(ineqs),
 #                         label="non-convex", legend=:topright, ylims=[0.9, 1.])
-#
+
 # # Comparing accuracy vs. convexity
 # data = Dict(
 #     "x" => ["convex", "non-convex"],

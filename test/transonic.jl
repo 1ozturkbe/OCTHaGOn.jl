@@ -37,7 +37,8 @@ function transonic_mio_model()
     pwlDict = OCT.pwl_constraint_data(lnr.lnr, vks);
     upperDict, lowerDict = OCT.trust_region_data(lnr.lnr, vks);
     # Generate MIO constraints from aerodynamics data
-    m = Model(solver=GurobiSolver());
+    m = Model()
+    set_optimizer(m, Gurobi.Optimizer);
     @variable(m, x[1:4])
     @variable(m, y)
     @constraint(m, log(minimum(Re)) <= x[1])
@@ -56,8 +57,8 @@ function transonic_mio_model()
     @constraint(m, x[3] >= log(0.7))
     @constraint(m, x[4] >= log(0.4))
     @objective(m, Min, y)
-    status = solve(m)
-    println("Actual Cd: ", exp(getvalue(y)))
+    status = optimize!(m)
+    println("Actual Cd: ", exp(getvalue.(y)))
     println("Min Cd in data: ", 0.00371)
     return true
 end

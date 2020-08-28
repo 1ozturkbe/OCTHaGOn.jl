@@ -9,7 +9,7 @@ sample_data:
 """
 Contains all required info to be able to generate a global optimization constraint.
 """
-    name::Union{String, Int} = ""                      # Function name
+    name::Union{String, Real} = ""                     # Function name
     fn::Function                                       # The function
     vks::Array                                         # Varkeys
     lbs::Dict = Dict(vks .=> -Inf)                     # Variable lower bounds

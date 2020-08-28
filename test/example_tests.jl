@@ -17,7 +17,8 @@ function resample_test(fn_model)
     for i=1:n_iterations
         obj_tree, ineq_trees = fit_fn_model(fn_model, X, weights=weights);
         # Creating JuMP model
-        m = Model(solver=GurobiSolver());
+        m = Model();
+        set_optimizer(m, Gurobi.Optimizer)
         n_vars = length(fn_model.lbs);
         vks = [Symbol("x",i) for i=1:n_vars];
         obj_vks = [Symbol("x",i) for i=1:n_vars+1];
@@ -35,11 +36,11 @@ function resample_test(fn_model)
             @constraint(m, x[i] <= fn_model.ubs[i]);
             @constraint(m, x[i] >= fn_model.lbs[i]);
         end
-        status = solve(m)
-        println("X values: ", getvalue(x))
-        println("Objective cost: ", getvalue(y))
+        status = optimize!(m)
+        println("X values: ", getvalue.(x))
+        println("Objective cost: ", getvalue.(y))
 
-        global X = resample(n_samples, fn_model.lbs, fn_model.ubs, X, getvalue(x);
+        global X = resample(n_samples, fn_model.lbs, fn_model.ubs, X, getvalue.(x);
                      mean_shift=0.5, std_shrink = 0.3)
     end
     # Some post processing

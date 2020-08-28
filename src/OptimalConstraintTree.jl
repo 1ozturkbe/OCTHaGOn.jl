@@ -60,10 +60,10 @@ module OptimalConstraintTree
            add_linear_constraints!, add_tree_constraints!,
            base_otr, base_otc, update_bounds!, sample, jump_it!,
            # Functions to import global optimization problems,
-           sagemark_to_ModelData, CBF_to_MOF, CBF_to_ModelData,
+           sagemark_to_ModelData, CBF_to_MOI, CBF_to_ModelData,
            # Exceptions
            OCTException,
            # Display and plotting
-           show_trees, plot_2d, plot_2d_predictions
+           show_trees, plot_2d, plot_2d_predictions, plot_accuracies
 end
 
