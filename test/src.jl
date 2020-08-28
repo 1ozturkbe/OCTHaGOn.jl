@@ -25,9 +25,10 @@ jump_it!(md);
 
 # Test CBF imports
 filename = string("data/cblib/shortfall_20_15.cbf.gz");
-moi_model = CBF_to_MOI(filename);
+moi_model = JuMP.read_from_file(filename);
 inner_variables = MOI.get(moi_model, MOI.ListOfVariableIndices());
-MOI.optimize!(moi_model);
+set_optimizer(moi_model, Gurobi.Optimizer)
+optimize!(moi_model);
 moi_obj = MOI.get(moi_model, MOI.ObjectiveValue());
 moi_vars = [MOI.get(moi_model, MOI.VariablePrimal(), var) for var in inner_variables];
 @test moi_obj ≈ -1.0792654303
@@ -78,3 +79,8 @@ learn_constraint!(md);
 status = globalsolve(md)
 OCT_vars = JuMP.getvalue.(md.JuMP_vars);
 feasible, infeasible = evaluate_feasibility(md);
+
+
+# Doing CBF stuff
+moi_model = JuMP.read_from_file(filename)
+cons = JuMP.all_constraints(moi_model)

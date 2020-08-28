@@ -199,15 +199,6 @@ function sagemark_to_ModelData(idx; lse=false)
     return md
 end
 
-function CBF_to_MOI(filename; solver=Gurobi.Optimizer)
-    """ Imports a conic benchmark into a MathOptInterface format. """
-    model = MathOptInterface.FileFormats.Model(filename = filename);
-    moi_model = MathOptInterface.Bridges.full_bridge_optimizer(solver(), Float64)
-    MathOptInterface.read_from_file(model, filename)
-    MathOptInterface.copy_to(moi_model, model) # TODO: fix variable index mingling
-    return moi_model
-end
-
 # function MOF_to_ModelData(mof_model)
 # TODO: Work in progress...
 #     constraints = MathOptInterface.get(mof_model, MathOptInterface.ListOfConstraints())
