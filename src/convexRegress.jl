@@ -44,7 +44,7 @@ end
 
 # function convexRegressDual(Y, X, gamma, k)
 #     n = size(X,1); p = size(X,2);
-#     m = Model(solver=Gurobi.Optimizer)
+#     m = Model(Gurobi.Optimizer)
 #     @variable(m, z[1:p], Bin)
 #     @variable(m, nu)
 #     @variable(m, mu[1:n, 1:n])

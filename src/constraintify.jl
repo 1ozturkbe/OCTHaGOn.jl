@@ -24,8 +24,8 @@ function add_tree_constraints!(md::ModelData; M=1e5)
                                 can be generated."))
         else
             grid = bbf.learners[end];
-            constrs = add_feas_constraints!(md.JuMP_model,
-                                        [md.JuMP_vars[vk] for vk in bbf.vks],
+            constrs = add_feas_constraints!(md.model,
+                                        [md.vars[vk] for vk in bbf.vks],
                                         bbf.learners[end], bbf.vks;
                               M=M, eq=bbf.equality,
                               return_constraints = true);

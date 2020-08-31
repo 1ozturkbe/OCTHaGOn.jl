@@ -58,14 +58,14 @@ function CBF_to_ModelData(filename; epsilon=1e-20)
             if length(var_idxs) == 1.
                 u[var_idxs[1]] = minimum([u[var_idxs[1]], b[idxs][1]/A[idxs, :].nzval[1]]);
             end
-            add_linear_ineq!(md, A[idxs,:], b[idxs]);
+            add_lin_constr!(md, @build_constraint(A[idxs,:] * [md.vars[vk] for vk in md.vks] .<= b[idxs]));
         elseif cone == :NonPos
             if length(var_idxs) == 1.
                 l[var_idxs[1]] = maximum([l[var_idxs[1]], b[idxs][1]/A[idxs, :].nzval[1]]);
             end
-            add_linear_ineq!(md, -1. .* A[idxs,:], -b[idxs]);
+            add_lin_constr!(md, @build_constraint(A[idxs,:] * [md.vars[vk] for vk in md.vks] .>= b[idxs]));
         elseif cone == :Zero
-            add_linear_eq!(md, A[idxs,:], b[idxs]);
+            add_lin_constr!(md, @build_constraint(A[idxs,:] * [md.vars[vk] for vk in md.vks] .== b[idxs]));
         elseif cone == :SOC
             constr_fn = let b = b[idxs], A = A[idxs, var_idxs], vks = vks
                 function (x)
@@ -124,7 +124,10 @@ function CBF_to_ModelData(filename; epsilon=1e-20)
     end
     update_bounds!(md, lbs = Dict(md.vks .=> l),
                        ubs = Dict(md.vks .=> u));
-    md.int_vks = [Symbol("x", i) for i in findall(x -> x .== :Int, vartypes)]; # Integer var labels
+    int_vks = [Symbol("x", i) for i in findall(x -> x .== :Int, vartypes)]; # Integer var labels
+    for vk in int_vks
+        set_integer(md.vars[vk])
+    end
     return md
 end
 

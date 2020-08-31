@@ -51,10 +51,7 @@ sample_and_eval!(bbf);
 sample_and_eval!(bbf);
 plot_2d(bbf);
 
-sample_and_eval!(bbf);
-plot_2d(bbf);
-
-# Finally learning constraint
+# Learning constraint
 learn_constraint!(bbf);
 IAI.show_in_browser(bbf.learners[end].lnr);
 

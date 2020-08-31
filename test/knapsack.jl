@@ -5,21 +5,15 @@ test_knapsack:
 - Date: 2020-07-01
 =#
 
-using Test
-using DataFrames
-using Distributions
-using ExperimentalDesign
-using Gurobi
-using JuMP
-using Random
-include("../src/OptimalConstraintTree.jl");
-global OCT = OptimalConstraintTree;
-
-function knapsack(c, a, b; name="knapsack", lbs = zeros(length(c)), ubs = ones(length(c)),
-                  int_vks = [i for i=1:length(c)])
+function knapsack(c, a, b;
     """ Creates a knapsack ModelData problem"""
-    md = OCT.ModelData(c=-c, name=name, lbs=lbs, ubs=ubs, int_vks=int_vks)
-    OCT.add_linear_ineq!(md, a, b)
+    md = ModelData(c=-c);
+    md.lbs = Dict(md.vks .=> 0.);
+    md.ubs = Dict(md.vks .=> 1.);
+    for vk in md.vks
+        set_integer(md.vars[vk]);
+    end
+    add_lin_constr!(md, sum(a.*[md.vars[vk] for vk in md.vks]) <= b);
     return md
 end
 
@@ -27,7 +21,7 @@ function knapsack_jump(c,a,b)
     m = Model();
     set_optimizer(m, Gurobi.Optimizer)
     @variable(m, x[1:length(c)], Bin)
-    @constraint(m, sum(a*x) <= b)
+    @constraint(m, sum(a.*x) <= b)
     @objective(m, Max, sum(c*x))
     return m
 end
@@ -40,12 +34,11 @@ b = 4.;
 
 # Let's find the JuMP solution
 md = knapsack(c,a,b);
-OCT.jump_it!(md);
-optimize!(md.JuMP_model);
+optimize!(md.model);
 strict_jm = knapsack_jump(c, a, b);
 optimize!(strict_jm);
-x_vals = getvalue.(md.JuMP_vars);
-println("Comparing costs: ", getvalue.(strict_jm.obj), " vs ", getvalue.(md.JuMP_model.obj));
+x_vals = getvalue.(md.vars);
+println("Comparing costs: ", getvalue.(strict_jm.obj), " vs ", getvalue.(md.model.obj));
 println("Knapsack_MD picks: ", x_vals);
 println("Knapsack_JuMP picks: ", getvalue.(strict_jm[:x]));
 @assert all(x_vals ≈ getvalue.(strict_jm[:x]));
@@ -53,17 +46,17 @@ println("Knapsack_JuMP picks: ", getvalue.(strict_jm[:x]));
 # TRAIN ONLY OVER X
 # Hyperplanes with sparsity
 n_samples = 5000;
-bbf =  OCT.BlackBoxFunction(fn = x -> b - sum(a*x));
+bbf =  BlackBoxFunction(fn = x -> b - sum(a*x));
 dists = [Binomial(1) for i=1:n];
 X = reduce(hcat,[rand(dists[i],n_samples) for i=1:n]);
-lnr = OCT.base_otc();
-OCT.eval!(bbf, X)
+lnr = base_otc();
+eval!(bbf, X)
 println("Percent feasible samples: ", bbf.feas_ratio)
 IAI.set_params!(lnr, max_depth = 6);                     # set high depth,
 IAI.set_params!(lnr, hyperplane_config = (sparsity=1,)); # low sparsity,
 IAI.set_params!(lnr, minbucket=0.01);                    # small buckets.
-feas_tree = OCT.learn_constraint!(bbf);
-OCT.plot.(bbf.learners);
+feas_tree = learn_constraint!(bbf);
+plot.(bbf.learners);
 
 # TRAIN OVER OPTIMAL KNAPSACKS
 # n_samples=2000; n = 10;
@@ -80,7 +73,7 @@ OCT.plot.(bbf.learners);
 #     optimum[i] = sum(cs[i,:].*xs[i,:]);
 # end
 # # ORT over optimal solutions
-# lnr = OCT.base_otr()
+# lnr = base_otr()
 # IAI.set_params!(lnr, hyperplane_config = (sparsity=1,)); #     low sparsity.
 # X = DataFrame(as)
 # Y = DataFrame(y=optimum);
@@ -92,7 +85,7 @@ OCT.plot.(bbf.learners);
 # dists = [Distributions.Uniform(0,offsets[i]) for i=1:n+1];
 # fn =  x -> x[end] - sum(a.*x[1:end-1])
 # X = reduce(hcat,[rand(dists[i],n_samples) for i=1:n+1]);
-# feas_tree = OCT.learn_constraints!(OCT.base_otc(), [fn], X)
+# feas_tree = learn_constraints!(base_otc(), [fn], X)
 # IAI.show_in_browser(feas_tree[1].lnr)
 #
 # # SEEMS LIKE WE SHOULD TRAIN OVER A, B, C, X
@@ -101,10 +94,10 @@ OCT.plot.(bbf.learners);
 # offsets = ones(3*n+1); offsets[end] = offsets[end]*5;
 # dists = [Distributions.Uniform(0,offsets[i]) for i=1:3*n+1];
 # X = reduce(hcat,[rand(dists[i],n_samples) for i=1:3*n+1]);
-# lnr = OCT.base_otc()
+# lnr = base_otc()
 # IAI.set_params!(lnr, max_depth=10)
 # IAI.set_params!(lnr, hyperplane_config=(sparsity=1),)
-# feas_tree = OCT.learn_constraints!(lnr, [fn], X)
+# feas_tree = learn_constraints!(lnr, [fn], X)
 # IAI.show_in_browser(feas_tree[1].lnr)
 
 
@@ -133,7 +126,7 @@ OCT.plot.(bbf.learners);
 # xs_sorted = reduce(hcat, [xs[i,sort_indices[i,:]] for i=1:n_samples])';
 
 # Regression for optimal cost
-# lnr = OCT.base_otr()
+# lnr = base_otr()
 # X = DataFrame(hcat(aobs_sorted, coas_sorted, cs_sorted));
 # DataFrames.names!(X,vcat([Symbol('a',i) for i=1:n], [Symbol('b',i) for i=1:n],
 # [Symbol('c',i) for i=1:n]));
@@ -141,7 +134,7 @@ OCT.plot.(bbf.learners);
 # IAI.fit!(lnr, X, optimum)
 
 # Feature-wise training of OCTS
-# lnr = OCT.base_otc
+# lnr = base_otc
 # lnrs = []
 # for i=1:n
 #     nl = lnr()

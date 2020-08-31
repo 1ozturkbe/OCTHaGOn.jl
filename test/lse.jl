@@ -11,7 +11,7 @@ function compile_lse_constraints(n_samples = 300)
     sagemarks = pyimport("sagebenchmarks.literature.solved");
     ineq_constraints = BlackBoxFunction[];
     for idx=1:25
-        md = sagemark_to_ModelData(idx, lse = false);
+        md = OCT.sagemark_to_ModelData(idx, lse = false);
         update_bounds!(md, lbs = Dict(md.vks[end] => -200), ubs= Dict(md.vks[end] => 200))
         if !any(isinf.(values(md.lbs))) && !any(isinf.(values(md.ubs)))
             println("Adding constraints from test ", string(idx));
