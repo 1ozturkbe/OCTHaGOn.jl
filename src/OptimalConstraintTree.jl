@@ -10,11 +10,10 @@ module OptimalConstraintTree
     using MathOptInterface
     using NearestNeighbors
     using Parameters
-    using Plots
+#     using Plots
     using ProgressMeter
     using PyCall
     using Random
-    using SparseArrays
 
     include("learners.jl")
 
@@ -66,6 +65,7 @@ module OptimalConstraintTree
            # Exceptions
            OCTException,
            # Display and plotting
-           show_trees, plot_2d, plot_2d_predictions, plot_accuracies
+           show_trees
+#            plot_2d, plot_2d_predictions, plot_accuracies
 end
 

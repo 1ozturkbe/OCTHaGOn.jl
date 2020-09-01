@@ -23,7 +23,7 @@ Contains all required info to be able to generate a global optimization constrai
     accuracies::Array{Float64} = []                    # and their scores.
     threshold_accuracy::Float64 = 0.95                 # Minimum tree accuracy
     threshold_feasibility::Float64 = 0.15              # Minimum feas_ratio
-    n_samples::Int = 100                               # For next set of samples.
+    n_samples::Int = 100                               # For next set of samples, set and forget.
     knn_tree::Union{KDTree, Nothing} = nothing         # KNN tree
     tags::Array{String} = []                           # Other tags
 end
