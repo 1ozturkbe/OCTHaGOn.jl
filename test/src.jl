@@ -20,25 +20,22 @@ ubs = Dict(md.vks .=> [Inf, -1, 6])
 @test_throws OCTException X = lh_sample(md, n_samples=100)
 
 # # Check creation of JuMP.Model() from ModelData
-jump_it!(md);
 # TODO: add check for number of linear constraints in md.JuMP_Model.
 
 # Test CBF imports
 filename = string("data/cblib/shortfall_20_15.cbf.gz");
-moi_model = JuMP.read_from_file(filename);
-inner_variables = MOI.get(moi_model, MOI.ListOfVariableIndices());
-set_optimizer(moi_model, Gurobi.Optimizer)
-optimize!(moi_model);
-moi_obj = MOI.get(moi_model, MOI.ObjectiveValue());
-moi_vars = [MOI.get(moi_model, MOI.VariablePrimal(), var) for var in inner_variables];
+model = JuMP.read_from_file(filename);
+set_optimizer(model, Gurobi.Optimizer)
+optimize!(model);
+moi_obj = JuMP.getobjectivevalue(model);
 @test moi_obj ≈ -1.0792654303
 #
 # # Testing CBF import to ModelData
-md = CBF_to_ModelData(filename);
+md = OptimalConstraintTree.CBF_to_ModelData(filename);
 md.name = "shortfall_20_15"
 find_bounds!(md, all_bounds = true);
-update_bounds!(md, lbs = Dict(vk => 0 for vk in md.vks));
-update_bounds!(md, ubs = Dict(vk => 1 for vk in md.vks));
+update_bounds!(md, lbs = Dict(md.vks .=> 0.));
+update_bounds!(md, ubs = Dict(md.vks .=> 1.));
 
 # Test sampling
 n_samples = 500;
@@ -77,10 +74,30 @@ learn_constraint!(md);
 
 # Solving the model
 status = globalsolve(md)
-OCT_vars = JuMP.getvalue.(md.JuMP_vars);
+OCT_vars = JuMP.getvalue.(md.vars);
 feasible, infeasible = evaluate_feasibility(md);
 
 
 # Doing CBF stuff
-moi_model = JuMP.read_from_file(filename)
-cons = JuMP.all_constraints(moi_model)
+# model = JuMP.read_from_file(filename)
+# cons_types = list_of_constraint_types(model)
+#
+# for (expr, type) in cons_types
+#     cons = all_constraints(model, expr, type)
+#     for consref in cons
+#         one_constr = constraint_object(cons)
+#     end
+# end
+
+#
+# num_constraints(model, VariableRef, MOI.GreaterThan{Float64})
+#
+# num_constraints(model, VariableRef, MOI.ZeroOne)
+#
+# num_constraints(model, AffExpr, MOI.LessThan{Float64})
+#
+# constraint_object(con_ref::ConstraintRef)
+#
+#     F = MOI.get(model, MOI.ObjectiveFunctionType())
+#
+# MOI.get(model, MOI.ListOfConstraintIndices{F, S}())

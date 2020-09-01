@@ -84,7 +84,7 @@ function learn_constraint!(bbf::Union{ModelData, Array{BlackBoxFunction}, BlackB
         return
     end
     if isa(bbf.X, Nothing)
-        sample_and_eval!(bbf)
+        throw(OCTException(string("BlackBoxFn ", bbf.name, " must be sampled first.")))
     end
     n_samples, n_features = size(bbf.X)
     if bbf.feas_ratio == 1.0

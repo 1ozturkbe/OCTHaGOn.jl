@@ -49,15 +49,12 @@ sample_and_eval!(bbf);
 
 # Sampling and plotting raw data.
 sample_and_eval!(bbf);
-plot_2d(bbf);
+# plot_2d(bbf);
 
-sample_and_eval!(bbf);
-plot_2d(bbf);
-
-# Finally learning constraint
+# Learning constraint
 learn_constraint!(bbf);
 IAI.show_in_browser(bbf.learners[end].lnr);
 
 # Showing correct vs incorrect predictions
-plot_2d_predictions(bbf);
+# plot_2d_predictions(bbf);
 

@@ -23,7 +23,7 @@ Contains all required info to be able to generate a global optimization constrai
     accuracies::Array{Float64} = []                    # and their scores.
     threshold_accuracy::Float64 = 0.95                 # Minimum tree accuracy
     threshold_feasibility::Float64 = 0.15              # Minimum feas_ratio
-    n_samples::Int = 100                               # For next set of samples.
+    n_samples::Int = 100                               # For next set of samples, set and forget.
     knn_tree::Union{KDTree, Nothing} = nothing         # KNN tree
     tags::Array{String} = []                           # Other tags
 end
@@ -34,7 +34,7 @@ function (bbf::BlackBoxFunction)(x::Union{DataFrame,Dict,DataFrameRow})
     elseif isa(x, DataFrame)
         return [bbf.fn(x[i,:]) for i=1:size(x,1)]
     else
-        throw(OCT.OCTException("This datatype is not supported for BlackBoxFunction evaluation."))
+        throw(OCTException("This datatype is not supported for BlackBoxFunction evaluation."))
     end
 end
 

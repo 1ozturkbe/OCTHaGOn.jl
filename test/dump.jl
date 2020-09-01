@@ -13,7 +13,7 @@
 #     constr = IAI.read_json("data/example1_constraint_infeas.json")
 #     objectivefn = IAI.read_json("data/example1_objective_naive.json")
 #     vks = [Symbol("x",i) for i=1:3];
-#     m = Model(solver=GurobiSolver());
+#     m = Model(Gurobi.Optimizer);
 #     @variable(m, x[1:3])
 #     @variable(m, obj)
 #     @objective(m, Min, obj)
