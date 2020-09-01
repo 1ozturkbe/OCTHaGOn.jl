@@ -34,7 +34,7 @@ function (bbf::BlackBoxFunction)(x::Union{DataFrame,Dict,DataFrameRow})
     elseif isa(x, DataFrame)
         return [bbf.fn(x[i,:]) for i=1:size(x,1)]
     else
-        throw(OCT.OCTException("This datatype is not supported for BlackBoxFunction evaluation."))
+        throw(OCTException("This datatype is not supported for BlackBoxFunction evaluation."))
     end
 end
 

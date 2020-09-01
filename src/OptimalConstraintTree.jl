@@ -49,7 +49,7 @@ module OptimalConstraintTree
            gridify, learn_from_data!, find_bounds!, update_bounds!,
            lh_sample, boundary_sample, add_bounds!,
            accuracy, feasibility, accuracy_check, feasibility_check, globalsolve,
-           get_solution, evaluate_feasibility,
+           solution, evaluate_feasibility,
            # Functions on BlackBoxFunctions
            eval!, sample_and_eval!, plot, learn_constraint!,
            add_fn!, add_lin_constr!,

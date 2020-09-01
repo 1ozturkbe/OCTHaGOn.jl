@@ -68,7 +68,12 @@ end
 function accuracy(bbf::Union{ModelData, BlackBoxFunction})
     """ Returns the accuracy of learners in a BBF or MD. """
     if isa(bbf, BlackBoxFunction)
-        return bbf.accuracies[end]
+        if bbf.feas_ratio == 1.
+            @warn(string("Constraint ", bbf.name, " has no infeasible samples."))
+            return 1.
+        else
+            return bbf.accuracies[end]
+        end
     else
         return [accuracy(fn) for fn in bbf.fns]
     end
@@ -267,7 +272,7 @@ function globalsolve(md::ModelData)
     return status
 end
 
-function get_solution(md::ModelData)
+function solution(md::ModelData)
     """ Returns the optimal solution of the solved global optimization model. """
     vals = getvalue.(md.vars)
     return DataFrame(Dict(vk => vals[vk] for vk in md.vks))
@@ -275,7 +280,7 @@ end
 
 function evaluate_feasibility(md::ModelData)
     """ Evaluates each constraint at solution to make sure it is feasible. """
-    soln = get_solution(md);
+    soln = solution(md);
     feas = [];
     for fn in md.fns
         eval!(fn, soln)

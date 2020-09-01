@@ -39,26 +39,26 @@ end
 
 # Importing sagebenchmark to ModelData and checking it
 @test test_sagemark_to_ModelData()
-md = OCT.sagemark_to_ModelData(3, lse=false);
+md = OCT.sagemark_to_ModelData(3, lse=true);
 update_bounds!(md, lbs = Dict(:x4 => -300), ubs = Dict(:x4 => 0))
 
 # Fitting all fns
 sample_and_eval!(md, n_samples=200)
 learn_constraint!(md);
-println("Approximation accuracies: ", [fn.accuracies[end] for fn in md.fns])
+println("Approximation accuracies: ", accuracy(md))
 
 # Solving the model.
 add_tree_constraints!(md);
 status = optimize!(md.model);
-println("X values: ", getvalue.(md.vars))
+println("X values: ", solution(md))
 println("Optimal X: ", vcat(exp.([5.01063529, 3.40119660, -0.48450710]), [-147-2/3]))
 
 # Resampling and resolving via KNN
 sample_and_eval!(md);
 learn_constraint!(md);
-println("Approximation accuracies: ", [fn.accuracies[end] for fn in md.fns])
+println("Approximation accuracies: ", accuracy(md))
 
 # Solving again
 globalsolve(md);
-println("X values: ", getvalue.(md.vars))
+println("X values: ", solution(md))
 println("Optimal X: ", vcat(exp.([5.01063529, 3.40119660, -0.48450710]), [-147-2/3]))
