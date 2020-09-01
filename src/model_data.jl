@@ -17,7 +17,7 @@ function set_objective!(model, c, vars, vks)
 end
 
 function InitModel(c, vks, lbs, ubs)
-    m = Model(Gurobi.Optimizer)
+    m = Model(with_optimizer(Gurobi.Optimizer, OutputFlag=0))
     vars = @variable(m, x[vks])
     bound!(JuMP.all_variables(m), vks, lbs, ubs)
     set_objective!(m, c, vars, vks)
@@ -36,7 +36,7 @@ Contains all required info to be able to generate a global optimization problem.
     lbs::Dict{Symbol, <:Real} = Dict(vks .=> -Inf)                      # Variable lower bounds
     ubs::Dict{Symbol, <:Real} = Dict(vks .=> Inf)                       # Variable upper bounds
     model::JuMP.Model = InitModel(c, vks, lbs, ubs)                     # JuMP model
-    vars = model[:x]
+    vars = model[:x]                                                    # JuMP variables
 end
 
 function (md::ModelData)(name::Union{String, Int64})
@@ -291,9 +291,10 @@ function find_bounds!(md::ModelData; all_bounds=true)
     ubs = Dict(md.vks .=> Inf)
     lbs = Dict(md.vks .=> -Inf)
     # Finding bounds by min/maximizing each variable
+
     m = md.model;
     x = md.vars;
-    for vk in md.vks
+    @showprogress 0.5 "Finding bounds..." for vk in md.vks
         if isinf(md.lbs[vk]) || all_bounds
             @objective(m, Min, x[vk]);
             JuMP.optimize!(m);

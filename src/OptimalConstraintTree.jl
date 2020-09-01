@@ -11,6 +11,7 @@ module OptimalConstraintTree
     using NearestNeighbors
     using Parameters
     using Plots
+    using ProgressMeter
     using PyCall
     using Random
     using SparseArrays
