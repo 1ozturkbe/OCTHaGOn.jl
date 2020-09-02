@@ -20,15 +20,15 @@ end
 
 function add_tree_constraints!(md::ModelData; M=1e5)
     for bbf in md.fns
-        if isempty(bbf.learners)
-            throw(OCTException("Constraint " * string(bbf.name) * " must be learned before tree constraints
-                                can be generated."))
-        elseif bbf.feas_ratio == 1.0
+        if bbf.feas_ratio == 1.0
             return
         elseif bbf.feas_ratio == 0.0
             @warn("Constraint " * string(bbf.name) * " is INFEASIBLE but you tried to include it in
                    your global problem. For now, the constraint is OMITTED.
                    Find at least one feasible solution, train and try again.")
+        elseif isempty(bbf.learners)
+            throw(OCTException("Constraint " * string(bbf.name) * " must be learned before tree constraints
+                                can be generated."))
         else
             grid = bbf.learners[end];
             constrs = add_feas_constraints!(md.model,

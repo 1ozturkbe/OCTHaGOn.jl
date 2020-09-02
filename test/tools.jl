@@ -53,6 +53,11 @@ status = optimize!(md.model);
 println("X values: ", solution(md))
 println("Optimal X: ", vcat(exp.([5.01063529, 3.40119660, -0.48450710]), [-147-2/3]))
 
+# Testing constraint addition and removal
+# add_feas_constraints!(m::JuMP.Model, x, grid::IAI.GridSearch,
+#                                vks::Array; M::Float64 = 1.e5, eq = false,
+#                                return_constraints::Bool = false)
+
 # Resampling and resolving via KNN
 sample_and_eval!(md);
 learn_constraint!(md);
