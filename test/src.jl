@@ -7,7 +7,9 @@ without any machine learning components
 All the rest of the tests look at examples
 =#
 
-# BLACKBOXFUNCTION TESTS
+##########################
+# BLACKBOXFUNCTION TESTS #
+##########################
 
 bbf = BlackBoxFunction(fn = x -> x[:x1] + x[:x3]^3,
                     vks = [:x1, :x3], n_samples = 50);
@@ -39,8 +41,7 @@ update_bounds!(bbf, lbs=lbs);
 @test_throws OCTException update_bounds!(bbf, ubs = Dict(:x1 => -6)) # check infeasible bounds
 @test bbf.ubs[:x1] == 5;
 
-# Check sampling and plotting in 1D or 2D
-
+# Check sampling and plotting in 1D or 2D (plotting disabled for faster testing)
 bbf = BlackBoxFunction(fn = x -> x[:x1]^2 + x[:x1]*sin(x[:x1]* x[:x2]) -5,
  vks = [:x1, :x2], lbs = Dict([:x1, :x2] .=> -5), ubs = Dict([:x1, :x2] .=> 5),
 n_samples = 100);
@@ -49,12 +50,14 @@ sample_and_eval!(bbf);
 # Sampling, learning and showing...
 # plot_2d(bbf);
 learn_constraint!(bbf);
-IAI.show_in_browser(bbf.learners[end].lnr);
+# show_trees(bbf);
 
 # Showing correct vs incorrect predictions
 # plot_2d_predictions(bbf);
 
-# MODELDATA TESTS
+###################
+# MODELDATA TESTS #
+###################
 
 # Initialization tests
 md = ModelData(c = [1,2,3]);
@@ -82,9 +85,12 @@ lh_sample(md, n_samples=50);
 add_fn!(md, BlackBoxFunction(fn = x -> 1,
                     vks = [:x1, :x3], n_samples = 50));
 add_fn!(md, BlackBoxFunction(fn = x -> -1,
-                    vks = [:x1, :x3], n_samples = 50));
+                    vks = [:x1, :x2], n_samples = 50));
 sample_and_eval!(md)
-learn_constraint!(md)
-globalsolve(md)
+@test feasibility(md) == [1., 0.];
+@test accuracy(md) == [1., 1.];
+learn_constraint!(md);
+globalsolve(md);
+@test all([solution(md)[vk][1] == md.lbs[vk] for vk in md.vks])
 
 # TODO: add check for number of linear constraints in md.JuMP_Model.

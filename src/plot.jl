@@ -41,10 +41,17 @@ end
 # end
 
 
-function show_trees(bbf::BlackBoxFunction)
+function show_trees(bbf::Union{BlackBoxFunction, ModelData})
+    if isa(bbf, ModelData)
+        for fn in bbf.fns
+            show_trees(fn)
+        end
+        return
+    end
     for grid in bbf.learners
         IAI.show_in_browser(grid.lnr)
     end
+    return
 end
 
 function plot_accuracies(obj::Union{ModelData, Array{BlackBoxFunction}})

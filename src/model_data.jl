@@ -68,9 +68,11 @@ end
 function accuracy(bbf::Union{ModelData, BlackBoxFunction})
     """ Returns the accuracy of learners in a BBF or MD. """
     if isa(bbf, BlackBoxFunction)
-        if bbf.feas_ratio == 1.
-            @warn(string("Constraint ", bbf.name, " has no infeasible samples."))
+        if bbf.feas_ratio in [1., 0]
+            @warn(string("Accuracy of BlackBoxFunction ", bbf.name, " is tautological."))
             return 1.
+        elseif isempty(bbf.learners)
+            throw(OCTException(string("BlackBoxFunction ", bbf.name, " has not been trained yet.")))
         else
             return bbf.accuracies[end]
         end
