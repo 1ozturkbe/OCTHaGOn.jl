@@ -2,102 +2,95 @@
 test_src:
 - Author: Berk
 - Date: 2020-06-16
-This tests everything to do with the core of the OptimalConstraintTree code.
+This tests everything to do with the core of the OptimalConstraintTree code,
+without any machine learning components
 All the rest of the tests look at examples
 =#
+
+##########################
+# BLACKBOXFUNCTION TESTS #
+##########################
+
+bbf = BlackBoxFunction(fn = x -> x[:x1] + x[:x3]^3,
+                    vks = [:x1, :x3], n_samples = 50);
+
+# Check evaluation of samples from Dict, DataFrameRow and DataFrame
+samples = DataFrame(rand(4,4), [Symbol("x",i) for i=1:4]);
+val1 = bbf(samples[1,:]);
+sample = Dict(:x1 => samples[1,1], :x3 => samples[1,3])
+val2 = bbf(sample);
+val3 = bbf(samples);
+sample = Dict(:x1 => samples[1,1], :x2 => 2, :x3 => samples[1,3]);
+val4 = bbf(sample);
+sample = DataFrame(sample);
+val5 = bbf(sample);
+@test val1 == val2 == val3[1] == val4 == val5[1] == samples[1,1] + samples[1,3]^3;
+
+# Check unbounded sampling
+@test_throws OCTException sample_and_eval!(bbf);
+
+# # Check proper bounding
+lbs = Dict(:x1 => -5, :x3 => -5);
+ubs = Dict(:x1 => 5, :x3 => 5);
+update_bounds!(bbf, lbs=lbs, ubs=ubs);
+@test bbf.ubs == ubs
+lbs = Dict(:x1 => -3, :x2 => 2); # check update with vk not in BlackBoxFn
+update_bounds!(bbf, lbs=lbs);
+@test !(:x2 in keys(bbf.lbs))
+@test bbf.lbs[:x1] == -3;
+@test_throws OCTException update_bounds!(bbf, ubs = Dict(:x1 => -6)) # check infeasible bounds
+@test bbf.ubs[:x1] == 5;
+
+# Check sampling and plotting in 1D or 2D (plotting disabled for faster testing)
+bbf = BlackBoxFunction(fn = x -> x[:x1]^2 + x[:x1]*sin(x[:x1]* x[:x2]) -5,
+ vks = [:x1, :x2], lbs = Dict([:x1, :x2] .=> -5), ubs = Dict([:x1, :x2] .=> 5),
+n_samples = 100);
+sample_and_eval!(bbf);
+
+# Sampling, learning and showing...
+# plot_2d(bbf);
+learn_constraint!(bbf);
+# show_trees(bbf);
+
+# Showing correct vs incorrect predictions
+# plot_2d_predictions(bbf);
+
+###################
+# MODELDATA TESTS #
+###################
 
 # Initialization tests
 md = ModelData(c = [1,2,3]);
 
 # Check infeasible bounds for Model Data
 lbs = Dict(md.vks .=> [-2,1,3]);
-ubs = Dict(md.vks .=> [Inf, 5, 6])
-update_bounds!(md, lbs=lbs, ubs=ubs);
-ubs = Dict(md.vks .=> [Inf, -1, 6])
+update_bounds!(md, lbs=lbs);
+# Check sampling unbounded model exception
+@test_throws OCTException X = lh_sample(md, n_samples=100);
+ubs = Dict(md.vks .=> [4, 5, 6]);
+update_bounds!(md, ubs=ubs);
+
+# Check JuMP variable and bound creation
+@test all([md.lbs[vk] == lower_bound(md.vars[vk]) for vk in md.vks])
+@test all([md.ubs[vk] == upper_bound(md.vars[vk]) for vk in md.vks])
+
+# Check invalid bounds exception
+ubs = Dict(md.vks .=> [Inf, -1, 6]);
 @test_throws OCTException update_bounds!(md, ubs = ubs);
 
 # Check sampling Model Data
-@test_throws OCTException X = lh_sample(md, n_samples=100)
+lh_sample(md, n_samples=50);
 
-# # Check creation of JuMP.Model() from ModelData
-# TODO: add check for number of linear constraints in md.JuMP_Model.
-
-# Test CBF imports
-filename = string("data/cblib/shortfall_20_15.cbf.gz");
-model = JuMP.read_from_file(filename);
-set_optimizer(model, Gurobi.Optimizer)
-optimize!(model);
-moi_obj = JuMP.getobjectivevalue(model);
-@test moi_obj ≈ -1.0792654303
-#
-# # Testing CBF import to ModelData
-md = OptimalConstraintTree.CBF_to_ModelData(filename);
-md.name = "shortfall_20_15"
-find_bounds!(md, all_bounds = true);
-update_bounds!(md, lbs = Dict(md.vks .=> 0.));
-update_bounds!(md, ubs = Dict(md.vks .=> 1.));
-
-# Test sampling
-n_samples = 500;
-X = lh_sample(md, n_samples=n_samples);
-#
-# Testing constraint import.
-bbf = md.fns[1];
-Y = md.fns[1](X);
-
-# Testing proper CBF constraint import.
-using ConicBenchmarkUtilities
-dat = readcbfdata(filename);
-c, A, b, constr_cones, var_cones, vartypes, sense, objoffset = cbftompb(dat);
-(cone,idxs) = constr_cones[6];
-var_idxs = unique(cart_ind[2] for cart_ind in findall(!iszero, A[idxs, :])); # CartesianIndices...
-function constr_fn(x)
-    let b = copy(b[idxs]), A = copy(A[idxs, var_idxs])
-        expr = b - A*x;
-        return expr[1].^2 - sum(expr[2:end].^2);
-    end
-end
-Y2 = [constr_fn(Array(X[j,var_idxs])) for j=1:n_samples];
-@test Y == Y2;
-
-# Testing sample_and_eval for combined LH and boundary sampling.
-sample_and_eval!(md, n_samples=500);
-@test size(bbf.X) == (500,length(bbf.vks))
-@test all(feasibility(md) .>= 0)
-
-# Testing use KNN sampling and building trees
-while any(feasibility(md) .<= 0.15)
-    sample_and_eval!(md, n_samples=500);
-end
-
+# Check tautological and infeasible constraints
+add_fn!(md, BlackBoxFunction(fn = x -> 1,
+                    vks = [:x1, :x3], n_samples = 50));
+add_fn!(md, BlackBoxFunction(fn = x -> -1,
+                    vks = [:x1, :x2], n_samples = 50));
+sample_and_eval!(md)
+@test feasibility(md) == [1., 0.];
+@test accuracy(md) == [1., 1.];
 learn_constraint!(md);
+globalsolve(md);
+@test all([solution(md)[vk][1] == md.lbs[vk] for vk in md.vks])
 
-# Solving the model
-status = globalsolve(md)
-OCT_vars = JuMP.getvalue.(md.vars);
-feasible, infeasible = evaluate_feasibility(md);
-
-
-# Doing CBF stuff
-# model = JuMP.read_from_file(filename)
-# cons_types = list_of_constraint_types(model)
-#
-# for (expr, type) in cons_types
-#     cons = all_constraints(model, expr, type)
-#     for consref in cons
-#         one_constr = constraint_object(cons)
-#     end
-# end
-
-#
-# num_constraints(model, VariableRef, MOI.GreaterThan{Float64})
-#
-# num_constraints(model, VariableRef, MOI.ZeroOne)
-#
-# num_constraints(model, AffExpr, MOI.LessThan{Float64})
-#
-# constraint_object(con_ref::ConstraintRef)
-#
-#     F = MOI.get(model, MOI.ObjectiveFunctionType())
-#
-# MOI.get(model, MOI.ListOfConstraintIndices{F, S}())
+# TODO: add check for number of linear constraints in md.JuMP_Model.
