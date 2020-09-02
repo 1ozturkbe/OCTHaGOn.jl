@@ -58,7 +58,7 @@ module OptimalConstraintTree
            # Functions on JuMP.Models
            set_objective!, bound!,
            add_feas_constraints!, add_regr_constraints!,
-           add_tree_constraints!,
+           add_tree_constraints!, clear_tree_constraints!,
            base_otr, base_otc, update_bounds!, sample,
            # Functions to import global optimization problems,
 #            sagemark_to_ModelData, CBF_to_ModelData,

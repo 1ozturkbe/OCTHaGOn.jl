@@ -11,12 +11,12 @@ function check_if_trained(lnr::IAI.OptimalTreeLearner)
     end
 end
 
-function clear_tree_constraints!(md::ModelData)
-    for bbf in md.fns
-        delete(bbf.constraints, md.model)
-    end
-    return
-end
+# function clear_tree_constraints!(md::ModelData)
+#     for bbf in md.fns
+#         delete(bbf.constraints, md.model)
+#     end
+#     return
+# end
 
 function add_tree_constraints!(md::ModelData; M=1e5)
     for bbf in md.fns
@@ -37,7 +37,6 @@ function add_tree_constraints!(md::ModelData; M=1e5)
                               M=M, eq=bbf.equality,
                               return_constraints = true);
             bbf.constraints = constrs; #TODO: make sure we can remove all constraints.
-            add
         end
     end
     return
@@ -66,10 +65,10 @@ function add_feas_constraints!(m::JuMP.Model, x, grid::IAI.GridSearch,
     infeas_leaves = [i for i in all_leaves if i ∉ feas_leaves];
     z_feas = @variable(m, [1:size(feas_leaves, 1)], Bin)
     count = 0; constraints = [];
-    push!(constraints, @constraint(m, integrality, sum(z_feas) == 1))
+    push!(constraints, @constraint(m, sum(z_feas) == 1))
     if eq
         z_infeas = @variable(m, [1:length(infeas_leaves)], Bin)
-        push!(constraints, @constraint(m, integrality, sum(z_infeas) == 1))
+        push!(constraints, @constraint(m, sum(z_infeas) == 1))
     end
     # Getting lnr data
     upperDict, lowerDict = trust_region_data(lnr, vks)
@@ -78,11 +77,11 @@ function add_feas_constraints!(m::JuMP.Model, x, grid::IAI.GridSearch,
         # ADDING TRUST REGIONS
         for region in upperDict[leaf]
             threshold, α = region
-            push!(constraints, @constraint(m, hyperplane, threshold <= sum(α .* x) + M * (1 - z_feas[i])))
+            push!(constraints, @constraint(m, threshold <= sum(α .* x) + M * (1 - z_feas[i])))
         end
         for region in lowerDict[leaf]
             threshold, α = region
-            push!(constraints, @constraint(m, hyperplane, threshold + M * (1 - z_feas[i]) >= sum(α .* x)))
+            push!(constraints, @constraint(m, threshold + M * (1 - z_feas[i]) >= sum(α .* x)))
         end
     end
     if eq
@@ -91,11 +90,11 @@ function add_feas_constraints!(m::JuMP.Model, x, grid::IAI.GridSearch,
             # ADDING TRUST REGIONS
             for region in upperDict[leaf]
                 threshold, α = region
-                push!(constraints, @constraint(m, hyperplane, threshold <= sum(α .* x) + M * (1 - z_infeas[i])))
+                push!(constraints, @constraint(m, threshold <= sum(α .* x) + M * (1 - z_infeas[i])))
             end
             for region in lowerDict[leaf]
                 threshold, α = region
-                push!(constraints, @constraint(m, hyperplane, threshold + M * (1 - z_infeas[i]) >= sum(α .* x)))
+                push!(constraints, @constraint(m, threshold + M * (1 - z_infeas[i]) >= sum(α .* x)))
             end
         end
     end
@@ -127,7 +126,7 @@ function add_regr_constraints!(m::JuMP.Model, x::Array, y, grid::IAI.GridSearch,
     all_leaves = [i for i = 1:n_nodes if IAI.is_leaf(lnr, i)]
     z = @variable(m, [1:size(all_leaves, 1)], Bin)
     count = 0; constraints = [];
-    push!(constraints, @constraint(m, integrality, sum(z) == 1))
+    push!(constraints, @constraint(m, sum(z) == 1))
     # Getting lnr data
     pwlDict = pwl_constraint_data(lnr, vks)
     upperDict, lowerDict = trust_region_data(lnr, vks)
@@ -135,18 +134,18 @@ function add_regr_constraints!(m::JuMP.Model, x::Array, y, grid::IAI.GridSearch,
         # ADDING CONSTRAINTS
         leaf = all_leaves[i]
         β0, β = pwlDict[leaf]
-        push!(constraints, @constraint(m, regression, sum(β .* x) + β0 <= y + M * (1 .- z[i])))
+        push!(constraints, @constraint(m, sum(β .* x) + β0 <= y + M * (1 .- z[i])))
         if eq
-            push!(constraints, @constraint(m, regression, sum(β .* x) + β0 + M * (1 .- z[i]) >= y))
+            push!(constraints, @constraint(m, sum(β .* x) + β0 + M * (1 .- z[i]) >= y))
         end
         # ADDING TRUST REGIONS
         for region in upperDict[leaf]
             threshold, α = region
-            push!(constraints, @constraint(m, hyperplane, threshold <= sum(α .* x) + M * (1 - z[i])))
+            push!(constraints, @constraint(m, threshold <= sum(α .* x) + M * (1 - z[i])))
         end
         for region in lowerDict[leaf]
             threshold, α = region
-            push!(constraints, @constraint(m, hyperplane, threshold + M * (1 - z[i]) >= sum(α .* x)))
+            push!(constraints, @constraint(m, threshold + M * (1 - z[i]) >= sum(α .* x)))
         end
     end
     if return_constraints

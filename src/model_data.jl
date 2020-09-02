@@ -298,7 +298,6 @@ function find_bounds!(md::ModelData; all_bounds=true)
     ubs = Dict(md.vks .=> Inf)
     lbs = Dict(md.vks .=> -Inf)
     # Finding bounds by min/maximizing each variable
-
     m = md.model;
     x = md.vars;
     @showprogress 0.5 "Finding bounds..." for vk in md.vks

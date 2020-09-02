@@ -59,11 +59,11 @@ println("Optimal X: ", vcat(exp.([5.01063529, 3.40119660, -0.48450710]), [-147-2
 #                                return_constraints::Bool = false)
 
 # Resampling and resolving via KNN
-sample_and_eval!(md);
-learn_constraint!(md);
-println("Approximation accuracies: ", accuracy(md))
-
-# Solving again
-globalsolve(md);
-println("X values: ", solution(md))
-println("Optimal X: ", vcat(exp.([5.01063529, 3.40119660, -0.48450710]), [-147-2/3]))
+# sample_and_eval!(md);
+# learn_constraint!(md);
+# println("Approximation accuracies: ", accuracy(md))
+#
+# # Solving again
+# globalsolve(md);
+# println("X values: ", solution(md))
+# println("Optimal X: ", vcat(exp.([5.01063529, 3.40119660, -0.48450710]), [-147-2/3]))
