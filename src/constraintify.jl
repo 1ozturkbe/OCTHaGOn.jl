@@ -11,6 +11,13 @@ function check_if_trained(lnr::IAI.OptimalTreeLearner)
     end
 end
 
+function clear_tree_constraints!(md::ModelData)
+    for bbf in md.fns
+        delete(bbf.constraints, md.model)
+    end
+    return
+end
+
 function add_tree_constraints!(md::ModelData; M=1e5)
     for bbf in md.fns
         if bbf.feas_ratio == 1.0
