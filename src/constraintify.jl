@@ -1,5 +1,5 @@
-# File to generate constraints compatible with JuMP
 function check_if_trained(lnr::IAI.OptimalTreeLearner)
+    """ Checks if a learner is trained. """
     try
         n_nodes = IAI.get_num_nodes(lnr);
     catch err
@@ -11,14 +11,18 @@ function check_if_trained(lnr::IAI.OptimalTreeLearner)
     end
 end
 
-# function clear_tree_constraints!(md::ModelData)
-#     for bbf in md.fns
-#         delete(bbf.constraints, md.model)
-#     end
-#     return
-# end
+function clear_tree_constraints!(md::ModelData)
+    """ Clears the constraints in md.model of bbf.constraints. """
+    for bbf in md.fns
+        for constraint in bbf.constraints
+            delete(md.model, constraint)
+        end
+    end
+    return
+end
 
 function add_tree_constraints!(md::ModelData; M=1e5)
+    """ Generates MI constraints from md.learners. """
     for bbf in md.fns
         if bbf.feas_ratio == 1.0
             return
@@ -36,8 +40,8 @@ function add_tree_constraints!(md::ModelData; M=1e5)
                                         bbf.learners[end], bbf.vks;
                               M=M, eq=bbf.equality,
                               return_constraints = true);
-            bbf.constraints = constrs; #TODO: make sure we can remove all constraints.
-        end
+            bbf.constraints = constrs; # Note: this is needed to monitor the presence of tree
+        end                            #       constraints in md.model.
     end
     return
 end

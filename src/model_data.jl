@@ -269,7 +269,8 @@ end
 function globalsolve(md::ModelData)
     """ Creates and solves the global optimization model using the linear constraints from ModelData,
         and approximated nonlinear constraints from inside its BlackBoxFunctions."""
-    add_tree_constraints!(md);
+    clear_tree_constraints!(md); # remove trees from previous solve (if any).
+    add_tree_constraints!(md); # refresh latest tree constraints.
     status = JuMP.optimize!(md.model);
     return status
 end
