@@ -15,7 +15,9 @@ function clear_tree_constraints!(md::ModelData)
     """ Clears the constraints in md.model of bbf.constraints. """
     for bbf in md.fns
         for constraint in bbf.constraints
-            delete(md.model, constraint)
+            if is_valid(md.model, constraint)
+                delete(md.model, constraint)
+            end
         end
     end
     return

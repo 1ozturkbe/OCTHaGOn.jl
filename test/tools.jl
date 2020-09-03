@@ -54,9 +54,14 @@ println("X values: ", solution(md))
 println("Optimal X: ", vcat(exp.([5.01063529, 3.40119660, -0.48450710]), [-147-2/3]))
 
 # Testing constraint addition and removal
-add_feas_constraints!(m::JuMP.Model, x, grid::IAI.GridSearch,
-                               vks::Array; M::Float64 = 1.e5, eq = false,
-                               return_constraints::Bool = false)
+clear_tree_constraints!(md) # Clears all BBF constraints
+@test all([!is_valid(md.model, constraint) for constraint in md.fns[2].constraints])
+md.fns[1].constraints = add_feas_constraints!(md.model, [md.vars[vk] for vk in md.fns[1].vks],
+                                              md.fns[1].learners[1], md.fns[1].vks,
+                                              return_constraints = true) # Adds only one bbf constraint
+clear_tree_constraints!(md) # Finds and clears the one remaining BBF constraint.
+@test all([!is_valid(md.model, constraint) for constraint in md.fns[1].constraints])
+
 
 # Resampling and resolving via KNN
 # sample_and_eval!(md);
