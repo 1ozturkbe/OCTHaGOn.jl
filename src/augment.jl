@@ -23,7 +23,7 @@ function augment(X, fns, fn_names=nothing)
     fn_array = [x -> x[:,i] for i=1:p];
     for i=1:size(fns,1)
         next = fns[i](X);
-        if typeof(X) == DataFrame && fn_names
+        if typeof(X) == DataFrame && !isnothing(fn_names)
             names!(next, fn_names[i])
         end
         augX = hcat(augX, next);
