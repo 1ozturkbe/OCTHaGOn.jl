@@ -7,26 +7,30 @@ cbf:
 
 
 # Test CBF imports
+#     gams01, netmod_dol2, netmod_kar1, netmod_kar2, du-opt, du-opt5, nvs03, ex1223, ex1223a, ex1223b, gbd
 filename = string("data/cblib/shortfall_20_15.cbf.gz");
+# Potential examples from MINLPLib
+# gams01, netmod_dol2, netmod_kar1, netmod_kar2, du-opt, du-opt5, nvs03, ex1223, ex1223a, ex1223b, gbd
+# filename = string("data/cblib/gbd.cbf.gz");
 model = JuMP.read_from_file(filename);
 set_optimizer(model, Gurobi.Optimizer)
 optimize!(model);
 moi_obj = JuMP.getobjectivevalue(model);
 @test moi_obj ≈ -1.0792654303
-#
-# # Testing CBF import to ModelData
+
+
+# Testing CBF import to ModelData
 md = OptimalConstraintTree.CBF_to_ModelData(filename);
 md.name = "shortfall_20_15"
 find_bounds!(md, all_bounds = true);
 update_bounds!(md, lbs = Dict(md.vks .=> 0.));
 update_bounds!(md, ubs = Dict(md.vks .=> 1.));
 
-# Test sampling
-n_samples = 500;
-X = lh_sample(md, n_samples=n_samples);
-#
+
 # Testing constraint import.
+n_samples = 200;
 bbf = md.fns[1];
+X = lh_sample(bbf, n_samples=n_samples);
 Y = md.fns[1](X);
 
 # Testing proper CBF constraint import.
@@ -41,8 +45,9 @@ function constr_fn(x)
         return expr[1].^2 - sum(expr[2:end].^2);
     end
 end
-Y2 = [constr_fn(Array(X[j,var_idxs])) for j=1:n_samples];
+Y2 = [constr_fn(Array(X[j,:])) for j=1:n_samples];
 @test Y == Y2;
+
 
 # Testing sample_and_eval for combined LH and boundary sampling.
 sample_and_eval!(md, n_samples=500);
@@ -61,9 +66,7 @@ status = globalsolve(md)
 OCT_vars = JuMP.getvalue.(md.vars);
 feasible, infeasible = evaluate_feasibility(md);
 
-
 # Doing CBF stuff
-# model = JuMP.read_from_file(filename)
 # cons_types = list_of_constraint_types(model)
 #
 # for (expr, type) in cons_types

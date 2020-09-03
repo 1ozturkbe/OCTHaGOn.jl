@@ -1,5 +1,5 @@
-# File to generate constraints compatible with JuMP
 function check_if_trained(lnr::IAI.OptimalTreeLearner)
+    """ Checks if a learner is trained. """
     try
         n_nodes = IAI.get_num_nodes(lnr);
     catch err
@@ -12,13 +12,24 @@ function check_if_trained(lnr::IAI.OptimalTreeLearner)
 end
 
 function clear_tree_constraints!(md::ModelData)
+    """ Clears the constraints in md.model of bbf.constraints. """
     for bbf in md.fns
-        delete(bbf.constraints, md.model)
+        for constraint in bbf.constraints
+            if is_valid(md.model, constraint)
+                delete(md.model, constraint)
+            end
+        end
+        for variable in bbf.leaf_variables
+            if is_valid(md.model, variable)
+                delete(md.model, variable)
+            end
+        end
     end
     return
 end
 
 function add_tree_constraints!(md::ModelData; M=1e5)
+    """ Generates MI constraints from md.learners. """
     for bbf in md.fns
         if bbf.feas_ratio == 1.0
             return
@@ -31,13 +42,13 @@ function add_tree_constraints!(md::ModelData; M=1e5)
                                 can be generated."))
         else
             grid = bbf.learners[end];
-            constrs = add_feas_constraints!(md.model,
+            constrs, leaf_vars = add_feas_constraints!(md.model,
                                         [md.vars[vk] for vk in bbf.vks],
                                         bbf.learners[end], bbf.vks;
                               M=M, eq=bbf.equality,
-                              return_constraints = true);
-            bbf.constraints = constrs; #TODO: make sure we can remove all constraints.
-            add
+                              return_data = true);
+            bbf.constraints = constrs; # Note: this is needed to monitor the presence of tree
+            bbf.leaf_variables = leaf_vars; #  constraints and variables in md.model.
         end
     end
     return
@@ -45,7 +56,7 @@ end
 
 function add_feas_constraints!(m::JuMP.Model, x, grid::IAI.GridSearch,
                                vks::Array; M::Float64 = 1.e5, eq = false,
-                               return_constraints::Bool = false)
+                               return_data::Bool = false)
     """
     Creates a set of binary feasibility constraints from
     a binary classification tree:
@@ -64,12 +75,14 @@ function add_feas_constraints!(m::JuMP.Model, x, grid::IAI.GridSearch,
     feas_leaves =
         [i for i in all_leaves if IAI.get_classification_label(lnr, i)];
     infeas_leaves = [i for i in all_leaves if i ∉ feas_leaves];
+    count = 0; constraints = []; leaf_variables = [];
     z_feas = @variable(m, [1:size(feas_leaves, 1)], Bin)
-    count = 0; constraints = [];
-    push!(constraints, @constraint(m, integrality, sum(z_feas) == 1))
+    append!(leaf_variables, z_feas)
+    push!(constraints, @constraint(m, sum(z_feas) == 1))
     if eq
         z_infeas = @variable(m, [1:length(infeas_leaves)], Bin)
-        push!(constraints, @constraint(m, integrality, sum(z_infeas) == 1))
+        append!(leaf_variables, z_infeas)
+        push!(constraints, @constraint(m, sum(z_infeas) == 1))
     end
     # Getting lnr data
     upperDict, lowerDict = trust_region_data(lnr, vks)
@@ -78,11 +91,11 @@ function add_feas_constraints!(m::JuMP.Model, x, grid::IAI.GridSearch,
         # ADDING TRUST REGIONS
         for region in upperDict[leaf]
             threshold, α = region
-            push!(constraints, @constraint(m, hyperplane, threshold <= sum(α .* x) + M * (1 - z_feas[i])))
+            push!(constraints, @constraint(m, threshold <= sum(α .* x) + M * (1 - z_feas[i])))
         end
         for region in lowerDict[leaf]
             threshold, α = region
-            push!(constraints, @constraint(m, hyperplane, threshold + M * (1 - z_feas[i]) >= sum(α .* x)))
+            push!(constraints, @constraint(m, threshold + M * (1 - z_feas[i]) >= sum(α .* x)))
         end
     end
     if eq
@@ -91,16 +104,16 @@ function add_feas_constraints!(m::JuMP.Model, x, grid::IAI.GridSearch,
             # ADDING TRUST REGIONS
             for region in upperDict[leaf]
                 threshold, α = region
-                push!(constraints, @constraint(m, hyperplane, threshold <= sum(α .* x) + M * (1 - z_infeas[i])))
+                push!(constraints, @constraint(m, threshold <= sum(α .* x) + M * (1 - z_infeas[i])))
             end
             for region in lowerDict[leaf]
                 threshold, α = region
-                push!(constraints, @constraint(m, hyperplane, threshold + M * (1 - z_infeas[i]) >= sum(α .* x)))
+                push!(constraints, @constraint(m, threshold + M * (1 - z_infeas[i]) >= sum(α .* x)))
             end
         end
     end
-    if return_constraints
-        return constraints
+    if return_data
+        return constraints, leaf_variables
     else
         return
     end
@@ -108,7 +121,7 @@ end
 
 function add_regr_constraints!(m::JuMP.Model, x::Array, y, grid::IAI.GridSearch, vks::Array;
                                M::Float64 = 1.e5, eq = false,
-                               return_constraints::Bool = false)
+                               return_data::Bool = false)
     """
     Creates a set of MIO constraints from a OptimalTreeRegressor
     Arguments:
@@ -125,9 +138,10 @@ function add_regr_constraints!(m::JuMP.Model, x::Array, y, grid::IAI.GridSearch,
     n_nodes = IAI.get_num_nodes(lnr)
     # Add a binary variable for each leaf
     all_leaves = [i for i = 1:n_nodes if IAI.is_leaf(lnr, i)]
+    count = 0; constraints = []; leaf_variables = [];
     z = @variable(m, [1:size(all_leaves, 1)], Bin)
-    count = 0; constraints = [];
-    push!(constraints, @constraint(m, integrality, sum(z) == 1))
+    append!(leaf_variables, z)
+    push!(constraints, @constraint(m, sum(z) == 1))
     # Getting lnr data
     pwlDict = pwl_constraint_data(lnr, vks)
     upperDict, lowerDict = trust_region_data(lnr, vks)
@@ -135,22 +149,22 @@ function add_regr_constraints!(m::JuMP.Model, x::Array, y, grid::IAI.GridSearch,
         # ADDING CONSTRAINTS
         leaf = all_leaves[i]
         β0, β = pwlDict[leaf]
-        push!(constraints, @constraint(m, regression, sum(β .* x) + β0 <= y + M * (1 .- z[i])))
+        push!(constraints, @constraint(m, sum(β .* x) + β0 <= y + M * (1 .- z[i])))
         if eq
-            push!(constraints, @constraint(m, regression, sum(β .* x) + β0 + M * (1 .- z[i]) >= y))
+            push!(constraints, @constraint(m, sum(β .* x) + β0 + M * (1 .- z[i]) >= y))
         end
         # ADDING TRUST REGIONS
         for region in upperDict[leaf]
             threshold, α = region
-            push!(constraints, @constraint(m, hyperplane, threshold <= sum(α .* x) + M * (1 - z[i])))
+            push!(constraints, @constraint(m, threshold <= sum(α .* x) + M * (1 - z[i])))
         end
         for region in lowerDict[leaf]
             threshold, α = region
-            push!(constraints, @constraint(m, hyperplane, threshold + M * (1 - z[i]) >= sum(α .* x)))
+            push!(constraints, @constraint(m, threshold + M * (1 - z[i]) >= sum(α .* x)))
         end
     end
-    if return_constraints
-        return constraints
+    if return_data
+        return constraints, leaf_variables
     else
         return
     end
