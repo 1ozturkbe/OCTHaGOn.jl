@@ -28,7 +28,7 @@ end
 """
 Contains all required info to be able to generate a global optimization problem.
 """
-    name::String = "Model"                                              # Example name
+    name::Union{Symbol, String} = "Model"                               # Example name
     c::Array                                                            # Cost vector
     fns::Array{BlackBoxFunction} = Array{BlackBoxFunction}[]            # Black box (>/= 0) functions
     lin_constrs::Array{Union{ScalarConstraint, VectorConstraint}} = []  # Linear constraints
