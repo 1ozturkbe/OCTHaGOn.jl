@@ -56,11 +56,12 @@ println("Optimal X: ", vcat(exp.([5.01063529, 3.40119660, -0.48450710]), [-147-2
 # Testing constraint addition and removal
 clear_tree_constraints!(md) # Clears all BBF constraints
 @test all([!is_valid(md.model, constraint) for constraint in md.fns[2].constraints])
-md.fns[1].constraints = add_feas_constraints!(md.model, [md.vars[vk] for vk in md.fns[1].vks],
+md.fns[1].constraints, md.fns[1].leaf_variables = add_feas_constraints!(md.model, [md.vars[vk] for vk in md.fns[1].vks],
                                               md.fns[1].learners[1], md.fns[1].vks,
-                                              return_constraints = true) # Adds only one bbf constraint
+                                              return_data = true) # Adds only one bbf constraint
 clear_tree_constraints!(md) # Finds and clears the one remaining BBF constraint.
 @test all([!is_valid(md.model, constraint) for constraint in md.fns[1].constraints])
+@test all([!is_valid(md.model, var) for var in md.fns[1].leaf_variables])
 
 
 # Resampling and resolving via KNN
