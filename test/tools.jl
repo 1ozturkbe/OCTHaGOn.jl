@@ -39,7 +39,7 @@ end
 
 # Importing sagebenchmark to ModelData and checking it
 @test test_sagemark_to_ModelData()
-md = OCT.sagemark_to_ModelData(3, lse=false);
+md = OCT.sagemark_to_ModelData(3, lse=true);
 update_bounds!(md, lbs = Dict(:x4 => -300), ubs = Dict(:x4 => 0))
 
 # Fitting all fns.
