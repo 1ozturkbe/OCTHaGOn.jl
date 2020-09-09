@@ -44,11 +44,11 @@ module OptimalConstraintTree
            # Structs
     export ModelData, BlackBoxFunction, InitModel,
            # ModelData Functions
-           fns_by_feasibility,
+           fns_by_feasibility, globalsolve,
            # Functions on ModelData and BlackBoxFunctions
            gridify, learn_from_data!, find_bounds!, update_bounds!,
            lh_sample, boundary_sample, add_bounds!,
-           accuracy, feasibility, accuracy_check, feasibility_check, globalsolve,
+           accuracy, feasibility, check_accuracy, check_feasibility, check_bounds,
            solution, evaluate_feasibility,
            # Functions on BlackBoxFunctions
            eval!, sample_and_eval!, plot, learn_constraint!,

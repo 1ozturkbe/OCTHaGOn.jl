@@ -140,6 +140,19 @@ function update_bounds!(md::Union{ModelData, BlackBoxFunction, Array{BlackBoxFun
     return
 end
 
+function check_bounds(md::Union{ModelData, BlackBoxFunction})
+    """ Checks outer-boundedness of BBF or MD. """
+    if isa(md, BlackBoxFunction)
+        if any(isinf.(values(md.lbs))) || any(isinf.(values(md.ubs)))
+            return false
+        else
+            return true
+        end
+    else
+        return any(check_bounds.(md.fns))
+    end
+end
+
 function lh_sample(md::Union{ModelData,BlackBoxFunction}; iterations::Int64 = 3,
                 n_samples::Int64 = 1000)
 """

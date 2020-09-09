@@ -11,7 +11,7 @@ cbf:
 filename = string("data/cblib/shortfall_20_15.cbf.gz");
 # Potential examples from MINLPLib
 # gams01, netmod_dol2, netmod_kar1, netmod_kar2, du-opt, du-opt5, nvs03, ex1223, ex1223a, ex1223b, gbd
-# filename = string("data/cblib/gbd.cbf.gz");
+filename = string("data/cblib/nvs03.cbf.gz");
 model = JuMP.read_from_file(filename);
 set_optimizer(model, Gurobi.Optimizer)
 optimize!(model);
