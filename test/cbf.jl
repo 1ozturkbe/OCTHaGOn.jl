@@ -11,7 +11,6 @@ cbf:
 filename = string("data/cblib/shortfall_20_15.cbf.gz");
 # Potential examples from MINLPLib
 # gams01, netmod_dol2, netmod_kar1, netmod_kar2, du-opt, du-opt5, nvs03, ex1223, ex1223a, ex1223b, gbd
-filename = string("data/cblib/nvs03.cbf.gz");
 model = JuMP.read_from_file(filename);
 set_optimizer(model, Gurobi.Optimizer)
 optimize!(model);
@@ -25,7 +24,6 @@ md.name = "shortfall_20_15"
 find_bounds!(md, all_bounds = true);
 update_bounds!(md, lbs = Dict(md.vks .=> 0.));
 update_bounds!(md, ubs = Dict(md.vks .=> 1.));
-
 
 # Testing constraint import.
 n_samples = 200;
