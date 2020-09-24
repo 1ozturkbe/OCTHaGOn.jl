@@ -14,10 +14,10 @@ Note: All tests should be run from a julia REPR within the julia folder, using:
 include("load.jl");
 
 @testset "OptimalConstraintTree" begin
-#     include(string(PROJECT_ROOT, "/src.jl"))
-#
-#     include(string(PROJECT_ROOT, "/cbf.jl"))
-#
+    include(string(PROJECT_ROOT, "/src.jl"))
+
+    include(string(PROJECT_ROOT, "/cbf.jl"))
+
     include(string(PROJECT_ROOT, "/tools.jl"))
 #
 #     include(string(PROJECT_ROOT, "/speedreducer.jl"))
