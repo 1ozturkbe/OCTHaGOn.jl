@@ -53,7 +53,7 @@ function CBF_to_ModelData(filename; epsilon=1e-20)
     # Idxs describe which rows of A the cone applies to.
     # All cones: [:Free, :Zero, :NonNeg, :NonPos, :SOC, :SOCRotated, :SDP, :ExpPrimal, :ExpDual]
         var_idxs = unique(cart_ind[2] for cart_ind in findall(!iszero, A[idxs, :])); # CartesianIndices...
-        vks = [Symbol("x", i) for i in var_idxs];
+        vks = Dict(:x => [var_idxs])
         if cone == :NonNeg
             if length(var_idxs) == 1.
                 u[var_idxs[1]] = minimum([u[var_idxs[1]], b[idxs][1]/A[idxs, :].nzval[1]]);

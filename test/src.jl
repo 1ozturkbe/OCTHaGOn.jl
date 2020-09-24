@@ -11,11 +11,50 @@ All the rest of the tests look at examples
 # BLACKBOXFUNCTION TESTS #
 ##########################
 
-bbf = BlackBoxFunction(fn = x -> x[:x1] + x[:x3]^3,
-                    vks = [:x1, :x3], n_samples = 50);
+m = Model();
+@variable(m, -1 <= x[1:5] <= 1);
+@variable(m, -5 <= y[1:3] <= 8);
+@variable(m, -30 <= z <= 5);
+vars = all_variables(m);
+vks = string.(vars);
+inp = rand(length(vks));
+@NLconstraint(m, sum(x[i] for i=1:4) - y[1]*y[2] + z <=10)
+d = JuMP.NLPEvaluator(m)
+MOI.initialize(d, [:Jac])
+constraint_values = zeros(1)
+MOI.eval_constraint(d, constraint_values, inp)
+inp = rand(10)
+@test_throws BoundsError MOI.eval_constraint(d, constraint_values, inp)
+
+# Working example
+using JuMP
+using MathOptInterface
+const MOI = MathOptInterface
+m = Model();
+@variable(m, -1 <= x[1:5] <= 1); @variable(m, -5 <= y[1:3] <= 8); @variable(m, -30 <= z <= 5);
+@NLconstraint(m, sum(x[i] for i=1:4) - y[1]*y[2] + z <=10)
+d = JuMP.NLPEvaluator(m)
+MOI.initialize(d, [:Jac])
+constraint_values = zeros(1)
+inp = rand(9)
+MOI.eval_constraint(d, constraint_values, inp) # where it dumps result into constraint values.
+
+# Ideally,  would like to be able to do:
+inp = Dict(subset_of_vars .=> nums)
+evaluate(constraint, dict)
+
+# m = Model(Ipopt.Optimizer)
+# @variable(m, x[1:2])
+# # Use Meta.parse and custom transformations to create this object from a string. eval() is not needed.
+# expr = :($(x[1])^3 + 5.0 * $(x[1]) * $(x[2]))
+# add_NL_constraint(m, :($expr <= 5))
+# https://discourse.julialang.org/t/procedural-nonlinear-constaint-generation-string-to-nlconstraint/34799/3
+
+
+bbf = BlackBoxFunction(constraint = constraint, vks =
 
 # Check evaluation of samples from Dict, DataFrameRow and DataFrame
-samples = DataFrame(rand(4,4), [Symbol("x",i) for i=1:4]);
+samples = DataFrame(rand(4,4), string.(x[1:4]))
 val1 = bbf(samples[1,:]);
 sample = Dict(:x1 => samples[1,1], :x3 => samples[1,3])
 val2 = bbf(sample);

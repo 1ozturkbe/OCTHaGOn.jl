@@ -32,9 +32,9 @@ Contains all required info to be able to generate a global optimization problem.
     c::Array                                                            # Cost vector
     fns::Array{BlackBoxFunction} = Array{BlackBoxFunction}[]            # Black box (>/= 0) functions
     lin_constrs::Array{Union{ScalarConstraint, VectorConstraint}} = []  # Linear constraints
-    vks::Array = [Symbol("x",i) for i=1:length(c)]                      # Varkeys
-    lbs::Dict{Symbol, <:Real} = Dict(vks .=> -Inf)                      # Variable lower bounds
-    ubs::Dict{Symbol, <:Real} = Dict(vks .=> Inf)                       # Variable upper bounds
+    vks::Dict{Symbol, Tuple} = Dict(:x => (length(c)))                  # Varkeys and size
+    lbs::Dict{Symbol, Any} = Dict(vk .=> -Inf.*ones(size(tup)) for (vk, tup) in vks)  # Variable lower bounds
+    ubs::Dict{Symbol, Any} = Dict(vk .=> Inf.*ones(size(tup)) for (vk, tup) in vks)  # Variable upper bounds
     model::JuMP.Model = InitModel(c, vks, lbs, ubs)                     # JuMP model
     vars = model[:x]                                                    # JuMP variables
 end

@@ -10,10 +10,10 @@ sample_data:
 Contains all required info to be able to generate a global optimization constraint.
 """
     name::Union{String, Real} = ""                     # Function name
-    fn::Function                                       # The function
-    vks::Array                                         # Varkeys
-    lbs::Dict = Dict(vks .=> -Inf)                     # Variable lower bounds
-    ubs::Dict = Dict(vks .=> Inf)                      # Variable upper bounds
+    constraint::ConstraintRef                          # The JuMP constraint function
+    vks::Dict{Symbol, Tuple}                           # Varkeys and size
+    lbs::Dict{Symbol, Any} = Dict(vk .=> -Inf.*ones(size(tup)) for (vk, tup) in vks)  # Variable lower bounds
+    ubs::Dict{Symbol, Any} = Dict(vk .=> Inf.*ones(size(tup)) for (vk, tup) in vks)  # Variable upper bounds
     X::DataFrame = DataFrame([Float64 for i in vks], vks)  # Function samples
     Y::Array = []                                      # Function values
     feas_ratio::Float64 = 0.                           # Feasible sample proportion
