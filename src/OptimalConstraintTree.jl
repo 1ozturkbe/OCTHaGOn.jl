@@ -15,6 +15,8 @@ module OptimalConstraintTree
     using PyCall
     using Random
 
+    include("on_jumpmodels.jl")
+
     include("learners.jl")
 
     include("exceptions.jl")

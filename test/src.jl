@@ -11,33 +11,26 @@ All the rest of the tests look at examples
 # BLACKBOXFUNCTION TESTS #
 ##########################
 
-m = Model();
-@variable(m, -1 <= x[1:5] <= 1);
-@variable(m, -5 <= y[1:3] <= 8);
-@variable(m, -30 <= z <= 5);
+model = Model()
+@variables(model, begin
+    -1 <= x[1:5] <= 1
+    -5 <= y[1:3] <= 8
+    -30 <= z <= 5
+end)
+ex = @NLexpression(model, sum(x[i] for i=1:4) - y[1] * y[2] + z)
+@NLconstraint(model, ex <= 10)
+
+# Testing ways of evaluating functions
+inp = Dict(x[1] => 1, x[2] => 2, x[3] => 3, x[4] => 4, y[1] => 5, y[2] => 6, z => 7)
+# `get(dict, key, default)` is used to avoid specifying unused variables.
+@test value(ex, i -> get(inp, i, 0.0)) == -13.0
+inp_dict = Dict(string(key) => value for (key, value) in inp)
+inp_df = DataFrame(inp_dict)
+@test value(ex, i -> get(inp, i, 0.0)) == -13.0
+
+# Testing variable processing
 vars = all_variables(m);
 vks = string.(vars);
-inp = rand(length(vks));
-@NLconstraint(m, sum(x[i] for i=1:4) - y[1]*y[2] + z <=10)
-d = JuMP.NLPEvaluator(m)
-MOI.initialize(d, [:Jac])
-constraint_values = zeros(1)
-MOI.eval_constraint(d, constraint_values, inp)
-inp = rand(10)
-@test_throws BoundsError MOI.eval_constraint(d, constraint_values, inp)
-
-# Working example
-using JuMP
-using MathOptInterface
-const MOI = MathOptInterface
-m = Model();
-@variable(m, -1 <= x[1:5] <= 1); @variable(m, -5 <= y[1:3] <= 8); @variable(m, -30 <= z <= 5);
-@NLconstraint(m, sum(x[i] for i=1:4) - y[1]*y[2] + z <=10)
-d = JuMP.NLPEvaluator(m)
-MOI.initialize(d, [:Jac])
-constraint_values = zeros(1)
-inp = rand(9)
-MOI.eval_constraint(d, constraint_values, inp) # where it dumps result into constraint values.
 
 # Ideally,  would like to be able to do:
 inp = Dict(subset_of_vars .=> nums)
