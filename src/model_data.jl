@@ -1,16 +1,3 @@
-function bound!(vars, vks::Array, lbs::Dict{Symbol, <:Real}, ubs::Dict{Symbol, <:Real})
-    """Adds outer bounds to JuMP Model from ModelData.lbs/ubs. """
-    for vk in vks
-        if !isinf(lbs[vk])
-            set_lower_bound(vars[vk], lbs[vk])
-        end
-        if !isinf(ubs[vk])
-            set_upper_bound(vars[vk], ubs[vk])
-        end
-    end
-    return
-end
-
 function set_objective!(model, c, vars, vks)
     @objective(model, Min, sum(c .* [vars[vk] for vk in vks]));
     return

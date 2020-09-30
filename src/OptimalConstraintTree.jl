@@ -15,7 +15,7 @@ module OptimalConstraintTree
     using PyCall
     using Random
 
-    include("on_jumpmodels.jl")
+    include("on_jump.jl")
 
     include("learners.jl")
 
@@ -37,8 +37,6 @@ module OptimalConstraintTree
 
     include("fit.jl")
 
-    include("convexRegress.jl")
-
     include("plot.jl")
 
     include("tools.jl")
@@ -57,7 +55,8 @@ module OptimalConstraintTree
            add_fn!, add_lin_constr!,
            secant_method, knn_sample, build_knn_tree,
            find_knn, classify_patches,
-           # Functions on JuMP.Models
+           # Functions on JuMP objects
+           evaluate, fetch_variable, get_bounds,
            set_objective!, bound!,
            add_feas_constraints!, add_regr_constraints!,
            add_tree_constraints!, clear_tree_constraints!,
