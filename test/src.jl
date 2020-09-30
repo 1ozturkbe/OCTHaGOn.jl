@@ -13,23 +13,37 @@ All the rest of the tests look at examples
 
 model = Model()
 @variables(model, begin
-    -1 <= x[1:5] <= 1
-    -5 <= y[1:3] <= 8
-    -30 <= z <= 5
+    -5 <= x[1:5] <= 5
+    -4 <= y[1:3] <= 1
+    -30 <= z
 end)
 ex = @NLexpression(model, sum(x[i] for i=1:4) - y[1] * y[2] + z)
 @NLconstraint(model, ex <= 10)
+@constraint(model, sum(y[:]) >= -2)
+
+# Testing getting variables
+varkeys = ["x[1]", x[1], :z, :x];
+vars = [x[1], x[1], z, x[:]];
+@test all(vars .==  fetch_variable.(model, varkeys))
+
+# Testing bounds and fixing variables
+bounds = get_bounds(model);
+@test bounds[z] == [-30., Inf]
+bounds = Dict(:x => [-10,1], z => [-10, 10])
+bound!(model, bounds)
+@test get_bounds(model)[z] == [-10, 10]
+@test get_bounds(model)[x[3]] == [-5, 1]
+
 
 # Testing ways of evaluating functions
 inp = Dict(x[1] => 1, x[2] => 2, x[3] => 3, x[4] => 4, y[1] => 5, y[2] => 6, z => 7)
-# `get(dict, key, default)` is used to avoid specifying unused variables.
-@test value(ex, i -> get(inp, i, 0.0)) == -13.0
 inp_dict = Dict(string(key) => value for (key, value) in inp)
 inp_df = DataFrame(inp_dict)
-@test value(ex, i -> get(inp, i, 0.0)) == -13.0
+
+@test evaluate(model, inp) == evaluate(model, inp_dict) == evaluate(model, inp_df) == -13.0
 
 # Testing variable processing
-vars = all_variables(m);
+vars = JuMP.all_variables(model);
 vks = string.(vars);
 
 # Ideally,  would like to be able to do:
@@ -43,8 +57,6 @@ evaluate(constraint, dict)
 # add_NL_constraint(m, :($expr <= 5))
 # https://discourse.julialang.org/t/procedural-nonlinear-constaint-generation-string-to-nlconstraint/34799/3
 
-
-bbf = BlackBoxFunction(constraint = constraint, vks =
 
 # Check evaluation of samples from Dict, DataFrameRow and DataFrame
 samples = DataFrame(rand(4,4), string.(x[1:4]))

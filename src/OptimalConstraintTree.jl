@@ -57,7 +57,7 @@ module OptimalConstraintTree
            find_knn, classify_patches,
            # Functions on JuMP objects
            evaluate, fetch_variable, get_bounds,
-           set_objective!, bound!,
+           set_objective!, bound!, sanitize_data,
            add_feas_constraints!, add_regr_constraints!,
            add_tree_constraints!, clear_tree_constraints!,
            base_otr, base_otc, update_bounds!, sample,

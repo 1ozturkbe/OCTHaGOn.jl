@@ -44,12 +44,12 @@ function bound!(model::JuMP.Model,
         else
             if JuMP.has_lower_bound(var) && JuMP.lower_bound(var) <= minimum(value)
                 set_lower_bound(var, minimum(value))
-            else
+            elseif !JuMP.has_lower_bound(var)
                 set_lower_bound(var, minimum(value))
             end
             if JuMP.has_upper_bound(var) && JuMP.upper_bound(var) >= maximum(value)
                 set_upper_bound(var, maximum(value))
-            else
+            else !JuMP.has_upper_bound(var)
                 set_upper_bound(var, maximum(value))
             end
         end
@@ -87,4 +87,6 @@ function evaluate(model::JuMP.Model, constraint, data::Union{Dict, DataFrame})
             return JuMP.value(constraint, i -> get(clean_data, i, Inf)[1])
         else
             return value(constraint, i -> get(clean_data, i, Inf))
+        end
+    end
 end
