@@ -76,12 +76,12 @@ function sanitize_data(model::JuMP.Model, data::Union{Dict, DataFrame})
     end
 end
 
-function evaluate(model::JuMP.Model, constraint, data::Union{Dict, DataFrame})
+function evaluate(constraint, data::Union{Dict, DataFrame})
     """ Evaluates a constraint on data in the variables.
         Note that the keys of the Dict have to be uniform. """
     if data isa Dict
-        clean_data = sanitize_data(model, data);
-        evaluate(model, constraint, clean_data);
+        clean_data = sanitize_data(constraint.model, data);
+        evaluate(model, clean_data);
     else
         if size(data, 1) == 1
             return JuMP.value(constraint, i -> get(clean_data, i, Inf)[1])
@@ -90,3 +90,37 @@ function evaluate(model::JuMP.Model, constraint, data::Union{Dict, DataFrame})
         end
     end
 end
+
+function linearize_objective(model::JuMP.Model)
+    """Makes sure that the objective function is affine. """
+    objtype = JuMP.objective_function(model)
+    objsense = string(JuMP.objective_sense(model))
+    if objtype isa Union{VariableRef, GenericAffExpr} || objsense == "FEASIBILITY_SENSE"
+        return
+    else
+        @objective(model, aux)
+        aux = @variable(model)
+        # Default optimization problem is always a minimization
+        coeff = 1;
+        objsense == "MAX_SENSE" && coeff = -1;
+        try
+            @constraint(model, aux >= coeff*JuMP.objective_function(model))
+        catch
+            @NLconstraint(model, aux >= coeff*JuMP.objective_function(model))
+        end
+        return
+    end
+end
+
+
+function separate_constraints(model::JuMP.Model)
+    """Separates and returns linear and nonlinear constraints in a model. """
+    all_types = list_of_constraint_types(model)
+    nl_constrs = [];
+    l_constrs = [];
+    for (vartype, constype) in all_types
+        print(num_constraints(model, vartype, constype))
+        push!(l_constrs, all_constraints(model, vartype, constype))
+    end
+        # Omit constraints on just VariableRefs, since these are bounds and Int constraints
+        if vartype
