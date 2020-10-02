@@ -76,33 +76,35 @@ function sanitize_data(model::JuMP.Model, data::Union{Dict, DataFrame})
     end
 end
 
-function evaluate(constraint, data::Union{Dict, DataFrame})
-    """ Evaluates a constraint on data in the variables.
+function evaluate(constraint::ConstraintRef, data::Union{Dict, DataFrame})
+    """ Evaluates a constraint on data in the variables, and returns Bool.
         Note that the keys of the Dict have to be uniform. """
-    if data isa Dict
-        clean_data = sanitize_data(constraint.model, data);
-        evaluate(model, clean_data);
-    else
-        if size(data, 1) == 1
-            return JuMP.value(constraint, i -> get(clean_data, i, Inf)[1])
-        else
-            return value(constraint, i -> get(clean_data, i, Inf))
+    constr_obj = constraint_object(constraint)
+    clean_data = sanitize_data(constraint.model, data);
+    if size(clean_data, 1) == 1
+        val = JuMP.value(constr_obj.func, i -> get(clean_data, i, Inf)[1])
+        if isinf(val)
+            throw(OCTException(string("Constraint ", constraint, " returned an infinite value.")))
         end
+
+        return JuMP.value(constr_obj.set, i -> get(clean_data, i, Inf)[1])
+    else
+        return JuMP.value(constraint, i -> get(clean_data, i, Inf))
     end
 end
 
-function linearize_objective(model::JuMP.Model)
+function linearize_objective!(model::JuMP.Model)
     """Makes sure that the objective function is affine. """
     objtype = JuMP.objective_function(model)
     objsense = string(JuMP.objective_sense(model))
     if objtype isa Union{VariableRef, GenericAffExpr} || objsense == "FEASIBILITY_SENSE"
         return
     else
-        @objective(model, aux)
         aux = @variable(model)
+        @objective(model, Min, aux)
         # Default optimization problem is always a minimization
         coeff = 1;
-        objsense == "MAX_SENSE" && coeff = -1;
+        objsense == "MAX_SENSE" && (coeff = -1)
         try
             @constraint(model, aux >= coeff*JuMP.objective_function(model))
         catch
@@ -112,15 +114,28 @@ function linearize_objective(model::JuMP.Model)
     end
 end
 
+function find_variables(sc::ScalarConstraint)
+    """Returns the variables in a ScalarConstraint object. """
+    return sc.func.terms.keys
+end
 
-function separate_constraints(model::JuMP.Model)
+function classify_constraints(model::JuMP.Model)
     """Separates and returns linear and nonlinear constraints in a model. """
     all_types = list_of_constraint_types(model)
     nl_constrs = [];
     l_constrs = [];
+    l_vartypes = [JuMP.VariableRef, JuMP.GenericAffExpr{Float64, VariableRef}]
+    l_constypes = [MOI.GreaterThan{Float64}, MOI.LessThan{Float64}, MOI.EqualTo{Float64}]
     for (vartype, constype) in all_types
-        print(num_constraints(model, vartype, constype))
-        push!(l_constrs, all_constraints(model, vartype, constype))
+        constrs_of_type = JuMP.all_constraints(model, vartype, constype)
+        if any(vartype .== l_vartypes) && any(constype .== l_constypes)
+            append!(l_constrs, constrs_of_type)
+        else
+            append!(nl_constrs, constrs_of_type)
+        end
     end
-        # Omit constraints on just VariableRefs, since these are bounds and Int constraints
-        if vartype
+    if !isnothing(model.nlp_data)
+        append!(nl_constrs, model.nlp_data.nlconstr)
+    end
+    return l_constrs, nl_constrs
+end

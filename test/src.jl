@@ -35,14 +35,24 @@ bound!(model, bounds)
 @test get_bounds(model)[z] == [-10, 10]
 @test get_bounds(model)[x[3]] == [-5, 1]
 
-# Testing ways of "sanitizing data" and also evaluating
-inp = Dict(x[1] => 1, x[2] => 2, x[3] => 3, x[4] => 4, y[1] => 5, y[2] => 6, z => 7)
+# Testing linearization of objective
+linearize_objective!(model);
+@objective(model, Min, x[3]^2)
+linearize_objective!(model);
+@test JuMP.objective_function(model) isa JuMP.VariableRef
+
+# Testing ways of "sanitizing data"
+inp = Dict(x[1] => 1, x[2] => 2, x[3] => 3, x[4] => 4, y[1] => 5, y[2] => 6, y[3] => 7, z => 7)
 inp_dict = Dict(string(key) => value for (key, value) in inp)
 inp_df = DataFrame(inp_dict)
 @test sanitize_data(model, inp) == sanitize_data(model, inp_dict) == sanitize_data(model, inp_df) == inp_df
 
 # Testing separation of constraints
-con
+l_constrs, nl_constrs = classify_constraints(model)
+@test length(l_constrs) == 20 && length(nl_constrs) == 2
+
+# Testing evaluating
+evaluate(l_constrs[1], inp)
 
 @test evaluate(model, inp) == evaluate(model, inp_dict) == evaluate(model, inp_df) == -13.0
 
