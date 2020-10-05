@@ -8,6 +8,7 @@ module OptimalConstraintTree
     using LatinHypercubeSampling
     using Main.IAI
     using MathOptInterface
+    using MathOptSetDistances
     using NearestNeighbors
     using Parameters
 #     using Plots

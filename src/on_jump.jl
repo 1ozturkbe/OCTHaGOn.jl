@@ -76,20 +76,26 @@ function sanitize_data(model::JuMP.Model, data::Union{Dict, DataFrame})
     end
 end
 
-function evaluate(constraint::ConstraintRef, data::Union{Dict, DataFrame})
-    """ Evaluates a constraint on data in the variables, and returns Bool.
+function set_distance(val::Union{Array{<:Real},<:Real}, set::MOI.AbstractSet)
+    """Wrapper around MathOptSetDistances.distance_to_set.
+       Distance 0 if value ∈ set. Otherwise, returns Float64. """
+    return distance_to_set(MathOptSetDistances.DefaultDistance(), val, set)
+end
+
+function violation(constraint::ConstraintRef, data::Union{Dict, DataFrame})
+    """ Evaluates constraint violation on data in the variables, and returns distance from set.
         Note that the keys of the Dict have to be uniform. """
     constr_obj = constraint_object(constraint)
     clean_data = sanitize_data(constraint.model, data);
     if size(clean_data, 1) == 1
-        val = JuMP.value(constr_obj.func, i -> get(clean_data, i, Inf)[1])
+        val = JuMP.value(constr_obj.func, i -> get(clean_data, string(i), Inf)[1])
         if isinf(val)
             throw(OCTException(string("Constraint ", constraint, " returned an infinite value.")))
         end
-
-        return JuMP.value(constr_obj.set, i -> get(clean_data, i, Inf)[1])
+        return set_distance(val, constr_obj.set)
     else
-        return JuMP.value(constraint, i -> get(clean_data, i, Inf))
+        vals = [JuMP.value(constr_obj.func, i -> get(clean_data, string(i), Inf)[j]) for j = 1:size(clean_data,1)]
+        return set_distance(vals, constr_obj.set)
     end
 end
 
