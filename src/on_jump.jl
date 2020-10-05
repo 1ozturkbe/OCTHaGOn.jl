@@ -66,36 +66,56 @@ end
 # obj = constraint_object(c)
 # obj.func  # The function
 
-function sanitize_data(model::JuMP.Model, data::Union{Dict, DataFrame})
+function sanitize_data(model::JuMP.Model, data::Union{Dict, DataFrame, DataFrameRow})
     """ Gets data with different keys, and returns a DataFrame with string headers. """
     if data isa DataFrame
         return data
+    elseif data isa DataFrameRow
+        return DataFrame(data)
     else
         newdata = Dict(string(key) => value for (key, value) in data)
         return DataFrame(newdata)
     end
 end
 
-function set_distance(val::Union{Array{<:Real},<:Real}, set::MOI.AbstractSet)
+function distance_to_set(val::Union{Array{<:Real},<:Real}, set::MOI.AbstractSet)
     """Wrapper around MathOptSetDistances.distance_to_set.
        Distance 0 if value ∈ set. Otherwise, returns Float64. """
-    return distance_to_set(MathOptSetDistances.DefaultDistance(), val, set)
+    return MathOptSetDistances.distance_to_set(MathOptSetDistances.DefaultDistance(), val, set)
 end
 
-function violation(constraint::ConstraintRef, data::Union{Dict, DataFrame})
+function get_constant(set::MOI.AbstractSet)
+    """Returns constant of MOI.Abstract Set, if it exists..."""
+    try
+        MOI.constant(set)
+    catch
+        nothing
+    end
+end
+
+function evaluate(constraint::ConstraintRef, data::Union{Dict, DataFrame})
     """ Evaluates constraint violation on data in the variables, and returns distance from set.
         Note that the keys of the Dict have to be uniform. """
     constr_obj = constraint_object(constraint)
+    rhs_const = get_constant(constr_obj.set)
     clean_data = sanitize_data(constraint.model, data);
     if size(clean_data, 1) == 1
         val = JuMP.value(constr_obj.func, i -> get(clean_data, string(i), Inf)[1])
         if isinf(val)
             throw(OCTException(string("Constraint ", constraint, " returned an infinite value.")))
         end
-        return set_distance(val, constr_obj.set)
+        if isnothing(rhs_const)
+            return -1*distance_to_set(val, constr_obj.set)
+        else
+            coeff=1
+            if constr_obj.set isa MOI.LessThan
+                coeff=-1
+            end
+            return coeff*(val - rhs_const)
+        end
     else
-        vals = [JuMP.value(constr_obj.func, i -> get(clean_data, string(i), Inf)[j]) for j = 1:size(clean_data,1)]
-        return set_distance(vals, constr_obj.set)
+        vals = [evaluate(constraint, DataFrame(clean_data[i,:])) for i=1:size(clean_data,1)]
+        return vals
     end
 end
 
@@ -120,10 +140,18 @@ function linearize_objective!(model::JuMP.Model)
     end
 end
 
-function find_variables(sc::ScalarConstraint)
-    """Returns the variables in a ScalarConstraint object. """
-    return sc.func.terms.keys
-end
+# function find_variables(sc::ScalarConstraint)
+#     """Returns the variables in a ScalarConstraint (Note: NOT NONLINEAR) object. """
+#     vars = Array{VariableRef}[];
+#     for (var, coef) in sc.func.terms
+#         if var isa VariableRef
+#             push!(vars, var)
+#         end
+#         if coeff
+#     end
+#     return vars
+# end
+
 
 function classify_constraints(model::JuMP.Model)
     """Separates and returns linear and nonlinear constraints in a model. """

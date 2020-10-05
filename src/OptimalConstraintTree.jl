@@ -60,6 +60,7 @@ module OptimalConstraintTree
            evaluate, fetch_variable, get_bounds,
            linearize_objective!, classify_constraints,
            set_objective!, bound!, sanitize_data,
+           distance_to_set, get_constant,
            add_feas_constraints!, add_regr_constraints!,
            add_tree_constraints!, clear_tree_constraints!,
            base_otr, base_otc, update_bounds!, sample,

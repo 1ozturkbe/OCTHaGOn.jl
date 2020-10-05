@@ -10,11 +10,9 @@ sample_data:
 Contains all required info to be able to generate a global optimization constraint.
 """
     name::Union{String, Real} = ""                     # Function name
-    constraint::ConstraintRef                          # The JuMP constraint function
-    vks::Dict{Symbol, Tuple}                           # Varkeys and size
-    lbs::Dict{Symbol, Any} = Dict(vk .=> -Inf.*ones(size(tup)) for (vk, tup) in vks)  # Variable lower bounds
-    ubs::Dict{Symbol, Any} = Dict(vk .=> Inf.*ones(size(tup)) for (vk, tup) in vks)  # Variable upper bounds
-    X::DataFrame = DataFrame([Float64 for i in vks], vks)  # Function samples
+    constraint::JuMP.ConstraintRef                     # The JuMP constraint function
+    vars::Array{JuMP.VariableRef}                      # JuMP variables
+    X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars))  # Function samples
     Y::Array = []                                      # Function values
     feas_ratio::Float64 = 0.                           # Feasible sample proportion
     equality::Bool = false                             # Equality check
@@ -30,19 +28,13 @@ Contains all required info to be able to generate a global optimization constrai
 end
 
 function (bbf::BlackBoxFunction)(x::Union{DataFrame,Dict,DataFrameRow})
-    if isa(x, Union{DataFrameRow, Dict})
-        return bbf.fn(x);
-    elseif isa(x, DataFrame)
-        return [bbf.fn(x[i,:]) for i=1:size(x,1)]
-    else
-        throw(OCTException("This datatype is not supported for BlackBoxFunction evaluation."))
-    end
+    return evaluate(bbf.constraint, x)
 end
 
 function eval!(bbf::BlackBoxFunction, X::DataFrame)
     """ Evaluates BlackBoxFunction at all X and stores the resulting data. """
     values = bbf(X);
-    append!(bbf.X, X[:,bbf.vks], cols=:setequal)
+    append!(bbf.X, X[:,string.(bbf.vars)], cols=:setequal)
     append!(bbf.Y, values);
     bbf.feas_ratio = sum(bbf.Y .>= 0)/length(bbf.Y); #TODO: optimize.
     return
