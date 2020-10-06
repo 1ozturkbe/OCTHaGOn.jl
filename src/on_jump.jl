@@ -17,10 +17,10 @@ function fetch_variable(model::JuMP.Model, varkey::Union{Symbol, String, Variabl
     end
 end
 
-function get_bounds(model::JuMP.Model)
-    all_vars = JuMP.all_variables(model)
-    bounds = Dict(var => [-Inf, Inf] for var in all_vars);
-    for var in all_vars
+function get_bounds(vars::Array{VariableRef})
+    """ Returns bounds of selected variables."""
+    bounds = Dict(var => [-Inf, Inf] for var in vars);
+    for var in vars
         if JuMP.has_lower_bound(var)
             bounds[var][1] = JuMP.lower_bound(var);
         end
@@ -29,6 +29,21 @@ function get_bounds(model::JuMP.Model)
         end
     end
     return bounds
+end
+
+function get_bounds(model::JuMP.Model)
+    """ Returns bounds of all variables from a JuMP.Model. """
+    all_vars = JuMP.all_variables(model)
+    return get_bounds(all_vars)
+end
+
+function check_bounds(bounds::Dict)
+    """ Checks outer-boundedness. """
+    if any(isinf.(Iterators.flatten(values(bounds))))
+        return false
+    else
+        return true
+    end
 end
 
 function bound!(model::JuMP.Model,
