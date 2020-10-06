@@ -68,22 +68,20 @@ bbf = BlackBoxFunction(constraint = nl_constrs[1], vars = [x[4], x[5], z])
 samples = DataFrame(randn(10, length(bbf.vars)),string.(bbf.vars))
 vals = bbf(samples);
 @test vals ≈ -1*samples["x[4]"].^2 - samples["x[5]"].^2 + samples["z"]
-eval!(bbf, samples)
-@test vals ≈ bbf.Y
-@test Matrix(samples) ≈ Matrix(bbf.X)
 
-# Checks sampling of an unbounded model (err0or)
+# Checks different kinds of sampling
 X_bound = boundary_sample(bbf);
-X_knn = knn_sample(bbf, k=3);
+@test size(X_bound, 1) == 2^(length(bbf.vars)+1)
+@test_throws OCTException knn_sample(bbf, k=3)
+X_lh = lh_sample(bbf);
 
-# Check unbounded sampling
-# @test_throws OCTException sample_and_eval!(bbf);
-
-# Check sampling and plotting in 1D or 2D (plotting disabled for faster testing)
+# Check sample_and_eval
+sample_and_eval!(bbf);
+sample_and_eval!(bbf);
 
 # Sampling, learning and showing...
 # plot_2d(bbf);
-# learn_constraint!(bbf);
+learn_constraint!(bbf);
 # show_trees(bbf);
 
 # Showing correct vs incorrect predictions
@@ -111,8 +109,6 @@ X_knn = knn_sample(bbf, k=3);
 # ubs = Dict(md.vks .=> [Inf, -1, 6]);
 # @test_throws OCTException update_bounds!(md, ubs = ubs);
 #
-# # Check sampling Model Data
-# lh_sample(md, n_samples=50);
 #
 # # Check tautological and infeasible constraints
 # add_fn!(md, BlackBoxFunction(fn = x -> 1,
@@ -125,5 +121,3 @@ X_knn = knn_sample(bbf, k=3);
 # learn_constraint!(md);
 # globalsolve(md);
 # @test all([solution(md)[vk][1] == md.lbs[vk] for vk in md.vks])
-
-# TODO: add check for number of linear constraints in md.JuMP_Model.

@@ -40,9 +40,9 @@ end
 function check_bounds(bounds::Dict)
     """ Checks outer-boundedness. """
     if any(isinf.(Iterators.flatten(values(bounds))))
-        return false
+        throw(OCTException("Unbounded variables in model!"))
     else
-        return true
+        return
     end
 end
 

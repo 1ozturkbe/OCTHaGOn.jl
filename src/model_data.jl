@@ -111,19 +111,18 @@ function update_bounds!(md::Union{ModelData, BlackBoxFunction, Array{BlackBoxFun
     return
 end
 
-function lh_sample(md::Union{ModelData,BlackBoxFunction}; iterations::Int64 = 3,
+function lh_sample(bbf::BlackBoxFunction; iterations::Int64 = 3,
                 n_samples::Int64 = 1000)
 """
 Uniformly Latin Hypercube samples the variables of ModelData, as long as all
 lbs and ubs are defined.
 """
-   if any(isinf.(values(md.lbs))) || any(isinf.(values(md.ubs)))
-       throw(OCTException("Model is not properly bounded."))
-   end
-   n_dims = length(md.vks)
+   bounds = get_bounds(bbf.vars)
+   check_bounds(bounds)
+   n_dims = length(bbf.vars)
    plan, _ = LHCoptim(n_samples, n_dims, iterations);
-   X = scaleLHC(plan,[(md.lbs[vk], md.ubs[vk]) for vk in md.vks]);
-   return DataFrame(X, md.vks)
+   X = scaleLHC(plan,[(minimum(bounds[var]), maximum(bounds[var])) for var in bbf.vars]);
+   return DataFrame(X, string.(bbf.vars))
 end
 
 function choose(large::Int64, small::Int64)
@@ -137,9 +136,7 @@ function boundary_sample(bbf::BlackBoxFunction; fraction::Float64 = 0.5)
     n_vars = length(bbf.vars);
     vks = string.(bbf.vars);
     bounds = get_bounds(bbf.vars);
-    if !check_bounds(bounds)
-        throw(OCTException(string("BlackBoxFunction ", bbf, " has unbounded variables.")))
-    end
+    check_bounds(bounds);
     lbs = DataFrame(Dict(string(key) => minimum(value) for (key, value) in bounds))
     ubs = DataFrame(Dict(string(key) => maximum(value) for (key, value) in bounds))
     n_comb = sum(choose(n_vars, i) for i=0:n_vars);
