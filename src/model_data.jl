@@ -68,14 +68,6 @@ function accuracy(bbf::Union{ModelData, BlackBoxFunction})
     end
 end
 
-function add_fn!(md::ModelData, bbf::BlackBoxFunction)
-    update_bounds!(bbf, lbs = md.lbs, ubs = md.ubs)
-    update_bounds!(md, lbs = bbf.lbs, ubs = bbf.ubs) # TODO: optimize
-    if bbf.name == ""
-        bbf.name = length(md.fns)+1;
-    end
-    push!(md.fns, bbf)
-end
 
 function add_lin_constr!(md::ModelData, constraint)
     """ Adds a linear JuMP constraint to md.
@@ -89,14 +81,6 @@ function add_lin_constr!(md::ModelData, constraint)
         add_constraint(md.model, constraint)
     end
 
-end
-
-function get_max(a, b)
-    return maximum([a,b])
-end
-
-function get_min(a,b)
-    return minimum([a,b])
 end
 
 function update_bounds!(md::Union{ModelData, BlackBoxFunction, Array{BlackBoxFunction}};
@@ -127,19 +111,6 @@ function update_bounds!(md::Union{ModelData, BlackBoxFunction, Array{BlackBoxFun
     return
 end
 
-function check_bounds(md::Union{ModelData, BlackBoxFunction})
-    """ Checks outer-boundedness of BBF or MD. """
-    if isa(md, BlackBoxFunction)
-        if any(isinf.(values(md.lbs))) || any(isinf.(values(md.ubs)))
-            return false
-        else
-            return true
-        end
-    else
-        return any(check_bounds.(md.fns))
-    end
-end
-
 function lh_sample(md::Union{ModelData,BlackBoxFunction}; iterations::Int64 = 3,
                 n_samples::Int64 = 1000)
 """
@@ -159,14 +130,22 @@ function choose(large::Int64, small::Int64)
     return Int64(factorial(big(large)) / (factorial(big(large-small))*factorial(big(small))))
 end
 
-function boundary_sample(bbf::Union{ModelData,BlackBoxFunction}; fraction::Float64 = 0.5)
+function boundary_sample(bbf::BlackBoxFunction; fraction::Float64 = 0.5)
 """ *Smartly* samples the constraint along the variable boundaries.
     NOTE: Because we are sampling symmetrically for lower and upper bounds,
     the choose coefficient has to be less than ceil(half of number of dims). """
-    n_vars = length(bbf.vks)
+    n_vars = length(bbf.vars);
+    vks = string.(bbf.vars);
+    bounds = get_bounds(bbf.vars);
+    if !check_bounds(bounds)
+        throw(OCTException(string("BlackBoxFunction ", bbf, " has unbounded variables.")))
+    end
+    lbs = DataFrame(Dict(string(key) => minimum(value) for (key, value) in bounds))
+    ubs = DataFrame(Dict(string(key) => maximum(value) for (key, value) in bounds))
     n_comb = sum(choose(n_vars, i) for i=0:n_vars);
-    nX = DataFrame([Float64 for i in bbf.vks], bbf.vks)
-    if isa(bbf, BlackBoxFunction) && n_comb >= fraction*bbf.n_samples
+    nX = DataFrame([Float64 for i in vks], vks)
+    sample_indices = [];
+    if n_comb >= fraction*bbf.n_samples
         @warn("Can't exhaustively sample the boundary of Constraint " * string(bbf.name) * ".")
         n_comb = 2*n_vars+2; # Everything is double because we choose min's and max's
         choosing = 1;
@@ -176,24 +155,18 @@ function boundary_sample(bbf::Union{ModelData,BlackBoxFunction}; fraction::Float
         end
         choosing = choosing - 1; # Determined maximum 'choose' coefficient
         sample_indices = reduce(vcat,collect(combinations(1:n_vars,i)) for i=0:choosing); # Choose 1 and above
-        for i in sample_indices
-            lbs = DataFrame(bbf.lbs); ubs = DataFrame(bbf.ubs);
-            lbs[:, bbf.vks[i]] = ubs[:, bbf.vks[i]];
-            append!(nX, lbs);
-            lbs = DataFrame(bbf.lbs); ubs = DataFrame(bbf.ubs);
-            ubs[:, bbf.vks[i]] = lbs[:, bbf.vks[i]];
-            append!(nX, ubs);
-        end
-        return nX
     else
         sample_indices = reduce(vcat,collect(combinations(1:n_vars,i)) for i=0:n_vars); # Choose 1 and above
-        for i in sample_indices
-            lbs = DataFrame(bbf.lbs); ubs = DataFrame(bbf.ubs);
-            lbs[:, bbf.vks[i]] = ubs[:, bbf.vks[i]];
-            append!(nX, lbs);
-        end
-        return nX
     end
+    for i in sample_indices
+        lbscopy = copy(lbs); ubscopy = copy(ubs);
+        lbscopy[:, vks[i]] = ubscopy[:, vks[i]];
+        append!(nX, lbscopy);
+        lbscopy = copy(lbs); ubscopy = copy(ubs);
+        ubscopy[:, vks[i]] = lbscopy[:, vks[i]];
+        append!(nX, ubscopy);
+    end
+    return nX
 end
 
 function knn_sample(bbf::BlackBoxFunction; k::Int64 = 15)
@@ -203,7 +176,8 @@ function knn_sample(bbf::BlackBoxFunction; k::Int64 = 15)
         throw(OCTException("Constraint " * string(bbf.name) * " must have at least one feasible or
                             infeasible sample to be KNN-sampled!"))
     end
-    df = DataFrame([Float64 for i in bbf.vks], bbf.vks)
+    vks = string.(bbf.vars)
+    df = DataFrame([Float64 for i in vks], vks)
     build_knn_tree(bbf);
     idxs, dists = find_knn(bbf, k=k);
     positives = findall(x -> x .>= 0 , bbf.Y);
@@ -219,7 +193,7 @@ function knn_sample(bbf::BlackBoxFunction; k::Int64 = 15)
     return df
 end
 
-function sample_and_eval!(bbf::Union{BlackBoxFunction, Array{BlackBoxFunction}, ModelData};
+function sample_and_eval!(bbf::Union{BlackBoxFunction, Array{BlackBoxFunction}};
                           n_samples:: Union{Int64, Nothing} = nothing,
                           boundary_fraction::Float64 = 0.5,
                           iterations::Int64 = 3)
@@ -231,13 +205,7 @@ function sample_and_eval!(bbf::Union{BlackBoxFunction, Array{BlackBoxFunction}, 
     ratio:
     If there is an optimized gp, ratio*n_samples is how many random LHC samples are generated
     for prediction from GP. """
-    if isa(bbf, ModelData)
-        for fn in bbf.fns
-            sample_and_eval!(fn, n_samples = n_samples, boundary_fraction = boundary_fraction,
-                             iterations = iterations);
-        end
-        return
-    elseif isa(bbf, Array{BlackBoxFunction})
+    if isa(bbf, Array{BlackBoxFunction})
         for fn in bbf
             sample_and_eval!(fn, n_samples = n_samples, boundary_fraction = boundary_fraction,
                              iterations = iterations);
@@ -247,7 +215,7 @@ function sample_and_eval!(bbf::Union{BlackBoxFunction, Array{BlackBoxFunction}, 
     if !isnothing(n_samples)
         bbf.n_samples = n_samples
     end
-    vks = bbf.vks;
+    vks = string.(bbf.vars)
     n_dims = length(vks);
     if size(bbf.X,1) == 0 # If we don't have data yet, uniform and boundary sample.
        df = boundary_sample(bbf, fraction = boundary_fraction)

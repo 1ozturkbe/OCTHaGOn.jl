@@ -27,7 +27,7 @@ varkeys = ["x[1]", x[1], :z, :x];
 vars = [x[1], x[1], z, x[:]];
 @test all(vars .==  fetch_variable.(model, varkeys))
 
-# Testing bounds and fixing variables
+# Bounds and fixing variables
 bounds = get_bounds(model);
 @test bounds[z] == [-30., Inf]
 bounds = Dict(:x => [-10,1], z => [-10, 10])
@@ -35,79 +35,55 @@ bound!(model, bounds)
 @test get_bounds(model)[z] == [-10, 10]
 @test get_bounds(model)[x[3]] == [-5, 1]
 
-# Testing linearization of objective
+# Linearization of objective
 linearize_objective!(model);
 @objective(model, Min, x[3]^2)
 linearize_objective!(model);
 @test JuMP.objective_function(model) isa JuMP.VariableRef
 
-# Testing ways of "sanitizing data"
-inp = Dict(x[1] => 1, x[2] => 2, x[3] => 3, x[4] => 4, y[1] => 5, y[2] => 6, y[3] => 7, z => 7)
+# "sanitizing data"
+inp = Dict(x[1] => 1., x[2] => 2, x[3] => 3, x[4] => 4, x[5] => 1, y[1] => 5, y[2] => -6, y[3] => -7, z => 7)
 inp_dict = Dict(string(key) => value for (key, value) in inp)
 inp_df = DataFrame(inp_dict)
 @test sanitize_data(model, inp) == sanitize_data(model, inp_dict) == sanitize_data(model, inp_df) == inp_df
 
-# Testing separation of constraints
+# Separation of constraints
 l_constrs, nl_constrs = classify_constraints(model)
 @test length(l_constrs) == 20 && length(nl_constrs) == 2
 
-# Testing evaluating
-evaluate(l_constrs[1], inp)
+# Set constants
+sets = [MOI.GreaterThan(2), MOI.EqualTo(0), MOI.SecondOrderCone(3), MOI.GeometricMeanCone(2), MOI.SOS1([1,2,3])]
+@test get_constant.(sets) == [2, 0, nothing, nothing, nothing]
 
-@test evaluate(model, inp) == evaluate(model, inp_dict) == evaluate(model, inp_df) == -13.0
+# Evaluation
+@test evaluate(l_constrs[1], inp) == evaluate(l_constrs[1], inp_dict) == evaluate(l_constrs[1], inp_df) == -6.
+@test evaluate(nl_constrs[1], inp) == evaluate(nl_constrs[1], inp_dict) == evaluate(nl_constrs[1], inp_df) == -10.
+inp_df = DataFrame(-5 .+ 10 .*rand(3, size(inp_df,2)), string.(keys(inp)))
+@test evaluate(l_constrs[1], inp_df) == inp_df["y[1]"] + inp_df["y[2]"] + inp_df["y[3]"] .+ 2.
 
-# Testing variable processing
-vars = JuMP.all_variables(model);
-vks = string.(vars);
+# BBF creation
+bbf = BlackBoxFunction(constraint = nl_constrs[1], vars = [x[4], x[5], z])
 
-# Ideally,  would like to be able to do:
-inp = Dict(subset_of_vars .=> nums)
-evaluate(constraint, dict)
+# Check evaluation of samples
+samples = DataFrame(randn(10, length(bbf.vars)),string.(bbf.vars))
+vals = bbf(samples);
+@test vals ≈ -1*samples["x[4]"].^2 - samples["x[5]"].^2 + samples["z"]
+eval!(bbf, samples)
+@test vals ≈ bbf.Y
+@test Matrix(samples) ≈ Matrix(bbf.X)
 
-# m = Model(Ipopt.Optimizer)
-# @variable(m, x[1:2])
-# # Use Meta.parse and custom transformations to create this object from a string. eval() is not needed.
-# expr = :($(x[1])^3 + 5.0 * $(x[1]) * $(x[2]))
-# add_NL_constraint(m, :($expr <= 5))
-# https://discourse.julialang.org/t/procedural-nonlinear-constaint-generation-string-to-nlconstraint/34799/3
-
-
-# Check evaluation of samples from Dict, DataFrameRow and DataFrame
-samples = DataFrame(rand(4,4), string.(x[1:4]))
-val1 = bbf(samples[1,:]);
-sample = Dict(:x1 => samples[1,1], :x3 => samples[1,3])
-val2 = bbf(sample);
-val3 = bbf(samples);
-sample = Dict(:x1 => samples[1,1], :x2 => 2, :x3 => samples[1,3]);
-val4 = bbf(sample);
-sample = DataFrame(sample);
-val5 = bbf(sample);
-@test val1 == val2 == val3[1] == val4 == val5[1] == samples[1,1] + samples[1,3]^3;
+# Checks sampling of an unbounded model (err0or)
+X_bound = boundary_sample(bbf);
+X_knn = knn_sample(bbf, k=3);
 
 # Check unbounded sampling
-@test_throws OCTException sample_and_eval!(bbf);
-
-# # Check proper bounding
-lbs = Dict(:x1 => -5, :x3 => -5);
-ubs = Dict(:x1 => 5, :x3 => 5);
-update_bounds!(bbf, lbs=lbs, ubs=ubs);
-@test bbf.ubs == ubs
-lbs = Dict(:x1 => -3, :x2 => 2); # check update with vk not in BlackBoxFn
-update_bounds!(bbf, lbs=lbs);
-@test !(:x2 in keys(bbf.lbs))
-@test bbf.lbs[:x1] == -3;
-@test_throws OCTException update_bounds!(bbf, ubs = Dict(:x1 => -6)) # check infeasible bounds
-@test bbf.ubs[:x1] == 5;
+# @test_throws OCTException sample_and_eval!(bbf);
 
 # Check sampling and plotting in 1D or 2D (plotting disabled for faster testing)
-bbf = BlackBoxFunction(fn = x -> x[:x1]^2 + x[:x1]*sin(x[:x1]* x[:x2]) -5,
- vks = [:x1, :x2], lbs = Dict([:x1, :x2] .=> -5), ubs = Dict([:x1, :x2] .=> 5),
-n_samples = 100);
-sample_and_eval!(bbf);
 
 # Sampling, learning and showing...
 # plot_2d(bbf);
-learn_constraint!(bbf);
+# learn_constraint!(bbf);
 # show_trees(bbf);
 
 # Showing correct vs incorrect predictions
@@ -118,37 +94,36 @@ learn_constraint!(bbf);
 ###################
 
 # Initialization tests
-md = ModelData(c = [1,2,3]);
 
 # Check infeasible bounds for Model Data
-lbs = Dict(md.vks .=> [-2,1,3]);
-update_bounds!(md, lbs=lbs);
-# Check sampling unbounded model exception
-@test_throws OCTException X = lh_sample(md, n_samples=100);
-ubs = Dict(md.vks .=> [4, 5, 6]);
-update_bounds!(md, ubs=ubs);
-
-# Check JuMP variable and bound creation
-@test all([md.lbs[vk] == lower_bound(md.vars[vk]) for vk in md.vks])
-@test all([md.ubs[vk] == upper_bound(md.vars[vk]) for vk in md.vks])
-
-# Check invalid bounds exception
-ubs = Dict(md.vks .=> [Inf, -1, 6]);
-@test_throws OCTException update_bounds!(md, ubs = ubs);
-
-# Check sampling Model Data
-lh_sample(md, n_samples=50);
-
-# Check tautological and infeasible constraints
-add_fn!(md, BlackBoxFunction(fn = x -> 1,
-                    vks = [:x1, :x3], n_samples = 50));
-add_fn!(md, BlackBoxFunction(fn = x -> -1,
-                    vks = [:x1, :x2], n_samples = 50));
-sample_and_eval!(md)
-@test feasibility(md) == [1., 0.];
-@test accuracy(md) == [1., 1.];
-learn_constraint!(md);
-globalsolve(md);
-@test all([solution(md)[vk][1] == md.lbs[vk] for vk in md.vks])
+# lbs = Dict(md.vks .=> [-2,1,3]);
+# update_bounds!(md, lbs=lbs);
+# # Check sampling unbounded model exception
+# @test_throws OCTException X = lh_sample(md, n_samples=100);
+# ubs = Dict(md.vks .=> [4, 5, 6]);
+# update_bounds!(md, ubs=ubs);
+#
+# # Check JuMP variable and bound creation
+# @test all([md.lbs[vk] == lower_bound(md.vars[vk]) for vk in md.vks])
+# @test all([md.ubs[vk] == upper_bound(md.vars[vk]) for vk in md.vks])
+#
+# # Check invalid bounds exception
+# ubs = Dict(md.vks .=> [Inf, -1, 6]);
+# @test_throws OCTException update_bounds!(md, ubs = ubs);
+#
+# # Check sampling Model Data
+# lh_sample(md, n_samples=50);
+#
+# # Check tautological and infeasible constraints
+# add_fn!(md, BlackBoxFunction(fn = x -> 1,
+#                     vks = [:x1, :x3], n_samples = 50));
+# add_fn!(md, BlackBoxFunction(fn = x -> -1,
+#                     vks = [:x1, :x2], n_samples = 50));
+# sample_and_eval!(md)
+# @test feasibility(md) == [1., 0.];
+# @test accuracy(md) == [1., 1.];
+# learn_constraint!(md);
+# globalsolve(md);
+# @test all([solution(md)[vk][1] == md.lbs[vk] for vk in md.vks])
 
 # TODO: add check for number of linear constraints in md.JuMP_Model.
