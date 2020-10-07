@@ -46,9 +46,32 @@ function check_bounds(bounds::Dict)
     end
 end
 
+function get_max(a, b)
+    return maximum([a,b])
+end
+
+function get_min(a,b)
+    return minimum([a,b])
+end
+
+function check_infeasible_bounds(model::JuMP.Model, bounds::Dict)
+    all_bounds = get_bounds(model);
+    lbs_model = Dict(key => minimum(value) for (key, value) in all_bounds)
+    ubs_model = Dict(key => maximum(value) for (key, value) in all_bounds)
+    lbs_bounds = Dict(key => minimum(value) for (key, value) in bounds)
+    ubs_bounds = Dict(key => maximum(value) for (key, value) in bounds)
+    nlbs = merge(get_max, lbs_model, lbs_bounds)
+    nubs = merge(get_min, ubs_model, ubs_bounds)
+    if any([nlbs[var] .> nubs[var] for var in keys(nlbs)])
+        throw(OCTException("Infeasible bounds."))
+    end
+    return
+end
+
 function bound!(model::JuMP.Model,
                 bounds::Dict)
     """Adds outer bounds to JuMP Model from dictionary of data. """
+    check_infeasible_bounds(model, bounds)
     for (key, value) in bounds
         @assert value isa Array && length(value) == 2
         var = fetch_variable(model, key);
@@ -71,8 +94,6 @@ function bound!(model::JuMP.Model,
     end
     return
 end
-
-# function get_variables(model::JuMP.Model, constraint)
 
 
 # model = Model()
