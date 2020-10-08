@@ -43,11 +43,11 @@ module OptimalConstraintTree
     include("tools.jl")
 
            # Structs
-    export ModelData, BlackBoxFunction, InitModel,
-           # ModelData Functions
+    export GlobalModel, BlackBoxFunction,
+           # GlobalModel Functions
            fns_by_feasibility, globalsolve,
-           # Functions on ModelData and BlackBoxFunctions
-           gridify, learn_from_data!, find_bounds!, update_bounds!,
+           # Functions on GlobalModel and BlackBoxFunctions
+           gridify, learn_from_data!, find_bounds!,
            lh_sample, boundary_sample, add_bounds!,
            accuracy, feasibility, check_accuracy, check_feasibility, check_bounds,
            solution, evaluate_feasibility,
@@ -63,10 +63,10 @@ module OptimalConstraintTree
            distance_to_set, get_constant,
            add_feas_constraints!, add_regr_constraints!,
            add_tree_constraints!, clear_tree_constraints!,
-           base_otr, base_otc, update_bounds!, sample,
+           base_otr, base_otc, sample,
            # Functions to import global optimization problems,
-#            sagemark_to_ModelData, CBF_to_ModelData,
-           alphac_to_NLexpr,
+           sagemark_to_GlobalModel,
+           alphac_to_NLexpr, alphac_to_varbound!,
            # Exceptions
            OCTException,
            # Display and plotting

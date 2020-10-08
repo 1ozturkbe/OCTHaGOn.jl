@@ -1,35 +1,19 @@
-function set_objective!(model, c, vars, vks)
-    @objective(model, Min, sum(c .* [vars[vk] for vk in vks]));
-    return
-end
-
-function InitModel(c, vks, lbs, ubs)
-    m = Model(with_optimizer(Gurobi.Optimizer, OutputFlag=0))
-    vars = @variable(m, x[vks])
-    bound!(JuMP.all_variables(m), vks, lbs, ubs)
-    set_objective!(m, c, vars, vks)
-    return m
-end
-
-@with_kw mutable struct ModelData
+@with_kw mutable struct GlobalModel
 """
 Contains all required info to be able to generate a global optimization problem.
 """
+    model::JuMP.Model                                                   # JuMP model
     name::Union{Symbol, String} = "Model"                               # Example name
-    c::Array                                                            # Cost vector
     fns::Array{BlackBoxFunction} = Array{BlackBoxFunction}[]            # Black box (>/= 0) functions
-    lin_constrs::Array{Union{ScalarConstraint, VectorConstraint}} = []  # Linear constraints
-    vks::Dict{Symbol, Tuple} = Dict(:x => (length(c)))                  # Varkeys and size
-    lbs::Dict{Symbol, Any} = Dict(vk .=> -Inf.*ones(size(tup)) for (vk, tup) in vks)  # Variable lower bounds
-    ubs::Dict{Symbol, Any} = Dict(vk .=> Inf.*ones(size(tup)) for (vk, tup) in vks)  # Variable upper bounds
-    model::JuMP.Model = InitModel(c, vks, lbs, ubs)                     # JuMP model
-    vars = model[:x]                                                    # JuMP variables
+    l_constrs::Array{Union{ConstraintRef}} = []    # Linear constraints
+    nl_constrs::Array{Union{ConstraintRef, NonlinearConstraintRef}} = [] # Nonlinear constraints
+    vars = JuMP.all_variables(model)                                    # JuMP variables
 end
 
-function (md::ModelData)(name::Union{String, Int64})
-    """ Calls a BlackBoxFunction in ModelData by name. """
-    fn_names = getfield.(md.fns, :name);
-    fns = md.fns[findall(x -> x == name, fn_names)];
+function (gm::GlobalModel)(name::Union{String, Int64})
+    """ Calls a BlackBoxFunction in GlobalModel by name. """
+    fn_names = getfield.(gm.fns, :name);
+    fns = gm.fns[findall(x -> x == name, fn_names)];
     if length(fns) == 1
         return fns[1]
     elseif length(fns) == 0
@@ -41,8 +25,8 @@ function (md::ModelData)(name::Union{String, Int64})
     end
 end
 
-function feasibility(bbf::Union{ModelData, Array{BlackBoxFunction}, BlackBoxFunction})
-    """ Returns the feasibility of data points in a BBF or MD. """
+function feasibility(bbf::Union{GlobalModel, Array{BlackBoxFunction}, BlackBoxFunction})
+    """ Returns the feasibility of data points in a BBF or GM. """
     if isa(bbf, BlackBoxFunction)
         return bbf.feas_ratio
     elseif isa(bbf, Array{BlackBoxFunction})
@@ -52,8 +36,8 @@ function feasibility(bbf::Union{ModelData, Array{BlackBoxFunction}, BlackBoxFunc
     end
 end
 
-function accuracy(bbf::Union{ModelData, BlackBoxFunction})
-    """ Returns the accuracy of learners in a BBF or MD. """
+function accuracy(bbf::Union{GlobalModel, BlackBoxFunction})
+    """ Returns the accuracy of learners in a BBF or GM. """
     if isa(bbf, BlackBoxFunction)
         if bbf.feas_ratio in [1., 0]
             @warn(string("Accuracy of BlackBoxFunction ", bbf.name, " is tautological."))
@@ -69,9 +53,9 @@ function accuracy(bbf::Union{ModelData, BlackBoxFunction})
 end
 
 
-function add_lin_constr!(md::ModelData, constraint)
-    """ Adds a linear JuMP constraint to md.
-    Note: proper syntax is 'add_lin_constr!(md, @build_constraint(...))'
+function add_lin_constr!(gm::GlobalModel, constraint)
+    """ Adds a linear JuMP constraint to gm.
+    Note: proper syntax is 'add_lin_constr!(gm, @build_constraint(...))'
     """
     if isa(constraint, Array)
         append!(md.lin_constrs, constraint)
@@ -80,41 +64,12 @@ function add_lin_constr!(md::ModelData, constraint)
         push!(md.lin_constrs, constraint)
         add_constraint(md.model, constraint)
     end
-
-end
-
-function update_bounds!(md::Union{ModelData, BlackBoxFunction, Array{BlackBoxFunction}};
-                        lbs::Dict{Symbol, <:Real} = Dict{Symbol, Float64}(),
-                        ubs::Dict{Symbol, <:Real} = Dict{Symbol, Float64}())
-    """ Updates the outer bounds of ModelData and its BlackBoxFunctions, or the bounds
-    of a single BlackBoxFunction. """
-    if isa(md, Array{BlackBoxFunction})
-        for fn in md
-            update_bounds!(fn, lbs=lbs, ubs=ubs)
-        end
-        return
-    end
-    nlbs = merge(get_max, md.lbs, lbs);
-    nubs = merge(get_min, md.ubs, ubs)
-    if any([nlbs[vk] .> nubs[vk] for vk in md.vks])
-        throw(OCTException("Infeasible bounds."))
-    end
-    md.lbs = Dict(vk => nlbs[vk] for vk in keys(md.lbs));
-    md.ubs = Dict(vk => nubs[vk] for vk in keys(md.ubs));
-    if isa(md, ModelData)
-        for fn in md.fns
-            update_bounds!(fn, lbs = Dict(vk => md.lbs[vk] for vk in fn.vks),
-                               ubs = Dict(vk => md.ubs[vk] for vk in fn.vks)); # TODO: check that it works.
-        end
-        bound!(md.vars, md.vks, md.lbs, md.ubs)
-    end
-    return
 end
 
 function lh_sample(bbf::BlackBoxFunction; iterations::Int64 = 3,
                 n_samples::Int64 = 1000)
 """
-Uniformly Latin Hypercube samples the variables of ModelData, as long as all
+Uniformly Latin Hypercube samples the variables of GlobalModel, as long as all
 lbs and ubs are defined.
 """
    bounds = get_bounds(bbf.vars)
@@ -231,8 +186,8 @@ function sample_and_eval!(bbf::Union{BlackBoxFunction, Array{BlackBoxFunction}};
     return
 end
 
-function globalsolve(md::ModelData)
-    """ Creates and solves the global optimization model using the linear constraints from ModelData,
+function globalsolve(md::GlobalModel)
+    """ Creates and solves the global optimization model using the linear constraints from GlobalModel,
         and approximated nonlinear constraints from inside its BlackBoxFunctions."""
     clear_tree_constraints!(md); # remove trees from previous solve (if any).
     add_tree_constraints!(md); # refresh latest tree constraints.
@@ -240,13 +195,13 @@ function globalsolve(md::ModelData)
     return status
 end
 
-function solution(md::ModelData)
+function solution(md::GlobalModel)
     """ Returns the optimal solution of the solved global optimization model. """
     vals = getvalue.(md.vars)
-    return DataFrame(Dict(vk => vals[vk] for vk in md.vks))
+    return DataFrame(Dict(var => vals[var] for var in gm.vars))
 end
 
-function evaluate_feasibility(md::ModelData)
+function evaluate_feasibility(md::GlobalModel)
     """ Evaluates each constraint at solution to make sure it is feasible. """
     soln = solution(md);
     feas = [];
@@ -259,33 +214,38 @@ function evaluate_feasibility(md::ModelData)
     return feas_idxs, infeas_idxs
 end
 
-function find_bounds!(md::ModelData; all_bounds=true)
-    """Finds the outer variable bounds of ModelData by solving over the linear constraints. """
-    ubs = Dict(md.vks .=> Inf)
-    lbs = Dict(md.vks .=> -Inf)
+function find_bounds!(gm::GlobalModel; all_bounds=true)
+    """Finds the outer variable bounds of GlobalModel by solving over the linear constraints. """
+    ubs = Dict(gm.vars .=> Inf)
+    lbs = Dict(gm.vars .=> -Inf)
     # Finding bounds by min/maximizing each variable
-    m = md.model;
-    x = md.vars;
-    @showprogress 0.5 "Finding bounds..." for vk in md.vks
-        if isinf(md.lbs[vk]) || all_bounds
-            @objective(m, Min, x[vk]);
+    # TODO: REMOVE NONLINEAR CONSTRAINTS BEFORE LINEAR OPTIMIZATION. 
+    m = gm.model;
+    x = gm.vars;
+    current_bounds = get_bounds(gm);
+    orig_objective = JuMP.objective_function(gm)
+    @showprogress 0.5 "Finding bounds..." for var in gm.vars
+        if isinf(current_bounds(var)) || all_bounds
+            @objective(m, Min, var);
             JuMP.optimize!(m);
-            lbs[vk] = getvalue.(x)[vk];
+            lbs[var] = getvalue(var);
         end
-        if isinf(md.lbs[vk]) || all_bounds
-            @objective(m, Max, x[vk]);
+        if isinf(current_bounds(var)) || all_bounds
+            @objective(m, Max, var);
             JuMP.optimize!(m);
-            ubs[vk] = getvalue.(x)[vk];
+            ubs[var] = getvalue(var);
         end
     end
-    set_objective!(md.model, md.c, md.vars, md.vks) # revert objective
-    update_bounds!(md, lbs=lbs, ubs=ubs)
+    # Revert objective
+    @objective(m, Min, orig_objective)
+    bounds = Dict(var => [lbs[var], ubs[var]] for var in x)
+    bound!(gm, bounds)
     return
 end
 
-function import_trees(dir, md::ModelData)
-    """ Returns trees trained over given ModelData,
+function import_trees(dir, gm::GlobalModel)
+    """ Returns trees trained over given GlobalModel,
     where filename points to the model name. """
-    trees = [IAI.read_json(string(dir, "_tree_", i, ".json")) for i=1:length(md.fns)];
+    trees = [IAI.read_json(string(dir, "_tree_", i, ".json")) for i=1:length(gm.fns)];
     return trees
 end
