@@ -87,37 +87,16 @@ learn_constraint!(bbf);
 # Showing correct vs incorrect predictions
 # plot_2d_predictions(bbf);
 
-###################
-# MODELDATA TESTS #
-###################
+# Check infeasible bounds
+new_bounds = Dict(x[4] => [-10,-6])
+@test_throws OCTException OptimalConstraintTree.check_infeasible_bounds(model, new_bounds)
+@test_throws OCTException bound!(model, new_bounds)
 
-# Initialization tests
+# Check unbounded sampling
+JuMP.delete_lower_bound(z)
+@test_throws OCTException X = lh_sample(bbf, n_samples=100);
+bound!(model, Dict(z => [-10,10]))
 
-# Check infeasible bounds for Model Data
-# lbs = Dict(md.vks .=> [-2,1,3]);
-# update_bounds!(md, lbs=lbs);
-# # Check sampling unbounded model exception
-# @test_throws OCTException X = lh_sample(md, n_samples=100);
-# ubs = Dict(md.vks .=> [4, 5, 6]);
-# update_bounds!(md, ubs=ubs);
-#
-# # Check JuMP variable and bound creation
-# @test all([md.lbs[vk] == lower_bound(md.vars[vk]) for vk in md.vks])
-# @test all([md.ubs[vk] == upper_bound(md.vars[vk]) for vk in md.vks])
-#
-# # Check invalid bounds exception
-# ubs = Dict(md.vks .=> [Inf, -1, 6]);
-# @test_throws OCTException update_bounds!(md, ubs = ubs);
-#
-#
-# # Check tautological and infeasible constraints
-# add_fn!(md, BlackBoxFunction(fn = x -> 1,
-#                     vks = [:x1, :x3], n_samples = 50));
-# add_fn!(md, BlackBoxFunction(fn = x -> -1,
-#                     vks = [:x1, :x2], n_samples = 50));
-# sample_and_eval!(md)
-# @test feasibility(md) == [1., 0.];
-# @test accuracy(md) == [1., 1.];
-# learn_constraint!(md);
-# globalsolve(md);
-# @test all([solution(md)[vk][1] == md.lbs[vk] for vk in md.vks])
+# Check feasibility and accuracy
+@test 0 <= feasibility(bbf) <= 1
+@test 0 <= accuracy(bbf) <= 1

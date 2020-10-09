@@ -68,38 +68,6 @@ function check_infeasible_bounds(model::JuMP.Model, bounds::Dict)
     return
 end
 
-function bound!(model::Union{GlobalModel, JuMP.Model},
-                bounds::Dict)
-    """Adds outer bounds to JuMP Model from dictionary of data. """
-    if model isa GlobalModel
-        bound!(model.model, bounds)
-        return
-    end
-    check_infeasible_bounds(model, bounds)
-    for (key, value) in bounds
-        @assert value isa Array && length(value) == 2
-        var = fetch_variable(model, key);
-        if var isa Array # make sure all elements are bounded.
-            for v in var
-                bound!(model, Dict(v => value))
-            end
-        else
-            if JuMP.has_lower_bound(var) && JuMP.lower_bound(var) <= minimum(value)
-                set_lower_bound(var, minimum(value))
-            elseif !JuMP.has_lower_bound(var)
-                set_lower_bound(var, minimum(value))
-            end
-            if JuMP.has_upper_bound(var) && JuMP.upper_bound(var) >= maximum(value)
-                set_upper_bound(var, maximum(value))
-            else !JuMP.has_upper_bound(var)
-                set_upper_bound(var, maximum(value))
-            end
-        end
-    end
-    return
-end
-
-
 # model = Model()
 # @variable(model, x)
 # c = @constraint(model, 2x + 1 <= 0)

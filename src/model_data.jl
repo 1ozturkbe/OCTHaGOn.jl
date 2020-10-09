@@ -2,12 +2,12 @@
 """
 Contains all required info to be able to generate a global optimization problem.
 """
-    model::JuMP.Model                                                   # JuMP model
-    name::Union{Symbol, String} = "Model"                               # Example name
-    fns::Array{BlackBoxFunction} = Array{BlackBoxFunction}[]            # Black box (>/= 0) functions
-    l_constrs::Array{Union{ConstraintRef}} = []    # Linear constraints
-    nl_constrs::Array{Union{ConstraintRef, NonlinearConstraintRef}} = [] # Nonlinear constraints
-    vars = JuMP.all_variables(model)                                    # JuMP variables
+    model::JuMP.Model                                                     # JuMP model
+    name::Union{Symbol, String} = "Model"                                 # Example name
+    fns::Array{BlackBoxFunction} = Array{BlackBoxFunction}[]              # Black box (>/= 0) functions
+    l_constrs::Array{Union{ConstraintRef}} = []                           # Linear constraints
+    nl_constrs::Array{Union{ConstraintRef, NonlinearConstraintRef}} = []  # Nonlinear constraints
+    vars::Array{VariableRef} = JuMP.all_variables(model)                  # JuMP variables
 end
 
 function (gm::GlobalModel)(name::Union{String, Int64})
@@ -23,6 +23,37 @@ function (gm::GlobalModel)(name::Union{String, Int64})
         @warn("Multiple constraints with name ", name)
         return fns
     end
+end
+
+function bound!(model::Union{GlobalModel, JuMP.Model},
+                bounds::Dict)
+    """Adds outer bounds to JuMP Model from dictionary of data. """
+    if model isa GlobalModel
+        bound!(model.model, bounds)
+        return
+    end
+    check_infeasible_bounds(model, bounds)
+    for (key, value) in bounds
+        @assert value isa Array && length(value) == 2
+        var = fetch_variable(model, key);
+        if var isa Array # make sure all elements are bounded.
+            for v in var
+                bound!(model, Dict(v => value))
+            end
+        else
+            if JuMP.has_lower_bound(var) && JuMP.lower_bound(var) <= minimum(value)
+                set_lower_bound(var, minimum(value))
+            elseif !JuMP.has_lower_bound(var)
+                set_lower_bound(var, minimum(value))
+            end
+            if JuMP.has_upper_bound(var) && JuMP.upper_bound(var) >= maximum(value)
+                set_upper_bound(var, maximum(value))
+            else !JuMP.has_upper_bound(var)
+                set_upper_bound(var, maximum(value))
+            end
+        end
+    end
+    return
 end
 
 function feasibility(bbf::Union{GlobalModel, Array{BlackBoxFunction}, BlackBoxFunction})
@@ -219,7 +250,7 @@ function find_bounds!(gm::GlobalModel; all_bounds=true)
     ubs = Dict(gm.vars .=> Inf)
     lbs = Dict(gm.vars .=> -Inf)
     # Finding bounds by min/maximizing each variable
-    # TODO: REMOVE NONLINEAR CONSTRAINTS BEFORE LINEAR OPTIMIZATION. 
+    # TODO: REMOVE NONLINEAR CONSTRAINTS BEFORE LINEAR OPTIMIZATION.
     m = gm.model;
     x = gm.vars;
     current_bounds = get_bounds(gm);

@@ -7,6 +7,7 @@ Adds tools to mainly import optimization problems from other sources.
 =#
 
 function alphac_to_NLexpr(model, alpha, c; lse=false)
+    """ Turns exponential to JuMP.NonlinearExpression. """
     n_terms, n_vars = size(alpha)
     idxs = unique([i[2] for i in findall(i->i != 0, alpha)]);
     vars = JuMP.all_variables(model)[idxs]
@@ -18,11 +19,20 @@ function alphac_to_NLexpr(model, alpha, c; lse=false)
     end
 end
 
-function alphac_to_varbound(model, alpha, c; lse=false)
-
+function alphac_to_varbound!(model, alpha, c; lse=false)
+    """ Turns univariate exponential to JuMP variable bounds. """
+    idx = unique([j for j in findall(j->j != 0, alpha)])[1]; #idx[1] is monomial index,
+    var = JuMP.all_variables(model)[idx[2]];                 #idx[2] is variable index.
+    val = -((sum(c)-c[idx[1]]) / c[idx[1]])^(1/alpha[idx]);
+    lse && (val = log(val))
+    if c[idx[1]] <= 0
+        bound!(model,  Dict(var => [-Inf, val]));
+    else
+        bound!(model,  Dict(var => [val, Inf]));
+    end
 end
 
-function sagemark_to_ModelData(idx; lse=false)
+function sagemark_to_GlobalModel(idx; lse=false)
     """
     Imports sagebenchmarks example from literature.solved and
     returns as a function_model.
@@ -50,15 +60,7 @@ function sagemark_to_ModelData(idx; lse=false)
         else
             alpha = greaters[i].alpha
             c = greaters[i].c
-            idx = unique([j for j in findall(j->j != 0, alpha)])[1]; #idx[1] is monomial index,
-            var = x[idx[2]];                                                     #idx[2] is variable index.
-            val = -((sum(c)-c[idx[1]]) / c[idx[1]])^(1/alpha[idx]);
-            lse && (val = log(val))
-            if c[idx[1]] <= 0
-                bound!(model,  Dict(x[idx[2]] => [-Inf, val]));
-            else
-                bound!(model,  Dict(x[idx[2]] => [val, Inf]));
-            end
+            alphac_to_varbound!(model, alpha, c, lse=lse)
         end
     end
     for i = 1:length(equals)
@@ -67,18 +69,3 @@ function sagemark_to_ModelData(idx; lse=false)
     end
     return model
 end
-
-# function MOF_to_ModelData(mof_model)
-# TODO: Work in progress...
-#     constraints = MathOptInterface.get(mof_model, MathOptInterface.ListOfConstraints())
-#     constraint_indices = MathOptInterface.get(mof_model, MathOptInterface.ListOfConstraintIndices)
-#     variable_attributes_set = MathOptInterface.get(mof_model, MathOptInterface.ListOfVariableAttributesSet())
-#     #TODO: CONTINUE HERE
-#     obj = model.objective.constant*model.objective.terms
-#     lbs = model.lower_bounds;
-#     ubs = model.upper_bounds;
-#     ex = function_model(string("example", idx),
-#                         obj, obj_idxs, ineqs, ineq_idxs,
-#                         eqs, eq_idxs, lbs, ubs, lse);
-#     return ex
-# end
