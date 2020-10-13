@@ -26,9 +26,9 @@ function alphac_to_varbound!(model, alpha, c; lse=false)
     val = -((sum(c)-c[idx[1]]) / c[idx[1]])^(1/alpha[idx]);
     lse && (val = log(val))
     if c[idx[1]] <= 0
-        bound!(model,  Dict(var => [-Inf, val]));
+        set_upper_bound(var, val);
     else
-        bound!(model,  Dict(var => [val, Inf]));
+        set_lower_bound(var, val);
     end
 end
 

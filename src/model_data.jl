@@ -5,8 +5,8 @@ Contains all required info to be able to generate a global optimization problem.
     model::JuMP.Model                                                     # JuMP model
     name::Union{Symbol, String} = "Model"                                 # Example name
     fns::Array{BlackBoxFunction} = Array{BlackBoxFunction}[]              # Black box (>/= 0) functions
-    l_constrs::Array{Union{ConstraintRef}} = []                           # Linear constraints
-    nl_constrs::Array{Union{ConstraintRef, NonlinearConstraintRef}} = []  # Nonlinear constraints
+    l_constrs::Array = []                           # Linear constraints
+    nl_constrs::Array = []  # Nonlinear constraints
     vars::Array{VariableRef} = JuMP.all_variables(model)                  # JuMP variables
 end
 
@@ -54,6 +54,35 @@ function bound!(model::Union{GlobalModel, JuMP.Model},
         end
     end
     return
+end
+
+function classify_constraints(model::Union{GlobalModel, JuMP.Model})
+    """Separates and returns linear and nonlinear constraints in a model. """
+    jump_model = model
+    if model isa GlobalModel
+        jump_model = model.model
+    end
+    all_types = list_of_constraint_types(jump_model)
+    nl_constrs = [];
+    l_constrs = [];
+    l_vartypes = [JuMP.VariableRef, JuMP.GenericAffExpr{Float64, VariableRef}]
+    l_constypes = [MOI.GreaterThan{Float64}, MOI.LessThan{Float64}, MOI.EqualTo{Float64}]
+    for (vartype, constype) in all_types
+        constrs_of_type = JuMP.all_constraints(jump_model, vartype, constype)
+        if any(vartype .== l_vartypes) && any(constype .== l_constypes)
+            append!(l_constrs, constrs_of_type)
+        else
+            append!(nl_constrs, constrs_of_type)
+        end
+    end
+    if !isnothing(jump_model.nlp_data)
+        append!(nl_constrs, jump_model.nlp_data.nlconstr)
+    end
+    if model isa GlobalModel
+        append!(model.l_constrs, l_constrs)
+        append!(model.nl_constrs, nl_constrs)
+    end
+    return l_constrs, nl_constrs
 end
 
 function feasibility(bbf::Union{GlobalModel, Array{BlackBoxFunction}, BlackBoxFunction})
