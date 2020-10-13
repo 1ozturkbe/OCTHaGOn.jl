@@ -6,7 +6,6 @@ NOTE: proper construction is to add constraints as BBFs.
     model::JuMP.Model                                                     # JuMP model
     name::Union{Symbol, String} = "Model"                                 # Example name
     fns::Array{BlackBoxFunction} = Array{BlackBoxFunction}[]              # Black box (>/= 0) functions
-    l_constrs::Array = []                                                 # Linear constraints
     nl_constrs::Array = []                                                # Nonlinear constraints
     vars::Array{VariableRef} = JuMP.all_variables(model)                  # JuMP variables
 end
@@ -26,6 +25,24 @@ function (gm::GlobalModel)(name::Union{String, Int64})
     end
 end
 
+function all_variables(gm::GlobalModel)
+    """ Extends JuMP.all_variables to GlobalModels,
+        and makes sure that the variables are updated. """
+    gm.vars = JuMP.all_variables(gm.model)
+    return gm.vars
+end
+
+function set_optimizer(gm::GlobalModel, optimizer_factory)
+    """ Extends JuMP.set_optimizer to GlobalModels. """
+    set_optimizer(gm.model, optimizer_factory)
+end
+
+function optimize!(gm::GlobalModel)
+    """ Extends JuMP.optimize! to GlobalModels. """
+    optimize!(gm.model)
+end
+
+
 function add_constraint(gm::GlobalModel,
                      constraint::Union{ScalarConstraint, JuMP.NonlinearExpression};
                      vars::Union{Nothing, Array{JuMP.VariableRef}} = nothing,
@@ -38,11 +55,11 @@ function add_constraint(gm::GlobalModel,
     else
         bbf_vars = vars
     end
-    if nl_expr isa JuMP.ConstraintRef
+    if constraint isa JuMP.ScalarConstraint
         add_constraint(gm.model, constraint)
         new_fn = BlackBoxFunction(constraint = nl_expr, vars = vars)
         push!(gm.fns, new_fn)
-    elseif nl_expr isa JuMP.NonlinearExpression
+    elseif constraint isa JuMP.NonlinearExpression
         if equality
             con = @NLconstraint(gm.model, constraint == 0)
             new_fn = BlackBoxFunction(constraint = con, vars = vars, equality = equality)
@@ -109,7 +126,6 @@ function classify_constraints(model::Union{GlobalModel, JuMP.Model})
         append!(nl_constrs, jump_model.nlp_data.nlconstr)
     end
     if model isa GlobalModel
-        append!(model.l_constrs, l_constrs)
         append!(model.nl_constrs, nl_constrs)
     end
     return l_constrs, nl_constrs
@@ -139,20 +155,6 @@ function accuracy(bbf::Union{GlobalModel, BlackBoxFunction})
         end
     else
         return [accuracy(fn) for fn in bbf.fns]
-    end
-end
-
-
-function add_lin_constr!(gm::GlobalModel, constraint)
-    """ Adds a linear JuMP constraint to gm.
-    Note: proper syntax is 'add_lin_constr!(gm, @build_constraint(...))'
-    """
-    if isa(constraint, Array)
-        append!(md.lin_constrs, constraint)
-        add_constraint.(md.model, constraint)
-    else
-        push!(md.lin_constrs, constraint)
-        add_constraint(md.model, constraint)
     end
 end
 

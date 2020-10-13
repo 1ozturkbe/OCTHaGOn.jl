@@ -48,6 +48,7 @@ module OptimalConstraintTree
            fns_by_feasibility, globalsolve,
            # Functions on GlobalModel and BlackBoxFunctions
            gridify, learn_from_data!, find_bounds!, add_constraint,
+           set_optimizer, optimize!,
            lh_sample, boundary_sample,
            accuracy, feasibility, check_accuracy, check_feasibility, check_bounds,
            solution, evaluate_feasibility,
