@@ -32,7 +32,7 @@ module OptimalConstraintTree
 
     include("augment.jl")
 
-    include("model_data.jl")
+    include("global_model.jl")
 
     include("constraintify.jl")
 
@@ -46,9 +46,10 @@ module OptimalConstraintTree
     export GlobalModel, BlackBoxFunction,
            # GlobalModel Functions
            fns_by_feasibility, globalsolve,
+           # JuMP.Model extensions to GlobalModel
+           set_optimizer, optimize!, all_variables,
            # Functions on GlobalModel and BlackBoxFunctions
            gridify, learn_from_data!, find_bounds!, add_constraint,
-           set_optimizer, optimize!,
            lh_sample, boundary_sample,
            accuracy, feasibility, check_accuracy, check_feasibility, check_bounds,
            solution, evaluate_feasibility,
