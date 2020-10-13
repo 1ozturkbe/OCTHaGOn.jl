@@ -47,13 +47,13 @@ module OptimalConstraintTree
            # GlobalModel Functions
            fns_by_feasibility, globalsolve,
            # Functions on GlobalModel and BlackBoxFunctions
-           gridify, learn_from_data!, find_bounds!,
-           lh_sample, boundary_sample, add_bounds!,
+           gridify, learn_from_data!, find_bounds!, add_constraint,
+           lh_sample, boundary_sample,
            accuracy, feasibility, check_accuracy, check_feasibility, check_bounds,
            solution, evaluate_feasibility,
            # Functions on BlackBoxFunctions
            eval!, sample_and_eval!, plot, learn_constraint!,
-           add_fn!, add_lin_constr!,
+           add_lin_constr!,
            secant_method, knn_sample, build_knn_tree,
            find_knn, classify_patches,
            # Functions on JuMP objects

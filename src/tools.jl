@@ -47,9 +47,14 @@ function sagemark_to_GlobalModel(idx; lse=false)
     n_vars = size(f.alpha,2);
     model = JuMP.Model()
     @variable(model, x[1:n_vars])
+    nl_exprs = [];
+    nl_constrvars = [];
     # Assigning objective
-    obj, objvars = alphac_to_NLexpr(model, f.alpha, f.c, lse=lse)
-    @NLobjective(model, Min, obj)
+    obj_fn, objvars = alphac_to_NLexpr(model, f.alpha, f.c, lse=lse)
+    @variable(model, obj)
+    @objective(model, Min, obj)
+    push!(nl_exprs, @NLexpression(model, obj - obj_fn))
+    push!(nl_constrvars, objvars)
     # Adding the rest
     for i = 1:length(greaters)
         constrexpr, constrvars = alphac_to_NLexpr(model, greaters[i].alpha, greaters[i].c, lse=lse)

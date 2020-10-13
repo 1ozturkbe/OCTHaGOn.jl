@@ -7,6 +7,7 @@ Tests src/tools.jl.
 =#
 
 using PyCall
+using Ipopt
 
 function test_sagemark_to_GlobalModel()
     """ Makes sure all sage benchmarks import properly.
@@ -27,7 +28,8 @@ function test_sagemark_to_GlobalModel()
     log_inp = Dict(vk => log(val) for (vk, val) in inp);
     gm = GlobalModel(model = md)
     gm_lse = GlobalModel(model = md_lse)
-    return
+    classify_constraints.([gm, gm_lse])
+    return true
 #     @test md_lse.fns[1](log_inp) ≈ md.fns[1](inp) ≈ inp[:x5] - inp[:x3] ^ 0.8 * inp[:x4] ^ 1.2
 #     for i in md.vks
 #     println("Testing bounds of: ", i)
@@ -42,8 +44,13 @@ end
 
 # Importing sagebenchmark to ModelData and checking it
 @test test_sagemark_to_GlobalModel()
-md = OCT.sagemark_to_GlobalModel(3, lse=true);
-bound!(md, Dict(JuMP.all_variables(md)[5]=> [-300, 0]))
+md = OCT.sagemark_to_GlobalModel(3, lse=false);
+linearize_objective!(md)
+gm = GlobalModel(model=md)
+classify_constraints(gm)
+set_optimizer(md, Ipopt.Optimizer)
+optimize!(md)
+getvalue.(JuMP.all_variables(md))
 
 # # Fitting all fns.
 # sample_and_eval!(md, n_samples=200)

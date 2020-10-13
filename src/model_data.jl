@@ -1,12 +1,13 @@
 @with_kw mutable struct GlobalModel
 """
 Contains all required info to be able to generate a global optimization problem.
+NOTE: proper construction is to add constraints as BBFs.
 """
     model::JuMP.Model                                                     # JuMP model
     name::Union{Symbol, String} = "Model"                                 # Example name
     fns::Array{BlackBoxFunction} = Array{BlackBoxFunction}[]              # Black box (>/= 0) functions
-    l_constrs::Array = []                           # Linear constraints
-    nl_constrs::Array = []  # Nonlinear constraints
+    l_constrs::Array = []                                                 # Linear constraints
+    nl_constrs::Array = []                                                # Nonlinear constraints
     vars::Array{VariableRef} = JuMP.all_variables(model)                  # JuMP variables
 end
 
@@ -22,6 +23,35 @@ function (gm::GlobalModel)(name::Union{String, Int64})
     else
         @warn("Multiple constraints with name ", name)
         return fns
+    end
+end
+
+function add_constraint(gm::GlobalModel,
+                     constraint::Union{ScalarConstraint, JuMP.NonlinearExpression};
+                     vars::Union{Nothing, Array{JuMP.VariableRef}} = nothing,
+                     equality::Bool = false)
+""" Adds a new nonlinear constraint to Global Model.
+    Note: Linear constraints should be added directly to gm.Model. """
+    bbf_vars = []
+    if isnothing(vars)
+        bbf_vars = JuMP.all_variables(gm.model)
+    else
+        bbf_vars = vars
+    end
+    if nl_expr isa JuMP.ConstraintRef
+        add_constraint(gm.model, constraint)
+        new_fn = BlackBoxFunction(constraint = nl_expr, vars = vars)
+        push!(gm.fns, new_fn)
+    elseif nl_expr isa JuMP.NonlinearExpression
+        if equality
+            con = @NLconstraint(gm.model, constraint == 0)
+            new_fn = BlackBoxFunction(constraint = con, vars = vars, equality = equality)
+            push!(gm.fns, new_fn)
+        else
+            con = @NLconstraint(gm.model, constraint >= 0)
+            new_fn = BlackBoxFunction(constraint = con, vars = vars, equality = equality)
+            push!(gm.fns, new_fn)
+        end
     end
 end
 

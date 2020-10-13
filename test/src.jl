@@ -25,7 +25,7 @@ ex = @NLexpression(model, sum(x[i] for i=1:4) - y[1] * y[2] + z)
 # Testing getting variables
 varkeys = ["x[1]", x[1], :z, :x];
 vars = [x[1], x[1], z, x[:]];
-@test all(vars .==  fetch_variable.(model, varkeys))
+@test all(vars .==  fetch_variable(model, varkeys))
 
 # Bounds and fixing variables
 bounds = get_bounds(model);

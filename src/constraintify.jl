@@ -11,26 +11,26 @@ function check_if_trained(lnr::IAI.OptimalTreeLearner)
     end
 end
 
-function clear_tree_constraints!(md::ModelData)
-    """ Clears the constraints in md.model of bbf.constraints. """
-    for bbf in md.fns
+function clear_tree_constraints!(gm::GlobalModel)
+    """ Clears the constraints in GM of bbf.constraints. """
+    for bbf in gm.fns
         for constraint in bbf.constraints
-            if is_valid(md.model, constraint)
-                delete(md.model, constraint)
+            if is_valid(gm.model, constraint)
+                delete(gm.model, constraint)
             end
         end
         for variable in bbf.leaf_variables
-            if is_valid(md.model, variable)
-                delete(md.model, variable)
+            if is_valid(gm.model, variable)
+                delete(gm.model, variable)
             end
         end
     end
     return
 end
 
-function add_tree_constraints!(md::ModelData; M=1e5)
-    """ Generates MI constraints from md.learners. """
-    for bbf in md.fns
+function add_tree_constraints!(gm::GlobalModel; M=1e5)
+    """ Generates MI constraints from gm.learners. """
+    for bbf in gm.fns
         if bbf.feas_ratio == 1.0
             return
         elseif bbf.feas_ratio == 0.0
@@ -42,20 +42,20 @@ function add_tree_constraints!(md::ModelData; M=1e5)
                                 can be generated."))
         else
             grid = bbf.learners[end];
-            constrs, leaf_vars = add_feas_constraints!(md.model,
-                                        [md.vars[vk] for vk in bbf.vks],
-                                        bbf.learners[end], bbf.vks;
+            constrs, leaf_vars = add_feas_constraints!(gm.model,
+                                        bbf.vars,
+                                        bbf.learners[end];
                               M=M, eq=bbf.equality,
                               return_data = true);
             bbf.constraints = constrs; # Note: this is needed to monitor the presence of tree
-            bbf.leaf_variables = leaf_vars; #  constraints and variables in md.model.
+            bbf.leaf_variables = leaf_vars; #  constraints and variables in gm.model
         end
     end
     return
 end
 
-function add_feas_constraints!(m::JuMP.Model, x, grid::IAI.GridSearch,
-                               vks::Array; M::Float64 = 1.e5, eq = false,
+function add_feas_constraints!(m::JuMP.Model, x, grid::IAI.GridSearch;
+                               M::Float64 = 1.e5, eq = false,
                                return_data::Bool = false)
     """
     Creates a set of binary feasibility constraints from

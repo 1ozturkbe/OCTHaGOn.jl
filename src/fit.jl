@@ -29,7 +29,7 @@ function learn_from_data!(X::DataFrame, Y::AbstractArray, grid; idxs::Union{Noth
     return grid
 end
 
-function check_feasibility(bbf::Union{ModelData, BlackBoxFunction})
+function check_feasibility(bbf::Union{GlobalModel, BlackBoxFunction})
     """ Checks that a BlackBoxFunction has enough feasible/infeasible samples. """
     if isa(bbf, BlackBoxFunction)
         return bbf.feas_ratio >= bbf.threshold_feasibility
@@ -38,7 +38,7 @@ function check_feasibility(bbf::Union{ModelData, BlackBoxFunction})
     end
 end
 
-function check_accuracy(bbf::Union{ModelData, BlackBoxFunction})
+function check_accuracy(bbf::Union{GlobalModel, BlackBoxFunction})
     """ Checks that a BlackBoxFunction.learner has adequate accuracy."""
     if isa(bbf, BlackBoxFunction)
         return bbf.accuracies[end] >= bbf.threshold_accuracy
@@ -47,7 +47,7 @@ function check_accuracy(bbf::Union{ModelData, BlackBoxFunction})
     end
 end
 
-function fns_by_feasibility(md::ModelData)
+function fns_by_feasibility(md::GlobalModel)
     """Classifies and returns names of functions that pass/fail the feasibility check. """
     arr = [check_feasibility(fn) for fn in md.fns];
     infeas_idxs = findall(x -> x .== 0, arr);
@@ -56,7 +56,7 @@ function fns_by_feasibility(md::ModelData)
     return names[feas_idxs], names[infeas_idxs]
 end
 
-function learn_constraint!(bbf::Union{ModelData, Array{BlackBoxFunction}, BlackBoxFunction};
+function learn_constraint!(bbf::Union{GlobalModel, Array{BlackBoxFunction}, BlackBoxFunction};
                            lnr::IAI.OptimalTreeLearner = base_otc(),
                            weights::Union{Array, Symbol} = :autobalance, dir::String = "-",
                            validation_criterion=:misclassification,
@@ -70,7 +70,7 @@ function learn_constraint!(bbf::Union{ModelData, Array{BlackBoxFunction}, BlackB
     Returns:
         lnr: Fitted Grid
     """
-    if isa(bbf, ModelData)
+    if isa(bbf, GlobalModel)
         for fn in bbf.fns
             learn_constraint!(fn, lnr=lnr, weights=weights, dir=dir,
                               validation_criterion = validation_criterion, ignore_checks=ignore_checks)

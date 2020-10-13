@@ -5,7 +5,10 @@ on_jumpmodels:
 - Date: 2020-09-25
 =#
 
-function fetch_variable(model::JuMP.Model, varkey::Union{Symbol, String, VariableRef})
+function fetch_variable(model::JuMP.Model, varkey::Union{Symbol, String, VariableRef, Array})
+    if varkey isa Array
+        return [fetch_variable(model, key) for key in varkey]
+    end
     if varkey isa Symbol
         return model[varkey]
     elseif varkey isa VariableRef
@@ -146,38 +149,4 @@ function linearize_objective!(model::JuMP.Model)
         end
         return
     end
-end
-
-# function find_variables(sc::ScalarConstraint)
-#     """Returns the variables in a ScalarConstraint (Note: NOT NONLINEAR) object. """
-#     vars = Array{VariableRef}[];
-#     for (var, coef) in sc.func.terms
-#         if var isa VariableRef
-#             push!(vars, var)
-#         end
-#         if coeff
-#     end
-#     return vars
-# end
-
-
-function classify_constraints(model::JuMP.Model)
-    """Separates and returns linear and nonlinear constraints in a model. """
-    all_types = list_of_constraint_types(model)
-    nl_constrs = [];
-    l_constrs = [];
-    l_vartypes = [JuMP.VariableRef, JuMP.GenericAffExpr{Float64, VariableRef}]
-    l_constypes = [MOI.GreaterThan{Float64}, MOI.LessThan{Float64}, MOI.EqualTo{Float64}]
-    for (vartype, constype) in all_types
-        constrs_of_type = JuMP.all_constraints(model, vartype, constype)
-        if any(vartype .== l_vartypes) && any(constype .== l_constypes)
-            append!(l_constrs, constrs_of_type)
-        else
-            append!(nl_constrs, constrs_of_type)
-        end
-    end
-    if !isnothing(model.nlp_data)
-        append!(nl_constrs, model.nlp_data.nlconstr)
-    end
-    return l_constrs, nl_constrs
 end

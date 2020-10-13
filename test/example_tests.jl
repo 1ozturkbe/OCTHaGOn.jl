@@ -53,8 +53,8 @@ function resample_test(fn_model)
     return true
 end
 
-@test test_sagemark_to_ModelData()
-# fn_model = sagemark_to_ModelData(3, lse=true);
+@test test_sagemark_to_GlobalModel()
+# fn_model = sagemark_to_GlobalModel(3, lse=true);
 # @test example_fit(fn_model, lnr=base_otc())
 # @test example_solve(fn_model, M=1e5)
 
