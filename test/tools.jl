@@ -20,17 +20,26 @@ function test_sagemark_to_GlobalModel()
         ex = OCT.sagemark_to_GlobalModel(idx);
     end
     idx = 1;
-    md = OCT.sagemark_to_GlobalModel(idx; lse=false);
-    md_lse = OCT.sagemark_to_GlobalModel(idx; lse=true);
-    linearize_objective!(md); linearize_objective!(md_lse);
-    bounds = Dict(JuMP.all_variables(md) .=> [[0.1, 1], [5., 10.], [8., 15.], [0.01, 1.]])
-    inp = Dict(JuMP.all_variables(md) .=> [1,1.9,3,3.9]);
-    log_inp = Dict(vk => log(val) for (vk, val) in inp);
-    gm = GlobalModel(model = md)
-    gm_lse = GlobalModel(model = md_lse)
+    gm = OCT.sagemark_to_GlobalModel(idx; lse=false);
+    gm_lse = OCT.sagemark_to_GlobalModel(idx; lse=true);
     classify_constraints.([gm, gm_lse])
     return true
-#     @test md_lse.fns[1](log_inp) ≈ md.fns[1](inp) ≈ inp[:x5] - inp[:x3] ^ 0.8 * inp[:x4] ^ 1.2
+end
+
+# Importing sagebenchmark to ModelData and checking it
+@test test_sagemark_to_GlobalModel()
+gm = OCT.sagemark_to_GlobalModel(1, lse=false);
+gm_lse = OCT.sagemark_to_GlobalModel(1, lse=true);
+set_optimizer(gm, Ipopt.Optimizer)
+optimize!(gm)
+vals = getvalue.(gm.vars)
+
+bounds = Dict(all_variables(gm) .=> [[0.1, 1], [5., 10.], [8., 15.], [0.01, 1.], [-Inf, Inf]])
+@test all(get_bounds(gm)[var] ≈ bounds[var] for var in all_variables(gm))
+inp = Dict(all_variables(gm) .=> [1,1.9,3,3.9, 10.]);
+log_inp = Dict(vk => log(val) for (vk, val) in inp);
+
+#     @test gm_lse.fns[2](log_inp) ≈ gm.fns[2](inp) ≈ inp[x[5]] - inp[x[3]] ^ 0.8 * inp[x[4]] ^ 1.2
 #     for i in md.vks
 #     println("Testing bounds of: ", i)
 #         @test md.ubs[i] ≈ ubs[i];
@@ -40,17 +49,6 @@ function test_sagemark_to_GlobalModel()
 #     @test md.fns[3](inp) <= 0
 #     @test md.fns[2](inp) ≈ md_lse.fns[2](log_inp)
 #     return true
-end
-
-# Importing sagebenchmark to ModelData and checking it
-@test test_sagemark_to_GlobalModel()
-md = OCT.sagemark_to_GlobalModel(3, lse=false);
-linearize_objective!(md)
-gm = GlobalModel(model=md)
-classify_constraints(gm)
-set_optimizer(md, Ipopt.Optimizer)
-optimize!(md)
-getvalue.(JuMP.all_variables(md))
 
 # # Fitting all fns.
 # sample_and_eval!(md, n_samples=200)

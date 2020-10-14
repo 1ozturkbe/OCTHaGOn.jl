@@ -45,7 +45,7 @@ linearize_objective!(model);
 inp = Dict(x[1] => 1., x[2] => 2, x[3] => 3, x[4] => 4, x[5] => 1, y[1] => 5, y[2] => -6, y[3] => -7, z => 7)
 inp_dict = Dict(string(key) => value for (key, value) in inp)
 inp_df = DataFrame(inp_dict)
-@test sanitize_data(model, inp) == sanitize_data(model, inp_dict) == sanitize_data(model, inp_df) == inp_df
+@test sanitize_data(inp) == sanitize_data(inp_dict) == sanitize_data(inp_df) == inp_df
 
 # Separation of constraints
 l_constrs, nl_constrs = classify_constraints(model)
@@ -76,8 +76,8 @@ X_bound = boundary_sample(bbf);
 X_lh = lh_sample(bbf);
 
 # Check sample_and_eval
-sample_and_eval!(bbf);
-sample_and_eval!(bbf);
+sample_and_eval!(bbf, n_samples=100);
+sample_and_eval!(bbf, n_samples=100);
 
 # Sampling, learning and showing...
 # plot_2d(bbf);

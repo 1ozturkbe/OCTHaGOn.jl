@@ -47,7 +47,7 @@ module OptimalConstraintTree
            # GlobalModel Functions
            fns_by_feasibility, globalsolve,
            # JuMP.Model extensions to GlobalModel
-           set_optimizer, optimize!, all_variables,
+#            set_optimizer, optimize!, JuMP.all_variables,
            # Functions on GlobalModel and BlackBoxFunctions
            gridify, learn_from_data!, find_bounds!, add_constraint,
            lh_sample, boundary_sample,
@@ -55,7 +55,6 @@ module OptimalConstraintTree
            solution, evaluate_feasibility,
            # Functions on BlackBoxFunctions
            eval!, sample_and_eval!, plot, learn_constraint!,
-           add_lin_constr!,
            secant_method, knn_sample, build_knn_tree,
            find_knn, classify_patches,
            # Functions on JuMP objects

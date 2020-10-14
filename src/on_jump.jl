@@ -34,50 +34,7 @@ function get_bounds(vars::Array{VariableRef})
     return bounds
 end
 
-function get_bounds(model::JuMP.Model)
-    """ Returns bounds of all variables from a JuMP.Model. """
-    all_vars = JuMP.all_variables(model)
-    return get_bounds(all_vars)
-end
-
-function check_bounds(bounds::Dict)
-    """ Checks outer-boundedness. """
-    if any(isinf.(Iterators.flatten(values(bounds))))
-        throw(OCTException("Unbounded variables in model!"))
-    else
-        return
-    end
-end
-
-function get_max(a, b)
-    return maximum([a,b])
-end
-
-function get_min(a,b)
-    return minimum([a,b])
-end
-
-function check_infeasible_bounds(model::JuMP.Model, bounds::Dict)
-    all_bounds = get_bounds(model);
-    lbs_model = Dict(key => minimum(value) for (key, value) in all_bounds)
-    ubs_model = Dict(key => maximum(value) for (key, value) in all_bounds)
-    lbs_bounds = Dict(key => minimum(value) for (key, value) in bounds)
-    ubs_bounds = Dict(key => maximum(value) for (key, value) in bounds)
-    nlbs = merge(get_max, lbs_model, lbs_bounds)
-    nubs = merge(get_min, ubs_model, ubs_bounds)
-    if any([nlbs[var] .> nubs[var] for var in keys(nlbs)])
-        throw(OCTException("Infeasible bounds."))
-    end
-    return
-end
-
-# model = Model()
-# @variable(model, x)
-# c = @constraint(model, 2x + 1 <= 0)
-# obj = constraint_object(c)
-# obj.func  # The function
-
-function sanitize_data(model::JuMP.Model, data::Union{Dict, DataFrame, DataFrameRow})
+function sanitize_data(data::Union{Dict, DataFrame, DataFrameRow})
     """ Gets data with different keys, and returns a DataFrame with string headers. """
     if data isa DataFrame
         return data
@@ -109,7 +66,7 @@ function evaluate(constraint::ConstraintRef, data::Union{Dict, DataFrame})
         Note that the keys of the Dict have to be uniform. """
     constr_obj = constraint_object(constraint)
     rhs_const = get_constant(constr_obj.set)
-    clean_data = sanitize_data(constraint.model, data);
+    clean_data = sanitize_data(data);
     if size(clean_data, 1) == 1
         val = JuMP.value(constr_obj.func, i -> get(clean_data, string(i), Inf)[1])
         if isinf(val)

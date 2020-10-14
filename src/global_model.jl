@@ -25,23 +25,59 @@ function (gm::GlobalModel)(name::Union{String, Int64})
     end
 end
 
-function all_variables(gm::GlobalModel)
+function JuMP.all_variables(gm::GlobalModel)
     """ Extends JuMP.all_variables to GlobalModels,
         and makes sure that the variables are updated. """
     gm.vars = JuMP.all_variables(gm.model)
     return gm.vars
 end
 
-function set_optimizer(gm::GlobalModel, optimizer_factory)
+function JuMP.set_optimizer(gm::GlobalModel, optimizer_factory)
     """ Extends JuMP.set_optimizer to GlobalModels. """
     set_optimizer(gm.model, optimizer_factory)
 end
 
-function optimize!(gm::GlobalModel)
+function JuMP.optimize!(gm::GlobalModel)
     """ Extends JuMP.optimize! to GlobalModels. """
     optimize!(gm.model)
 end
 
+function get_bounds(model::Union{GlobalModel, JuMP.Model})
+    """ Returns bounds of all variables from a JuMP.Model. """
+    all_vars = all_variables(model)
+    return get_bounds(all_vars)
+end
+
+function check_bounds(bounds::Dict)
+    """ Checks outer-boundedness. """
+    if any(isinf.(Iterators.flatten(values(bounds))))
+        throw(OCTException("Unbounded variables in model!"))
+    else
+        return
+    end
+end
+
+function get_max(a, b)
+    return maximum([a,b])
+end
+
+function get_min(a,b)
+    return minimum([a,b])
+end
+
+function check_infeasible_bounds(model::Union{GlobalModel, JuMP.Model}, bounds::Dict)
+    all_bounds = get_bounds(model);
+    lbs_model = Dict(key => minimum(value) for (key, value) in all_bounds)
+    ubs_model = Dict(key => maximum(value) for (key, value) in all_bounds)
+    lbs_bounds = Dict(key => minimum(value) for (key, value) in bounds)
+    ubs_bounds = Dict(key => maximum(value) for (key, value) in bounds)
+    nlbs = merge(get_max, lbs_model, lbs_bounds)
+    nubs = merge(get_min, ubs_model, ubs_bounds)
+    if any([nlbs[var] .> nubs[var] for var in keys(nlbs)])
+        throw(OCTException("Infeasible bounds."))
+    end
+    return
+end
 
 function add_constraint(gm::GlobalModel,
                      constraint::Union{ScalarConstraint, JuMP.NonlinearExpression};
@@ -56,18 +92,21 @@ function add_constraint(gm::GlobalModel,
         bbf_vars = vars
     end
     if constraint isa JuMP.ScalarConstraint
-        add_constraint(gm.model, constraint)
+        con = JuMP.add_constraint(gm.model, constraint)
         new_fn = BlackBoxFunction(constraint = nl_expr, vars = vars)
         push!(gm.fns, new_fn)
+        push!(gm.nl_constrs, con)
     elseif constraint isa JuMP.NonlinearExpression
         if equality
             con = @NLconstraint(gm.model, constraint == 0)
             new_fn = BlackBoxFunction(constraint = con, vars = vars, equality = equality)
             push!(gm.fns, new_fn)
+            push!(gm.nl_constrs, con)
         else
             con = @NLconstraint(gm.model, constraint >= 0)
             new_fn = BlackBoxFunction(constraint = con, vars = vars, equality = equality)
             push!(gm.fns, new_fn)
+            push!(gm.nl_constrs, con)
         end
     end
 end
