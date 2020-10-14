@@ -25,10 +25,12 @@ function (gm::GlobalModel)(name::Union{String, Int64})
     end
 end
 
-function JuMP.all_variables(gm::GlobalModel)
+function JuMP.all_variables(gm::Union{GlobalModel, BlackBoxFunction})
     """ Extends JuMP.all_variables to GlobalModels,
         and makes sure that the variables are updated. """
-    gm.vars = JuMP.all_variables(gm.model)
+    if gm isa GlobalModel
+        gm.vars = JuMP.all_variables(gm.model)
+    end
     return gm.vars
 end
 
@@ -42,7 +44,7 @@ function JuMP.optimize!(gm::GlobalModel)
     optimize!(gm.model)
 end
 
-function get_bounds(model::Union{GlobalModel, JuMP.Model})
+function get_bounds(model::Union{GlobalModel, JuMP.Model, BlackBoxFunction})
     """ Returns bounds of all variables from a JuMP.Model. """
     all_vars = all_variables(model)
     return get_bounds(all_vars)
@@ -80,7 +82,7 @@ function check_infeasible_bounds(model::Union{GlobalModel, JuMP.Model}, bounds::
 end
 
 function add_constraint(gm::GlobalModel,
-                     constraint::Union{ScalarConstraint, JuMP.NonlinearExpression};
+                     constraint::Union{JuMP.ScalarConstraint, JuMP.NonlinearExpression};
                      vars::Union{Nothing, Array{JuMP.VariableRef}} = nothing,
                      equality::Bool = false)
 """ Adds a new nonlinear constraint to Global Model.
@@ -219,10 +221,10 @@ function boundary_sample(bbf::BlackBoxFunction; fraction::Float64 = 0.5)
 """ *Smartly* samples the constraint along the variable boundaries.
     NOTE: Because we are sampling symmetrically for lower and upper bounds,
     the choose coefficient has to be less than ceil(half of number of dims). """
-    n_vars = length(bbf.vars);
-    vks = string.(bbf.vars);
     bounds = get_bounds(bbf.vars);
     check_bounds(bounds);
+    n_vars = length(bbf.vars);
+    vks = string.(bbf.vars);
     lbs = DataFrame(Dict(string(key) => minimum(value) for (key, value) in bounds))
     ubs = DataFrame(Dict(string(key) => maximum(value) for (key, value) in bounds))
     n_comb = sum(choose(n_vars, i) for i=0:n_vars);
@@ -288,6 +290,7 @@ function sample_and_eval!(bbf::Union{GlobalModel, BlackBoxFunction, Array{BlackB
     ratio:
     If there is an optimized gp, ratio*n_samples is how many random LHC samples are generated
     for prediction from GP. """
+    check_bounds(get_bounds(bbf))
     if bbf isa GlobalModel
         for fn in bbf.fns
             sample_and_eval!(fn, n_samples = n_samples, boundary_fraction = boundary_fraction,

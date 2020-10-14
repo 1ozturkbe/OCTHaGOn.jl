@@ -43,7 +43,10 @@ vars = all_variables(gm);
 @test gm_lse.fns[1](log_inp) ≈ gm.fns[1](inp) ≈ inp[vars[5]] - inp[vars[3]] ^ 0.8 * inp[vars[4]] ^ 1.2
 
 # # Fitting all fns.
-sample_and_eval!(gm, n_samples=200)
+@test_throws ErrorException sample_and_eval!(gm.fns[1], n_samples=200)
+bound!(gm, Dict(all_variables[5] => [-300, 0]))
+sample_and_eval!(fm, n_samples = 500)
+
 # learn_constraint!(md);
 # println("Approximation accuracies: ", accuracy(md))
 #
