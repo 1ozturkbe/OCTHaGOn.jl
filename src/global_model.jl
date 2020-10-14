@@ -276,7 +276,7 @@ function knn_sample(bbf::BlackBoxFunction; k::Int64 = 15)
     return df
 end
 
-function sample_and_eval!(bbf::Union{BlackBoxFunction, Array{BlackBoxFunction}};
+function sample_and_eval!(bbf::Union{GlobalModel, BlackBoxFunction, Array{BlackBoxFunction}};
                           n_samples:: Union{Int64, Nothing} = nothing,
                           boundary_fraction::Float64 = 0.5,
                           iterations::Int64 = 3)
@@ -288,10 +288,16 @@ function sample_and_eval!(bbf::Union{BlackBoxFunction, Array{BlackBoxFunction}};
     ratio:
     If there is an optimized gp, ratio*n_samples is how many random LHC samples are generated
     for prediction from GP. """
-    if isa(bbf, Array{BlackBoxFunction})
+    if bbf isa GlobalModel
+        for fn in bbf.fns
+            sample_and_eval!(fn, n_samples = n_samples, boundary_fraction = boundary_fraction,
+                             iterations = iterations)
+        end
+        return
+    elseif bbf isa Array{BlackBoxFunction}
         for fn in bbf
             sample_and_eval!(fn, n_samples = n_samples, boundary_fraction = boundary_fraction,
-                             iterations = iterations);
+                             iterations = iterations)
         end
         return
     end

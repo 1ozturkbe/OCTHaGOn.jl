@@ -41,18 +41,9 @@ log_inp = Dict(vk => log(val) for (vk, val) in inp);
 
 vars = all_variables(gm);
 @test gm_lse.fns[1](log_inp) ≈ gm.fns[1](inp) ≈ inp[vars[5]] - inp[vars[3]] ^ 0.8 * inp[vars[4]] ^ 1.2
-#     for i in md.vks
-#     println("Testing bounds of: ", i)
-#         @test md.ubs[i] ≈ ubs[i];
-#         @test md.lbs[i] ≈ lbs[i];
-#     end
-#     @test md.fns[2](inp) >= 0
-#     @test md.fns[3](inp) <= 0
-#     @test md.fns[2](inp) ≈ md_lse.fns[2](log_inp)
-#     return true
 
 # # Fitting all fns.
-# sample_and_eval!(md, n_samples=200)
+sample_and_eval!(gm, n_samples=200)
 # learn_constraint!(md);
 # println("Approximation accuracies: ", accuracy(md))
 #
