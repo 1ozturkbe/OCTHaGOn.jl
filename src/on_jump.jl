@@ -61,7 +61,7 @@ function get_constant(set::MOI.AbstractSet)
     end
 end
 
-function evaluate(constraint::ConstraintRef, data::Union{Dict, DataFrame})
+function evaluate(constraint::JuMP.ConstraintRef, data::Union{Dict, DataFrame})
     """ Evaluates constraint violation on data in the variables, and returns distance from set.
         Note that the keys of the Dict have to be uniform. """
     constr_obj = constraint_object(constraint)
@@ -81,6 +81,22 @@ function evaluate(constraint::ConstraintRef, data::Union{Dict, DataFrame})
             end
             return coeff*(val - rhs_const)
         end
+    else
+        vals = [evaluate(constraint, DataFrame(clean_data[i,:])) for i=1:size(clean_data,1)]
+        return vals
+    end
+end
+
+function evaluate(constraint::JuMP.NonlinearExpression, data::Union{Dict, DataFrame})
+    """ Evaluates constraint violation on data in the variables, and returns distance from set.
+        Note that the keys of the Dict have to be uniform. """
+    clean_data = sanitize_data(data);
+    if size(clean_data, 1) == 1
+        val = JuMP.value(constraint, i -> get(clean_data, string(i), Inf)[1])
+        if isinf(val)
+            throw(OCTException(string("Constraint ", constraint, " returned an infinite value.")))
+        end
+        return val
     else
         vals = [evaluate(constraint, DataFrame(clean_data[i,:])) for i=1:size(clean_data,1)]
         return vals

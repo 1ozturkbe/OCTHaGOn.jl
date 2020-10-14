@@ -39,7 +39,8 @@ bounds = Dict(all_variables(gm) .=> [[0.1, 1], [5., 10.], [8., 15.], [0.01, 1.],
 inp = Dict(all_variables(gm) .=> [1,1.9,3,3.9, 10.]);
 log_inp = Dict(vk => log(val) for (vk, val) in inp);
 
-#     @test gm_lse.fns[2](log_inp) ≈ gm.fns[2](inp) ≈ inp[x[5]] - inp[x[3]] ^ 0.8 * inp[x[4]] ^ 1.2
+vars = all_variables(gm);
+@test gm_lse.fns[1](log_inp) ≈ gm.fns[1](inp) ≈ inp[vars[5]] - inp[vars[3]] ^ 0.8 * inp[vars[4]] ^ 1.2
 #     for i in md.vks
 #     println("Testing bounds of: ", i)
 #         @test md.ubs[i] ≈ ubs[i];

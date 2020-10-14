@@ -10,7 +10,7 @@ sample_data:
 Contains all required info to be able to generate a global optimization constraint.
 """
     name::Union{String, Real} = ""                     # Function name
-    constraint::JuMP.ConstraintRef                     # The JuMP constraint function
+    constraint::Union{JuMP.ConstraintRef, JuMP.NonlinearExpression} # The JuMP constraint function
     vars::Array{JuMP.VariableRef}                      # JuMP variables
     X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars))  # Function samples
     Y::Array = []                                      # Function values

@@ -99,12 +99,12 @@ function add_constraint(gm::GlobalModel,
     elseif constraint isa JuMP.NonlinearExpression
         if equality
             con = @NLconstraint(gm.model, constraint == 0)
-            new_fn = BlackBoxFunction(constraint = con, vars = vars, equality = equality)
+            new_fn = BlackBoxFunction(constraint = constraint, vars = vars, equality = equality)
             push!(gm.fns, new_fn)
             push!(gm.nl_constrs, con)
         else
             con = @NLconstraint(gm.model, constraint >= 0)
-            new_fn = BlackBoxFunction(constraint = con, vars = vars, equality = equality)
+            new_fn = BlackBoxFunction(constraint = constraint, vars = vars, equality = equality)
             push!(gm.fns, new_fn)
             push!(gm.nl_constrs, con)
         end

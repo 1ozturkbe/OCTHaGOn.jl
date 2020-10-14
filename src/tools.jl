@@ -54,7 +54,11 @@ function sagemark_to_GlobalModel(idx; lse=false)
     @variable(model, obj)
     @objective(model, Min, obj)
     gm = GlobalModel(model = model)
-    add_constraint(gm, @NLexpression(gm.model, obj - obj_fn), vars = objvars)
+    if lse
+        add_constraint(gm, @NLexpression(gm.model, exp(obj) - obj_fn), vars = objvars)
+    else
+        add_constraint(gm, @NLexpression(gm.model, obj - obj_fn), vars = objvars)
+    end
     # Adding the rest
     for i = 1:length(greaters)
         constrexpr, constrvars = alphac_to_NLexpr(gm.model, greaters[i].alpha, greaters[i].c, lse=lse)
