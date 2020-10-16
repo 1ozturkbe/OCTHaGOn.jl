@@ -20,9 +20,9 @@ function clear_nl_constraints!(gm::GlobalModel)
     return
 end
 
-function clear_tree_constraints!(gm::GlobalModel)
+function clear_tree_constraints!(gm::GlobalModel, bbfs::Array{BlackBoxFunction})
     """ Clears the constraints in GM of bbf.mi_constraints. """
-    for bbf in gm.fns
+    for bbf in bbfs
         for constraint in bbf.mi_constraints
             if is_valid(gm.model, constraint)
                 delete(gm.model, constraint)
@@ -37,9 +37,12 @@ function clear_tree_constraints!(gm::GlobalModel)
     return
 end
 
-function add_tree_constraints!(gm::GlobalModel; M=1e5)
+function clear_tree_constraints!(gm::GlobalModel)
+    clear_tree_constraints!(gm, gm.bbfs)
+
+function add_tree_constraints!(gm::GlobalModel, bbfs::Array{BlackBoxFunction}; M=1e5)
     """ Generates MI constraints from gm.learners. """
-    for bbf in gm.fns
+    for bbf in bbfs
         if bbf.feas_ratio == 1.0
             return
         elseif bbf.feas_ratio == 0.0
@@ -61,6 +64,11 @@ function add_tree_constraints!(gm::GlobalModel; M=1e5)
         end
     end
     return
+end
+
+function add_tree_constraints!(gm::GlobalModel; M=1e5)
+    """ Generates MI constraints from gm.learners. """
+    add_tree_constraints!(gm, gm.bbfs, M=M)
 end
 
 function add_feas_constraints!(m::JuMP.Model, x, grid::IAI.GridSearch;

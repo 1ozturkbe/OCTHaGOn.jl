@@ -34,7 +34,7 @@ function check_feasibility(bbf::Union{GlobalModel, BlackBoxFunction})
     if isa(bbf, BlackBoxFunction)
         return bbf.feas_ratio >= bbf.threshold_feasibility
     else
-        return [check_feasibility(fn) for fn in bbf.fns]
+        return [check_feasibility(fn) for fn in bbf.bbfs]
     end
 end
 
@@ -43,16 +43,16 @@ function check_accuracy(bbf::Union{GlobalModel, BlackBoxFunction})
     if isa(bbf, BlackBoxFunction)
         return bbf.accuracies[end] >= bbf.threshold_accuracy
     else
-        return [check_accuracy(fn) for fn in bbf.fns]
+        return [check_accuracy(fn) for fn in bbf.bbfs]
     end
 end
 
 function fns_by_feasibility(md::GlobalModel)
     """Classifies and returns names of functions that pass/fail the feasibility check. """
-    arr = [check_feasibility(fn) for fn in md.fns];
+    arr = [check_feasibility(fn) for fn in md.bbfs];
     infeas_idxs = findall(x -> x .== 0, arr);
     feas_idxs = findall(x -> x .!= 0, arr);
-    names = [fn.name for fn in md.fns];
+    names = [fn.name for fn in md.bbfs];
     return names[feas_idxs], names[infeas_idxs]
 end
 
@@ -71,7 +71,7 @@ function learn_constraint!(bbf::Union{GlobalModel, Array{BlackBoxFunction}, Blac
         lnr: Fitted Grid
     """
     if isa(bbf, GlobalModel)
-        for fn in bbf.fns
+        for fn in bbf.bbfs
             learn_constraint!(fn, lnr=lnr, weights=weights, dir=dir,
                               validation_criterion = validation_criterion, ignore_checks=ignore_checks)
         end

@@ -25,9 +25,9 @@ update_bounds!(md, ubs = Dict(md.vks .=> 1.));
 
 # Testing constraint import.
 n_samples = 200;
-bbf = md.fns[1];
+bbf = md.bbfs[1];
 X = lh_sample(bbf, n_samples=n_samples);
-Y = md.fns[1](X);
+Y = md.bbfs[1](X);
 
 # Testing sample_and_eval for combined LH and boundary sampling.
 sample_and_eval!(md, n_samples=500);

@@ -5,15 +5,15 @@ NOTE: proper construction is to add constraints as BBFs.
 """
     model::JuMP.Model                                                     # JuMP model
     name::Union{Symbol, String} = "Model"                                 # Example name
-    fns::Array{BlackBoxFunction} = Array{BlackBoxFunction}[]              # Black box (>/= 0) functions
+    bbfs::Array{BlackBoxFunction} = Array{BlackBoxFunction}[]              # Black box (>/= 0) functions
     nl_constrs::Array = []                                                # Nonlinear constraints
     vars::Array{VariableRef} = JuMP.all_variables(model)                  # JuMP variables
 end
 
 function (gm::GlobalModel)(name::Union{String, Int64})
     """ Calls a BlackBoxFunction in GlobalModel by name. """
-    fn_names = getfield.(gm.fns, :name);
-    fns = gm.fns[findall(x -> x == name, fn_names)];
+    fn_names = getfield.(gm.bbfs, :name);
+    fns = gm.bbfs[findall(x -> x == name, fn_names)];
     if length(fns) == 1
         return fns[1]
     elseif length(fns) == 0
@@ -96,18 +96,18 @@ function add_constraint(gm::GlobalModel,
     if constraint isa JuMP.ScalarConstraint
         con = JuMP.add_constraint(gm.model, constraint)
         new_fn = BlackBoxFunction(constraint = nl_expr, vars = vars)
-        push!(gm.fns, new_fn)
+        push!(gm.bbfs, new_fn)
         push!(gm.nl_constrs, con)
     elseif constraint isa JuMP.NonlinearExpression
         if equality
             con = @NLconstraint(gm.model, constraint == 0)
             new_fn = BlackBoxFunction(constraint = constraint, vars = vars, equality = equality)
-            push!(gm.fns, new_fn)
+            push!(gm.bbfs, new_fn)
             push!(gm.nl_constrs, con)
         else
             con = @NLconstraint(gm.model, constraint >= 0)
             new_fn = BlackBoxFunction(constraint = constraint, vars = vars, equality = equality)
-            push!(gm.fns, new_fn)
+            push!(gm.bbfs, new_fn)
             push!(gm.nl_constrs, con)
         end
     end
@@ -179,7 +179,7 @@ function feasibility(bbf::Union{GlobalModel, Array{BlackBoxFunction}, BlackBoxFu
     elseif isa(bbf, Array{BlackBoxFunction})
         return [feasibility(fn) for fn in bbf]
     else
-        return [feasibility(fn) for fn in bbf.fns]
+        return [feasibility(fn) for fn in bbf.bbfs]
     end
 end
 
@@ -195,7 +195,7 @@ function accuracy(bbf::Union{GlobalModel, BlackBoxFunction})
             return bbf.accuracies[end]
         end
     else
-        return [accuracy(fn) for fn in bbf.fns]
+        return [accuracy(fn) for fn in bbf.bbfs]
     end
 end
 
@@ -292,7 +292,7 @@ function sample_and_eval!(bbf::Union{GlobalModel, BlackBoxFunction, Array{BlackB
     for prediction from GP. """
     check_bounds(get_bounds(bbf))
     if bbf isa GlobalModel
-        for fn in bbf.fns
+        for fn in bbf.bbfs
             sample_and_eval!(fn, n_samples = n_samples, boundary_fraction = boundary_fraction,
                              iterations = iterations)
         end
@@ -345,10 +345,10 @@ function evaluate_feasibility(md::GlobalModel)
     """ Evaluates each constraint at solution to make sure it is feasible. """
     soln = solution(md);
     feas = [];
-    for fn in md.fns
+    for fn in md.bbfs
         eval!(fn, soln)
     end
-    fn_names = getfield.(md.fns, :name);
+    fn_names = getfield.(md.bbfs, :name);
     infeas_idxs = fn_names[findall(vk -> md(vk).Y[end] .< 0, fn_names)]
     feas_idxs = fn_names[findall(vk -> md(vk).Y[end] .>= 0, fn_names)]
     return feas_idxs, infeas_idxs
@@ -386,6 +386,6 @@ end
 function import_trees(dir, gm::GlobalModel)
     """ Returns trees trained over given GlobalModel,
     where filename points to the model name. """
-    trees = [IAI.read_json(string(dir, "_tree_", i, ".json")) for i=1:length(gm.fns)];
+    trees = [IAI.read_json(string(dir, "_tree_", i, ".json")) for i=1:length(gm.bbfs)];
     return trees
 end

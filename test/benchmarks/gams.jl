@@ -187,4 +187,4 @@ for (key, eq) in gams["equations"]
 end
 
 inp = Dict(vk => 1 for vk in model.vks)
-model.fns[2](inp)
+model.bbfs[2](inp)
