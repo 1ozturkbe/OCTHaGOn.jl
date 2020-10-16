@@ -63,7 +63,7 @@ module OptimalConstraintTree
            bound!, sanitize_data,
            distance_to_set, get_constant,
            add_feas_constraints!, add_regr_constraints!,
-           add_tree_constraints!, clear_tree_constraints!,
+           add_tree_constraints!, clear_tree_constraints!, clear_nl_constraints!
            base_otr, base_otc, sample,
            # Functions to import global optimization problems,
            sagemark_to_GlobalModel,

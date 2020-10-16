@@ -11,10 +11,19 @@ function check_if_trained(lnr::IAI.OptimalTreeLearner)
     end
 end
 
+function clear_nl_constraints!(gm::GlobalModel)
+    for constr in gm.nl_constrs
+        if is_valid(gm.model, constr)
+            delete(gm.model, constr)
+        end
+    end
+    return
+end
+
 function clear_tree_constraints!(gm::GlobalModel)
-    """ Clears the constraints in GM of bbf.constraints. """
+    """ Clears the constraints in GM of bbf.mi_constraints. """
     for bbf in gm.fns
-        for constraint in bbf.constraints
+        for constraint in bbf.mi_constraints
             if is_valid(gm.model, constraint)
                 delete(gm.model, constraint)
             end
@@ -47,7 +56,7 @@ function add_tree_constraints!(gm::GlobalModel; M=1e5)
                                         bbf.learners[end];
                               M=M, eq=bbf.equality,
                               return_data = true);
-            bbf.constraints = constrs; # Note: this is needed to monitor the presence of tree
+            bbf.mi_constraints = constrs; # Note: this is needed to monitor the presence of tree
             bbf.leaf_variables = leaf_vars; #  constraints and variables in gm.model
         end
     end

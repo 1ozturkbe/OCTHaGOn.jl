@@ -43,13 +43,13 @@ vars = all_variables(gm);
 @test gm_lse.fns[1](log_inp) ≈ gm.fns[1](inp) ≈ inp[vars[5]] - inp[vars[3]] ^ 0.8 * inp[vars[4]] ^ 1.2
 
 # # Fitting all fns.
-@test_throws ErrorException sample_and_eval!(gm.fns[1], n_samples=200)
-bound!(gm, Dict(all_variables[5] => [-300, 0]))
-sample_and_eval!(fm, n_samples = 500)
+@test_throws OCTException sample_and_eval!(gm.fns[1], n_samples=200)
+bound!(gm, Dict(vars[5] => [-300, 0]))
+sample_and_eval!(gm.fns[1], n_samples = 500)
 
-# learn_constraint!(md);
-# println("Approximation accuracies: ", accuracy(md))
-#
+learn_constraint!(gm)
+println("Approximation accuracies: ", accuracy(md))
+
 # # Solving the model.
 # add_tree_constraints!(md);
 # status = optimize!(md.model);
@@ -58,12 +58,12 @@ sample_and_eval!(fm, n_samples = 500)
 #
 # # Testing constraint addition and removal
 # clear_tree_constraints!(md) # Clears all BBF constraints
-# @test all([!is_valid(md.model, constraint) for constraint in md.fns[2].constraints])
-# md.fns[2].constraints, md.fns[2].leaf_variables = add_feas_constraints!(md.model, [md.vars[vk] for vk in md.fns[2].vks],
+# @test all([!is_valid(md.model, constraint) for constraint in md.fns[2].mi_constraints])
+# md.fns[2].mi_constraints, md.fns[2].leaf_variables = add_feas_constraints!(md.model, [md.vars[vk] for vk in md.fns[2].vks],
 #                                               md.fns[2].learners[end], md.fns[2].vks,
 #                                               return_data = true) # Adds only one bbf constraint
 # clear_tree_constraints!(md) # Finds and clears the one remaining BBF constraint.
-# @test all([!is_valid(md.model, constraint) for constraint in md.fns[1].constraints])
+# @test all([!is_valid(md.model, constraint) for constraint in md.fns[1].mi_constraints])
 # @test all([!is_valid(md.model, var) for var in md.fns[1].leaf_variables])
 
 

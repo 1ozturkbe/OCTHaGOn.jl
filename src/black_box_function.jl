@@ -17,7 +17,7 @@ Contains all required info to be able to generate a global optimization constrai
     feas_ratio::Float64 = 0.                           # Feasible sample proportion
     equality::Bool = false                             # Equality check
     learners::Array{IAI.GridSearch} = []               # Learners...
-    constraints::Array = []                            # and their corresponding constraints,
+    mi_constraints::Array = []                         # and their corresponding MI constraints,
     leaf_variables::Array = []                         # and their binary leaf variables,
     accuracies::Array{Float64} = []                    # and the tree misclassification scores.
     threshold_accuracy::Float64 = 0.95                 # Minimum tree accuracy
