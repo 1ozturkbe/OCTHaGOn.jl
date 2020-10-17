@@ -47,12 +47,11 @@ function sagemark_to_GlobalModel(idx; lse=false)
     n_vars = size(f.alpha,2);
     model = JuMP.Model()
     @variable(model, x[1:n_vars])
-    nl_exprs = [];
-    nl_constrvars = [];
-    # Assigning objective
-    obj_fn, objvars = alphac_to_NLexpr(model, f.alpha, f.c, lse=lse)
     @variable(model, obj)
     @objective(model, Min, obj)
+    # Assigning objective
+    obj_fn, objvars = alphac_to_NLexpr(model, f.alpha, f.c, lse=lse)
+    push!(objvars, obj)
     gm = GlobalModel(model = model)
     if lse
         add_constraint(gm, @NLexpression(gm.model, exp(obj) - obj_fn), vars = objvars)
@@ -78,3 +77,4 @@ function sagemark_to_GlobalModel(idx; lse=false)
     end
     return gm
 end
+

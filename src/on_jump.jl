@@ -21,7 +21,7 @@ function fetch_variable(model::JuMP.Model, varkey::Union{Symbol, String, Variabl
 end
 
 function get_bounds(vars::Array{VariableRef})
-    """ Returns bounds of selected variables."""
+    """ Returns bounds of JuMP variables."""
     bounds = Dict(var => [-Inf, Inf] for var in vars);
     for var in vars
         if JuMP.has_lower_bound(var)

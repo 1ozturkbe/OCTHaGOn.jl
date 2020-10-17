@@ -50,6 +50,12 @@ function get_bounds(model::Union{GlobalModel, JuMP.Model, BlackBoxFunction})
     return get_bounds(all_vars)
 end
 
+function get_bounds(bbfs::Array{BlackBoxFunction})
+    """ Returns bounds of all variables from a JuMP.Model. """
+    all_vars = unique(Iterators.flatten(([all_variables(bbf) for bbf in bbfs])))
+    return get_bounds(all_vars)
+end
+
 function check_bounds(bounds::Dict)
     """ Checks outer-boundedness. """
     if any(isinf.(Iterators.flatten(values(bounds))))
@@ -278,7 +284,7 @@ function knn_sample(bbf::BlackBoxFunction; k::Int64 = 15)
     return df
 end
 
-function sample_and_eval!(bbf::Union{GlobalModel, BlackBoxFunction, Array{BlackBoxFunction}};
+function sample_and_eval!(bbf::Union{BlackBoxFunction, GlobalModel, Array{BlackBoxFunction}};
                           n_samples:: Union{Int64, Nothing} = nothing,
                           boundary_fraction::Float64 = 0.5,
                           iterations::Int64 = 3)
@@ -388,4 +394,15 @@ function import_trees(dir, gm::GlobalModel)
     where filename points to the model name. """
     trees = [IAI.read_json(string(dir, "_tree_", i, ".json")) for i=1:length(gm.bbfs)];
     return trees
+end
+
+function clear_data!(bbf::BlackBoxFunction)
+    bbf.X = DataFrame([Float64 for i=1:length(bbf.vars)], string.(bbf.vars))  # Function samples
+    bbf.Y = [];
+    return
+end
+
+function clear_data!(gm::GlobalModel)
+    clear_data!.(gm.bbfs)
+    return
 end

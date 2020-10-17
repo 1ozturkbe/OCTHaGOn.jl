@@ -44,11 +44,11 @@ vars = all_variables(gm);
 
 # # Fitting all fns.
 @test_throws OCTException sample_and_eval!(gm.bbfs[1], n_samples=200)
-bound!(gm, Dict(vars[5] => [-300, 0]))
-sample_and_eval!(gm.bbfs[1], n_samples = 500)
+bound!(gm, Dict(vars[end] => [-300, 0]))
+sample_and_eval!(gm, n_samples = 500)
 
 learn_constraint!(gm)
-println("Approximation accuracies: ", accuracy(md))
+println("Approximation accuracies: ", accuracy(gm))
 
 # # Solving the model.
 # add_tree_constraints!(md);

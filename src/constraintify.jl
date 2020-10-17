@@ -39,6 +39,8 @@ end
 
 function clear_tree_constraints!(gm::GlobalModel)
     clear_tree_constraints!(gm, gm.bbfs)
+    return
+end
 
 function add_tree_constraints!(gm::GlobalModel, bbfs::Array{BlackBoxFunction}; M=1e5)
     """ Generates MI constraints from gm.learners. """
@@ -69,6 +71,7 @@ end
 function add_tree_constraints!(gm::GlobalModel; M=1e5)
     """ Generates MI constraints from gm.learners. """
     add_tree_constraints!(gm, gm.bbfs, M=M)
+    return
 end
 
 function add_feas_constraints!(m::JuMP.Model, x, grid::IAI.GridSearch;
