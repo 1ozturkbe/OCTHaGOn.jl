@@ -54,9 +54,9 @@ function sagemark_to_GlobalModel(idx; lse=false)
     push!(objvars, obj)
     gm = GlobalModel(model = model)
     if lse
-        add_constraint(gm, @NLexpression(gm.model, exp(obj) - obj_fn), vars = objvars)
+        add_nonlinear_constraint(gm, @NLexpression(gm.model, exp(obj) - obj_fn), vars = objvars)
     else
-        add_constraint(gm, @NLexpression(gm.model, obj - obj_fn), vars = objvars)
+        add_nonlinear_constraint(gm, @NLexpression(gm.model, obj - obj_fn), vars = objvars)
     end
     # Adding the rest
     for i = 1:length(greaters)
@@ -64,7 +64,7 @@ function sagemark_to_GlobalModel(idx; lse=false)
 #         if sum(float(greaters[i].c .>= zeros(length(greaters[i].c)))) == 1
 #         TODO: add tag for convexity
         if length(constrvars) > 1
-            add_constraint(gm, constrexpr, vars = constrvars)
+            add_nonlinear_constraint(gm, constrexpr, vars = constrvars)
         else
             alpha = greaters[i].alpha
             c = greaters[i].c
@@ -73,7 +73,7 @@ function sagemark_to_GlobalModel(idx; lse=false)
     end
     for i = 1:length(equals)
         constrexpr, constrvars = alphac_to_NLexpr(model, equals[i].alpha, equals[i].c, lse=lse)
-        add_constraint(gm, constrexpr, vars = constrvars, equality=true)
+        add_nonlinear_constraint(gm, constrexpr, vars = constrvars, equality=true)
     end
     return gm
 end

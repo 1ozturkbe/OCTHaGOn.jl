@@ -13,7 +13,7 @@ end
 
 function clear_nl_constraints!(gm::GlobalModel)
     for constr in gm.nl_constrs
-        if is_valid(gm.model, constr)
+        if JuMP.is_valid(gm.model, constr)
             delete(gm.model, constr)
         end
     end

@@ -42,9 +42,12 @@ log_inp = Dict(vk => log(val) for (vk, val) in inp);
 vars = all_variables(gm);
 @test gm_lse.bbfs[1](log_inp) ≈ gm.bbfs[1](inp) ≈ inp[vars[5]] - inp[vars[3]] ^ 0.8 * inp[vars[4]] ^ 1.2
 
-# # Fitting all fns.
+# Checking OCTException for sampling unbounded model
 @test_throws OCTException sample_and_eval!(gm.bbfs[1], n_samples=200)
-bound!(gm, Dict(vars[end] => [-300, 0]))
+
+# Actually trying to optimize...
+gm = OCT.sagemark_to_GlobalModel(3)
+bound!(gm, Dict(gm.vars[end] => [-300, 0]))
 sample_and_eval!(gm, n_samples = 500)
 
 learn_constraint!(gm)

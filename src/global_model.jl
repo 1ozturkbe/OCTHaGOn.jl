@@ -2,8 +2,11 @@
 """
 Contains all required info to be able to generate a global optimization problem.
 NOTE: proper construction is to add constraints as BBFs.
+model must be a mixed integer convex model.
+nonlinear_model can contain JuMP.NonlinearConstraints.
 """
     model::JuMP.Model                                                     # JuMP model
+    nonlinear_model::JuMP.Model = model                                   # JuMP model with nonlinear constraints
     name::Union{Symbol, String} = "Model"                                 # Example name
     bbfs::Array{BlackBoxFunction} = Array{BlackBoxFunction}[]              # Black box (>/= 0) functions
     nl_constrs::Array = []                                                # Nonlinear constraints
@@ -87,12 +90,18 @@ function check_infeasible_bounds(model::Union{GlobalModel, JuMP.Model}, bounds::
     return
 end
 
-function add_constraint(gm::GlobalModel,
+function add_linear_constraint(gm::GlobalModel, constraint)
+""" Adds a new linear constraint to Global Model, i.e. adds to both model and nonlinear_models."""
+    JuMP.add_constraint(gm.model, constraint)
+    JuMP.add_constraint(gm.nonlinear_model, constraint)
+end
+
+function add_nonlinear_constraint(gm::GlobalModel,
                      constraint::Union{JuMP.ScalarConstraint, JuMP.NonlinearExpression};
                      vars::Union{Nothing, Array{JuMP.VariableRef}} = nothing,
                      equality::Bool = false)
 """ Adds a new nonlinear constraint to Global Model.
-    Note: Linear constraints should be added directly to gm.Model. """
+    Note: Linear constraints should be added using add_linear_constraint. """
     bbf_vars = []
     if isnothing(vars)
         bbf_vars = JuMP.all_variables(gm.model)
@@ -100,18 +109,18 @@ function add_constraint(gm::GlobalModel,
         bbf_vars = vars
     end
     if constraint isa JuMP.ScalarConstraint
-        con = JuMP.add_constraint(gm.model, constraint)
+        con = JuMP.add_constraint(gm.nonlinear_model, constraint)
         new_fn = BlackBoxFunction(constraint = nl_expr, vars = vars)
         push!(gm.bbfs, new_fn)
         push!(gm.nl_constrs, con)
     elseif constraint isa JuMP.NonlinearExpression
         if equality
-            con = @NLconstraint(gm.model, constraint == 0)
+            con = @NLconstraint(gm.nonlinear_model, constraint == 0)
             new_fn = BlackBoxFunction(constraint = constraint, vars = vars, equality = equality)
             push!(gm.bbfs, new_fn)
             push!(gm.nl_constrs, con)
         else
-            con = @NLconstraint(gm.model, constraint >= 0)
+            con = @NLconstraint(gm.nonlinear_model, constraint >= 0)
             new_fn = BlackBoxFunction(constraint = constraint, vars = vars, equality = equality)
             push!(gm.bbfs, new_fn)
             push!(gm.nl_constrs, con)
@@ -368,8 +377,9 @@ function find_bounds!(gm::GlobalModel; all_bounds=true)
     # TODO: REMOVE NONLINEAR CONSTRAINTS BEFORE LINEAR OPTIMIZATION.
     m = gm.model;
     x = gm.vars;
-    current_bounds = get_bounds(gm);
+    current_bounds = get_bounds(m);
     orig_objective = JuMP.objective_function(gm)
+    clear_nl_constraints!(gm)
     @showprogress 0.5 "Finding bounds..." for var in gm.vars
         if isinf(current_bounds(var)) || all_bounds
             @objective(m, Min, var);
