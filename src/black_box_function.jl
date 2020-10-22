@@ -12,6 +12,7 @@ Contains all required info to be able to generate a global optimization constrai
     name::Union{String, Real} = ""                     # Function name
     constraint::Union{JuMP.ConstraintRef, JuMP.NonlinearExpression} # The JuMP constraint function
     vars::Array{JuMP.VariableRef}                      # JuMP variables
+    outers::Dict = Dict()                              # Outer variable mapping
     X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars))  # Function samples
     Y::Array = []                                      # Function values
     feas_ratio::Float64 = 0.                           # Feasible sample proportion

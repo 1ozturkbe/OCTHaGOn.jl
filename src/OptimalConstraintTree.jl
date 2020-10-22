@@ -6,6 +6,7 @@ module OptimalConstraintTree
     using Gurobi
     using JuMP
     using LatinHypercubeSampling
+    using MacroTools
     using Main.IAI
     using MathOptInterface
     using MathOptSetDistances
@@ -53,6 +54,7 @@ module OptimalConstraintTree
            lh_sample, boundary_sample,
            accuracy, feasibility, check_accuracy, check_feasibility, check_bounds,
            solution, evaluate_feasibility,
+           nonlinearize,
            # Functions on BlackBoxFunctions
            eval!, sample_and_eval!, plot, learn_constraint!,
            secant_method, knn_sample, build_knn_tree,
@@ -60,10 +62,11 @@ module OptimalConstraintTree
            # Functions on JuMP objects
            evaluate, fetch_variable, get_bounds,
            linearize_objective!, classify_constraints,
-           bound!, sanitize_data,
+           bound!,
+           data_to_DataFrame, data_to_Dict,
            distance_to_set, get_constant,
            add_feas_constraints!, add_regr_constraints!,
-           add_tree_constraints!, clear_tree_constraints!, clear_nl_constraints!,
+           add_tree_constraints!, clear_tree_constraints!,
            base_otr, base_otc, sample,
            # Functions to import global optimization problems,
            sagemark_to_GlobalModel,
@@ -74,6 +77,7 @@ module OptimalConstraintTree
            show_trees,
 #            plot_2d, plot_2d_predictions, plot_accuracies
            # Debugging tools
-            clear_data!
+            clear_data!, substitute, substitute_expr,
+            get_locals, get_outers, outers_to_vars
 end
 

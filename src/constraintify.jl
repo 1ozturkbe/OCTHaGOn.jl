@@ -11,15 +11,6 @@ function check_if_trained(lnr::IAI.OptimalTreeLearner)
     end
 end
 
-function clear_nl_constraints!(gm::GlobalModel)
-    for constr in gm.nl_constrs
-        if JuMP.is_valid(gm.model, constr)
-            delete(gm.model, constr)
-        end
-    end
-    return
-end
-
 function clear_tree_constraints!(gm::GlobalModel, bbfs::Array{BlackBoxFunction})
     """ Clears the constraints in GM of bbf.mi_constraints. """
     for bbf in bbfs
@@ -105,7 +96,7 @@ function add_feas_constraints!(m::JuMP.Model, x, grid::IAI.GridSearch;
         push!(constraints, @constraint(m, sum(z_infeas) == 1))
     end
     # Getting lnr data
-    upperDict, lowerDict = trust_region_data(lnr, vks)
+    upperDict, lowerDict = trust_region_data(lnr, string.(x))
     for i = 1:size(feas_leaves, 1)
         leaf = feas_leaves[i]
         # ADDING TRUST REGIONS
@@ -139,7 +130,7 @@ function add_feas_constraints!(m::JuMP.Model, x, grid::IAI.GridSearch;
     end
 end
 
-function add_regr_constraints!(m::JuMP.Model, x::Array, y, grid::IAI.GridSearch, vks::Array;
+function add_regr_constraints!(m::JuMP.Model, x::Array, y, grid::IAI.GridSearch;
                                M::Float64 = 1.e5, eq = false,
                                return_data::Bool = false)
     """

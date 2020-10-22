@@ -13,9 +13,9 @@ function alphac_to_NLexpr(model, alpha, c; lse=false)
     vars = JuMP.all_variables(model)[idxs]
     alpha = alpha[:,idxs];
     if lse
-        return @NLexpression(model, sum(c[i]*exp(sum(alpha[i,j]*vars[j] for j=1:length(vars))) for i=1:n_terms)), vars
+        return :(sum($c[i]*exp(sum($alpha[i,j]*$vars[j] for j=1:length(vars))) for i=1:n_terms)), vars
     else
-        return @NLexpression(model, sum(c[i]*prod(vars[j]^alpha[i,j] for j=1:length(vars)) for i=1:n_terms)), vars
+        return :(sum($c[i]*prod($vars[j]^$alpha[i,j] for j=1:length(vars)) for i=1:n_terms)), vars
     end
 end
 
@@ -50,13 +50,13 @@ function sagemark_to_GlobalModel(idx; lse=false)
     @variable(model, obj)
     @objective(model, Min, obj)
     # Assigning objective
-    obj_fn, objvars = alphac_to_NLexpr(model, f.alpha, f.c, lse=lse)
-    push!(objvars, obj)
     gm = GlobalModel(model = model)
+    obj_fn, objvars = alphac_to_NLexpr(gm.model, f.alpha, f.c, lse=lse)
+    push!(objvars, obj)
     if lse
-        add_nonlinear_constraint(gm, @NLexpression(gm.model, exp(obj) - obj_fn), vars = objvars)
+        add_nonlinear_constraint(gm, :(exp(obj) - obj_fn), vars = objvars)
     else
-        add_nonlinear_constraint(gm, @NLexpression(gm.model, obj - obj_fn), vars = objvars)
+        add_nonlinear_constraint(gm, :(obj - obj_fn), vars = objvars)
     end
     # Adding the rest
     for i = 1:length(greaters)
@@ -72,7 +72,7 @@ function sagemark_to_GlobalModel(idx; lse=false)
         end
     end
     for i = 1:length(equals)
-        constrexpr, constrvars = alphac_to_NLexpr(model, equals[i].alpha, equals[i].c, lse=lse)
+        constrexpr, constrvars = alphac_to_NLexpr(gm.model, equals[i].alpha, equals[i].c, lse=lse)
         add_nonlinear_constraint(gm, constrexpr, vars = constrvars, equality=true)
     end
     return gm

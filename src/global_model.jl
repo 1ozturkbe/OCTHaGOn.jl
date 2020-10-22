@@ -6,10 +6,8 @@ model must be a mixed integer convex model.
 nonlinear_model can contain JuMP.NonlinearConstraints.
 """
     model::JuMP.Model                                                     # JuMP model
-    nonlinear_model::JuMP.Model = model                                   # JuMP model with nonlinear constraints
     name::Union{Symbol, String} = "Model"                                 # Example name
     bbfs::Array{BlackBoxFunction} = Array{BlackBoxFunction}[]              # Black box (>/= 0) functions
-    nl_constrs::Array = []                                                # Nonlinear constraints
     vars::Array{VariableRef} = JuMP.all_variables(model)                  # JuMP variables
 end
 
@@ -90,14 +88,8 @@ function check_infeasible_bounds(model::Union{GlobalModel, JuMP.Model}, bounds::
     return
 end
 
-function add_linear_constraint(gm::GlobalModel, constraint)
-""" Adds a new linear constraint to Global Model, i.e. adds to both model and nonlinear_models."""
-    JuMP.add_constraint(gm.model, constraint)
-    JuMP.add_constraint(gm.nonlinear_model, constraint)
-end
-
 function add_nonlinear_constraint(gm::GlobalModel,
-                     constraint::Union{JuMP.ScalarConstraint, JuMP.NonlinearExpression};
+                     constraint::Union{JuMP.ScalarConstraint, Expr};
                      vars::Union{Nothing, Array{JuMP.VariableRef}} = nothing,
                      equality::Bool = false)
 """ Adds a new nonlinear constraint to Global Model.
@@ -108,22 +100,28 @@ function add_nonlinear_constraint(gm::GlobalModel,
     else
         bbf_vars = vars
     end
+    new_bbf = BlackBoxFunction(constraint = constraint, vars = bbf_vars, equality = equality)
     if constraint isa JuMP.ScalarConstraint
-        con = JuMP.add_constraint(gm.nonlinear_model, constraint)
-        new_fn = BlackBoxFunction(constraint = nl_expr, vars = vars)
-        push!(gm.bbfs, new_fn)
-        push!(gm.nl_constrs, con)
-    elseif constraint isa JuMP.NonlinearExpression
-        if equality
-            con = @NLconstraint(gm.nonlinear_model, constraint == 0)
-            new_fn = BlackBoxFunction(constraint = constraint, vars = vars, equality = equality)
-            push!(gm.bbfs, new_fn)
-            push!(gm.nl_constrs, con)
-        else
-            con = @NLconstraint(gm.nonlinear_model, constraint >= 0)
-            new_fn = BlackBoxFunction(constraint = constraint, vars = vars, equality = equality)
-            push!(gm.bbfs, new_fn)
-            push!(gm.nl_constrs, con)
+        new_bbf.outers = bbf_vars
+    else
+        new_bbf.outers = outers_to_vars(get_outers(constraint))
+    end
+    push!(gm.bbfs, new_bbf)
+end
+
+function nonlinearize(gm::GlobalModel)
+    """ Turns gm.model into the full nonlinear representation.
+    NOTE: to get back to MI-compatible forms, must rebuild model from scratch. """
+    m = gm.model
+    for bbf in gm.bbfs
+        if bbf.constraint isa JuMP.ScalarConstraint
+            JuMP.add_constraint(m, bbf.constraint)
+        elseif bbf.constraint isa JuMP.NonlinearExpression
+            if bbf.equality
+                @NLconstraint(gm.model, bbf.constraint == 0)
+            else
+                @NLconstraint(gm.model, bbf.constraint >= 0)
+            end
         end
     end
 end
@@ -180,9 +178,6 @@ function classify_constraints(model::Union{GlobalModel, JuMP.Model})
     end
     if !isnothing(jump_model.nlp_data)
         append!(nl_constrs, jump_model.nlp_data.nlconstr)
-    end
-    if model isa GlobalModel
-        append!(model.nl_constrs, nl_constrs)
     end
     return l_constrs, nl_constrs
 end
@@ -305,7 +300,6 @@ function sample_and_eval!(bbf::Union{BlackBoxFunction, GlobalModel, Array{BlackB
     ratio:
     If there is an optimized gp, ratio*n_samples is how many random LHC samples are generated
     for prediction from GP. """
-    check_bounds(get_bounds(bbf))
     if bbf isa GlobalModel
         for fn in bbf.bbfs
             sample_and_eval!(fn, n_samples = n_samples, boundary_fraction = boundary_fraction,
@@ -324,6 +318,7 @@ function sample_and_eval!(bbf::Union{BlackBoxFunction, GlobalModel, Array{BlackB
     end
     vks = string.(bbf.vars)
     n_dims = length(vks);
+    check_bounds(get_bounds(bbf))
     if size(bbf.X,1) == 0 # If we don't have data yet, uniform and boundary sample.
        df = boundary_sample(bbf, fraction = boundary_fraction)
        eval!(bbf, df)
@@ -379,7 +374,6 @@ function find_bounds!(gm::GlobalModel; all_bounds=true)
     x = gm.vars;
     current_bounds = get_bounds(m);
     orig_objective = JuMP.objective_function(gm)
-    clear_nl_constraints!(gm)
     @showprogress 0.5 "Finding bounds..." for var in gm.vars
         if isinf(current_bounds(var)) || all_bounds
             @objective(m, Min, var);

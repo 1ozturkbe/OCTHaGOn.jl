@@ -5,6 +5,9 @@ on_jumpmodels:
 - Date: 2020-09-25
 =#
 
+# NOTE: We have to circumvent JuMP.NLexpressions to be able to support nonlinear expressions
+#       without breaking everything...
+
 function fetch_variable(model::JuMP.Model, varkey::Union{Symbol, String, VariableRef, Array})
     if varkey isa Array
         return [fetch_variable(model, key) for key in varkey]
@@ -18,6 +21,53 @@ function fetch_variable(model::JuMP.Model, varkey::Union{Symbol, String, Variabl
     elseif varkey isa String
         return JuMP.variable_by_name(model, varkey)
     end
+end
+
+function substitute(e::Expr, pair)
+    MacroTools.prewalk(e) do s
+        s == pair.first && return pair.second
+        s
+    end
+end
+
+function substitute_expr(expr::Expr, data::Dict)
+    new_expr = copy(expr)
+    for (key, value) in data
+        new_expr = substitute(new_expr, :($key) => value)
+    end
+    return eval(expr)
+end
+
+# get_locals and _get_outers ripped from here:
+#https://discourse.julialang.org/t/determine-the-scope-of-symbols-in-an-expr/47993/2
+function get_locals(ex::Expr)
+    vars = (solve_from_local ∘ simplify_ex)(ex).args[1].bounds
+    map(x -> x.name, vars)
+end
+
+_get_outers(_) = Symbol[]
+_get_outers(x::Var) = x.is_global ? [x.name] : Symbol[]
+function _get_outers(ex::Expr)
+    @match ex begin
+        Expr(:(=), _, rhs) => _get_outers(rhs)
+        Expr(:tuple, _..., Expr(:(=), _, rhs)) => _get_outers(rhs)
+        Expr(_, args...) => mapreduce(_get_outers, vcat, args)
+    end
+end
+
+get_outers(ex) = (unique! ∘ _get_outers ∘ solve_from_local ∘ simplify_ex)(ex)
+
+function outers_to_vars(outers::Array{Symbol}, model::JuMP.Model)
+    """ Finds the non-local variables in Expression. """
+    vars = Dict()
+    for outer in outers
+        try
+            vars[outer] = model[outer]
+        catch
+            continue
+        end
+    end
+    return vars
 end
 
 function get_bounds(vars::Array{VariableRef})
@@ -34,7 +84,7 @@ function get_bounds(vars::Array{VariableRef})
     return bounds
 end
 
-function sanitize_data(data::Union{Dict, DataFrame, DataFrameRow})
+function data_to_DataFrame(data::Union{Dict, DataFrame, DataFrameRow})
     """ Gets data with different keys, and returns a DataFrame with string headers. """
     if data isa DataFrame
         return data
@@ -45,6 +95,18 @@ function sanitize_data(data::Union{Dict, DataFrame, DataFrameRow})
         return DataFrame(newdata)
     end
 end
+
+function data_to_Dict(data::Union{Dict, DataFrame, DataFrameRow}, model::JuMP.Model)
+    """ Turns data into a Dict, with JuMP.VariableRef subs. """
+    if data isa Dict
+        return Dict(fetch_variable(model, key) => value for (key, value) in data)
+    else
+        colnames = names(data)
+        return Dict(fetch_variable(model, name) => data[!, name] for name in colnames)
+    end
+end
+
+
 
 function distance_to_set(val::Union{Array{<:Real},<:Real}, set::MOI.AbstractSet)
     """Wrapper around MathOptSetDistances.distance_to_set.
@@ -66,7 +128,7 @@ function evaluate(constraint::JuMP.ConstraintRef, data::Union{Dict, DataFrame})
         Note that the keys of the Dict have to be uniform. """
     constr_obj = constraint_object(constraint)
     rhs_const = get_constant(constr_obj.set)
-    clean_data = sanitize_data(data);
+    clean_data = data_to_DataFrame(data);
     if size(clean_data, 1) == 1
         val = JuMP.value(constr_obj.func, i -> get(clean_data, string(i), Inf)[1])
         if isinf(val)
@@ -87,15 +149,12 @@ function evaluate(constraint::JuMP.ConstraintRef, data::Union{Dict, DataFrame})
     end
 end
 
-function evaluate(constraint::JuMP.NonlinearExpression, data::Union{Dict, DataFrame})
+function evaluate(constraint::Expr, data::Union{Dict, DataFrame})
     """ Evaluates constraint violation on data in the variables, and returns distance from set.
         Note that the keys of the Dict have to be uniform. """
-    clean_data = sanitize_data(data);
+    clean_data = data_to_DataFrame(data);
     if size(clean_data, 1) == 1
-        val = JuMP.value(constraint, i -> get(clean_data, string(i), Inf)[1])
-        if isinf(val)
-            throw(OCTException(string("Constraint ", constraint, " returned an infinite value.")))
-        end
+        val = substitute_expr(constraint, data)
         return val
     else
         vals = [evaluate(constraint, DataFrame(clean_data[i,:])) for i=1:size(clean_data,1)]
