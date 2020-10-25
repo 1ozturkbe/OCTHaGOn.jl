@@ -41,21 +41,21 @@ end
 # get_locals and _get_outers ripped from here:
 #https://discourse.julialang.org/t/determine-the-scope-of-symbols-in-an-expr/47993/2
 function get_locals(ex::Expr)
-    vars = (solve_from_local ∘ simplify_ex)(ex).args[1].bounds
+    vars = (JuliaVariables.solve_from_local ∘ JuliaVariables.simplify_ex)(ex).args[1].bounds
     map(x -> x.name, vars)
 end
 
 _get_outers(_) = Symbol[]
-_get_outers(x::Var) = x.is_global ? [x.name] : Symbol[]
+_get_outers(x::JuliaVariables.Var) = x.is_global ? [x.name] : Symbol[]
 function _get_outers(ex::Expr)
-    @match ex begin
+    MLStyle.@match ex begin
         Expr(:(=), _, rhs) => _get_outers(rhs)
         Expr(:tuple, _..., Expr(:(=), _, rhs)) => _get_outers(rhs)
         Expr(_, args...) => mapreduce(_get_outers, vcat, args)
     end
 end
 
-get_outers(ex) = (unique! ∘ _get_outers ∘ solve_from_local ∘ simplify_ex)(ex)
+get_outers(ex) = (unique! ∘ _get_outers ∘ JuliaVariables.solve_from_local ∘ JuliaVariables.simplify_ex)(ex)
 
 function outers_to_vars(outers::Array{Symbol}, model::JuMP.Model)
     """ Finds the non-local variables in Expression. """
@@ -102,10 +102,18 @@ function data_to_Dict(data::Union{Dict, DataFrame, DataFrameRow}, model::JuMP.Mo
         return Dict(fetch_variable(model, key) => value for (key, value) in data)
     else
         colnames = names(data)
-        return Dict(fetch_variable(model, name) => data[!, name] for name in colnames)
+        if size(data, 1) == 1
+            return Dict(fetch_variable(model, name) => data[!, name][1] for name in colnames)
+        else
+            return Dict(fetch_variable(model, name) => data[!, name] for name in colnames)
+        end
     end
 end
 
+function map_data_to_outers(data::Dict, outer_map::Dict)
+#     new_map = Dict(var => )
+    return
+end
 
 
 function distance_to_set(val::Union{Array{<:Real},<:Real}, set::MOI.AbstractSet)

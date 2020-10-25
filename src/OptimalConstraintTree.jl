@@ -6,7 +6,6 @@ module OptimalConstraintTree
     using Gurobi
     using JuMP
     using LatinHypercubeSampling
-    using MacroTools
     using Main.IAI
     using MathOptInterface
     using MathOptSetDistances
@@ -16,6 +15,11 @@ module OptimalConstraintTree
     using ProgressMeter
     using PyCall
     using Random
+
+
+    import JuliaVariables
+    import MacroTools
+    import MLStyle
 
     include("on_jump.jl")
 
@@ -78,6 +82,6 @@ module OptimalConstraintTree
 #            plot_2d, plot_2d_predictions, plot_accuracies
            # Debugging tools
             clear_data!, substitute, substitute_expr,
-            get_locals, get_outers, outers_to_vars
+            get_locals, get_outers, outers_to_vars, map_data_to_outers
 end
 
