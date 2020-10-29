@@ -10,7 +10,7 @@ sample_data:
 Contains all required info to be able to generate a global optimization constraint.
 """
     name::Union{String, Real} = ""                     # Function name
-    constraint::Union{JuMP.ConstraintRef, JuMP.NonlinearExpression} # The JuMP constraint function
+    constraint::Union{JuMP.ConstraintRef, Expr} # The JuMP constraint function
     vars::Array{JuMP.VariableRef}                      # JuMP variables
     outers::Dict = Dict()                              # Outer variable mapping
     X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars))  # Function samples
@@ -29,7 +29,7 @@ Contains all required info to be able to generate a global optimization constrai
 end
 
 function (bbf::BlackBoxFunction)(x::Union{DataFrame,Dict,DataFrameRow})
-    return evaluate(bbf.constraint, x)
+    return evaluate(bbf.constraint, x, bbf.vars[1].model)
 end
 
 function eval!(bbf::BlackBoxFunction, X::DataFrame)

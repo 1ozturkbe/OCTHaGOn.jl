@@ -104,7 +104,7 @@ function add_nonlinear_constraint(gm::GlobalModel,
     if constraint isa JuMP.ScalarConstraint
         new_bbf.outers = bbf_vars
     else
-        new_bbf.outers = outers_to_vars(get_outers(constraint))
+        new_bbf.outers = outers_to_vars(get_outers(constraint),gm.model)
     end
     push!(gm.bbfs, new_bbf)
 end
@@ -116,7 +116,7 @@ function nonlinearize(gm::GlobalModel)
     for bbf in gm.bbfs
         if bbf.constraint isa JuMP.ScalarConstraint
             JuMP.add_constraint(m, bbf.constraint)
-        elseif bbf.constraint isa JuMP.NonlinearExpression
+        elseif bbf.constraint isa Expr
             if bbf.equality
                 @NLconstraint(gm.model, bbf.constraint == 0)
             else

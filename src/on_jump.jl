@@ -58,7 +58,7 @@ end
 
 get_outers(ex) = (unique! ∘ _get_outers ∘ JuliaVariables.solve_from_local ∘ JuliaVariables.simplify_ex)(ex)
 
-function outers_to_vars(outers::Array{Symbol}, model::JuMP.Model)
+function outers_to_vars(outers::Array{Symbol, 1}, model::JuMP.Model)
     """ Finds the non-local variables in Expression. """
     vars = Dict()
     for outer in outers
@@ -158,6 +158,11 @@ function evaluate(constraint::JuMP.ConstraintRef, data::Union{Dict, DataFrame})
     end
     length(vals) == 1 && return vals[1]
     return vals
+end
+
+function evaluate(constraint::JuMP.ConstraintRef, data::Union{Dict, DataFrame},
+                           model::JuMP.Model)
+   return evaluate(constraint, data)
 end
 
 """

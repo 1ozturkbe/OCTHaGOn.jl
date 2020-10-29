@@ -54,7 +54,7 @@ module OptimalConstraintTree
            # JuMP.Model extensions to GlobalModel
 #            set_optimizer, optimize!, JuMP.all_variables,
            # Functions on GlobalModel and BlackBoxFunctions
-           gridify, learn_from_data!, find_bounds!, add_constraint,
+           gridify, learn_from_data!, find_bounds!, add_nonlinear_constraint,
            lh_sample, boundary_sample,
            accuracy, feasibility, check_accuracy, check_feasibility, check_bounds,
            solution, evaluate_feasibility,
