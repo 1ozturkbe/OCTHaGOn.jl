@@ -82,6 +82,7 @@ module OptimalConstraintTree
 #            plot_2d, plot_2d_predictions, plot_accuracies
            # Debugging tools
             clear_data!, substitute, substitute_expr,
-            get_locals, get_outers, outers_to_vars, map_data_to_outers
+            get_locals, get_outers, outers_to_vars, map_data_to_outers,
+            chop_dict
 end
 

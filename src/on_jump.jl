@@ -31,11 +31,12 @@ function substitute(e::Expr, pair)
 end
 
 function substitute_expr(expr::Expr, data::Dict)
+    """ Substitutes for the outer variables (symbols from the expr) using data. """
     new_expr = copy(expr)
     for (key, value) in data
         new_expr = substitute(new_expr, :($key) => value)
     end
-    return eval(expr)
+    return eval(new_expr)
 end
 
 # get_locals and _get_outers ripped from here:
@@ -96,8 +97,13 @@ function data_to_DataFrame(data::Union{Dict, DataFrame, DataFrameRow})
     end
 end
 
+
+"""
+    data_to_Dict(data::Union{Dict, DataFrame, DataFrameRow}, model::JuMP.Model)
+
+Turns data into a Dict, with JuMP.VariableRef subs.
+"""
 function data_to_Dict(data::Union{Dict, DataFrame, DataFrameRow}, model::JuMP.Model)
-    """ Turns data into a Dict, with JuMP.VariableRef subs. """
     if data isa Dict
         return Dict(fetch_variable(model, key) => value for (key, value) in data)
     else
@@ -110,15 +116,15 @@ function data_to_Dict(data::Union{Dict, DataFrame, DataFrameRow}, model::JuMP.Mo
     end
 end
 
-function map_data_to_outers(data::Dict, outer_map::Dict)
-#     new_map = Dict(var => )
-    return
-end
 
+"""
+    distance_to_set(val::Union{Array{<:Real},<:Real}, set::MOI.AbstractSet)
 
+Wrapper around MathOptSetDistances.distance_to_set.
+Distance 0 if value ∈ set. Otherwise, returns Float64.
+"""
 function distance_to_set(val::Union{Array{<:Real},<:Real}, set::MOI.AbstractSet)
-    """Wrapper around MathOptSetDistances.distance_to_set.
-       Distance 0 if value ∈ set. Otherwise, returns Float64. """
+
     return MathOptSetDistances.distance_to_set(MathOptSetDistances.DefaultDistance(), val, set)
 end
 
@@ -137,41 +143,86 @@ function evaluate(constraint::JuMP.ConstraintRef, data::Union{Dict, DataFrame})
     constr_obj = constraint_object(constraint)
     rhs_const = get_constant(constr_obj.set)
     clean_data = data_to_DataFrame(data);
-    if size(clean_data, 1) == 1
-        val = JuMP.value(constr_obj.func, i -> get(clean_data, string(i), Inf)[1])
-        if isinf(val)
-            throw(OCTException(string("Constraint ", constraint, " returned an infinite value.")))
+    vals = [JuMP.value(constr_obj.func, i -> get(clean_data, string(i), Inf)[j]) for j=1:size(clean_data,1)]
+    if any(isinf.(vals))
+        throw(OCTException(string("Constraint ", constraint, " returned an infinite value.")))
+    end
+    if isnothing(rhs_const)
+        vals = [-1*distance_to_set(vals[i], constr_obj.set) for i=1:length(vals)]
+    else
+        coeff=1
+        if constr_obj.set isa MOI.LessThan
+            coeff=-1
         end
-        if isnothing(rhs_const)
-            return -1*distance_to_set(val, constr_obj.set)
-        else
-            coeff=1
-            if constr_obj.set isa MOI.LessThan
-                coeff=-1
+        vals = coeff.*(vals .- rhs_const)
+    end
+    length(vals) == 1 && return vals[1]
+    return vals
+end
+
+"""
+    chop_dict(data::Dict)
+
+Chops dictionary into sub dictionaries.
+Note that it turns scalar var values from Array to Float
+for Expr evaluation. 
+"""
+function chop_dict(data::Dict)
+    sizes = [size(val, 1) for val in values(data)]
+    @assert all(sizes .== maximum(sizes))
+    nds = [Dict() for i=1:maximum(sizes)]
+    for (key,value) in data
+        for i=1:maximum(sizes)
+            nds[i][key] = value[i,:]
+            if prod(size(nds[i][key])) == 1
+                nds[i][key] = value[i,:][1]
             end
-            return coeff*(val - rhs_const)
         end
+    end
+    return nds
+end
+
+"""
+    evaluate(constraint::Expr, data::Union{Dict, DataFrame}, model::JuMP.Model)
+
+    Evaluates constraint violation on data in an expression.
+    Returns Array of values.
+
+    Note that the keys of the Dict have to be uniform.
+"""
+function evaluate(constraint::Expr, data::Union{Dict, DataFrame}, model::JuMP.Model)
+    clean_data = data_to_DataFrame(data)
+    n_vals, n_vars = size(clean_data)
+    outers = get_outers(constraint)
+    outer_var_mapping = outers_to_vars(outers, model)
+    new_data = copy(outer_var_mapping)
+    for (outer, vars) in outer_var_mapping
+        if vars isa JuMP.VariableRef
+            new_data[outer] = clean_data[!, string(vars)]
+        elseif vars isa Array{JuMP.VariableRef}
+            new_data[outer] = Inf*ones(size(clean_data,1), length(vars))
+            for i=1:length(vars)
+                if haskey(clean_data, string(vars[i]))
+                    new_data[outer][:,i] = clean_data[!, string(vars[i])]
+                end
+            end
+        else
+            throw(ArgumentError(string(constraint, "had an error in evaluation.")))
+        end
+    end
+    new_data = chop_dict(new_data) # makes sure to "scalarize" scalar variable inputs.
+    if n_vals > 1
+        return substitute_expr(constraint, new_data[1])
     else
-        vals = [evaluate(constraint, DataFrame(clean_data[i,:])) for i=1:size(clean_data,1)]
-        return vals
+        return [substitute_expr(constraint, new_data[i]) for i=1:length(new_data)]
     end
 end
 
-function evaluate(constraint::Expr, data::Union{Dict, DataFrame})
-    """ Evaluates constraint violation on data in the variables, and returns distance from set.
-        Note that the keys of the Dict have to be uniform. """
-    clean_data = data_to_DataFrame(data);
-    if size(clean_data, 1) == 1
-        val = substitute_expr(constraint, data)
-        return val
-    else
-        vals = [evaluate(constraint, DataFrame(clean_data[i,:])) for i=1:size(clean_data,1)]
-        return vals
-    end
-end
-
+"""
+    linearize_objective!(model::JuMP.Model)
+Makes sure that the objective function is affine.
+"""
 function linearize_objective!(model::JuMP.Model)
-    """Makes sure that the objective function is affine. """
     objtype = JuMP.objective_function(model)
     objsense = string(JuMP.objective_sense(model))
     if objtype isa Union{VariableRef, GenericAffExpr} || objsense == "FEASIBILITY_SENSE"
