@@ -17,10 +17,12 @@ model = Model()
     -4 <= y[1:3] <= 1
     -30 <= z
 end)
-ex = @NLexpression(model, sum(x[i] for i=1:4) - y[1] * y[2] + z)
-@NLconstraint(model, ex <= 10)
+ex = :(sum(x[i] for i=1:4) - y[1] * y[2] + z)
 @constraint(model, sum(x[4]^2 + x[5]^2) <= z)
 @constraint(model, sum(y[:]) >= -2)
+
+# Testing Expression comprehension
+@test all(var in get_outers(ex) for var in  [:x, :y, :z])
 
 # Testing getting variables
 varkeys = ["x[1]", x[1], :z, :x];
@@ -45,21 +47,34 @@ linearize_objective!(model);
 inp = Dict(x[1] => 1., x[2] => 2, x[3] => 3, x[4] => 4, x[5] => 1, y[1] => 5, y[2] => -6, y[3] => -7, z => 7)
 inp_dict = Dict(string(key) => value for (key, value) in inp)
 inp_df = DataFrame(inp_dict)
-@test sanitize_data(inp) == sanitize_data(inp_dict) == sanitize_data(inp_df) == inp_df
+@test data_to_DataFrame(inp) == data_to_DataFrame(inp_dict) == data_to_DataFrame(inp_df) == inp_df
+@test data_to_Dict(inp_df, model) == data_to_Dict(inp, model) == data_to_Dict(inp_dict, model) == inp
 
-# Separation of constraints
-l_constrs, nl_constrs = classify_constraints(model)
-@test length(l_constrs) == 20 && length(nl_constrs) == 2
+
+# Separation of constraints of generated nl_model
+nl_model = copy(model) # NOTE: copy only works if JuMP.Model has no NLconstraints.
+l_constrs, nl_constrs = classify_constraints(nl_model)
+@test length(l_constrs) == 20 && length(nl_constrs) == 1
 
 # Set constants
 sets = [MOI.GreaterThan(2), MOI.EqualTo(0), MOI.SecondOrderCone(3), MOI.GeometricMeanCone(2), MOI.SOS1([1,2,3])]
 @test get_constant.(sets) == [2, 0, nothing, nothing, nothing]
 
-# Evaluation
+# Evaluation (scalar)
+# Linear constraint
 @test evaluate(l_constrs[1], inp) == evaluate(l_constrs[1], inp_dict) == evaluate(l_constrs[1], inp_df) == -6.
+# Quadratic (JuMP compatible) constraint
 @test evaluate(nl_constrs[1], inp) == evaluate(nl_constrs[1], inp_dict) == evaluate(nl_constrs[1], inp_df) == -10.
+# Nonlinear expression
+@test evaluate(ex, inp, model) == evaluate(ex, inp_dict, model) == evaluate(ex, inp_df, model)
+
+
+# Evaluation (vector)
 inp_df = DataFrame(-5 .+ 10 .*rand(3, size(inp_df,2)), string.(keys(inp)))
-@test evaluate(l_constrs[1], inp_df) == inp_df["y[1]"] + inp_df["y[2]"] + inp_df["y[3]"] .+ 2.
+inp_dict = data_to_Dict(inp_df, model)
+@test evaluate(l_constrs[1], inp_df) == evaluate(l_constrs[1], inp_dict) == inp_df["y[1]"] + inp_df["y[2]"] + inp_df["y[3]"] .+ 2.
+@test evaluate(nl_constrs[1], inp_dict) == evaluate(nl_constrs[1], inp_df) == inp_df["z"] - inp_df["x[4]"].^2 - inp_df["x[5]"].^2
+@test evaluate(ex, inp_dict, model) == evaluate(ex, inp_df, model)
 
 # BBF creation
 bbf = BlackBoxFunction(constraint = nl_constrs[1], vars = [x[4], x[5], z])

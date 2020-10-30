@@ -6,16 +6,16 @@ tools:
 Adds tools to mainly import optimization problems from other sources.
 =#
 
-function alphac_to_NLexpr(model, alpha, c; lse=false)
+function alphac_to_expr(model, alpha, c; lse=false)
     """ Turns exponential to JuMP.NonlinearExpression. """
     n_terms, n_vars = size(alpha)
     idxs = unique([i[2] for i in findall(i->i != 0, alpha)]);
     vars = JuMP.all_variables(model)[idxs]
     alpha = alpha[:,idxs];
     if lse
-        return :(sum($c[i]*exp(sum($alpha[i,j]*$vars[j] for j=1:length(vars))) for i=1:n_terms)), vars
+        return :(sum($c[i]*exp(sum($alpha[i,j]*$vars[j] for j=1:length($vars))) for i=1:$n_terms)), vars
     else
-        return :(sum($c[i]*prod($vars[j]^$alpha[i,j] for j=1:length(vars)) for i=1:n_terms)), vars
+        return :(sum($c[i]*prod($vars[j]^$alpha[i,j] for j=1:length($vars)) for i=1:$n_terms)), vars
     end
 end
 
@@ -51,16 +51,16 @@ function sagemark_to_GlobalModel(idx; lse=false)
     @objective(model, Min, obj)
     # Assigning objective
     gm = GlobalModel(model = model)
-    obj_fn, objvars = alphac_to_NLexpr(gm.model, f.alpha, f.c, lse=lse)
+    obj_fn, objvars = alphac_to_expr(gm.model, f.alpha, f.c, lse=lse)
     push!(objvars, obj)
     if lse
-        add_nonlinear_constraint(gm, :(exp(obj) - obj_fn), vars = objvars)
+        add_nonlinear_constraint(gm, :(exp($obj) - $obj_fn), vars = objvars)
     else
-        add_nonlinear_constraint(gm, :(obj - obj_fn), vars = objvars)
+        add_nonlinear_constraint(gm, :($obj - $obj_fn), vars = objvars)
     end
     # Adding the rest
     for i = 1:length(greaters)
-        constrexpr, constrvars = alphac_to_NLexpr(gm.model, greaters[i].alpha, greaters[i].c, lse=lse)
+        constrexpr, constrvars = alphac_to_expr(gm.model, greaters[i].alpha, greaters[i].c, lse=lse)
 #         if sum(float(greaters[i].c .>= zeros(length(greaters[i].c)))) == 1
 #         TODO: add tag for convexity
         if length(constrvars) > 1
@@ -72,7 +72,7 @@ function sagemark_to_GlobalModel(idx; lse=false)
         end
     end
     for i = 1:length(equals)
-        constrexpr, constrvars = alphac_to_NLexpr(gm.model, equals[i].alpha, equals[i].c, lse=lse)
+        constrexpr, constrvars = alphac_to_expr(gm.model, equals[i].alpha, equals[i].c, lse=lse)
         add_nonlinear_constraint(gm, constrexpr, vars = constrvars, equality=true)
     end
     return gm

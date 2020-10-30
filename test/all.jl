@@ -20,7 +20,7 @@ include("load.jl");
 
     include(string(PROJECT_ROOT, "/tools.jl"))
 
-#     include(string(PROJECT_ROOT, "/speedreducer.jl"))
+    include(string(PROJECT_ROOT, "/speedreducer.jl"))
 #
 #     include(string(PROJECT_ROOT, "/lse.jl"))
 end

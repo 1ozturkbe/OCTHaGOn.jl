@@ -109,21 +109,65 @@ function add_nonlinear_constraint(gm::GlobalModel,
     push!(gm.bbfs, new_bbf)
 end
 
+
+"""
+    substitute_args is a helper function, by Oscar Dowson.
+    See here for more details:
+    https://discourse.julialang.org/t/procedural-nonlinear-constaint-generation-string-to-nlconstraint/34799/4
+"""
+
+substitute_args(ex, vars) = ex
+substitute_args(ex::Symbol, vars) = get(vars, ex, ex)
+function substitute_args(ex::Expr, vars)
+    for (i, arg) in enumerate(ex.args)
+        ex.args[i] = substitute_args(arg, vars)
+    end
+    return ex
+end
+
+"""
+    nonlinearize(gm::GlobalModel)
+
+Turns gm.model into the full nonlinear representation.
+NOTE: to get back to MI-compatible forms, must rebuild model from scratch.
+"""
 function nonlinearize(gm::GlobalModel)
-    """ Turns gm.model into the full nonlinear representation.
-    NOTE: to get back to MI-compatible forms, must rebuild model from scratch. """
     m = gm.model
     for bbf in gm.bbfs
         if bbf.constraint isa JuMP.ScalarConstraint
             JuMP.add_constraint(m, bbf.constraint)
         elseif bbf.constraint isa Expr
+            new_expr = copy(bbf.constraint)
             if bbf.equality
-                @NLconstraint(gm.model, bbf.constraint == 0)
+                new_expr = Expr(:call, :(==), new_expr, 0)
             else
-                @NLconstraint(gm.model, bbf.constraint >= 0)
+                new_expr = Expr(:call, :>=, new_expr, 0)
             end
+#             map_dict = outers_to_vars(get_outers(bbf.constraint), gm.model)
+#             string_map = Dict()
+#             string_expr = string(new_expr)
+#             for (key, var) in map_dict
+#                 string_map[key] = [string(key,i) for i=1:length(var)]
+#             end
+#             string_expr = substitute_args(new_expr, string_map)
+#             new_expr = parse(string_expr)
+#             for var in collect(Iterators.flatten(values(map_dict)))
+#                 string_map[string(var)] = string("\$", "(", var, ")")
+#                 string_expr = replace(string_expr, string(var) => string("\$", "(", var, ")"))
+#             end
+#             for key in collect(Iterators.flatten(keys(map_dict)))
+#                 keylength = length(map_dict[key])
+#                 string_map[string(key)] = string(key, )
+#                 string_expr = replace(string_expr, string(var) => string("\$", "(", var, ")"))
+#             end
+#             for var in collect(Iterators.flatten(values(map_dict)))
+#                 string_map[string(var)] = var
+#             end
+#             new_expr = Meta.parse(string_expr)
+            JuMP.add_NL_constraint(gm.model, new_expr)
         end
     end
+    return m
 end
 
 function bound!(model::Union{GlobalModel, JuMP.Model},

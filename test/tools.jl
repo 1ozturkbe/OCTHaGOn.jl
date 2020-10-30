@@ -31,8 +31,9 @@ end
 gm = OCT.sagemark_to_GlobalModel(1, lse=false);
 gm_lse = OCT.sagemark_to_GlobalModel(1, lse=true);
 set_optimizer(gm, Ipopt.Optimizer)
-optimize!(gm)
-vals = getvalue.(gm.vars)
+nonlinearize(gm)
+# optimize!(gm)
+# vals = getvalue.(gm.vars)
 
 bounds = Dict(all_variables(gm) .=> [[0.1, 1], [5., 10.], [8., 15.], [0.01, 1.], [-Inf, Inf]])
 @test all(get_bounds(gm)[var] ≈ bounds[var] for var in all_variables(gm))
@@ -47,17 +48,23 @@ vars = all_variables(gm);
 
 # Actually trying to optimize...
 gm = OCT.sagemark_to_GlobalModel(3)
+set_optimizer(gm, Ipopt.Optimizer)
 bound!(gm, Dict(gm.vars[end] => [-300, 0]))
+sample_and_eval!(gm, n_samples = 500)
 sample_and_eval!(gm, n_samples = 500)
 
 learn_constraint!(gm)
 println("Approximation accuracies: ", accuracy(gm))
 
-# # Solving the model.
-# add_tree_constraints!(md);
-# status = optimize!(md.model);
-# println("X values: ", solution(md))
-# println("Optimal X: ", vcat(exp.([5.01063529, 3.40119660, -0.48450710]), [-147-2/3]))
+# Testing addition and removal of tree constraints.
+add_tree_constraints!(gm);
+clear_tree_constraints!(gm, [gm.bbfs[1]])
+@test !any(is_valid(gm.model, constraint) for constraint in gm.bbfs[1].mi_constraints)
+
+# Solving of model
+status = globalsolve(gm)
+println("X values: ", solution(gm))
+println("Optimal X: ", vcat(exp.([5.01063529, 3.40119660, -0.48450710]), [-147-2/3]))
 #
 # # Testing constraint addition and removal
 # clear_tree_constraints!(md) # Clears all BBF constraints
