@@ -41,15 +41,14 @@ inp = Dict(all_variables(gm) .=> [1,1.9,3,3.9, 10.]);
 log_inp = Dict(vk => log(val) for (vk, val) in inp);
 
 vars = all_variables(gm);
-@test gm_lse.bbfs[1](log_inp) ≈ gm.bbfs[1](inp) ≈ inp[vars[5]] - inp[vars[3]] ^ 0.8 * inp[vars[4]] ^ 1.2
+@test gm_lse.bbfs[1](log_inp)[1] ≈ gm.bbfs[1](inp)[1] ≈ [inp[vars[5]] - inp[vars[3]] ^ 0.8 * inp[vars[4]] ^ 1.2][1]
 
 # Checking OCTException for sampling unbounded model
 @test_throws OCTException sample_and_eval!(gm.bbfs[1], n_samples=200)
 
 # Actually trying to optimize...
-gm = OCT.sagemark_to_GlobalModel(3)
-set_optimizer(gm, Ipopt.Optimizer)
-bound!(gm, Dict(gm.vars[end] => [-300, 0]))
+set_optimizer(gm, Gurobi.Optimizer)
+bound!(gm, Dict(gm.vars[end] => [-5, 10]))
 sample_and_eval!(gm, n_samples = 500)
 sample_and_eval!(gm, n_samples = 500)
 

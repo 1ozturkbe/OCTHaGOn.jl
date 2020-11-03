@@ -30,8 +30,12 @@ function substitute(e::Expr, pair)
     end
 end
 
+"""
+    substitute_expr(expr::Expr, data::Dict)
+
+Substitutes for the outer variables (symbols from the expr) using data.
+"""
 function substitute_expr(expr::Expr, data::Dict)
-    """ Substitutes for the outer variables (symbols from the expr) using data. """
     new_expr = copy(expr)
     for (key, value) in data
         new_expr = substitute(new_expr, :($key) => value)
@@ -97,7 +101,6 @@ function data_to_DataFrame(data::Union{Dict, DataFrame, DataFrameRow})
     end
 end
 
-
 """
     data_to_Dict(data::Union{Dict, DataFrame, DataFrameRow}, model::JuMP.Model)
 
@@ -137,9 +140,13 @@ function get_constant(set::MOI.AbstractSet)
     end
 end
 
+"""
+    evaluate(constraint::JuMP.ConstraintRef, data::Union{Dict, DataFrame})
+
+Evaluates constraint violation on data in the variables, and returns distance from set.
+        Note that the keys of the Dict have to be uniform.
+"""
 function evaluate(constraint::JuMP.ConstraintRef, data::Union{Dict, DataFrame})
-    """ Evaluates constraint violation on data in the variables, and returns distance from set.
-        Note that the keys of the Dict have to be uniform. """
     constr_obj = constraint_object(constraint)
     rhs_const = get_constant(constr_obj.set)
     clean_data = data_to_DataFrame(data);
