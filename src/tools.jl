@@ -10,12 +10,12 @@ function alphac_to_expr(model, alpha, c; lse=false)
     """ Turns exponential to JuMP.NonlinearExpression. """
     n_terms, n_vars = size(alpha)
     idxs = unique([i[2] for i in findall(i->i != 0, alpha)]);
-    vars = JuMP.all_variables(model)[idxs]
+    vars = JuMP.all_variables(model)[idxs];
     alpha = alpha[:,idxs];
     if lse
-        return :(sum($c[i]*exp(sum($alpha[i,j]*$vars[j] for j=1:length($vars))) for i=1:$n_terms)), vars
+        return :(sum($c[i]*exp(sum($alpha[i,j]*x[j] for j=1:length($idxs))) for i=1:$n_terms)), vars
     else
-        return :(sum($c[i]*prod($vars[j]^$alpha[i,j] for j=1:length($vars)) for i=1:$n_terms)), vars
+        return :(sum($c[i]*prod(x[j]^$alpha[i,j] for j=1:length($idxs)) for i=1:$n_terms)), vars
     end
 end
 
@@ -54,9 +54,9 @@ function sagemark_to_GlobalModel(idx; lse=false)
     obj_fn, objvars = alphac_to_expr(gm.model, f.alpha, f.c, lse=lse)
     push!(objvars, obj)
     if lse
-        add_nonlinear_constraint(gm, :(exp($obj) - $obj_fn), vars = objvars)
+        add_nonlinear_constraint(gm, :(exp(obj) - $obj_fn), vars = objvars)
     else
-        add_nonlinear_constraint(gm, :($obj - $obj_fn), vars = objvars)
+        add_nonlinear_constraint(gm, :(obj - $obj_fn), vars = objvars)
     end
     # Adding the rest
     for i = 1:length(greaters)

@@ -30,8 +30,8 @@ end
 @test test_sagemark_to_GlobalModel()
 gm = OCT.sagemark_to_GlobalModel(1, lse=false);
 gm_lse = OCT.sagemark_to_GlobalModel(1, lse=true);
-set_optimizer(gm, Ipopt.Optimizer)
-nonlinearize(gm)
+# set_optimizer(gm, Ipopt.Optimizer)
+# nonlinearize(gm)
 # optimize!(gm)
 # vals = getvalue.(gm.vars)
 
