@@ -17,12 +17,12 @@ model = Model()
     -4 <= y[1:3] <= 1
     -30 <= z
 end)
-ex = :(sum(x[i] for i=1:4) - y[1] * y[2] + z)
+ex = :(sum(x[i] for i=1:4)- y[1] * y[2] + z)
 @constraint(model, sum(x[4]^2 + x[5]^2) <= z)
 @constraint(model, sum(y[:]) >= -2)
 
 # Testing Expression comprehension
-@test all(var in get_outers(ex) for var in  [:x, :y, :z])
+# @test all(var in get_outers(ex) for var in  [:x, :y, :z])
 
 # Testing getting variables
 varkeys = ["x[1]", x[1], :z, :x];
