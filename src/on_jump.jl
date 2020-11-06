@@ -109,11 +109,11 @@ end
 
 Returns the JuMP Variables that are associated with a given function.
 """
-function vars_from_expr(expr::Expr, model::JuMP.Model)
+function vars_from_expr(expr::Expr, vars::Array{VariableRef, 1})
     @assert eval(expr) isa Function
-    return [model[outer] for outer in get_outers(expr.args[1])]
+    return [vars[1].model[outer] for outer in get_outers(expr.args[1])]
 end
 
-function vars_from_expr(expr::Union{JuMP.ScalarConstraint, JuMP.ConstraintRef}, model::JuMP.Model)
-    return nothing
+function vars_from_expr(expr::Union{JuMP.ScalarConstraint, JuMP.ConstraintRef}, vars::Array{VariableRef, 1})
+    return vars
 end

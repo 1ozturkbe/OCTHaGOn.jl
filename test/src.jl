@@ -22,10 +22,16 @@ f = eval(ex)
 ex_vars = [x,y,z]
 @assert f(ones(4), ones(2),5) isa Float64
 @assert f(x,y,z) isa JuMP.GenericQuadExpr
-@assert vars_from_expr(ex, model) == ex_vars
+@assert vars_from_expr(ex, flat([x[1:4], y[1:2], z])) == ex_vars
 
 @constraint(model, sum(x[4]^2 + x[5]^2) <= z)
 @constraint(model, sum(y[:]) >= -2)
+
+# Testing proper mapping for expressions
+flatvars = flat([y[2], z, x[1:4]])
+vars = vars_from_expr(ex, flatvars)
+@test get_varmap(vars, flatvars) == [(2,2), (3,0), (1,1), (1, 2), (1,3), (1,4)]
+@test infarray([(1,4), (1,3), (2,0)]) == [[Inf, Inf, Inf, Inf], Inf]
 
 # Testing getting variables
 varkeys = ["x[1]", x[1], :z, :x];
@@ -68,7 +74,7 @@ sets = [MOI.GreaterThan(2), MOI.EqualTo(0), MOI.SecondOrderCone(3), MOI.Geometri
 @test functionify(ex) isa Function
 # @test_throws
 bbfs = [BlackBoxFunction(constraint = nl_constrs[1], vars = [x[4], x[5], z]),
-        BlackBoxFunction(constraint = ex, vars = flat([x,y,z]))]
+        BlackBoxFunction(constraint = ex, vars = flat([x[1:4], y[1:2], z]))]
 
 # Evaluation (scalar)
 # Quadratic (JuMP compatible) constraint

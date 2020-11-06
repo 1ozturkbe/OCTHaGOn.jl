@@ -11,7 +11,8 @@ function evaluate(constraint::JuMP.ConstraintRef, data::Union{Dict, DataFrame})
     clean_data = data_to_DataFrame(data);
     vals = [JuMP.value(constr_obj.func, i -> get(clean_data, string(i), Inf)[j]) for j=1:size(clean_data,1)]
     if any(isinf.(vals))
-        throw(OCTException(string("Constraint ", constraint, " returned an infinite value.")))
+        throw(OCTException(string("Constraint ", constraint, " returned an infinite value.
+                                   Make sure you have declared all bbf.vars!")))
     end
     if isnothing(rhs_const)
         vals = [-1*distance_to_set(vals[i], constr_obj.set) for i=1:length(vals)]

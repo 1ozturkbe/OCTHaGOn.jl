@@ -15,29 +15,44 @@ Arguments:
 Returns:
     Dict of ID maps
 """
-function get_varmap(vars::Array)
-    idxs = []
-    count = 0
-    for i = 1:length(vars)
-        count = 1
-        if vars[i] isa JuMP.VariableRef
-            push!(idxs, i)
+function get_varmap(expr_vars::Array, vars::Array)
+    length(flat(expr_vars)) >= length(vars) || throw(OCTException(string("Insufficiently many input
+    variables declared in ", vars, ".")))
+    unique(vars) == vars || throw(OCTException(string("Nonunique variables among ", vars, ".")))
+    varmap = Tuple[(0,0) for i=1:length(vars)]
+    for i = 1:length(expr_vars)
+        if expr_vars[i] isa JuMP.VariableRef
+            try
+                varmap[findall(x -> x == expr_vars[i], vars)[1]] = (i,0)
+            catch
+                throw(OCTException(string("Scalar variable ", expr_vars[i], " was not properly declared in vars.")))
+            end
         else
-            append!(idxs, [(i,j) for j=1:length(vars[i])])
+            for j=1:length(expr_vars[i])
+                try
+                    varmap[findall(x -> x == expr_vars[i][j], vars)[1]] = (i,j)
+                catch
+                    continue
+                end
+            end
         end
     end
-    return idxs
+    return varmap
 end
 
 function infarray(varmap::Array)
     arr = []
-    for idx in varmap
-        if idx isa Tuple && idx[2] == 1
-            push!(arr, [Inf])
-        elseif idx isa Integer
+    # Pre allocate and fill!
+    copied_map = sort(deepcopy(varmap))
+    firsts = first.(copied_map)
+    seconds = last.(copied_map)
+    arr_length = length(unique(firsts))
+    for i=1:arr_length
+        tup_idx = findall(j -> j[1] == i, copied_map)
+        if seconds[tup_idx] == [0]
             push!(arr, Inf)
         else
-            push!(arr[end], Inf)
+            push!(arr, Inf*ones(maximum(seconds[tup_idx])))
         end
     end
     return arr
@@ -47,14 +62,14 @@ function deconstruct(data::DataFrame, vars::Array, varmap::Array)
     n_samples, n_vars = size(data)
     infarr = infarray(varmap)
     arrs = [];
-    stringvars = string.(collect(Iterators.flatten(vars)))
+    stringvars = string.(vars)
     for i = 1:n_samples
         narr = deepcopy(infarr)
         for j = 1:length(varmap)
-            if varmap[j] isa Tuple
-                narr[varmap[j][1]][varmap[j][2]] = data[i, stringvars[j]]
+            if varmap[j] isa Tuple && varmap[j][2] != 0
+                narr[varmap[j][1]][varmap[j][2]] = data[i, stringvars[varmap[j][2]]]
             else
-                narr[varmap[j]] = data[i, stringvars[j]]
+                narr[varmap[j][1]] = data[i, stringvars[j]]
             end
         end
         push!(arrs, narr)
@@ -62,17 +77,17 @@ function deconstruct(data::DataFrame, vars::Array, varmap::Array)
     return arrs
 end
 
-@with_kw mutable struct BlackBoxFunction
 """
 Contains all required info to be able to generate a global optimization constraint.
 """
+@with_kw mutable struct BlackBoxFunction
     constraint::Union{JuMP.ConstraintRef, Expr}        # The "raw" constraint
     vars::Array{JuMP.VariableRef,1}                      # JuMP variables (flat)
     name::Union{String, Real} = ""                     # Function name
     fn::Union{Nothing, Function} = functionify(constraint)   # ... and actually evaluated f'n
-    expr_vars = vars_from_expr(constraint, vars[1].model)    # Function inputs (nonflat JuMP variables)
-    varmap::Array = get_varmap(expr_vars)              # ... with the required varmapping.
-    X::DataFrame = DataFrame([Float64 for i=1:length(varmap)], string.(collect(Iterators.flatten(vars))))
+    expr_vars = vars_from_expr(constraint, vars)    # Function inputs (nonflat JuMP variables)
+    varmap::Union{Nothing,Array} = get_varmap(expr_vars, vars)     # ... with the required varmapping.
+    X::DataFrame = DataFrame([Float64 for i=1:length(varmap)], string.(vars))
                                                        # Function samples
     Y::Array = []                                      # Function values
     feas_ratio::Float64 = 0.                           # Feasible sample proportion
@@ -116,7 +131,7 @@ function evaluate(bbf::BlackBoxFunction, data::Union{Dict, DataFrame})
         length(vals) == 1 && return vals[1]
         return vals
     else
-        arrs = deconstruct(clean_data, bbf.expr_vars, bbf.varmap)
+        arrs = deconstruct(clean_data, bbf.vars, bbf.varmap)
         vals = [bbf.fn(arr...) for arr in arrs]
         length(vals) == 1 && return vals[1]
         return vals    end
