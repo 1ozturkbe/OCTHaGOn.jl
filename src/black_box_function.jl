@@ -15,7 +15,6 @@ Arguments:
 Returns:
     Dict of ID maps
 """
-
 function get_varmap(vars::Array)
     idxs = []
     count = 0
@@ -68,10 +67,11 @@ end
 Contains all required info to be able to generate a global optimization constraint.
 """
     constraint::Union{JuMP.ConstraintRef, Expr}        # The "raw" constraint
-    vars::Array                                        # JuMP variables
+    vars::Array{JuMP.VariableRef,1}                      # JuMP variables (flat)
     name::Union{String, Real} = ""                     # Function name
     fn::Union{Nothing, Function} = functionify(constraint)   # ... and actually evaluated f'n
-    varmap::Array = get_varmap(vars)                   # ... with the required varmapping.
+    expr_vars = vars_from_expr(constraint, vars[1].model)    # Function inputs (nonflat JuMP variables)
+    varmap::Array = get_varmap(expr_vars)              # ... with the required varmapping.
     X::DataFrame = DataFrame([Float64 for i=1:length(varmap)], string.(collect(Iterators.flatten(vars))))
                                                        # Function samples
     Y::Array = []                                      # Function values
@@ -116,7 +116,7 @@ function evaluate(bbf::BlackBoxFunction, data::Union{Dict, DataFrame})
         length(vals) == 1 && return vals[1]
         return vals
     else
-        arrs = deconstruct(clean_data, bbf.vars, bbf.varmap)
+        arrs = deconstruct(clean_data, bbf.expr_vars, bbf.varmap)
         vals = [bbf.fn(arr...) for arr in arrs]
         length(vals) == 1 && return vals[1]
         return vals    end

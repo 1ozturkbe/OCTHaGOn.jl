@@ -101,6 +101,7 @@ function add_nonlinear_constraint(gm::GlobalModel,
         bbf_vars = vars
     end
     new_bbf = BlackBoxFunction(constraint = constraint, vars = bbf_vars, equality = equality)
+    @assert length(bbf.vars) == length(bbf.varmap)
     push!(gm.bbfs, new_bbf)
 end
 

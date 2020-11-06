@@ -64,3 +64,5 @@ function _get_outers(ex::Expr)
 end
 
 get_outers(ex) = (unique! ∘ _get_outers ∘ JuliaVariables.solve_from_local ∘ JuliaVariables.simplify_ex)(ex)
+
+flat(arr::Array) = collect(Iterators.flatten(arr))

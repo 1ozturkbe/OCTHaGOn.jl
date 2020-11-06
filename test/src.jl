@@ -66,8 +66,9 @@ sets = [MOI.GreaterThan(2), MOI.EqualTo(0), MOI.SecondOrderCone(3), MOI.Geometri
 # Test BBF creation from a variety of functions
 @test isnothing(functionify(nl_constrs[1]))
 @test functionify(ex) isa Function
+# @test_throws
 bbfs = [BlackBoxFunction(constraint = nl_constrs[1], vars = [x[4], x[5], z]),
-        BlackBoxFunction(constraint = ex, vars = [x,y,z])]
+        BlackBoxFunction(constraint = ex, vars = flat([x,y,z]))]
 
 # Evaluation (scalar)
 # Quadratic (JuMP compatible) constraint

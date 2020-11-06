@@ -53,7 +53,7 @@ function sagemark_to_GlobalModel(idx; lse=false)
     obj_fn, objvars = alphac_to_expr(gm.model, f.alpha, f.c, lse=lse)
     push!(objvars, obj)
     if lse
-        add_nonlinear_constraint(gm, :(exp(obj) - $obj_fn), vars = objvars)
+        add_nonlinear_constraint(gm, :((x, obj) -> exp(obj) - $obj_fn), vars = objvars)
     else
         add_nonlinear_constraint(gm, :(obj - $obj_fn), vars = objvars)
     end

@@ -86,6 +86,6 @@ module OptimalConstraintTree
            # Debugging tools
             clear_data!, chop_dict,
             # Small scripts
-            vars_from_expr, get_locals, get_outers, get_varmap, deconstruct
+            vars_from_expr, get_locals, get_outers, get_varmap, deconstruct, flat
 end
 

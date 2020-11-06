@@ -113,3 +113,7 @@ function vars_from_expr(expr::Expr, model::JuMP.Model)
     @assert eval(expr) isa Function
     return [model[outer] for outer in get_outers(expr.args[1])]
 end
+
+function vars_from_expr(expr::Union{JuMP.ScalarConstraint, JuMP.ConstraintRef}, model::JuMP.Model)
+    return nothing
+end
