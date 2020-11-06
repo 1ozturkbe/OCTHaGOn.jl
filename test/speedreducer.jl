@@ -46,7 +46,7 @@ function speed_reducer()
     add_nonlinear_constraint(gm, :(x[4] - 1.5*x[6] - 1.9), vars = [x[4], x[6]])
 
 #     It turns out constraint g11 is actually completely infeasible... how could they publish these results?
-#     add_fn!(gm, BBF(name = "g11", fn = x -> x[5]) - 1.5*x[7]) - 1.9, vks = [:x5, :x7]))
+#     add_fn!(gm, BBF(name = "g11", fn = x -> x[5] - 1.5*x[7] - 1.9, vks = [:x5, :x7]))
     return gm
 end
 

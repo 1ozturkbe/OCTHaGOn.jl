@@ -17,12 +17,15 @@ model = Model()
     -4 <= y[1:3] <= 1
     -30 <= z
 end)
-ex = :(sum(x[i] for i=1:4)- y[1] * y[2] + z)
+ex = :((x, y, z) -> sum(x[i] for i=1:4) - y[1] * y[2] + z)
+f = eval(ex)
+ex_vars = [x,y,z]
+@assert f(ones(4), ones(2),5) isa Float64
+@assert f(x,y,z) isa JuMP.GenericQuadExpr
+@assert vars_from_expr(ex, model) == ex_vars
+
 @constraint(model, sum(x[4]^2 + x[5]^2) <= z)
 @constraint(model, sum(y[:]) >= -2)
-
-# Testing Expression comprehension
-# @test all(var in get_outers(ex) for var in  [:x, :y, :z])
 
 # Testing getting variables
 varkeys = ["x[1]", x[1], :z, :x];
@@ -60,24 +63,27 @@ l_constrs, nl_constrs = classify_constraints(nl_model)
 sets = [MOI.GreaterThan(2), MOI.EqualTo(0), MOI.SecondOrderCone(3), MOI.GeometricMeanCone(2), MOI.SOS1([1,2,3])]
 @test get_constant.(sets) == [2, 0, nothing, nothing, nothing]
 
+# Test BBF creation from a variety of functions
+@test isnothing(functionify(nl_constrs[1]))
+@test functionify(ex) isa Function
+bbfs = [BlackBoxFunction(constraint = nl_constrs[1], vars = [x[4], x[5], z]),
+        BlackBoxFunction(constraint = ex, vars = [x,y,z])]
+
 # Evaluation (scalar)
-# Linear constraint
-@test evaluate(l_constrs[1], inp) == evaluate(l_constrs[1], inp_dict) == evaluate(l_constrs[1], inp_df) == -6.
 # Quadratic (JuMP compatible) constraint
-@test evaluate(nl_constrs[1], inp) == evaluate(nl_constrs[1], inp_dict) == evaluate(nl_constrs[1], inp_df) == -10.
+@test evaluate(bbfs[1], inp) == evaluate(bbfs[1], inp_dict) == evaluate(bbfs[1], inp_df) == -10.
 # Nonlinear expression
-@test evaluate(ex, inp, model) == evaluate(ex, inp_dict, model) == evaluate(ex, inp_df, model)
+@test evaluate(bbfs[2], inp) == evaluate(bbfs[2], inp_dict) == evaluate(bbfs[2], inp_df)
 
 
 # Evaluation (vector)
 inp_df = DataFrame(-5 .+ 10 .*rand(3, size(inp_df,2)), string.(keys(inp)))
 inp_dict = data_to_Dict(inp_df, model)
-@test evaluate(l_constrs[1], inp_df) == evaluate(l_constrs[1], inp_dict) == inp_df["y[1]"] + inp_df["y[2]"] + inp_df["y[3]"] .+ 2.
-@test evaluate(nl_constrs[1], inp_dict) == evaluate(nl_constrs[1], inp_df) == inp_df["z"] - inp_df["x[4]"].^2 - inp_df["x[5]"].^2
-@test evaluate(ex, inp_dict, model) == evaluate(ex, inp_df, model)
+@test evaluate(bbfs[1], inp_dict) == evaluate(bbfs[1], inp_df) == inp_df["z"] - inp_df["x[4]"].^2 - inp_df["x[5]"].^2
+@test evaluate(bbfs[2], inp_dict) == evaluate(bbfs[2], inp_df)
 
-# BBF creation
-bbf = BlackBoxFunction(constraint = nl_constrs[1], vars = [x[4], x[5], z])
+# BBF CHECKS
+bbf = bbfs[1]
 
 # Check evaluation of samples
 samples = DataFrame(randn(10, length(bbf.vars)),string.(bbf.vars))

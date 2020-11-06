@@ -12,9 +12,9 @@ function alphac_to_expr(model, alpha, c; lse=false)
     idxs = unique([i[2] for i in findall(i->i != 0, alpha)]);
     vars = JuMP.all_variables(model)[idxs];
     if lse
-        return :(sum($c[i]*exp(sum($alpha[i,j]*x[j] for j in $idxs)) for i=1:$n_terms)), vars
+        return :(x -> sum($c[i]*exp(sum($alpha[i,j]*x[j] for j in $idxs)) for i=1:$n_terms)), vars
     else
-        return :(sum($c[i]*prod(x[j]^$alpha[i,j] for j in $idxs) for i=1:$n_terms)), vars
+        return :(x -> sum($c[i]*prod(x[j]^$alpha[i,j] for j in $idxs) for i=1:$n_terms)), vars
     end
 end
 

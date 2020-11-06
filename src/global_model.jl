@@ -101,28 +101,7 @@ function add_nonlinear_constraint(gm::GlobalModel,
         bbf_vars = vars
     end
     new_bbf = BlackBoxFunction(constraint = constraint, vars = bbf_vars, equality = equality)
-    if constraint isa JuMP.ScalarConstraint
-        new_bbf.outers = bbf_vars
-    else
-        new_bbf.outers = outers_to_vars(get_outers(constraint),gm.model)
-    end
     push!(gm.bbfs, new_bbf)
-end
-
-
-"""
-    substitute_args is a helper function, by Oscar Dowson.
-    See here for more details:
-    https://discourse.julialang.org/t/procedural-nonlinear-constaint-generation-string-to-nlconstraint/34799/4
-"""
-
-substitute_args(ex, vars) = ex
-substitute_args(ex::Symbol, vars) = get(vars, ex, ex)
-function substitute_args(ex::Expr, vars)
-    for (i, arg) in enumerate(ex.args)
-        ex.args[i] = substitute_args(arg, vars)
-    end
-    return ex
 end
 
 """
@@ -226,8 +205,8 @@ function classify_constraints(model::Union{GlobalModel, JuMP.Model})
     return l_constrs, nl_constrs
 end
 
+""" Returns the feasibility of data points in a BBF or GM. """
 function feasibility(bbf::Union{GlobalModel, Array{BlackBoxFunction}, BlackBoxFunction})
-    """ Returns the feasibility of data points in a BBF or GM. """
     if isa(bbf, BlackBoxFunction)
         return bbf.feas_ratio
     elseif isa(bbf, Array{BlackBoxFunction})
@@ -237,8 +216,8 @@ function feasibility(bbf::Union{GlobalModel, Array{BlackBoxFunction}, BlackBoxFu
     end
 end
 
+""" Returns the accuracy of learners in a BBF or GM. """
 function accuracy(bbf::Union{GlobalModel, BlackBoxFunction})
-    """ Returns the accuracy of learners in a BBF or GM. """
     if isa(bbf, BlackBoxFunction)
         if bbf.feas_ratio in [1., 0]
             @warn(string("Accuracy of BlackBoxFunction ", bbf.name, " is tautological."))
@@ -413,7 +392,7 @@ function find_bounds!(gm::GlobalModel; all_bounds=true)
     ubs = Dict(gm.vars .=> Inf)
     lbs = Dict(gm.vars .=> -Inf)
     # Finding bounds by min/maximizing each variable
-    # TODO: REMOVE NONLINEAR CONSTRAINTS BEFORE LINEAR OPTIMIZATION.
+    clear_tree_constraints!(gm)
     m = gm.model;
     x = gm.vars;
     current_bounds = get_bounds(m);

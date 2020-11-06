@@ -21,6 +21,8 @@ module OptimalConstraintTree
     import MacroTools
     import MLStyle
 
+    include("small_scripts.jl")
+
     include("on_jump.jl")
 
     include("learners.jl")
@@ -72,6 +74,7 @@ module OptimalConstraintTree
            add_feas_constraints!, add_regr_constraints!,
            add_tree_constraints!, clear_tree_constraints!,
            base_otr, base_otc, sample,
+           functionify,
            # Functions to import global optimization problems,
            sagemark_to_GlobalModel,
            alphac_to_expr, alphac_to_varbound!,
@@ -81,8 +84,8 @@ module OptimalConstraintTree
            show_trees,
 #            plot_2d, plot_2d_predictions, plot_accuracies
            # Debugging tools
-            clear_data!, substitute, substitute_expr,
-            get_locals, get_outers, outers_to_vars, map_data_to_outers,
-            chop_dict
+            clear_data!, chop_dict,
+            # Small scripts
+            vars_from_expr, get_locals, get_outers, get_varmap, deconstruct
 end
 

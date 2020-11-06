@@ -77,7 +77,6 @@ function add_feas_constraints!(m::JuMP.Model, x, grid::IAI.GridSearch;
         x:: JuMPVariables (features in lnr)
         vks:: varkeys of the features in lnr
     """
-    #TODO determine proper use for equalities
     lnr = IAI.get_learner(grid);
     check_if_trained(lnr);
     n_nodes = IAI.get_num_nodes(lnr);
@@ -143,7 +142,6 @@ function add_regr_constraints!(m::JuMP.Model, x::Array, y, grid::IAI.GridSearch;
         vks:: varkeys of the features in lnr
         M:: coefficient in bigM formulation
     """
-    #TODO determine proper use for equalities
     lnr = IAI.get_learner(grid);
     check_if_trained(lnr);
     n_nodes = IAI.get_num_nodes(lnr)

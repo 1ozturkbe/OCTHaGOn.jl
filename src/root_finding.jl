@@ -45,10 +45,6 @@ function classify_patches(bbf::BlackBoxFunction, idxs::Array)
     return arr
 end
 
-# function sampling_policy(bbf::BlackBoxFunction, idxs::Array)
-#     class_dict = classify_patches(bbf, idxs)
-#     feas_ratio = bbf.feas_ratio
-
 function secant_method(X::DataFrame, Y::Array)
     """ Generates samples estimated to be near a zero from X and Y data with mixed feasibility. """
     feas = Y .>= 0;
