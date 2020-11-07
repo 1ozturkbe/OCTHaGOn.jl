@@ -18,6 +18,18 @@ function alphac_to_expr(model, alpha, c; lse=false)
     end
 end
 
+
+function alphac_to_objexpr(model, alpha, c; lse=false)
+    n_terms, n_vars = size(alpha)
+    idxs = unique([i[2] for i in findall(i->i != 0, alpha)]);
+    vars = flat([JuMP.all_variables(model)[idxs], model[:obj]]);
+    if lse
+        return :((x, obj) -> exp(obj) - sum($c[i]*exp(sum($alpha[i,j]*x[j] for j in $idxs)) for i=1:$n_terms)), vars
+    else
+        return :((x, obj) -> obj - sum($c[i]*prod(x[j]^$alpha[i,j] for j in $idxs) for i=1:$n_terms)), vars
+    end
+end
+
 function alphac_to_varbound!(model, alpha, c; lse=false)
     """ Turns univariate exponential to JuMP variable bounds. """
     idx = unique([j for j in findall(j->j != 0, alpha)])[1]; #idx[1] is monomial index,
@@ -50,14 +62,8 @@ function sagemark_to_GlobalModel(idx; lse=false)
     @objective(model, Min, obj)
     # Assigning objective
     gm = GlobalModel(model = model)
-    obj_fn, objvars = alphac_to_expr(gm.model, f.alpha, f.c, lse=lse)
-    push!(objvars, obj)
-    # TODO: fix issues with obj
-    if lse
-        add_nonlinear_constraint(gm, :((x, obj) -> exp(obj) - $obj_fn), vars = objvars)
-    else
-        add_nonlinear_constraint(gm, :(obj - $obj_fn), vars = objvars)
-    end
+    obj_fn, objvars = alphac_to_objexpr(gm.model, f.alpha, f.c, lse=lse)
+    add_nonlinear_constraint(gm, obj_fn, vars = objvars)
     # Adding the rest
     for i = 1:length(greaters)
         constrexpr, constrvars = alphac_to_expr(gm.model, greaters[i].alpha, greaters[i].c, lse=lse)

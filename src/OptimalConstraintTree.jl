@@ -77,7 +77,7 @@ module OptimalConstraintTree
            functionify,
            # Functions to import global optimization problems,
            sagemark_to_GlobalModel,
-           alphac_to_expr, alphac_to_varbound!,
+           alphac_to_expr, alphac_to_objexpr, alphac_to_varbound!,
            # Exceptions
            OCTException,
            # Display and plotting

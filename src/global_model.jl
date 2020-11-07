@@ -101,11 +101,11 @@ function add_nonlinear_constraint(gm::GlobalModel,
         bbf_vars = vars
     end
     new_bbf = BlackBoxFunction(constraint = constraint, vars = bbf_vars, equality = equality)
-    @assert length(bbf.vars) == length(bbf.varmap)
+    @assert length(new_bbf.vars) == length(new_bbf.varmap)
     push!(gm.bbfs, new_bbf)
 end
 
-"""
+"""include
     nonlinearize(gm::GlobalModel)
 
 Turns gm.model into the full nonlinear representation.

@@ -128,3 +128,6 @@ bound!(model, Dict(z => [-10,10]))
 # Check feasibility and accuracy
 @test 0 <= feasibility(bbf) <= 1
 @test 0 <= accuracy(bbf) <= 1
+
+#Training a model
+learn_constraint!(bbf)
