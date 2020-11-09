@@ -30,7 +30,7 @@ module OptimalConstraintTree
 
     include("post_process.jl")
 
-    include("bin_to_leaves.jl")
+    include("iai_wrappers.jl")
 
     include("augment.jl")
 
