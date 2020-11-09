@@ -110,26 +110,32 @@ function add_nonlinear_constraint(gm::GlobalModel,
         bbf_vars = vars
     end
     if constraint isa JuMP.ScalarConstraint #TODO: clean up.
-        con = JuMP.add_constraint(m, bbf.constraint)
+        con = JuMP.add_constraint(gm.model, bbf.constraint)
+        JuMP.delete(gm.model, con)
         new_bbf = BlackBoxFunction(constraint = con, vars = bbf_vars, equality = equality)
         @assert length(new_bbf.vars) == length(new_bbf.varmap)
         push!(gm.bbfs, new_bbf)
-    else
-        new_bbf = BlackBoxFunction(constraint = constraint, vars = bbf_vars, equality = equality)
-        @assert length(new_bbf.vars) == length(new_bbf.varmap)
-        push!(gm.bbfs, new_bbf)
+        return
     end
+    if constraint isa JuMP.ConstraintRef
+        JuMP.delete(gm.model, constraint)
+    end
+    new_bbf = BlackBoxFunction(constraint = constraint, vars = bbf_vars, equality = equality)
+    @assert length(new_bbf.vars) == length(new_bbf.varmap)
+    push!(gm.bbfs, new_bbf)
+    return
 end
 
-"""include
-    nonlinearize(gm::GlobalModel)
+"""
+    nonlinearize!(gm::GlobalModel, bbfs::Array{BlackBoxFunction})
+    nonlinearize!(gm::GlobalModel)
 
-Turns gm.model into the full nonlinear representation.
+Turns gm.model into the nonlinear representation.
 NOTE: to get back to MI-compatible forms, must rebuild model from scratch.
 """
-function nonlinearize(gm::GlobalModel)
+function nonlinearize!(gm::GlobalModel, bbfs::Array{BlackBoxFunction})
     m = gm.model
-    for bbf in gm.bbfs
+    for bbf in bbfs
         if bbf.constraint isa JuMP.ConstraintRef
             JuMP.add_constraint(m, bbf.constraint)
         elseif bbf.constraint isa Expr
@@ -140,7 +146,11 @@ function nonlinearize(gm::GlobalModel)
             end
         end
     end
-    return m
+    return
+end
+
+function nonlinearize!(gm::GlobalModel)
+    nonlinearize!(gm, gm.bbfs)
 end
 
 function bound!(model::Union{GlobalModel, JuMP.Model},
@@ -353,6 +363,11 @@ function sample_and_eval!(bbf::Union{BlackBoxFunction, GlobalModel, Array{BlackB
     return
 end
 
+""" Extends JuMP.optimize! to GlobalModels. """
+function JuMP.optimize!(gm::GlobalModel; kwargs...)
+    optimize!(gm.model, kwargs...)
+end
+
 function globalsolve(gm::GlobalModel)
     """ Creates and solves the global optimization model using the linear constraints from GlobalModel,
         and approximated nonlinear constraints from inside its BlackBoxFunctions."""
@@ -365,7 +380,7 @@ end
 """ Returns the optimal solution of the solved global optimization model. """
 function solution(gm::GlobalModel)
     vals = getvalue.(gm.vars)
-    return DataFrame(Dict(var => vals[var] for var in gm.vars))
+    return DataFrame(vals', string.(gm.vars))
 end
 
 function evaluate_feasibility(gm::GlobalModel)

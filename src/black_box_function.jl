@@ -156,12 +156,17 @@ function evaluate(bbf::BlackBoxFunction, data::Union{Dict, DataFrame})
         return vals    end
 end
 
+"""
+    function (bbf::BlackBoxFunction)(x::Union{DataFrame,Dict,DataFrameRow})
+
+Makes the BBF callable as a function.
+"""
 function (bbf::BlackBoxFunction)(x::Union{DataFrame,Dict,DataFrameRow})
     return evaluate(bbf, x)
 end
 
+""" Evaluates BlackBoxFunction at all X and stores the resulting data. """
 function eval!(bbf::BlackBoxFunction, X::DataFrame)
-    """ Evaluates BlackBoxFunction at all X and stores the resulting data. """
     values = bbf(X);
     append!(bbf.X, X[:,string.(bbf.vars)], cols=:setequal)
     append!(bbf.Y, values);

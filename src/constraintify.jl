@@ -1,18 +1,5 @@
-function check_if_trained(lnr::IAI.OptimalTreeLearner)
-    """ Checks if a learner is trained. """
-    try
-        n_nodes = IAI.get_num_nodes(lnr);
-    catch err
-        if isa(err, UndefRefError)
-            throw(OCTException("Grids/trees require training before being used in constraints!"))
-        else
-            rethrow(err)
-        end
-    end
-end
-
+""" Clears the constraints in GM of bbf.mi_constraints. """
 function clear_tree_constraints!(gm::GlobalModel, bbfs::Array{BlackBoxFunction})
-    """ Clears the constraints in GM of bbf.mi_constraints. """
     for bbf in bbfs
         for constraint in bbf.mi_constraints
             if is_valid(gm.model, constraint)
@@ -33,8 +20,12 @@ function clear_tree_constraints!(gm::GlobalModel)
     return
 end
 
+"""
+    add_tree_constraints!(gm::GlobalModel, bbfs::Array{BlackBoxFunction}; M=1e5)
+
+Generates MI constraints from gm.learners, and adds them to gm.model.
+"""
 function add_tree_constraints!(gm::GlobalModel, bbfs::Array{BlackBoxFunction}; M=1e5)
-    """ Generates MI constraints from gm.learners. """
     for bbf in bbfs
         if bbf.feas_ratio == 1.0
             return

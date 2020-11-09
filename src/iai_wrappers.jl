@@ -99,3 +99,16 @@ function trust_region_data(lnr:: IAI.OptimalTreeLearner, vks)
     end
     return upperDict, lowerDict
 end
+
+function check_if_trained(lnr::IAI.OptimalTreeLearner)
+    """ Checks if a learner is trained. """
+    try
+        n_nodes = IAI.get_num_nodes(lnr);
+    catch err
+        if isa(err, UndefRefError)
+            throw(OCTException("Grids/trees require training before being used in constraints!"))
+        else
+            rethrow(err)
+        end
+    end
+end

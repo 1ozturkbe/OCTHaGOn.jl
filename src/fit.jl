@@ -47,13 +47,12 @@ function check_accuracy(bbf::Union{GlobalModel, BlackBoxFunction})
     end
 end
 
-"""Classifies and returns names of functions that pass/fail the feasibility check. """
-function fns_by_feasibility(md::GlobalModel)
-    arr = [check_feasibility(fn) for fn in md.bbfs];
-    infeas_idxs = findall(x -> x .== 0, arr);
-    feas_idxs = findall(x -> x .!= 0, arr);
-    names = [fn.name for fn in md.bbfs];
-    return names[feas_idxs], names[infeas_idxs]
+""" Classifies and returns names of functions that pass/fail the feasibility check. """
+function fns_by_feasibility(gm::GlobalModel)
+    arr = [check_feasibility(fn) for fn in gm.bbfs]
+    infeas_idxs = findall(x -> x .== 0, arr)
+    feas_idxs = findall(x -> x .!= 0, arr) # TODO: use complement.
+    return gm.bbfs[feas_idxs], gm.bbfs[infeas_idxs]
 end
 
 """
@@ -63,13 +62,17 @@ end
                            validation_criterion=:misclassification,
                            ignore_checks::Bool = false)
 
-Return a constraint tree from a BlackBoxFunction.
+Constructs a constraint tree from a BlackBoxFunction and dumps in bbf.learners.
 Arguments:
+    bbf:: OCT structs (GM, BBF, Array{BBF})
     lnr: Unfit OptimalTreeClassifier or Grid
-    constraint: BlackBoxFunction in std form (>= 0)
     X: new data to add to BlackBoxFunction and evaluate
+    weights: weighting of the data points
+    dir: save location
+    ignore_checks: True only for debugging purposes.
+                   Ignores feasibility and sample distribution checks.
 Returns:
-    lnr: Fitted Grid
+    nothing
 """
 function learn_constraint!(bbf::Union{GlobalModel, Array{BlackBoxFunction}, BlackBoxFunction};
                            lnr::IAI.OptimalTreeLearner = base_otc(),
@@ -113,6 +116,10 @@ function learn_constraint!(bbf::Union{GlobalModel, Array{BlackBoxFunction}, Blac
     return
 end
 
+"""
+Basic regression purely for debugging.
+TODO: refine and/or remove.
+"""
 function regress(points::DataFrame, values::Array; weights::Union{Array, Nothing} = nothing)
     lnr= IAI.OptimalFeatureSelectionRegressor(sparsity = :all); # TODO: optimize regression method.
     if isnothing(weights)
