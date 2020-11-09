@@ -17,12 +17,17 @@ model = Model()
     -4 <= y[1:3] <= 1
     -30 <= z
 end)
+
+# Testing expression parsing
 ex = :((x, y, z) -> sum(x[i] for i=1:4) - y[1] * y[2] + z)
+simp_ex = :(x -> sum(5 .* x))
 f = eval(ex)
+simp_f = eval(simp_ex)
 ex_vars = [x,y,z]
 @assert f(ones(4), ones(2),5) isa Float64
 @assert f(x,y,z) isa JuMP.GenericQuadExpr
 @assert vars_from_expr(ex, flat([x[1:4], y[1:2], z])) == ex_vars
+@assert vars_from_expr(simp_ex, flat([x])) == [x]
 
 @constraint(model, sum(x[4]^2 + x[5]^2) <= z)
 @constraint(model, sum(y[:]) >= -2)
@@ -129,5 +134,5 @@ bound!(model, Dict(z => [-10,10]))
 @test 0 <= feasibility(bbf) <= 1
 @test 0 <= accuracy(bbf) <= 1
 
-#Training a model
-learn_constraint!(bbf)
+# Training a model
+constraints, leaf_variables = add_feas_constraints!(model, bbf.vars, bbf.learners[1], return_data = true);

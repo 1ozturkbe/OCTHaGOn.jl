@@ -31,7 +31,7 @@ end
 gm = OCT.sagemark_to_GlobalModel(1, lse=false);
 gm_lse = OCT.sagemark_to_GlobalModel(1, lse=true);
 # set_optimizer(gm, Ipopt.Optimizer)
-# nonlinearize(gm)
+# nonlinearize!(gm)
 # optimize!(gm)
 # vals = getvalue.(gm.vars)
 
@@ -40,15 +40,16 @@ bounds = Dict(all_variables(gm) .=> [[0.1, 1], [5., 10.], [8., 15.], [0.01, 1.],
 inp = Dict(all_variables(gm) .=> [1,1.9,3,3.9, 10.]);
 log_inp = Dict(vk => log(val) for (vk, val) in inp);
 
-vars = all_variables(gm);
-@test gm_lse.bbfs[1](log_inp)[1] ≈ gm.bbfs[1](inp)[1] ≈ [inp[vars[5]] - inp[vars[3]] ^ 0.8 * inp[vars[4]] ^ 1.2][1]
+@test gm.vars == all_variables(gm);
+@test gm_lse.bbfs[1](log_inp)[1] ≈ gm.bbfs[1](inp)[1] ≈ [inp[gm.vars[5]] - inp[gm.vars[3]] ^ 0.8 * inp[gm.vars[4]] ^ 1.2][1]
 
 # Checking OCTException for sampling unbounded model
 @test_throws OCTException sample_and_eval!(gm.bbfs[1], n_samples=200)
 
 # Actually trying to optimize...
+gm = OCT.sagemark_to_GlobalModel(3; lse=false);
 set_optimizer(gm, Gurobi.Optimizer)
-bound!(gm, Dict(gm.vars[end] => [-5, 10]))
+bound!(gm, Dict(gm.vars[end] => [-300, 0]))
 sample_and_eval!(gm, n_samples = 500)
 sample_and_eval!(gm, n_samples = 500)
 
@@ -64,8 +65,9 @@ clear_tree_constraints!(gm, [gm.bbfs[1]])
 status = globalsolve(gm)
 println("X values: ", solution(gm))
 println("Optimal X: ", vcat(exp.([5.01063529, 3.40119660, -0.48450710]), [-147-2/3]))
-#
-# # Testing constraint addition and removal
+
+
+# Testing constraint addition and removal
 # clear_tree_constraints!(md) # Clears all BBF constraints
 # @test all([!is_valid(md.model, constraint) for constraint in md.bbfs[2].mi_constraints])
 # md.bbfs[2].mi_constraints, md.bbfs[2].leaf_variables = add_feas_constraints!(md.model, [md.vars[vk] for vk in md.bbfs[2].vks],
