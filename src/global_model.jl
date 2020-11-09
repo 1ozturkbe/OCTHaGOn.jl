@@ -98,7 +98,7 @@ function check_infeasible_bounds(model::Union{GlobalModel, JuMP.Model}, bounds::
 end
 
 function add_nonlinear_constraint(gm::GlobalModel,
-                     constraint::Union{JuMP.ScalarConstraint, Expr};
+                     constraint::Union{JuMP.ScalarConstraint, JuMP.ConstraintRef, Expr};
                      vars::Union{Nothing, Array{JuMP.VariableRef}} = nothing,
                      equality::Bool = false)
 """ Adds a new nonlinear constraint to Global Model.
@@ -109,9 +109,16 @@ function add_nonlinear_constraint(gm::GlobalModel,
     else
         bbf_vars = vars
     end
-    new_bbf = BlackBoxFunction(constraint = constraint, vars = bbf_vars, equality = equality)
-    @assert length(new_bbf.vars) == length(new_bbf.varmap)
-    push!(gm.bbfs, new_bbf)
+    if constraint isa JuMP.ScalarConstraint #TODO: clean up.
+        con = JuMP.add_constraint(m, bbf.constraint)
+        new_bbf = BlackBoxFunction(constraint = con, vars = bbf_vars, equality = equality)
+        @assert length(new_bbf.vars) == length(new_bbf.varmap)
+        push!(gm.bbfs, new_bbf)
+    else
+        new_bbf = BlackBoxFunction(constraint = constraint, vars = bbf_vars, equality = equality)
+        @assert length(new_bbf.vars) == length(new_bbf.varmap)
+        push!(gm.bbfs, new_bbf)
+    end
 end
 
 """include
@@ -123,37 +130,14 @@ NOTE: to get back to MI-compatible forms, must rebuild model from scratch.
 function nonlinearize(gm::GlobalModel)
     m = gm.model
     for bbf in gm.bbfs
-        if bbf.constraint isa JuMP.ScalarConstraint
+        if bbf.constraint isa JuMP.ConstraintRef
             JuMP.add_constraint(m, bbf.constraint)
         elseif bbf.constraint isa Expr
-            new_expr = copy(bbf.constraint)
             if bbf.equality
-                new_expr = Expr(:call, :(==), new_expr, 0)
+                @NLconstraint(m, bbf.fn(expr_vars...) == 0)
             else
-                new_expr = Expr(:call, :>=, new_expr, 0)
+                @NLconstraint(m, bbf.fn(expr_vars...) >= 0)
             end
-#             map_dict = outers_to_vars(get_outers(bbf.constraint), gm.model)
-#             string_map = Dict()
-#             string_expr = string(new_expr)
-#             for (key, var) in map_dict
-#                 string_map[key] = [string(key,i) for i=1:length(var)]
-#             end
-#             string_expr = substitute_args(new_expr, string_map)
-#             new_expr = parse(string_expr)
-#             for var in collect(Iterators.flatten(values(map_dict)))
-#                 string_map[string(var)] = string("\$", "(", var, ")")
-#                 string_expr = replace(string_expr, string(var) => string("\$", "(", var, ")"))
-#             end
-#             for key in collect(Iterators.flatten(keys(map_dict)))
-#                 keylength = length(map_dict[key])
-#                 string_map[string(key)] = string(key, )
-#                 string_expr = replace(string_expr, string(var) => string("\$", "(", var, ")"))
-#             end
-#             for var in collect(Iterators.flatten(values(map_dict)))
-#                 string_map[string(var)] = var
-#             end
-#             new_expr = Meta.parse(string_expr)
-            JuMP.add_NL_constraint(gm.model, new_expr)
         end
     end
     return m
