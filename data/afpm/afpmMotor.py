@@ -92,30 +92,31 @@ def compute_motor_massProperties(dct):
     density_neodymium      = 7.50 * units.g / units.cm**3
     density_water          = 1.00 * units.g / units.cm**3
     density_ethyleneGlycol = 1.11 * units.g / units.cm**3
-
     coolantMixingFraction = 0.5
     density_coolant        = (1-coolantMixingFraction)*density_water + coolantMixingFraction*density_ethyleneGlycol
+    mass_mult              = dct['mass_multiplier']
+    insulation_fraction    = dct['insulation_fraction']
 
     # Compute mass of wire ---------------
-    l = N_1 * m_1 * N_stators * s_coil
+    l = mass_mult * N_1 * m_1 * N_stators * s_coil
     if wire_type.lower() == 'square':
-        outerArea = (wire_dimension)**2
-        innerArea = (wire_dimension-2*wire_thickness)**2
-        v = l*(outerArea - innerArea)
+        outerArea = (wire_dimension) ** 2
+        innerArea = (wire_dimension - 2 * wire_thickness) ** 2
+        v = l * (outerArea - innerArea)
         v_inner = l * innerArea
-        msc = v.to('m^3')*density_copper
+        msc = v.to('m^3') * density_copper
         opt['wire'] = msc.to('g')
     elif wire_type.lower() == 'rectangle':
         xcArea = wire_dimension[0] * wire_dimension[1]
-        v = l*xcArea
-        msc = v.to('m^3')*density_copper
+        v = l * xcArea
+        msc = v.to('m^3') * density_copper
         opt['wire'] = msc.to('g')
     else:
-        outerArea = (wire_dimension/2)**2*np.pi
-        innerArea = (wire_dimension/2-wire_thickness)**2*np.pi
-        v = l*(outerArea - innerArea)
+        outerArea = (wire_dimension / 2) ** 2 * np.pi
+        innerArea = (wire_dimension / 2 - wire_thickness) ** 2 * np.pi
+        v = l * (outerArea - innerArea)
         v_inner = l * innerArea
-        msc = v.to('m^3')*density_copper
+        msc = v.to('m^3') * density_copper
         opt['wire'] = msc.to('g')
 
     # Compute some geometry parameters ---------------
@@ -148,7 +149,7 @@ def compute_motor_massProperties(dct):
     opt['stator'] = mass_stator.to('g')
 
     # Sum the relevant pieces and return ---------------
-    opt['total'] = opt['rotor'] + opt['shaft'] + opt['wire'] + opt['stator']
+    opt['total'] = opt['rotor'] + opt['shaft'] + (1 + insulation_fraction) * opt['wire'] + opt['stator']
     opt['rotating'] = opt['rotor'] + opt['shaft']
     return opt
 
@@ -314,7 +315,7 @@ def powerResidual(x, dct):
         wireArea = (wire_dimension/2)**2*np.pi
     wireResistance = con_rho/wireArea
 
-    lengthWireSinglePhase = N_1 * N_stators * s_coil
+    lengthWireSinglePhase = dct['mass_multiplier'] * N_1 * N_stators * s_coil
     if I_a <= ratedCurrent*units.ampere:
         powerDict['Electrical Resistance'] = 2.5 * lengthWireSinglePhase * wireResistance * I_a**2
     else:
@@ -660,6 +661,8 @@ def baseline():
     dct['frequency']  = 50*units.Hz           # AC frequency
     dct['run_losses'] = False                 # Flag whether or not to run the loss functions (cored motor only).  Model not validated, should leave false
     dct['print_roughness'] = 0.05*units.mm
+    dct['mass_multiplier'] = 2.07
+    dct['insulation_fraction'] = 0.175
     # Compute max current the motor can take =======================
     dct['equivalent_diameter'] = diameter_from_dimension(dct['wire_dimension'],dct['wire_type'])
     dct['I_max']     = computeRatedCurrent(dct['equivalent_diameter'].to('mm').magnitude) * units.ampere
@@ -689,6 +692,7 @@ def generate_dcts(n_samples, dct, ranges):
     else:
         n_factors = len(ranges)+1
     dcts = []
+    infeas_dcts = []
     lhs_samples = pyDOE.lhs(n_factors, samples=n_samples, criterion='corr')
     for i in range(n_samples):
         new_dct = copy.deepcopy(dct)
@@ -706,10 +710,10 @@ def generate_dcts(n_samples, dct, ranges):
             check_config(new_dct)
             dcts.append(new_dct)
         except:
-            pass
+            infeas_dcts.append(new_dct)
     print("Tried to generate %s samples." % n_samples)
     print("\nOnly %s were feasible configurations." % len(dcts))
-    return dcts
+    return dcts, infeas_dcts
 
 def simulate_dcts(dcts, filename=None, tol=1e-5):
     ress = []
@@ -736,9 +740,9 @@ if __name__ == '__main__':
     dct = baseline()
     dct['mode'] = 0
     res, opt = simulate_motor(dct, tol=1e-3) # Experiments show 1e-3 is sufficient
-
+    #
     n_sims = 5000
-    dcts = generate_dcts(n_sims, dct, input_ranges_coreless())
+    dcts, infeas_dcts = generate_dcts(n_sims, dct, input_ranges_coreless())
     pickle.dump(dcts, open('dcts.inp', 'wb'))
 
     ress, opts = simulate_dcts(dcts, filename="motors", tol=1e-3)
@@ -746,7 +750,7 @@ if __name__ == '__main__':
     dcts = pickle.load(open('dcts.inp', 'rb'))
     ress = pickle.load(open('motors.out','rb'))
     opts = pickle.load(open('motors.sol', 'rb'))
-    #
+
     ranges = input_ranges_coreless()
     indep_vars = list(ranges.keys())
     dep_vars = list(opts[0].keys())
@@ -759,6 +763,7 @@ if __name__ == '__main__':
             large = [mag(dct[i][1])  for dct in dcts]
             inputs["wire_w"] = small
             inputs["wire_h"] = large
+            inputs['wire_A'] = np.multiply(small, large)
         else:
             dat = [mag(dct[i]) for dct in dcts]
             inputs[i] = dat
@@ -768,3 +773,17 @@ if __name__ == '__main__':
         outputs[i] = dat
     inputs.to_csv("afpm_inputs.csv")
     outputs.to_csv("afpm_outputs.csv")
+
+    # Also include infeasible inputs
+    infeas_inputs = pd.DataFrame()
+    for i in indep_vars:
+        if i == "wire_dimension":
+            small = [mag(dct[i][0]) for dct in infeas_dcts]
+            large = [mag(dct[i][1])  for dct in infeas_dcts]
+            infeas_inputs["wire_w"] = small
+            infeas_inputs["wire_h"] = large
+            infeas_inputs['wire_A'] = np.multiply(small, large)
+        else:
+            dat = [mag(dct[i]) for dct in infeas_dcts]
+            infeas_inputs[i] = dat
+    infeas_inputs.to_csv("afpm_infeas_inputs.csv")
