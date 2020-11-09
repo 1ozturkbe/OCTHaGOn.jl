@@ -16,11 +16,6 @@ module OptimalConstraintTree
     using PyCall
     using Random
 
-
-    import JuliaVariables
-    import MacroTools
-    import MLStyle
-
     include("small_scripts.jl")
 
     include("on_jump.jl")
@@ -86,7 +81,7 @@ module OptimalConstraintTree
            # Debugging tools
             clear_data!, chop_dict,
             # Small scripts
-            vars_from_expr, get_locals, get_outers, get_varmap, deconstruct, flat,
+            vars_from_expr, get_varmap, deconstruct, flat,
             infarray
 end
 
