@@ -116,8 +116,9 @@ function evaluate(bbf::BlackBoxFunction, data::Union{Dict, DataFrame})
         constr_obj = constraint_object(bbf.constraint)
         rhs_const = get_constant(constr_obj.set)
         vals = [JuMP.value(constr_obj.func, i -> get(clean_data, string(i), Inf)[j]) for j=1:size(clean_data,1)]
-        if any(isinf.(vals))
-            throw(OCTException(string("Constraint ", bbf.constraint, " returned an infinite value.")))
+        if any(isinf.(vals)) || any(isnan.(vals))
+            throw(OCTException(string("Constraint ", bbf.constraint, " returned an infinite or NaN value.",
+                                      "Please check your variable definitions in BBF ", bbf, " . ")))
         end
         if isnothing(rhs_const)
             vals = [-1*distance_to_set(vals[i], constr_obj.set) for i=1:length(vals)]
