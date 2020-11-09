@@ -46,8 +46,15 @@ function data_to_Dict(data::Union{Dict, DataFrame, DataFrameRow}, model::JuMP.Mo
 end
 
 
-# get_locals and _get_outers ripped from here:
-#https://discourse.julialang.org/t/determine-the-scope-of-symbols-in-an-expr/47993/2
+
+"""
+    get_locals(ex::Expr)
+
+Get variables in Expr that are locally defined.
+
+get_locals borrowed from here:
+https://discourse.julialang.org/t/determine-the-scope-of-symbols-in-an-expr/47993/2
+"""
 function get_locals(ex::Expr)
     vars = (JuliaVariables.solve_from_local ∘ JuliaVariables.simplify_ex)(ex).args[1].bounds
     map(x -> x.name, vars)
@@ -63,6 +70,15 @@ function _get_outers(ex::Expr)
     end
 end
 
+"""
+    get_outers(ex::Expr)
+
+Gets the Symbols in the expression that are not local.
+
+get_outers borrowed from here:
+https://discourse.julialang.org/t/determine-the-scope-of-symbols-in-an-expr/47993/2
+"""
 get_outers(ex) = (unique! ∘ _get_outers ∘ JuliaVariables.solve_from_local ∘ JuliaVariables.simplify_ex)(ex)
 
+""" Wrapper around Iterators.flatten. """
 flat(arr::Array) = collect(Iterators.flatten(arr))

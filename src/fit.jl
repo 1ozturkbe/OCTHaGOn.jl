@@ -29,8 +29,8 @@ function learn_from_data!(X::DataFrame, Y::AbstractArray, grid; idxs::Union{Noth
     return grid
 end
 
+""" Checks that a BlackBoxFunction has enough feasible/infeasible samples. """
 function check_feasibility(bbf::Union{GlobalModel, BlackBoxFunction})
-    """ Checks that a BlackBoxFunction has enough feasible/infeasible samples. """
     if isa(bbf, BlackBoxFunction)
         return bbf.feas_ratio >= bbf.threshold_feasibility
     else
@@ -38,8 +38,8 @@ function check_feasibility(bbf::Union{GlobalModel, BlackBoxFunction})
     end
 end
 
+""" Checks that a BlackBoxFunction.learner has adequate accuracy."""
 function check_accuracy(bbf::Union{GlobalModel, BlackBoxFunction})
-    """ Checks that a BlackBoxFunction.learner has adequate accuracy."""
     if isa(bbf, BlackBoxFunction)
         return bbf.accuracies[end] >= bbf.threshold_accuracy
     else
@@ -47,8 +47,8 @@ function check_accuracy(bbf::Union{GlobalModel, BlackBoxFunction})
     end
 end
 
+"""Classifies and returns names of functions that pass/fail the feasibility check. """
 function fns_by_feasibility(md::GlobalModel)
-    """Classifies and returns names of functions that pass/fail the feasibility check. """
     arr = [check_feasibility(fn) for fn in md.bbfs];
     infeas_idxs = findall(x -> x .== 0, arr);
     feas_idxs = findall(x -> x .!= 0, arr);
@@ -56,20 +56,26 @@ function fns_by_feasibility(md::GlobalModel)
     return names[feas_idxs], names[infeas_idxs]
 end
 
+"""
+    learn_constraint!(bbf::Union{GlobalModel, Array{BlackBoxFunction}, BlackBoxFunction};
+                           lnr::IAI.OptimalTreeLearner = base_otc(),
+                           weights::Union{Array, Symbol} = :autobalance, dir::String = "-",
+                           validation_criterion=:misclassification,
+                           ignore_checks::Bool = false)
+
+Return a constraint tree from a BlackBoxFunction.
+Arguments:
+    lnr: Unfit OptimalTreeClassifier or Grid
+    constraint: BlackBoxFunction in std form (>= 0)
+    X: new data to add to BlackBoxFunction and evaluate
+Returns:
+    lnr: Fitted Grid
+"""
 function learn_constraint!(bbf::Union{GlobalModel, Array{BlackBoxFunction}, BlackBoxFunction};
                            lnr::IAI.OptimalTreeLearner = base_otc(),
                            weights::Union{Array, Symbol} = :autobalance, dir::String = "-",
                            validation_criterion=:misclassification,
                            ignore_checks::Bool = false)
-    """
-    Return a constraint tree from a BlackBoxFunction.
-    Arguments:
-        lnr: Unfit OptimalTreeClassifier or Grid
-        constraint: BlackBoxFunction in std form (>= 0)
-        X: new data to add to BlackBoxFunction and evaluate
-    Returns:
-        lnr: Fitted Grid
-    """
     if isa(bbf, GlobalModel)
         for fn in bbf.bbfs
             learn_constraint!(fn, lnr=lnr, weights=weights, dir=dir,
