@@ -124,3 +124,27 @@ end
 function vars_from_expr(expr::Union{JuMP.ScalarConstraint, JuMP.ConstraintRef}, vars::Array{VariableRef, 1})
     return vars
 end
+
+"""
+    linearize_objective!(model::JuMP.Model)
+Makes sure that the objective function is affine.
+"""
+function linearize_objective!(model::JuMP.Model)
+    objtype = JuMP.objective_function(model)
+    objsense = string(JuMP.objective_sense(model))
+    if objtype isa Union{VariableRef, GenericAffExpr} || objsense == "FEASIBILITY_SENSE"
+        return
+    else
+        aux = @variable(model)
+        @objective(model, Min, aux)
+        # Default optimization problem is always a minimization
+        coeff = 1;
+        objsense == "MAX_SENSE" && (coeff = -1)
+        try
+            @constraint(model, aux >= coeff*JuMP.objective_function(model))
+        catch
+            @NLconstraint(model, aux >= coeff*JuMP.objective_function(model))
+        end
+        return
+    end
+end

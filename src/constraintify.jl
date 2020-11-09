@@ -88,11 +88,11 @@ function add_feas_constraints!(m::JuMP.Model, x, grid::IAI.GridSearch;
     count = 0; constraints = []; leaf_variables = [];
     z_feas = @variable(m, [1:size(feas_leaves, 1)], Bin)
     append!(leaf_variables, z_feas)
-    push!(constraints, @constraint(m, sum(z_feas) == 1))
+    push!(constraints, @build_constraint(sum(z_feas) == 1))
     if eq
         z_infeas = @variable(m, [1:length(infeas_leaves)], Bin)
         append!(leaf_variables, z_infeas)
-        push!(constraints, @constraint(m, sum(z_infeas) == 1))
+        push!(constraints, @build_constraint(sum(z_infeas) == 1))
     end
     # Getting lnr data
     upperDict, lowerDict = trust_region_data(lnr, string.(x))
@@ -101,11 +101,11 @@ function add_feas_constraints!(m::JuMP.Model, x, grid::IAI.GridSearch;
         # ADDING TRUST REGIONS
         for region in upperDict[leaf]
             threshold, α = region
-            push!(constraints, @constraint(m, threshold <= sum(α .* x) + M * (1 - z_feas[i])))
+            push!(constraints, @build_constraint(threshold <= sum(α .* x) + M * (1 - z_feas[i])))
         end
         for region in lowerDict[leaf]
             threshold, α = region
-            push!(constraints, @constraint(m, threshold + M * (1 - z_feas[i]) >= sum(α .* x)))
+            push!(constraints, @build_constraint(threshold + M * (1 - z_feas[i]) >= sum(α .* x)))
         end
     end
     if eq
@@ -114,11 +114,11 @@ function add_feas_constraints!(m::JuMP.Model, x, grid::IAI.GridSearch;
             # ADDING TRUST REGIONS
             for region in upperDict[leaf]
                 threshold, α = region
-                push!(constraints, @constraint(m, threshold <= sum(α .* x) + M * (1 - z_infeas[i])))
+                push!(constraints, @build_constraint(threshold <= sum(α .* x) + M * (1 - z_infeas[i])))
             end
             for region in lowerDict[leaf]
                 threshold, α = region
-                push!(constraints, @constraint(m, threshold + M * (1 - z_infeas[i]) >= sum(α .* x)))
+                push!(constraints, @build_constraint(threshold + M * (1 - z_infeas[i]) >= sum(α .* x)))
             end
         end
     end
@@ -150,7 +150,7 @@ function add_regr_constraints!(m::JuMP.Model, x::Array, y, grid::IAI.GridSearch;
     count = 0; constraints = []; leaf_variables = [];
     z = @variable(m, [1:size(all_leaves, 1)], Bin)
     append!(leaf_variables, z)
-    push!(constraints, @constraint(m, sum(z) == 1))
+    push!(constraints, @build_constraint(sum(z) == 1))
     # Getting lnr data
     pwlDict = pwl_constraint_data(lnr, vks)
     upperDict, lowerDict = trust_region_data(lnr, vks)
@@ -158,18 +158,18 @@ function add_regr_constraints!(m::JuMP.Model, x::Array, y, grid::IAI.GridSearch;
         # ADDING CONSTRAINTS
         leaf = all_leaves[i]
         β0, β = pwlDict[leaf]
-        push!(constraints, @constraint(m, sum(β .* x) + β0 <= y + M * (1 .- z[i])))
+        push!(constraints, @build_constraint(sum(β .* x) + β0 <= y + M * (1 .- z[i])))
         if eq
-            push!(constraints, @constraint(m, sum(β .* x) + β0 + M * (1 .- z[i]) >= y))
+            push!(constraints, @build_constraint(sum(β .* x) + β0 + M * (1 .- z[i]) >= y))
         end
         # ADDING TRUST REGIONS
         for region in upperDict[leaf]
             threshold, α = region
-            push!(constraints, @constraint(m, threshold <= sum(α .* x) + M * (1 - z[i])))
+            push!(constraints, @build_constraint(threshold <= sum(α .* x) + M * (1 - z[i])))
         end
         for region in lowerDict[leaf]
             threshold, α = region
-            push!(constraints, @constraint(m, threshold + M * (1 - z[i]) >= sum(α .* x)))
+            push!(constraints, @build_constraint(threshold + M * (1 - z[i]) >= sum(α .* x)))
         end
     end
     if return_data

@@ -1,20 +1,24 @@
-@with_kw mutable struct GlobalModel
 """
 Contains all required info to be able to generate a global optimization problem.
-NOTE: proper construction is to add constraints as BBFs.
+NOTE: proper construction is to use add_nonlinear_constraint to add bbfs.
 model must be a mixed integer convex model.
 nonlinear_model can contain JuMP.NonlinearConstraints.
 """
+@with_kw mutable struct GlobalModel
     model::JuMP.Model                                                     # JuMP model
     name::Union{Symbol, String} = "Model"                                 # Example name
     bbfs::Array{BlackBoxFunction} = Array{BlackBoxFunction}[]              # Black box (>/= 0) functions
     vars::Array{VariableRef} = JuMP.all_variables(model)                  # JuMP variables
 end
 
+"""
+    (gm::GlobalModel)(name::Union{String, Int64})
+
+Finds BlackBoxFunction in GlobalModel by name.
+"""
 function (gm::GlobalModel)(name::Union{String, Int64})
-    """ Calls a BlackBoxFunction in GlobalModel by name. """
-    fn_names = getfield.(gm.bbfs, :name);
-    fns = gm.bbfs[findall(x -> x == name, fn_names)];
+    fn_names = getfield.(gm.bbfs, :name)
+    fns = gm.bbfs[findall(x -> x == name, fn_names)]
     if length(fns) == 1
         return fns[1]
     elseif length(fns) == 0
@@ -26,9 +30,14 @@ function (gm::GlobalModel)(name::Union{String, Int64})
     end
 end
 
+
+"""
+    JuMP.all_variables(gm::Union{GlobalModel, BlackBoxFunction})
+
+Extends JuMP.all_variables to GMs and BBFs
+and makes sure that the variables are updated.
+"""
 function JuMP.all_variables(gm::Union{GlobalModel, BlackBoxFunction})
-    """ Extends JuMP.all_variables to GlobalModels,
-        and makes sure that the variables are updated. """
     if gm isa GlobalModel
         gm.vars = JuMP.all_variables(gm.model)
     end
@@ -360,31 +369,31 @@ function sample_and_eval!(bbf::Union{BlackBoxFunction, GlobalModel, Array{BlackB
     return
 end
 
-function globalsolve(md::GlobalModel)
+function globalsolve(gm::GlobalModel)
     """ Creates and solves the global optimization model using the linear constraints from GlobalModel,
         and approximated nonlinear constraints from inside its BlackBoxFunctions."""
-    clear_tree_constraints!(md); # remove trees from previous solve (if any).
-    add_tree_constraints!(md); # refresh latest tree constraints.
-    status = JuMP.optimize!(md.model);
+    clear_tree_constraints!(gm); # remove trees from previous solve (if any).
+    add_tree_constraints!(gm); # refresh latest tree constraints.
+    status = JuMP.optimize!(gm.model);
     return status
 end
 
-function solution(md::GlobalModel)
-    """ Returns the optimal solution of the solved global optimization model. """
-    vals = getvalue.(md.vars)
+""" Returns the optimal solution of the solved global optimization model. """
+function solution(gm::GlobalModel)
+    vals = getvalue.(gm.vars)
     return DataFrame(Dict(var => vals[var] for var in gm.vars))
 end
 
-function evaluate_feasibility(md::GlobalModel)
+function evaluate_feasibility(gm::GlobalModel)
     """ Evaluates each constraint at solution to make sure it is feasible. """
-    soln = solution(md);
+    soln = solution(gm);
     feas = [];
-    for fn in md.bbfs
+    for fn in gm.bbfs
         eval!(fn, soln)
     end
-    fn_names = getfield.(md.bbfs, :name);
-    infeas_idxs = fn_names[findall(vk -> md(vk).Y[end] .< 0, fn_names)]
-    feas_idxs = fn_names[findall(vk -> md(vk).Y[end] .>= 0, fn_names)]
+    fn_names = getfield.(gm.bbfs, :name);
+    infeas_idxs = fn_names[findall(vk -> gm(vk).Y[end] .< 0, fn_names)]
+    feas_idxs = fn_names[findall(vk -> gm(vk).Y[end] .>= 0, fn_names)]
     return feas_idxs, infeas_idxs
 end
 

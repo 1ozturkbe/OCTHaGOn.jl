@@ -11,7 +11,7 @@ sample_data:
 Helper function to map vars to flatvars.
 Arguments:
     flatvars is a flattened Array{JuMP.VariableRef}
-    vars is the unflattened version
+    vars is the unflattened version, usually derived from an Expr.
 Returns:
     Dict of ID maps
 """
@@ -40,6 +40,12 @@ function get_varmap(expr_vars::Array, vars::Array)
     return varmap
 end
 
+
+"""
+    infarray(varmap::Array)
+
+Creates a template array for deconstruct function.
+"""
 function infarray(varmap::Array)
     arr = []
     # Pre allocate and fill!
@@ -58,6 +64,11 @@ function infarray(varmap::Array)
     return arr
 end
 
+"""
+    deconstruct(data::DataFrame, vars::Array, varmap::Array)
+
+Takes in data for input into a Function, and rips it apart into appropriate arrays.
+"""
 function deconstruct(data::DataFrame, vars::Array, varmap::Array)
     n_samples, n_vars = size(data)
     infarr = infarray(varmap)
@@ -67,7 +78,7 @@ function deconstruct(data::DataFrame, vars::Array, varmap::Array)
         narr = deepcopy(infarr)
         for j = 1:length(varmap)
             if varmap[j] isa Tuple && varmap[j][2] != 0
-                narr[varmap[j][1]][varmap[j][2]] = data[i, stringvars[varmap[j][2]]]
+                narr[varmap[j][1]][varmap[j][2]] = data[i, stringvars[j]]
             else
                 narr[varmap[j][1]] = data[i, stringvars[j]]
             end
@@ -78,7 +89,15 @@ function deconstruct(data::DataFrame, vars::Array, varmap::Array)
 end
 
 """
+    @with_kw mutable struct BlackBoxFunction
+
 Contains all required info to be able to generate a global optimization constraint.
+Mandatory arguments:
+    constraint::Union{JuMP.ConstraintRef, Expr}
+    vars::Array{JuMP.VariableRef,1}
+
+Also contains data w.r.t. samples from the function.
+Can be tagged with additional info.
 """
 @with_kw mutable struct BlackBoxFunction
     constraint::Union{JuMP.ConstraintRef, Expr}        # The "raw" constraint
@@ -109,7 +128,6 @@ end
 Evaluates constraint violation on data in the variables, and returns distance from set.
         Note that the keys of the Dict have to be uniform.
 """
-
 function evaluate(bbf::BlackBoxFunction, data::Union{Dict, DataFrame})
     clean_data = data_to_DataFrame(data);
     if isnothing(bbf.fn)
@@ -136,30 +154,6 @@ function evaluate(bbf::BlackBoxFunction, data::Union{Dict, DataFrame})
         vals = [bbf.fn(arr...) for arr in arrs]
         length(vals) == 1 && return vals[1]
         return vals    end
-end
-
-"""
-    linearize_objective!(model::JuMP.Model)
-Makes sure that the objective function is affine.
-"""
-function linearize_objective!(model::JuMP.Model)
-    objtype = JuMP.objective_function(model)
-    objsense = string(JuMP.objective_sense(model))
-    if objtype isa Union{VariableRef, GenericAffExpr} || objsense == "FEASIBILITY_SENSE"
-        return
-    else
-        aux = @variable(model)
-        @objective(model, Min, aux)
-        # Default optimization problem is always a minimization
-        coeff = 1;
-        objsense == "MAX_SENSE" && (coeff = -1)
-        try
-            @constraint(model, aux >= coeff*JuMP.objective_function(model))
-        catch
-            @NLconstraint(model, aux >= coeff*JuMP.objective_function(model))
-        end
-        return
-    end
 end
 
 function (bbf::BlackBoxFunction)(x::Union{DataFrame,Dict,DataFrameRow})
