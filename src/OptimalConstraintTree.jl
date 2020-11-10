@@ -55,7 +55,7 @@ module OptimalConstraintTree
            lh_sample, boundary_sample,
            accuracy, feasibility, check_accuracy, check_feasibility, check_bounds,
            solution, evaluate_feasibility,
-           nonlinearize,
+           nonlinearize!,
            # Functions on BlackBoxFunctions
            eval!, sample_and_eval!, plot, learn_constraint!,
            secant_method, knn_sample, build_knn_tree,

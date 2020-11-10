@@ -100,6 +100,7 @@ end
 function add_nonlinear_constraint(gm::GlobalModel,
                      constraint::Union{JuMP.ScalarConstraint, JuMP.ConstraintRef, Expr};
                      vars::Union{Nothing, Array{JuMP.VariableRef}} = nothing,
+                     name::Union{Nothing, String} = nothing,
                      equality::Bool = false)
 """ Adds a new nonlinear constraint to Global Model.
     Note: Linear constraints should be added using add_linear_constraint. """
@@ -109,10 +110,14 @@ function add_nonlinear_constraint(gm::GlobalModel,
     else
         bbf_vars = vars
     end
+    if isnothing(name)
+        name = string("bbf", length(gm.bbfs) + 1)
+    end
     if constraint isa JuMP.ScalarConstraint #TODO: clean up.
         con = JuMP.add_constraint(gm.model, bbf.constraint)
         JuMP.delete(gm.model, con)
-        new_bbf = BlackBoxFunction(constraint = con, vars = bbf_vars, equality = equality)
+        new_bbf = BlackBoxFunction(constraint = con, vars = bbf_vars, equality = equality,
+                                   name = name)
         @assert length(new_bbf.vars) == length(new_bbf.varmap)
         push!(gm.bbfs, new_bbf)
         return
@@ -120,7 +125,8 @@ function add_nonlinear_constraint(gm::GlobalModel,
     if constraint isa JuMP.ConstraintRef
         JuMP.delete(gm.model, constraint)
     end
-    new_bbf = BlackBoxFunction(constraint = constraint, vars = bbf_vars, equality = equality)
+    new_bbf = BlackBoxFunction(constraint = constraint, vars = bbf_vars, equality = equality,
+                               name = name)
     @assert length(new_bbf.vars) == length(new_bbf.varmap)
     push!(gm.bbfs, new_bbf)
     return
@@ -132,6 +138,7 @@ end
 
 Turns gm.model into the nonlinear representation.
 NOTE: to get back to MI-compatible forms, must rebuild model from scratch.
+TODO: Complete!
 """
 function nonlinearize!(gm::GlobalModel, bbfs::Array{BlackBoxFunction})
     m = gm.model
@@ -139,10 +146,14 @@ function nonlinearize!(gm::GlobalModel, bbfs::Array{BlackBoxFunction})
         if bbf.constraint isa JuMP.ConstraintRef
             JuMP.add_constraint(m, bbf.constraint)
         elseif bbf.constraint isa Expr
+#             JuMP.register(m, Symbol(bbf.name), length(bbf.expr_vars), bbf.fn, autodiff=true)
             if bbf.equality
-                @NLconstraint(m, bbf.fn(expr_vars...) == 0)
+                JuMP.add_NL_constraint(m, Expr(:call, :(==), bbf.constraint.args[2], 0))
+#                 @NLconstraint(m, Expr(:call, :($bbf.name), x...) == 0)
             else
-                @NLconstraint(m, bbf.fn(expr_vars...) >= 0)
+                JuMP.add_NL_constraint(m, Expr(:call, :(==), bbf.constraint.args[2], 0))
+#                 @NLconstraint(m, Expr(:call, :($bbf.name), x...) >= 0)
+#                 @NLconstraint(m, bbf.fn(bbf.expr_vars...) >= 0)
             end
         end
     end
