@@ -5,7 +5,21 @@ on_jumpmodels:
 - Date: 2020-09-25
 =#
 
-function fetch_variable(model::JuMP.Model, varkey::Union{Symbol, String, VariableRef})
+# NOTE: We have to circumvent JuMP.NLexpressions to be able to support nonlinear expressions
+#       without breaking everything...
+#       Thus why all operations on JuMP-incompatible functions is on Exprs.
+
+
+"""
+    fetch_variable(model::JuMP.Model, varkey::Union{Symbol, String, VariableRef, Array})
+
+Returns JuMP.VariableRefs that match a given Symbol, String, VariableRef,
+or array of these.
+"""
+function fetch_variable(model::JuMP.Model, varkey::Union{Symbol, String, VariableRef, Array})
+    if varkey isa Array
+        return [fetch_variable(model, key) for key in varkey]
+    end
     if varkey isa Symbol
         return model[varkey]
     elseif varkey isa VariableRef
@@ -17,8 +31,12 @@ function fetch_variable(model::JuMP.Model, varkey::Union{Symbol, String, Variabl
     end
 end
 
+"""
+    get_bounds(vars::Array{VariableRef})
+
+Returns bounds of JuMP variables.
+"""
 function get_bounds(vars::Array{VariableRef})
-    """ Returns bounds of selected variables."""
     bounds = Dict(var => [-Inf, Inf] for var in vars);
     for var in vars
         if JuMP.has_lower_bound(var)
@@ -31,58 +49,12 @@ function get_bounds(vars::Array{VariableRef})
     return bounds
 end
 
-function get_bounds(model::JuMP.Model)
-    """ Returns bounds of all variables from a JuMP.Model. """
-    all_vars = JuMP.all_variables(model)
-    return get_bounds(all_vars)
-end
+"""
+    data_to_DataFrame(data::Union{Dict, DataFrame, DataFrameRow})
 
-function check_bounds(bounds::Dict)
-    """ Checks outer-boundedness. """
-    if any(isinf.(Iterators.flatten(values(bounds))))
-        return false
-    else
-        return true
-    end
-end
-
-function bound!(model::JuMP.Model,
-                bounds::Dict)
-    """Adds outer bounds to JuMP Model from dictionary of data. """
-    for (key, value) in bounds
-        @assert value isa Array && length(value) == 2
-        var = fetch_variable(model, key);
-        if var isa Array # make sure all elements are bounded.
-            for v in var
-                bound!(model, Dict(v => value))
-            end
-        else
-            if JuMP.has_lower_bound(var) && JuMP.lower_bound(var) <= minimum(value)
-                set_lower_bound(var, minimum(value))
-            elseif !JuMP.has_lower_bound(var)
-                set_lower_bound(var, minimum(value))
-            end
-            if JuMP.has_upper_bound(var) && JuMP.upper_bound(var) >= maximum(value)
-                set_upper_bound(var, maximum(value))
-            else !JuMP.has_upper_bound(var)
-                set_upper_bound(var, maximum(value))
-            end
-        end
-    end
-    return
-end
-
-# function get_variables(model::JuMP.Model, constraint)
-
-
-# model = Model()
-# @variable(model, x)
-# c = @constraint(model, 2x + 1 <= 0)
-# obj = constraint_object(c)
-# obj.func  # The function
-
-function sanitize_data(model::JuMP.Model, data::Union{Dict, DataFrame, DataFrameRow})
-    """ Gets data with different keys, and returns a DataFrame with string headers. """
+Gets data with different keys, and returns a DataFrame with string headers.
+"""
+function data_to_DataFrame(data::Union{Dict, DataFrame, DataFrameRow})
     if data isa DataFrame
         return data
     elseif data isa DataFrameRow
@@ -93,9 +65,15 @@ function sanitize_data(model::JuMP.Model, data::Union{Dict, DataFrame, DataFrame
     end
 end
 
+
+"""
+    distance_to_set(val::Union{Array{<:Real},<:Real}, set::MOI.AbstractSet)
+
+Wrapper around MathOptSetDistances.distance_to_set.
+Distance 0 if value ∈ set. Otherwise, returns Float64.
+"""
 function distance_to_set(val::Union{Array{<:Real},<:Real}, set::MOI.AbstractSet)
-    """Wrapper around MathOptSetDistances.distance_to_set.
-       Distance 0 if value ∈ set. Otherwise, returns Float64. """
+
     return MathOptSetDistances.distance_to_set(MathOptSetDistances.DefaultDistance(), val, set)
 end
 
@@ -108,34 +86,50 @@ function get_constant(set::MOI.AbstractSet)
     end
 end
 
-function evaluate(constraint::ConstraintRef, data::Union{Dict, DataFrame})
-    """ Evaluates constraint violation on data in the variables, and returns distance from set.
-        Note that the keys of the Dict have to be uniform. """
-    constr_obj = constraint_object(constraint)
-    rhs_const = get_constant(constr_obj.set)
-    clean_data = sanitize_data(constraint.model, data);
-    if size(clean_data, 1) == 1
-        val = JuMP.value(constr_obj.func, i -> get(clean_data, string(i), Inf)[1])
-        if isinf(val)
-            throw(OCTException(string("Constraint ", constraint, " returned an infinite value.")))
-        end
-        if isnothing(rhs_const)
-            return -1*distance_to_set(val, constr_obj.set)
-        else
-            coeff=1
-            if constr_obj.set isa MOI.LessThan
-                coeff=-1
-            end
-            return coeff*(val - rhs_const)
-        end
+"""
+    functionify(constraint::JuMP.ConstraintRef, vars::Array)
+    functionify(constraint::Expr, vars::Array)
+
+Blunt function that returns an "evaluate-able" function from an Expr, or
+nothing for a JuMP.ConstraintRef.
+Can extend in the future to other elements.
+"""
+function functionify(constraint)
+    if constraint isa Expr
+        f = eval(constraint)
+        f isa Function && return f
+        throw(OCTException(string("functionify", f, "is not a valid function")))
     else
-        vals = [evaluate(constraint, DataFrame(clean_data[i,:])) for i=1:size(clean_data,1)]
-        return vals
+        return nothing
     end
 end
 
+"""
+    vars_from_expr(expr::Expression, model::JuMP.Model)
+
+Returns the JuMP Variables that are associated with a given function.
+Note: Function Expr's must be defined with a single input or a tuple of inputs, eg:
+
+    ex = :(x -> 5*x)
+    ex = :((x, y, z) -> sum(x[i] for i=1:4) - y[1] * y[2] + z)
+"""
+function vars_from_expr(expr::Expr, vars::Array{VariableRef, 1})
+    eval(expr) isa Function || throw(OCTException((string("eval of the following
+                                     Expr must return a function: ", expr))))
+    expr.args[1] isa Symbol && return [vars[1].model[expr.args[1]]]
+    return [vars[1].model[outer] for outer in expr.args[1].args]
+
+end
+
+function vars_from_expr(expr::Union{JuMP.ScalarConstraint, JuMP.ConstraintRef}, vars::Array{VariableRef, 1})
+    return vars
+end
+
+"""
+    linearize_objective!(model::JuMP.Model)
+Makes sure that the objective function is affine.
+"""
 function linearize_objective!(model::JuMP.Model)
-    """Makes sure that the objective function is affine. """
     objtype = JuMP.objective_function(model)
     objsense = string(JuMP.objective_sense(model))
     if objtype isa Union{VariableRef, GenericAffExpr} || objsense == "FEASIBILITY_SENSE"
@@ -153,38 +147,4 @@ function linearize_objective!(model::JuMP.Model)
         end
         return
     end
-end
-
-# function find_variables(sc::ScalarConstraint)
-#     """Returns the variables in a ScalarConstraint (Note: NOT NONLINEAR) object. """
-#     vars = Array{VariableRef}[];
-#     for (var, coef) in sc.func.terms
-#         if var isa VariableRef
-#             push!(vars, var)
-#         end
-#         if coeff
-#     end
-#     return vars
-# end
-
-
-function classify_constraints(model::JuMP.Model)
-    """Separates and returns linear and nonlinear constraints in a model. """
-    all_types = list_of_constraint_types(model)
-    nl_constrs = [];
-    l_constrs = [];
-    l_vartypes = [JuMP.VariableRef, JuMP.GenericAffExpr{Float64, VariableRef}]
-    l_constypes = [MOI.GreaterThan{Float64}, MOI.LessThan{Float64}, MOI.EqualTo{Float64}]
-    for (vartype, constype) in all_types
-        constrs_of_type = JuMP.all_constraints(model, vartype, constype)
-        if any(vartype .== l_vartypes) && any(constype .== l_constypes)
-            append!(l_constrs, constrs_of_type)
-        else
-            append!(nl_constrs, constrs_of_type)
-        end
-    end
-    if !isnothing(model.nlp_data)
-        append!(nl_constrs, model.nlp_data.nlconstr)
-    end
-    return l_constrs, nl_constrs
 end

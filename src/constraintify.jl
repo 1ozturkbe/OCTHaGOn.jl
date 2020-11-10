@@ -1,36 +1,32 @@
-function check_if_trained(lnr::IAI.OptimalTreeLearner)
-    """ Checks if a learner is trained. """
-    try
-        n_nodes = IAI.get_num_nodes(lnr);
-    catch err
-        if isa(err, UndefRefError)
-            throw(OCTException("Grids/trees require training before being used in constraints!"))
-        else
-            rethrow(err)
-        end
-    end
-end
-
-function clear_tree_constraints!(md::ModelData)
-    """ Clears the constraints in md.model of bbf.constraints. """
-    for bbf in md.fns
-        for constraint in bbf.constraints
-            if is_valid(md.model, constraint)
-                delete(md.model, constraint)
+""" Clears the constraints in GM of bbf.mi_constraints. """
+function clear_tree_constraints!(gm::GlobalModel, bbfs::Array{BlackBoxFunction})
+    for bbf in bbfs
+        for constraint in bbf.mi_constraints
+            if is_valid(gm.model, constraint)
+                delete(gm.model, constraint)
             end
         end
         for variable in bbf.leaf_variables
-            if is_valid(md.model, variable)
-                delete(md.model, variable)
+            if is_valid(gm.model, variable)
+                delete(gm.model, variable)
             end
         end
     end
     return
 end
 
-function add_tree_constraints!(md::ModelData; M=1e5)
-    """ Generates MI constraints from md.learners. """
-    for bbf in md.fns
+function clear_tree_constraints!(gm::GlobalModel)
+    clear_tree_constraints!(gm, gm.bbfs)
+    return
+end
+
+"""
+    add_tree_constraints!(gm::GlobalModel, bbfs::Array{BlackBoxFunction}; M=1e5)
+
+Generates MI constraints from gm.learners, and adds them to gm.model.
+"""
+function add_tree_constraints!(gm::GlobalModel, bbfs::Array{BlackBoxFunction}; M=1e5)
+    for bbf in bbfs
         if bbf.feas_ratio == 1.0
             return
         elseif bbf.feas_ratio == 0.0
@@ -42,20 +38,26 @@ function add_tree_constraints!(md::ModelData; M=1e5)
                                 can be generated."))
         else
             grid = bbf.learners[end];
-            constrs, leaf_vars = add_feas_constraints!(md.model,
-                                        [md.vars[vk] for vk in bbf.vks],
-                                        bbf.learners[end], bbf.vks;
+            constrs, leaf_vars = add_feas_constraints!(gm.model,
+                                        bbf.vars,
+                                        bbf.learners[end];
                               M=M, eq=bbf.equality,
                               return_data = true);
-            bbf.constraints = constrs; # Note: this is needed to monitor the presence of tree
-            bbf.leaf_variables = leaf_vars; #  constraints and variables in md.model.
+            bbf.mi_constraints = constrs; # Note: this is needed to monitor the presence of tree
+            bbf.leaf_variables = leaf_vars; #  constraints and variables in gm.model
         end
     end
     return
 end
 
-function add_feas_constraints!(m::JuMP.Model, x, grid::IAI.GridSearch,
-                               vks::Array; M::Float64 = 1.e5, eq = false,
+function add_tree_constraints!(gm::GlobalModel; M=1e5)
+    """ Generates MI constraints from gm.learners. """
+    add_tree_constraints!(gm, gm.bbfs, M=M)
+    return
+end
+
+function add_feas_constraints!(m::JuMP.Model, x, grid::IAI.GridSearch;
+                               M::Float64 = 1.e5, eq = false,
                                return_data::Bool = false)
     """
     Creates a set of binary feasibility constraints from
@@ -64,9 +66,7 @@ function add_feas_constraints!(m::JuMP.Model, x, grid::IAI.GridSearch,
         grid: A fitted GridSearch
         m:: JuMP Model
         x:: JuMPVariables (features in lnr)
-        vks:: varkeys of the features in lnr
     """
-    #TODO determine proper use for equalities
     lnr = IAI.get_learner(grid);
     check_if_trained(lnr);
     n_nodes = IAI.get_num_nodes(lnr);
@@ -85,7 +85,7 @@ function add_feas_constraints!(m::JuMP.Model, x, grid::IAI.GridSearch,
         push!(constraints, @constraint(m, sum(z_infeas) == 1))
     end
     # Getting lnr data
-    upperDict, lowerDict = trust_region_data(lnr, vks)
+    upperDict, lowerDict = trust_region_data(lnr, Symbol.(x))
     for i = 1:size(feas_leaves, 1)
         leaf = feas_leaves[i]
         # ADDING TRUST REGIONS
@@ -119,7 +119,7 @@ function add_feas_constraints!(m::JuMP.Model, x, grid::IAI.GridSearch,
     end
 end
 
-function add_regr_constraints!(m::JuMP.Model, x::Array, y, grid::IAI.GridSearch, vks::Array;
+function add_regr_constraints!(m::JuMP.Model, x::Array, y, grid::IAI.GridSearch;
                                M::Float64 = 1.e5, eq = false,
                                return_data::Bool = false)
     """
@@ -129,10 +129,8 @@ function add_regr_constraints!(m::JuMP.Model, x::Array, y, grid::IAI.GridSearch,
         x:: independent JuMPVariable (features in lnr)
         y:: dependent JuMPVariable (output of lnr)
         grid: A fitted Grid
-        vks:: varkeys of the features in lnr
         M:: coefficient in bigM formulation
     """
-    #TODO determine proper use for equalities
     lnr = IAI.get_learner(grid);
     check_if_trained(lnr);
     n_nodes = IAI.get_num_nodes(lnr)
@@ -143,8 +141,8 @@ function add_regr_constraints!(m::JuMP.Model, x::Array, y, grid::IAI.GridSearch,
     append!(leaf_variables, z)
     push!(constraints, @constraint(m, sum(z) == 1))
     # Getting lnr data
-    pwlDict = pwl_constraint_data(lnr, vks)
-    upperDict, lowerDict = trust_region_data(lnr, vks)
+    pwlDict = pwl_constraint_data(lnr, Symbol.(x))
+    upperDict, lowerDict = trust_region_data(lnr, Symbol.(x))
     for i = 1:size(all_leaves, 1)
         # ADDING CONSTRAINTS
         leaf = all_leaves[i]
@@ -168,82 +166,4 @@ function add_regr_constraints!(m::JuMP.Model, x::Array, y, grid::IAI.GridSearch,
     else
         return
     end
-end
-
-function pwl_constraint_data(lnr, vks)
-    """
-    Creates PWL dataset from a OptimalTreeLearner
-    Arguments:
-        lnr: OptimalTreeLearner
-        vks: headers of DataFrame X, i.e. varkeys
-    Returns:
-        Dict[leaf_number] containing [B0, B]
-    """
-    n_nodes = IAI.get_num_nodes(lnr)
-    all_leaves = [i for i = 1:n_nodes if IAI.is_leaf(lnr, i)]
-    pwlConstraintDict = Dict()
-    for i = 1:size(all_leaves, 1)
-        β0 = IAI.get_regression_constant(lnr, all_leaves[i])
-        weights = IAI.get_regression_weights(lnr, all_leaves[i])[1]
-        β = []
-        for i = 1:size(vks, 1)
-            if vks[i] in keys(weights)
-                append!(β, weights[vks[i]])
-            else
-                append!(β, 0.0)
-            end
-        end
-        pwlConstraintDict[all_leaves[i]] = [β0, β]
-    end
-    return pwlConstraintDict
-end
-
-function trust_region_data(lnr, vks)
-    """
-    Creates trust region from a OptimalTreeLearner
-    Arguments:
-        lnr: OptimalTreeLearner
-        vks: headers of DataFrame X, i.e. varkeys
-    Returns:
-        Dict[leaf_number] containing [B0, B]
-    """
-    n_nodes = IAI.get_num_nodes(lnr)
-    all_leaves = [i for i = 1:n_nodes if IAI.is_leaf(lnr, i)]
-    upperDict = Dict()
-    lowerDict = Dict()
-    for i = 1:size(all_leaves, 1)
-        # Find all parents
-        parents = [all_leaves[i]]
-        while IAI.get_depth(lnr, parents[end]) > 0
-            append!(parents, IAI.get_parent(lnr, parents[end]))
-        end
-        upperDict[all_leaves[i]] = []
-        lowerDict[all_leaves[i]] = []
-        for j in parents[2:end]
-            # For each parent, define trust region with binary variables
-            threshold = IAI.get_split_threshold(lnr, j)
-            if IAI.is_hyperplane_split(lnr, j)
-                weights = IAI.get_split_weights(lnr, j)
-                weights = weights[1]
-            else
-                feature = IAI.get_split_feature(lnr, j)
-                weights = Dict(feature => 1)
-            end
-            upper = IAI.get_upper_child(lnr, j) in parents # Checking upper vs. lower split
-            α = []
-            for i = 1:size(vks, 1)
-                if vks[i] in keys(weights)
-                    append!(α, weights[vks[i]])
-                else
-                    append!(α, 0.0)
-                end
-            end
-            if upper
-                append!(upperDict[all_leaves[i]], [[threshold, α]])
-            else
-                append!(lowerDict[all_leaves[i]], [[threshold, α]])
-            end
-        end
-    end
-    return upperDict, lowerDict
 end

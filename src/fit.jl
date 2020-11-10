@@ -29,49 +29,58 @@ function learn_from_data!(X::DataFrame, Y::AbstractArray, grid; idxs::Union{Noth
     return grid
 end
 
-function check_feasibility(bbf::Union{ModelData, BlackBoxFunction})
-    """ Checks that a BlackBoxFunction has enough feasible/infeasible samples. """
+""" Checks that a BlackBoxFunction has enough feasible/infeasible samples. """
+function check_feasibility(bbf::Union{GlobalModel, BlackBoxFunction})
     if isa(bbf, BlackBoxFunction)
         return bbf.feas_ratio >= bbf.threshold_feasibility
     else
-        return [check_feasibility(fn) for fn in bbf.fns]
+        return [check_feasibility(fn) for fn in bbf.bbfs]
     end
 end
 
-function check_accuracy(bbf::Union{ModelData, BlackBoxFunction})
-    """ Checks that a BlackBoxFunction.learner has adequate accuracy."""
+""" Checks that a BlackBoxFunction.learner has adequate accuracy."""
+function check_accuracy(bbf::Union{GlobalModel, BlackBoxFunction})
     if isa(bbf, BlackBoxFunction)
         return bbf.accuracies[end] >= bbf.threshold_accuracy
     else
-        return [check_accuracy(fn) for fn in bbf.fns]
+        return [check_accuracy(fn) for fn in bbf.bbfs]
     end
 end
 
-function fns_by_feasibility(md::ModelData)
-    """Classifies and returns names of functions that pass/fail the feasibility check. """
-    arr = [check_feasibility(fn) for fn in md.fns];
-    infeas_idxs = findall(x -> x .== 0, arr);
-    feas_idxs = findall(x -> x .!= 0, arr);
-    names = [fn.name for fn in md.fns];
-    return names[feas_idxs], names[infeas_idxs]
+""" Classifies and returns names of functions that pass/fail the feasibility check. """
+function fns_by_feasibility(gm::GlobalModel)
+    arr = [check_feasibility(fn) for fn in gm.bbfs]
+    infeas_idxs = findall(x -> x .== 0, arr)
+    feas_idxs = findall(x -> x .!= 0, arr) # TODO: use complement.
+    return gm.bbfs[feas_idxs], gm.bbfs[infeas_idxs]
 end
 
-function learn_constraint!(bbf::Union{ModelData, Array{BlackBoxFunction}, BlackBoxFunction};
+"""
+    learn_constraint!(bbf::Union{GlobalModel, Array{BlackBoxFunction}, BlackBoxFunction};
                            lnr::IAI.OptimalTreeLearner = base_otc(),
                            weights::Union{Array, Symbol} = :autobalance, dir::String = "-",
                            validation_criterion=:misclassification,
                            ignore_checks::Bool = false)
-    """
-    Return a constraint tree from a BlackBoxFunction.
-    Arguments:
-        lnr: Unfit OptimalTreeClassifier or Grid
-        constraint: BlackBoxFunction in std form (>= 0)
-        X: new data to add to BlackBoxFunction and evaluate
-    Returns:
-        lnr: Fitted Grid
-    """
-    if isa(bbf, ModelData)
-        for fn in bbf.fns
+
+Constructs a constraint tree from a BlackBoxFunction and dumps in bbf.learners.
+Arguments:
+    bbf:: OCT structs (GM, BBF, Array{BBF})
+    lnr: Unfit OptimalTreeClassifier or Grid
+    X: new data to add to BlackBoxFunction and evaluate
+    weights: weighting of the data points
+    dir: save location
+    ignore_checks: True only for debugging purposes.
+                   Ignores feasibility and sample distribution checks.
+Returns:
+    nothing
+"""
+function learn_constraint!(bbf::Union{GlobalModel, Array{BlackBoxFunction}, BlackBoxFunction};
+                           lnr::IAI.OptimalTreeLearner = base_otc(),
+                           weights::Union{Array, Symbol} = :autobalance, dir::String = "-",
+                           validation_criterion=:misclassification,
+                           ignore_checks::Bool = false)
+    if isa(bbf, GlobalModel)
+        for fn in bbf.bbfs
             learn_constraint!(fn, lnr=lnr, weights=weights, dir=dir,
                               validation_criterion = validation_criterion, ignore_checks=ignore_checks)
         end
@@ -107,6 +116,10 @@ function learn_constraint!(bbf::Union{ModelData, Array{BlackBoxFunction}, BlackB
     return
 end
 
+"""
+Basic regression purely for debugging.
+TODO: refine and/or remove.
+"""
 function regress(points::DataFrame, values::Array; weights::Union{Array, Nothing} = nothing)
     lnr= IAI.OptimalFeatureSelectionRegressor(sparsity = :all); # TODO: optimize regression method.
     if isnothing(weights)

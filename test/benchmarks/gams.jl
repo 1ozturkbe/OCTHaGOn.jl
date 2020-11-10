@@ -12,7 +12,7 @@ using IterTools
 filename = "data/baron_nc_ns/problem3.13.gms"
 
 function vars_to_vks(vars)
-    """ Turns gams["variables"] to varkeys for use in ModelData. """
+    """ Turns gams["variables"] to varkeys for use in GlobalModel. """
     vks = Symbol[];
     vartypes = Dict()
     for (v, vinfo) in vars
@@ -177,7 +177,7 @@ end
 vks, vartypes = vars_to_vks(gams["variables"]);
 lbs, ubs, x0 = get_bounds(gams["variables"]);
 
-# Initialize JuMP.Model
+# Initialize GlobalModel
 all_vars = GAMSFiles.allvars(gams)
 m = JuMP.Model()
 syms = [:x,:y,:z]
@@ -187,7 +187,7 @@ syms = [:x,:y,:z]
 
 c = zeros(length(vks));
 c[findall(i -> i == Symbol(gams["minimizing"]), vks)] .= 1;
-model = OCT.ModelData(c = c, vks = vks);
+model = OCT.GlobalModel(c = c, vks = vks);
 
 # Create BlackBoxFunction expressions
 for (key, eq) in gams["equations"]
@@ -212,4 +212,4 @@ for (key, eq) in gams["equations"]
 end
 
 inp = Dict(vk => 1 for vk in model.vks)
-model.fns[2](inp)
+model.bbfs[2](inp)
