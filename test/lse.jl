@@ -11,14 +11,14 @@ function compile_lse_constraints(n_samples = 300)
     sagemarks = pyimport("sagebenchmarks.literature.solved");
     ineq_constraints = BlackBoxFunction[];
     for idx=1:25
-        md = OCT.sagemark_to_ModelData(idx, lse = false);
+        md = OCT.sagemark_to_GlobalModel(idx, lse = false);
         update_bounds!(md, lbs = Dict(md.vks[end] => -200), ubs= Dict(md.vks[end] => 200))
         if !any(isinf.(values(md.lbs))) && !any(isinf.(values(md.ubs)))
             println("Adding constraints from test ", string(idx));
-            for i=1:length(md.fns)
-                md.fns[i].n_samples = n_samples;
-                md.fns[i].name = Float64(idx) + i/10.;
-                push!(ineq_constraints, md.fns[i]);
+            for i=1:length(md.bbfs)
+                md.bbfs[i].n_samples = n_samples;
+                md.bbfs[i].name = Float64(idx) + i/10.;
+                push!(ineq_constraints, md.bbfs[i]);
             end
         end
     end
@@ -60,7 +60,7 @@ plot_accuracies(ineqs[nonconvex_idxs])
 # # Retrain non-convex with different numbers of samples
 # n_samples = [100, 250, 500, 750, 1000];
 # for idx in problem_idxs
-#     md = OCT.sagemark_to_ModelData(problem_idxs[idx], lse=false);
+#     md = OCT.sagemark_to_GlobalModel(problem_idxs[idx], lse=false);
 #     n_dims = length(md.lbs);
 #     for j in n_samples
 #         plan, _ = LHCoptim(j, n_dims, 1);
@@ -75,7 +75,7 @@ plot_accuracies(ineqs[nonconvex_idxs])
 # grids = [IAI.read_json(string("data/constraint",idx,"_",j,"samples",".tree")) for j in n_samples for idx=1:length(ineqs)]; # inside for loop gets executed first.
 # scores = [];
 # for idx=1:length(ineqs)
-#     md = OCT.sagemark_to_ModelData(problem_idxs[idx], lse=false);
+#     md = OCT.sagemark_to_GlobalModel(problem_idxs[idx], lse=false);
 #     n_dims = length(md.lbs);
 #     plan, _ = LHCoptim(maximum(n_samples), n_dims, 1);
 #     X = scaleLHC(plan,[(md.lbs[i], md.ubs[i]) for i=1:n_dims]);

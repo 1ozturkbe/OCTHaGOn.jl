@@ -5,7 +5,6 @@ cbf:
 - Date: 2020-09-02
 =#
 
-
 # Test CBF imports
 #     gams01, netmod_dol2, netmod_kar1, netmod_kar2, du-opt, du-opt5, nvs03, ex1223, ex1223a, ex1223b, gbd
 filename = string("data/cblib/shortfall_20_15.cbf.gz");
@@ -17,7 +16,6 @@ optimize!(model);
 moi_obj = JuMP.getobjectivevalue(model);
 @test moi_obj ≈ -1.0792654303
 
-
 # Testing CBF import to ModelData
 md = OptimalConstraintTree.CBF_to_ModelData(filename);
 md.name = "shortfall_20_15"
@@ -27,25 +25,9 @@ update_bounds!(md, ubs = Dict(md.vks .=> 1.));
 
 # Testing constraint import.
 n_samples = 200;
-bbf = md.fns[1];
+bbf = md.bbfs[1];
 X = lh_sample(bbf, n_samples=n_samples);
-Y = md.fns[1](X);
-
-# Testing proper CBF constraint import.
-using ConicBenchmarkUtilities
-dat = readcbfdata(filename);
-c, A, b, constr_cones, var_cones, vartypes, sense, objoffset = cbftompb(dat);
-(cone,idxs) = constr_cones[6];
-var_idxs = unique(cart_ind[2] for cart_ind in findall(!iszero, A[idxs, :])); # CartesianIndices...
-function constr_fn(x)
-    let b = copy(b[idxs]), A = copy(A[idxs, var_idxs])
-        expr = b - A*x;
-        return expr[1].^2 - sum(expr[2:end].^2);
-    end
-end
-Y2 = [constr_fn(Array(X[j,:])) for j=1:n_samples];
-@test Y == Y2;
-
+Y = md.bbfs[1](X);
 
 # Testing sample_and_eval for combined LH and boundary sampling.
 sample_and_eval!(md, n_samples=500);

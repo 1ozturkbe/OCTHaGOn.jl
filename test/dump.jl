@@ -68,7 +68,6 @@
 #     IAI.fit!(lnr, nX, nY)
 #     return lnr
 
-# TODO: turn into ModelData_solve
 # function example_optimize!(md::ModelData; M=1e5)
 #     """ Solves an already fitted function_model. """
 #     # Retrieving constraints

@@ -13,6 +13,8 @@ lnr = OCT.base_otr()
 # Getting data from aerospace database.
 X = CSV.read("../data/afpm/afpm_inputs.csv",
                  copycols=true, delim=",");
+x_infeas = CSV.read("../data/afpm/afpm_infeas_inputs.csv",
+                    copycols=true, delim=",")
 Y = CSV.read("../data/afpm/afpm_outputs.csv",
                  copycols=true, delim=",");
 X = select!(X, Not(:Column1))
@@ -20,6 +22,9 @@ Y = select!(Y, Not(:Column1))
 valid_idxs = findall(x -> x .>= 0.5, Y.Efficiency);
 X = X[valid_idxs,:];
 Y = Y[valid_idxs,:];
+
+# Learning geometry infeasibility
+lnr = IAI.fit()
 
 # Learning specific power
 # lnr = IAI.fit!(OCT.gridify(lnr), log.(X), log.(Y[!, Symbol("Mass Specific Power")]))

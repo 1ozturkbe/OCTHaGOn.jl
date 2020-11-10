@@ -7,9 +7,11 @@ Root-finding methods sampling nonlinear functions
 
 function normalized_data(bbf::BlackBoxFunction)
     """ Normalizes and returns data (0-1) by lower and upper bounds."""
-    lbs_arr = [bbf.lbs[vk] for vk in bbf.vks];
-    ubs_arr = [bbf.ubs[vk] for vk in bbf.vks];
-    normalized_X = reduce(hcat,[(bbf.X[:, i] .- lbs_arr[i]) ./(ubs_arr[i] - lbs_arr[i]) for i=1:length(bbf.vks)]);
+    bounds = get_bounds(bbf.vars)
+    vks = string.(bbf.vars)
+    lbs = [minimum(value) for (key, value) in bounds]
+    ubs = [maximum(value) for (key, value) in bounds]
+    normalized_X = reduce(hcat,[(bbf.X[:, i] .- lbs[i]) ./(ubs[i] - lbs[i]) for i=1:length(vks)]);
     return normalized_X
 end
 
@@ -42,10 +44,6 @@ function classify_patches(bbf::BlackBoxFunction, idxs::Array)
     end
     return arr
 end
-
-# function sampling_policy(bbf::BlackBoxFunction, idxs::Array)
-#     class_dict = classify_patches(bbf, idxs)
-#     feas_ratio = bbf.feas_ratio
 
 function secant_method(X::DataFrame, Y::Array)
     """ Generates samples estimated to be near a zero from X and Y data with mixed feasibility. """
