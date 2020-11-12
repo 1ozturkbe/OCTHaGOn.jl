@@ -145,17 +145,18 @@ function nonlinearize!(gm::GlobalModel, bbfs::Array{BlackBoxFunction})
         if bbf.constraint isa JuMP.ConstraintRef
             JuMP.add_constraint(gm.model, bbf.constraint)
         elseif bbf.constraint isa Expr
-            JuMP.register(gm.model, Symbol(bbf.name), length(bbf.expr_vars), bbf.fn, autodiff=true)
-            x = bbf.expr_vars
-            if bbf.equality
-                @NLconstraint(gm.model, Symbol(bbf.name)(x...) >= 0)
-#                 JuMP.add_NL_constraint(gm.model, Expr(:call, :(==), bbf.constraint.args[2], 0))
-#                 @NLconstraint(gm.model, Expr(:call, :($bbf.name), x...) == 0)
-            else
-                @NLconstraint(gm.model, f(x...) == 0)
-#                 @NLconstraint(gm.model, Expr(:call, :($bbf.name), x...) >= 0)
-#                 @NLconstraint(gm.model, bbf.fn(bbf.expr_vars...) >= 0)
-            end
+            continue
+#             JuMP.register(gm.model, Symbol(bbf.name), length(bbf.expr_vars), bbf.fn, autodiff=true)
+#             x = bbf.expr_vars
+#             if bbf.equality
+#                 @NLconstraint(gm.model, Symbol(bbf.name)(x...) >= 0)
+# #                 JuMP.add_NL_constraint(gm.model, Expr(:call, :(==), bbf.constraint.args[2], 0))
+# #                 @NLconstraint(gm.model, Expr(:call, :($bbf.name), x...) == 0)
+#             else
+#                 @NLconstraint(gm.model, f(x...) == 0)
+# #                 @NLconstraint(gm.model, Expr(:call, :($bbf.name), x...) >= 0)
+# #                 @NLconstraint(gm.model, bbf.fn(bbf.expr_vars...) >= 0)
+#             end
         end
     end
     return

@@ -25,6 +25,8 @@ module OptimalConstraintTree
 
     include("black_box_function.jl")
 
+    include("data_constraint.jl")
+
     include("root_finding.jl")
 
     include("post_process.jl")
@@ -44,11 +46,11 @@ module OptimalConstraintTree
     include("tools.jl")
 
            # Structs
-    export GlobalModel, BlackBoxFunction,
+    export GlobalModel, BlackBoxFunction, DataConstraint,
            # GlobalModel Functions
            fns_by_feasibility, globalsolve,
            # JuMP.Model extensions to GlobalModel
-#            set_optimizer, optimize!, JuMP.all_variables,
+           set_optimizer, optimize!,
            # Functions on GlobalModel and BlackBoxFunctions
            gridify, learn_from_data!, find_bounds!, add_nonlinear_constraint,
            lh_sample, boundary_sample,
@@ -70,7 +72,7 @@ module OptimalConstraintTree
            distance_to_set, get_constant,
            add_feas_constraints!, add_regr_constraints!,
            add_tree_constraints!, clear_tree_constraints!,
-           base_otr, base_otc, sample,
+           base_otr, base_otc,
            functionify,
            # Functions to import global optimization problems,
            sagemark_to_GlobalModel,

@@ -41,7 +41,7 @@ end
 # end
 
 
-function show_trees(bbf::Union{BlackBoxFunction, DataConstraint}
+function show_trees(bbf::Union{BlackBoxFunction, DataConstraint})
     for grid in bbf.learners
         IAI.show_in_browser(grid.lnr)
     end
