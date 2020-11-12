@@ -67,12 +67,13 @@ JuMP.register(model, symb, 3, eval(fex); autodiff = true)
 vars = [x,y,z]
 JuMP.add_NL_constraint(model, :($(symb)($(vars)...) == 0))
 
+
 @constraint(model, sum(x[4]^2 + x[5]^2) <= z)
 @constraint(model, sum(y[:]) >= -2)
 
 # Testing proper mapping for expressions
 flatvars = flat([y[2], z, x[1:4]])
-vars = vars_from_expr(ex, model)
+vars = vars_from_expr(expr, model)
 @test get_varmap(vars, flatvars) == [(2,2), (3,0), (1,1), (1, 2), (1,3), (1,4)]
 @test infarray([(1,4), (1,3), (2,0)]) == [[Inf, Inf, Inf, Inf], Inf]
 
@@ -114,10 +115,10 @@ sets = [MOI.GreaterThan(2), MOI.EqualTo(0), MOI.SecondOrderCone(3), MOI.Geometri
 
 # Test BBF creation from a variety of functions
 @test isnothing(functionify(nl_constrs[1]))
-@test functionify(ex) isa Function
+@test functionify(expr) isa Function
 # @test_throws
 bbfs = [BlackBoxFunction(constraint = nl_constrs[1], vars = [x[4], x[5], z]),
-        BlackBoxFunction(constraint = ex, vars = flat([x[1:4], y[1:2], z]))]
+        BlackBoxFunction(constraint = expr, vars = flat([x[1:4], y[1:2], z]))]
 
 # Evaluation (scalar)
 # Quadratic (JuMP compatible) constraint

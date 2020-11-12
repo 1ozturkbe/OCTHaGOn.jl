@@ -6,7 +6,7 @@ sample_data:
 =#
 
 """
-    get_varmap(vars::Array)
+    get_varmap(expr_vars::Array, vars::Array)
 
 Helper function to map vars to flatvars.
 Arguments:
@@ -15,6 +15,7 @@ Arguments:
 Returns:
     Dict of ID maps
 """
+
 function get_varmap(expr_vars::Array, vars::Array)
     if isnothing(expr_vars)
         return
@@ -42,6 +43,10 @@ function get_varmap(expr_vars::Array, vars::Array)
         end
     end
     return varmap
+end
+
+function get_varmap(expr_vars::Nothing, vars::Array)
+    return nothing
 end
 
 
