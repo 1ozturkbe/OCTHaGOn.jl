@@ -74,7 +74,8 @@ Arguments:
 Returns:
     nothing
 """
-function learn_constraint!(bbf::Union{GlobalModel, Array{BlackBoxFunction}, BlackBoxFunction};
+function learn_constraint!(bbf::Union{GlobalModel, Array{BlackBoxFunction, DataConstraint},
+                                      BlackBoxFunction, DataConstraint};
                            lnr::IAI.OptimalTreeLearner = base_otc(),
                            weights::Union{Array, Symbol} = :autobalance, dir::String = "-",
                            validation_criterion=:misclassification,

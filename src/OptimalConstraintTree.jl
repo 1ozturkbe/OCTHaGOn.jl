@@ -55,10 +55,13 @@ module OptimalConstraintTree
            accuracy, feasibility, check_accuracy, check_feasibility, check_bounds,
            solution, evaluate_feasibility,
            nonlinearize!,
-           # Functions on BlackBoxFunctions
-           eval!, sample_and_eval!, plot, learn_constraint!,
+           # Functions on both BlackBoxFunctions and DataConstraints
+           show_trees, learn_constraint!,
+           # Functions on BlackBoxFunctions only
+           eval!, sample_and_eval!,
            secant_method, knn_sample, build_knn_tree,
            find_knn, classify_patches,
+           # Functions on DataConstraints only
            # Functions on JuMP objects
            evaluate, fetch_variable, get_bounds,
            linearize_objective!, classify_constraints,
@@ -75,7 +78,6 @@ module OptimalConstraintTree
            # Exceptions
            OCTException,
            # Display and plotting
-           show_trees,
 #            plot_2d, plot_2d_predictions, plot_accuracies
            # Debugging tools
             clear_data!, chop_dict,

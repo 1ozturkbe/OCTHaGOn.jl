@@ -96,7 +96,7 @@ end
 """
     @with_kw mutable struct BlackBoxFunction
 
-Contains all required info to be able to generate a global optimization constraint.
+Contains all required info to be able to generate a global optimization constraint from a function.
 Mandatory arguments:
     constraint::Union{JuMP.ConstraintRef, Expr}
     vars::Array{JuMP.VariableRef,1}
