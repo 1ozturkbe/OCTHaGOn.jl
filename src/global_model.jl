@@ -138,22 +138,18 @@ end
 
 Turns gm.model into the nonlinear representation.
 NOTE: to get back to MI-compatible forms, must rebuild model from scratch.
-TODO: Complete!
 """
 function nonlinearize!(gm::GlobalModel, bbfs::Array{BlackBoxFunction})
-    m = gm.model
-    for bbf in bbfs
+    for (i, bbf) in enumerate(bbfs)
         if bbf.constraint isa JuMP.ConstraintRef
-            JuMP.add_constraint(m, bbf.constraint)
+            JuMP.add_constraint(gm.model, bbf.constraint)
         elseif bbf.constraint isa Expr
-#             JuMP.register(m, Symbol(bbf.name), length(bbf.expr_vars), bbf.fn, autodiff=true)
+            f = Symbol(bbf.name)
+            JuMP.register(gm.model, f, length(bbf.expr_vars), bbf.fn; autodiff = true)
             if bbf.equality
-                JuMP.add_NL_constraint(m, Expr(:call, :(==), bbf.constraint.args[2], 0))
-#                 @NLconstraint(m, Expr(:call, :($bbf.name), x...) == 0)
+                JuMP.add_NL_constraint(gm.model, :($(f)($(bbf.expr_vars)...) == 0))
             else
-                JuMP.add_NL_constraint(m, Expr(:call, :(==), bbf.constraint.args[2], 0))
-#                 @NLconstraint(m, Expr(:call, :($bbf.name), x...) >= 0)
-#                 @NLconstraint(m, bbf.fn(bbf.expr_vars...) >= 0)
+                JuMP.add_NL_constraint(gm.model, :($(f)($(bbf.expr_vars)...) >= 0))
             end
         end
     end
