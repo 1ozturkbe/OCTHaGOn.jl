@@ -19,22 +19,22 @@ model = Model()
 end)
 
 # Testing expression parsing
-ex = :((x, y, z) -> sum(x[i] for i=1:4) - y[1] * y[2] + z)
-simp_ex = :(x -> sum(5 .* x))
-f = eval(ex)
-simp_f = eval(simp_ex)
-ex_vars = [x,y,z]
+expr = :((x, y, z) -> sum(x[i] for i=1:4) - y[1] * y[2] + z)
+simp_expr = :(x -> sum(5 .* x))
+f = eval(expr)
+simp_f = eval(simp_expr)
+expr_vars = [x,y,z]
 @assert f(ones(4), ones(2),5) isa Float64
 @assert f(x,y,z) isa JuMP.GenericQuadExpr
-@assert vars_from_expr(ex, flat([x[1:4], y[1:2], z])) == ex_vars
-@assert vars_from_expr(simp_ex, flat([x])) == [x]
+@assert vars_from_expr(expr, model) == expr_vars
+@assert vars_from_expr(simp_expr, model) == [x]
 
 @constraint(model, sum(x[4]^2 + x[5]^2) <= z)
 @constraint(model, sum(y[:]) >= -2)
 
 # Testing proper mapping for expressions
 flatvars = flat([y[2], z, x[1:4]])
-vars = vars_from_expr(ex, flatvars)
+vars = vars_from_expr(expr, model)
 @test get_varmap(vars, flatvars) == [(2,2), (3,0), (1,1), (1, 2), (1,3), (1,4)]
 @test infarray([(1,4), (1,3), (2,0)]) == [[Inf, Inf, Inf, Inf], Inf]
 
@@ -76,10 +76,10 @@ sets = [MOI.GreaterThan(2), MOI.EqualTo(0), MOI.SecondOrderCone(3), MOI.Geometri
 
 # Test BBF creation from a variety of functions
 @test isnothing(functionify(nl_constrs[1]))
-@test functionify(ex) isa Function
+@test functionify(expr) isa Function
 # @test_throws
 bbfs = [BlackBoxFunction(constraint = nl_constrs[1], vars = [x[4], x[5], z]),
-        BlackBoxFunction(constraint = ex, vars = flat([x[1:4], y[1:2], z]))]
+        BlackBoxFunction(constraint = expr, vars = flat([x[1:4], y[1:2], z]))]
 
 # Evaluation (scalar)
 # Quadratic (JuMP compatible) constraint
