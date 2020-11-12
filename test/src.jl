@@ -24,10 +24,27 @@ simp_ex = :(x -> sum(5 .* x))
 f = eval(ex)
 simp_f = eval(simp_ex)
 ex_vars = [x,y,z]
-@assert f(ones(4), ones(2),5) isa Float64
-@assert f(x,y,z) isa JuMP.GenericQuadExpr
-@assert vars_from_expr(ex, flat([x[1:4], y[1:2], z])) == ex_vars
-@assert vars_from_expr(simp_ex, flat([x])) == [x]
+
+@test f(ones(4), ones(2),5) isa Float64
+@test f(x,y,z) isa JuMP.GenericQuadExpr && f(ex_vars...) == sum(x[1:4]) - y[1] * y[2] + z
+@test vars_from_expr(ex, flat([x[1:4], y[1:2], z])) == ex_vars
+@test vars_from_expr(simp_ex, flat([x])) == [x]
+
+
+# Expression registering
+using JuMP
+model = Model()
+@variables(model, begin
+    -5 <= x[1:5] <= 5
+    -4 <= y[1:3] <= 1
+    -30 <= z
+end)
+# Testing expression parsing
+ex = :((x, y, z) -> sum(x[i] for i=1:4) - y[1] * y[2] + z)
+symb = :fg
+JuMP.register(model, symb, 3, eval(ex); autodiff = true)
+vars = [x,y,z]
+JuMP.add_NL_constraint(model, :($(symb)($(vars)...) == 0))
 
 @constraint(model, sum(x[4]^2 + x[5]^2) <= z)
 @constraint(model, sum(y[:]) >= -2)
@@ -68,7 +85,7 @@ inp_df = DataFrame(inp_dict)
 # Separation of constraints of generated nl_model
 nl_model = copy(model) # NOTE: copy only works if JuMP.Model has no NLconstraints.
 l_constrs, nl_constrs = classify_constraints(nl_model)
-@test length(l_constrs) == 20 && length(nl_constrs) == 1
+@test length(l_constrs) == 20 && length(nl_constrs) == 2
 
 # Set constants
 sets = [MOI.GreaterThan(2), MOI.EqualTo(0), MOI.SecondOrderCone(3), MOI.GeometricMeanCone(2), MOI.SOS1([1,2,3])]
