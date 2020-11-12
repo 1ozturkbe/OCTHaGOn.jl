@@ -19,16 +19,36 @@ model = Model()
 end)
 
 # Testing expression parsing
-ex = :((x, y, z) -> sum(x[i] for i=1:4) - y[1] * y[2] + z)
-simp_ex = :(x -> sum(5 .* x))
-f = eval(ex)
-simp_f = eval(simp_ex)
-ex_vars = [x,y,z]
+expr = :((x, y, z) -> sum(x[i] for i=1:4) - y[1] * y[2] + z)
+simp_expr = :(x -> sum(5 .* x))
+f = eval(expr)
+simp_f = eval(simp_expr)
+expr_vars = [x,y,z]
 
 @test f(ones(4), ones(2),5) isa Float64
-@test f(x,y,z) isa JuMP.GenericQuadExpr && f(ex_vars...) == sum(x[1:4]) - y[1] * y[2] + z
-@test vars_from_expr(ex, flat([x[1:4], y[1:2], z])) == ex_vars
-@test vars_from_expr(simp_ex, flat([x])) == [x]
+@test f(x,y,z) isa JuMP.GenericQuadExpr && f(expr_vars...) == sum(x[1:4]) - y[1] * y[2] + z
+@test vars_from_expr(expr, model) == expr_vars
+@test vars_from_expr(simp_expr, model) == [x]
+
+vars = flat(expr_vars)
+aux_vars = [Symbol("aux$(i)") for i=1:length(vars)]
+varmap = get_varmap(expr_vars, vars)
+lhs = :(($(aux_vars)...))
+vars_copy = deepcopy(expr.args[1].args)
+expr_copy = deepcopy(expr.args[2])
+
+
+for i = 1:length(expr_vars)
+    tuple_idxs = findall(x -> x[1] == i, varmap)
+    if length(tuple_idxs) == 1 # Scalar inputs to the function
+        expr_copy = substitute(expr_copy, vars_copy[i]=> aux_vars[tuple_idxs[1]])
+    else
+        expr_copy = substitute(expr_copy, vars_copy[i] => aux_vars[tuple_idxs])
+    end
+end
+fn = :($(lhs) -> $(expr_copy))
+
+
 
 
 # Expression registering
@@ -41,8 +61,9 @@ model = Model()
 end)
 # Testing expression parsing
 ex = :((x, y, z) -> sum(x[i] for i=1:4) - y[1] * y[2] + z)
-symb = :fg
-JuMP.register(model, symb, 3, eval(ex); autodiff = true)
+fex = :((x...) -> $(ex)(x[1], x[2], x[3]))
+symb = :feg
+JuMP.register(model, symb, 3, eval(fex); autodiff = true)
 vars = [x,y,z]
 JuMP.add_NL_constraint(model, :($(symb)($(vars)...) == 0))
 
@@ -51,7 +72,7 @@ JuMP.add_NL_constraint(model, :($(symb)($(vars)...) == 0))
 
 # Testing proper mapping for expressions
 flatvars = flat([y[2], z, x[1:4]])
-vars = vars_from_expr(ex, flatvars)
+vars = vars_from_expr(ex, model)
 @test get_varmap(vars, flatvars) == [(2,2), (3,0), (1,1), (1, 2), (1,3), (1,4)]
 @test infarray([(1,4), (1,3), (2,0)]) == [[Inf, Inf, Inf, Inf], Inf]
 

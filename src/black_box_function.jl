@@ -16,8 +16,12 @@ Returns:
     Dict of ID maps
 """
 function get_varmap(expr_vars::Array, vars::Array)
-    length(flat(expr_vars)) >= length(vars) || throw(OCTException(string("Insufficiently many input
-    variables declared in ", vars, ".")))
+    if isnothing(expr_vars)
+        return
+    else
+        length(flat(expr_vars)) >= length(vars) || throw(OCTException(string("Insufficiently many input
+        variables declared in ", vars, ".")))
+    end
     unique(vars) == vars || throw(OCTException(string("Nonunique variables among ", vars, ".")))
     varmap = Tuple[(0,0) for i=1:length(vars)]
     for i = 1:length(expr_vars)
@@ -103,9 +107,9 @@ Can be tagged with additional info.
     constraint::Union{JuMP.ConstraintRef, Expr}        # The "raw" constraint
     vars::Array{JuMP.VariableRef,1}                      # JuMP variables (flat)
     name::Union{String, Real} = ""                     # Function name
-    fn::Union{Nothing, Function} = functionify(constraint)   # ... and actually evaluated f'n
-    expr_vars = vars_from_expr(constraint, vars)    # Function inputs (nonflat JuMP variables)
+    expr_vars = vars_from_expr(constraint, vars[1].model)          # Function inputs (nonflat JuMP variables)
     varmap::Union{Nothing,Array} = get_varmap(expr_vars, vars)     # ... with the required varmapping.
+    fn::Union{Nothing, Function} = functionify(constraint)         # ... and actually evaluated f'n
     X::DataFrame = DataFrame([Float64 for i=1:length(varmap)], string.(vars))
                                                        # Function samples
     Y::Array = []                                      # Function values

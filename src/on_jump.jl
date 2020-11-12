@@ -113,16 +113,16 @@ Note: Function Expr's must be defined with a single input or a tuple of inputs, 
     ex = :(x -> 5*x)
     ex = :((x, y, z) -> sum(x[i] for i=1:4) - y[1] * y[2] + z)
 """
-function vars_from_expr(expr::Expr, vars::Array{VariableRef, 1})
+function vars_from_expr(expr::Expr, model::JuMP.Model)
     eval(expr) isa Function || throw(OCTException((string("eval of the following
                                      Expr must return a function: ", expr))))
-    expr.args[1] isa Symbol && return [vars[1].model[expr.args[1]]]
-    return [vars[1].model[outer] for outer in expr.args[1].args]
+    expr.args[1] isa Symbol && return [model[expr.args[1]]]
+    return [model[outer] for outer in expr.args[1].args]
 
 end
 
-function vars_from_expr(expr::Union{JuMP.ScalarConstraint, JuMP.ConstraintRef}, vars::Array{VariableRef, 1})
-    return vars
+function vars_from_expr(expr::Union{JuMP.ScalarConstraint, JuMP.ConstraintRef}, model::JuMP.Model)
+    return nothing
 end
 
 """
