@@ -2,7 +2,6 @@ module OptimalConstraintTree
     using Combinatorics
     using ConicBenchmarkUtilities
     using DataFrames
-    using Distributions
     using Gurobi
     using JuMP
     using LatinHypercubeSampling

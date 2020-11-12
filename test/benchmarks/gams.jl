@@ -5,7 +5,7 @@ gams:
 - Date: 2020-09-10
 =#
 include("../load.jl")
-include("../../../GAMSFiles.jl/src/GAMSFiles.jl")
+include("../GAMSFiles.jl/src/GAMSFiles.jl")
 using .GAMSFiles
 using IterTools
 
@@ -181,9 +181,6 @@ lbs, ubs, x0 = get_bounds(gams["variables"]);
 all_vars = GAMSFiles.allvars(gams)
 m = JuMP.Model()
 syms = [:x,:y,:z]
-@variable(m, Meta.parse(:x))
-
-
 
 c = zeros(length(vks));
 c[findall(i -> i == Symbol(gams["minimizing"]), vks)] .= 1;
