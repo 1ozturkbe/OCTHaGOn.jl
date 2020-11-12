@@ -6,7 +6,7 @@ sample_data:
 =#
 
 """
-    get_varmap(vars::Array)
+    get_varmap(expr_vars::Array, vars::Array)
 
 Helper function to map vars to flatvars.
 Arguments:
@@ -15,6 +15,7 @@ Arguments:
 Returns:
     Dict of ID maps
 """
+
 function get_varmap(expr_vars::Array, vars::Array)
     length(flat(expr_vars)) >= length(vars) || throw(OCTException(string("Insufficiently many input
     variables declared in ", vars, ".")))
@@ -38,6 +39,10 @@ function get_varmap(expr_vars::Array, vars::Array)
         end
     end
     return varmap
+end
+
+function get_varmap(expr_vars::Nothing, vars::Array)
+    return nothing
 end
 
 
@@ -103,10 +108,10 @@ Can be tagged with additional info.
     constraint::Union{JuMP.ConstraintRef, Expr}        # The "raw" constraint
     vars::Array{JuMP.VariableRef,1}                      # JuMP variables (flat)
     name::Union{String, Real} = ""                     # Function name
-    fn::Union{Nothing, Function} = functionify(constraint)   # ... and actually evaluated f'n
-    expr_vars = vars_from_expr(constraint, vars)    # Function inputs (nonflat JuMP variables)
+    fn::Union{Nothing, Function} = functionify(constraint)         # ... and actually evaluated f'n
+    expr_vars = vars_from_expr(constraint, vars[1].model)          # Function inputs (nonflat JuMP variables)
     varmap::Union{Nothing,Array} = get_varmap(expr_vars, vars)     # ... with the required varmapping.
-    X::DataFrame = DataFrame([Float64 for i=1:length(varmap)], string.(vars))
+    X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars))
                                                        # Function samples
     Y::Array = []                                      # Function values
     feas_ratio::Float64 = 0.                           # Feasible sample proportion
