@@ -23,6 +23,9 @@ Can be tagged with additional info.
                                                        # Function samples
     Y::Array = []                                      # Function values
     feas_ratio::Float64 = 0.                           # Feasible sample proportion
+    outvars::Union{Array{JuMP.VariableRef}, Nothing} = nothing # Output variables for regression over feasible samples
+    outdata:: Union{DataFrame, Nothing} = nothing              # Data over output variables
+    outregressions:: Union{Dict, Nothing} = nothing    # Regressions over leaves
     equality::Bool = false                             # Equality check
     learners::Array{IAI.GridSearch} = []               # Learners...
     mi_constraints::Array = []                         # and their corresponding MI constraints,
@@ -31,4 +34,13 @@ Can be tagged with additional info.
     threshold_accuracy::Float64 = 0.95                 # Minimum tree accuracy
     threshold_feasibility::Float64 = 0.15              # Minimum feas_ratio
     tags::Array{String} = []                           # Other tags
+end
+
+""" Adds data to a DataConstraint. """
+function add_data!(dc::DataConstraint, X::DataFrame, Y::Array)
+    @assert length(Y) == size(X, 1)
+    append!(dc.X, X[:,string.(dc.vars)], cols=:setequal)
+    append!(dc.Y, Y)
+    dc.feas_ratio = sum(dc.Y .>= 0)/length(dc.Y); #TODO: optimize.
+    return
 end

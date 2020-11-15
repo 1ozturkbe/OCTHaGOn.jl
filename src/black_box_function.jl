@@ -178,5 +178,3 @@ function eval!(bbf::BlackBoxFunction, X::DataFrame)
     bbf.feas_ratio = sum(bbf.Y .>= 0)/length(bbf.Y); #TODO: optimize.
     return
 end
-
-

@@ -37,10 +37,9 @@ function add_tree_constraints!(gm::GlobalModel, bbfs::Array{BlackBoxFunction}; M
             throw(OCTException("Constraint " * string(bbf.name) * " must be learned before tree constraints
                                 can be generated."))
         else
-            grid = bbf.learners[end];
             constrs, leaf_vars = add_feas_constraints!(gm.model,
                                         bbf.vars,
-                                        bbf.learners[end];
+                                        bbf.learners[end].lnr;
                               M=M, eq=bbf.equality,
                               return_data = true);
             bbf.mi_constraints = constrs; # Note: this is needed to monitor the presence of tree
@@ -56,24 +55,23 @@ function add_tree_constraints!(gm::GlobalModel; M=1e5)
     return
 end
 
-function add_feas_constraints!(m::JuMP.Model, x, grid::IAI.GridSearch;
+function add_feas_constraints!(m::JuMP.Model, x, lnr::IAI.OptimalTreeLearner;
                                M::Float64 = 1.e5, eq = false,
                                return_data::Bool = false)
     """
     Creates a set of binary feasibility constraints from
     a binary classification tree:
     Arguments:
-        grid: A fitted GridSearch
+        lnr: A fitted IAI.OptimalTreeLearner
         m:: JuMP Model
         x:: JuMPVariables (features in lnr)
     """
-    lnr = IAI.get_learner(grid);
     check_if_trained(lnr);
     n_nodes = IAI.get_num_nodes(lnr);
     # Add a binary variable for each leaf
     all_leaves = [i for i = 1:n_nodes if IAI.is_leaf(lnr, i)];
     feas_leaves =
-        [i for i in all_leaves if IAI.get_classification_label(lnr, i)];
+        [i for i in all_leaves if Bool(IAI.get_classification_label(lnr, i))];
     infeas_leaves = [i for i in all_leaves if i ∉ feas_leaves];
     count = 0; constraints = []; leaf_variables = [];
     z_feas = @variable(m, [1:size(feas_leaves, 1)], Bin)
