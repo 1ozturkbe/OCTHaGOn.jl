@@ -698,9 +698,10 @@ def generate_dcts(n_samples, dct, ranges):
         new_dct = copy.deepcopy(dct)
         j = 0
         for key, value in ranges.items():
-            if key == 'wire_dimension' and isinstance(value, list):
-                new_dct[key] = [value[0][0] + (value[0][1]-value[0][0])*lhs_samples[i, j],
-                                value[1][0] + (value[1][1]-value[1][0])*lhs_samples[i, j]]
+            if key == 'wire_dimension':
+                new_dct[key] = [mag(value[0][0] + (value[0][1]-value[0][0])*lhs_samples[i, j]),
+                                mag(value[1][0] + (value[1][1]-value[1][0])*lhs_samples[i, j+1])] * units('mm')
+                j += 1
             elif key in ['N_coils', 'TPC', 'p']:
                 new_dct[key] = round(value[0] + (value[1]-value[0])*lhs_samples[i, j])
             else:
@@ -755,7 +756,7 @@ if __name__ == '__main__':
     indep_vars = list(ranges.keys())
     dep_vars = list(opts[0].keys())
 
-    # Prepping data for DataFrames
+    # # Prepping data for DataFrames
     inputs = pd.DataFrame()
     for i in indep_vars:
         if i == "wire_dimension":
@@ -787,3 +788,17 @@ if __name__ == '__main__':
             dat = [mag(dct[i]) for dct in infeas_dcts]
             infeas_inputs[i] = dat
     infeas_inputs.to_csv("afpm_infeas_inputs.csv")
+
+    # Simulating optimized motors
+    # opt_inp = pd.read_csv("afpm_opt.csv")
+    # bs = baseline()
+    # out = [10.4905, 3.80149, 0.503253, 27, 15, 9, [0.619257, 2.70]] #Spec Power
+    # out = [16.5162, 3.80149, 1.49968, 27, 5, 9, [0.15, 2.7]] #Efficiency
+    # keys = ["D_out", "D_in", "D_sh", "N_coils", "TPC", "p", "wire_dimension"]
+    # for i in range(len(keys)):
+    #     if type(bs[keys[i]]) is int:
+    #         bs[keys[i]] = bs[keys[i]] * out[i]
+    #     else:
+    #         bs[keys[i]] = bs[keys[i]].units * out[i]
+    # res, opt = simulate_motor(bs, tol=1e-3)
+
