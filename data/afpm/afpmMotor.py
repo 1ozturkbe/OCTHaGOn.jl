@@ -742,7 +742,7 @@ if __name__ == '__main__':
     dct['mode'] = 0
     res, opt = simulate_motor(dct, tol=1e-3) # Experiments show 1e-3 is sufficient
     #
-    n_sims = 30000
+    n_sims = 15000
     dcts, infeas_dcts = generate_dcts(n_sims, dct, input_ranges_coreless())
     pickle.dump(dcts, open('dcts.inp', 'wb'))
 
