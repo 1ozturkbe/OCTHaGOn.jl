@@ -742,7 +742,7 @@ if __name__ == '__main__':
     dct['mode'] = 0
     res, opt = simulate_motor(dct, tol=1e-3) # Experiments show 1e-3 is sufficient
     #
-    n_sims = 5000
+    n_sims = 30000
     dcts, infeas_dcts = generate_dcts(n_sims, dct, input_ranges_coreless())
     pickle.dump(dcts, open('dcts.inp', 'wb'))
 
@@ -794,6 +794,8 @@ if __name__ == '__main__':
     # bs = baseline()
     # out = [10.4905, 3.80149, 0.503253, 27, 15, 9, [0.619257, 2.70]] #Spec Power
     # out = [16.5162, 3.80149, 1.49968, 27, 5, 9, [0.15, 2.7]] #Efficiency
+    # out = [12.61, 6.54, 0.5014, 24, 5, 8, [0.225, 2.381]] #Efficiency
+    # out = [160, 80, 1.5, 27, 15, 9, [0.075, 4.5]] #Efficiency
     # keys = ["D_out", "D_in", "D_sh", "N_coils", "TPC", "p", "wire_dimension"]
     # for i in range(len(keys)):
     #     if type(bs[keys[i]]) is int:
