@@ -39,7 +39,7 @@ N_coils, TPC, p = inputs[4:6];
 baseline = Dict(inputs[i] => [13, 7.6, 1., 18, 10, 16, 0.15, 3.0, 0.45][i] for i=1:length(varkeys));
 ranges = Dict(key => [0.5*value, 1.5*value] for (key, value) in baseline);
 ranges[inputs[9]] = [0.25*baseline[inputs[9]], 2.25*baseline[inputs[9]]]; # wire_A needs special care...
-# ranges = Dict(key => log.(value) for (key, value) in ranges)
+ranges = Dict(key => log.(value) for (key, value) in ranges)
 ranges = Dict(var => [log.(minimum(X[string(var)])),log.(maximum(X[string(var)]))] for var in inputs)
 
 # Bounding for output variables of interest
@@ -52,7 +52,7 @@ bound!(m, ranges);
 
 # Geometry constraints (in logspace)
 D_out, D_in = inputs[1:2]
-@constraint(m, D_out >= D_in)
+@constraint(m, D_out >= D_in + 0.5)
 
 N_coils_range = log.(unique(X_feas["N_coils"]));
 int = @variable(m, [1:length(N_coils_range)], Bin)
@@ -63,7 +63,7 @@ p_range = log.(unique(X_feas["p"]))
 int = @variable(m, [1:length(p_range)], Bin)
 @constraint(m, sum(int) == 1)
 @constraint(m, p == sum(p_range .* int))
-@constraint(m, N_coils >= p + 1e-5) # motor type 2
+@constraint(m, N_coils >= p + 1) # motor type 2
 
 # Objectives and FOMs
 output_idxs = [1, 4, 6, 8, 10, 12];
@@ -75,40 +75,47 @@ P_shaft, Torque, Rotational_Speed, Efficiency, Mass, Mass_Specific_Power = [outp
 
 # Fitting power closure, and creating a global model
 # simulation = DataConstraint(vars = inputs)
-feasmap = zeros(size(Y, 1)); feasmap[feas_idxs] .= 1;
+# feasmap = zeros(size(Y, 1)); feasmap[feas_idxs] .= 1;
 # add_data!(simulation, log.(X), feasmap)
 # learn_constraint!(simulation)
 # lnr = IAI.fit!(base_otc(), log.(X), feasmap)
 # IAI.write_json("power_closure.json", lnr)
-lnr = IAI.read_json("power_closure.json")
-constrs, leaf_vars = add_feas_constraints!(m, inputs, lnr, M=1e3, return_data = true)
+# lnr = IAI.read_json("power_closure.json")
+# constrs, leaf_vars = add_feas_constraints!(m, inputs, lnr, M=1e3, return_data = true)
 # simulation.mi_constraints = constrs; # Note: this is needed to monitor the presence of tree
 # simulation.leaf_variables = leaf_vars; #  constraints and variables in gm.model
 
 # Only one feasible leaf (4), so can just use regression equations
-FOMs = [Mass_Specific_Power, Mass, Rotational_Speed, Efficiency]
-leaf = 4;
-
-# Regressions over leaves
-leaf_index, all_leaves = bin_to_leaves(lnr, log.(X_feas))
+FOMs = [Mass_Specific_Power, Mass, Efficiency, P_shaft]
+reg_lnr = base_otr()
+reg_lnr.hyperplane_config = (sparsity = 2,)
 for FOM in FOMs
-    regressor = regress(log.(X_feas), log.(Y_feas[string(FOM)]))
-    constant = IAI.get_prediction_constant(regressor)
-    weights  = IAI.get_prediction_weights(regressor)[1]
-    vks = Symbol.(names(X_feas))
-    β = []
-    for i = 1:size(vks, 1)
-        if vks[i] in keys(weights)
-            append!(β, weights[vks[i]])
-        else
-            append!(β, 0.0)
-        end
-    end
-    @constraint(m, sum(β .* inputs) + constant == FOM)
+    lnr = IAI.fit!(reg_lnr, log.(X_feas), log.(Y_feas[string(FOM)]))
+    IAI.write_json(string(FOM) * ".json", lnr)
 end
 
+# leaf = 5;
+#
+# # Regressions over leaves
+# leaf_index, all_leaves = bin_to_leaves(lnr, log.(X_feas))
+# for FOM in FOMs
+#     regressor = regress(log.(X_feas), log.(Y_feas[string(FOM)]))
+#     constant = IAI.get_prediction_constant(regressor)
+#     weights  = IAI.get_prediction_weights(regressor)[1]
+#     vks = Symbol.(names(X_feas))
+#     β = []
+#     for i = 1:size(vks, 1)
+#         if vks[i] in keys(weights)
+#             append!(β, weights[vks[i]])
+#         else
+#             append!(β, 0.0)
+#         end
+#     end
+#     @constraint(m, sum(β .* inputs) + constant == FOM)
+# end
+#
 # Solving
-@objective(m, Max, Mass_Specific_Power)
+@objective(m, Max, Efficiency)
 optimize!(m)
 println("Inputs")
 for i=1:length(inputs)
@@ -118,3 +125,6 @@ println("FOMs")
 for FOM in FOMs
     println(string(FOM, " ", exp(getvalue(FOM))))
 end
+
+# fdf = DataFrame(names(X) .=> exp.(getvalue.(inputs)))
+# CSV.write("data/afpm/afpm_opt.csv", fdf)
