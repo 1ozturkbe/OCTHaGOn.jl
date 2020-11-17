@@ -17,15 +17,14 @@ Can be tagged with additional info.
 """
 
 @with_kw mutable struct DataConstraint
-    vars::Array{JuMP.VariableRef,1}                      # JuMP variables (flat)
+    xvars::Array{JuMP.VariableRef,1}                      # Input JuMP variables (flat)
+    yvars::Union{Array{JuMP.VariableRef, 1}, Nothing}     # Output JuMP variables (flat)
     name::Union{String, Real} = ""                     # Function name
-    X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars))
-                                                       # Function samples
-    Y::Array = []                                      # Function values
+    X::DataFrame = DataFrame([Float64 for i=1:length(xvars)], string.(xvars))
+                                                       # Function inputs
+    Y::DataFrame = DataFrame()                         # Function outputs
     feas_ratio::Float64 = 0.                           # Feasible sample proportion
-    outvars::Union{Array{JuMP.VariableRef}, Nothing} = nothing # Output variables for regression over feasible samples
-    outdata:: Union{DataFrame, Nothing} = nothing              # Data over output variables
-    outregressions:: Union{Dict, Nothing} = nothing    # Regressions over leaves
+    Y_regressions:: Union{Dict, Nothing} = nothing    # Regressions over leaves
     equality::Bool = false                             # Equality check
     learners::Array{IAI.GridSearch} = []               # Learners...
     mi_constraints::Array = []                         # and their corresponding MI constraints,
