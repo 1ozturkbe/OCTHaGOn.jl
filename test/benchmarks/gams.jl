@@ -4,34 +4,31 @@ gams:
 - Author: Berk
 - Date: 2020-09-10
 =#
-include("../load.jl")
+include("test/load.jl")
 include("../GAMSFiles.jl/src/GAMSFiles.jl")
 using .GAMSFiles
 using IterTools
 
 filename = "data/baron_nc_ns/problem3.13.gms"
 
-function vars_to_vks(vars)
-    """ Turns gams["variables"] to varkeys for use in GlobalModel. """
-    vks = Symbol[];
-    vartypes = Dict()
-    for (v, vinfo) in vars
-        if isa(v, GAMSFiles.GText)
-            vk = Symbol(v.text)
-            push!(vks, vk);
-            vartypes[vk] = vinfo.typ;
-        elseif isa(v, GAMSFiles.GArray)
-            basekey = v.name
-            axs = vinfo.axs
-            idx = [i for a in axs for i in a]
-            for i in idx
-                push!(vks, Symbol(v.name, i))
-                vartypes[Symbol(v.name, i)] = vinfo.typ
+function constants_to_global(gams)
+    function constants(gams::Dict{String, Any})
+        """Returns all constants from GAMS Model. """
+        consts = Dict(); #
+        for p in ("parameters", "tables")
+            if haskey(gams, p)
+                for (k, v) in gams[p]
+                    v = v isa Ref ? v[] : v
+                    consts[Symbol(GAMSFiles.getname(k))] = v;
+                end
             end
         end
+        return consts
     end
-    @assert length(vks) == length(vartypes)
-    return vks, vartypes
+    consts = constants(gams)
+    for (key, value) in consts
+        eval(Meta.parse("$(key) = $(value)"))
+    end
 end
 
 function eq_to_fn(eq, sets, constants)
@@ -88,19 +85,7 @@ function find_vks_in_eq(eq, variables)
     return vks
 end
 
-function constants(gams::Dict{String, Any})
-    """Returns all constants from GAMS Model. """
-    constants = Dict(); #
-    for p in ("parameters", "tables")
-        if haskey(gams, p)
-            for (k, v) in gams[p]
-                v = v isa Ref ? v[] : v
-                constants[Symbol(GAMSFiles.getname(k))] = v;
-            end
-        end
-    end
-    return constants
-end
+
 
 function sets_to_idxs(setnames, sets)
     axs = GAMSFiles.getaxes(setnames, sets)
@@ -114,27 +99,24 @@ function sets_to_idxs(setnames, sets)
     end
 end
 
-function generate_variables!(model, gams_variables)
+function generate_variables!(model, gams)
     """Takes gams["variables"] and turns them into JuMP.Variables"""
+    gams_variables = gams["variables"]
     for (v, vinfo) in gams_variables
         idxs = nothing
         if v isa GAMSFiles.GArray
-            sym = Symbol(v.name)
+            sym = String(v.name)
             axs = vinfo.axs
             idxs = collect(Base.product([collect(ax) for ax in axs]...))
-            @variable(model, eval(Meta.parse($sym))[size(idxs)])
+            if idxs[1] isa Tuple{Int64}
+                var = @variable(model, [1:length(idxs)], base_name = sym)
+            else
+                var = @variable(model, [size(idxs)], base_name = sym)
+            end
         elseif v isa GAMSFiles.GText
-            sym = Symbol(v.text)
-            @variable(model, eval(Meta.parse($sym)))
+            sym = String(v.text)
+            @variable(model, base_name = sym)
         end
-    end
-end
-
-
-function get_bounds(variables)
-    """Returns all bounds and initial points from gams["variables"]."""
-    lbs = Dict(); ubs = Dict(); x0 = Dict();
-    for (v, vinfo) in variables
         for (prop, val) in vinfo.assignments
             inds = nothing
             if isa(prop, GAMSFiles.GText)
@@ -142,29 +124,28 @@ function get_bounds(variables)
             elseif isa(prop, GAMSFiles.GArray)
                 inds = map(x->x.val, prop.indices)
             end
+            println(inds)
             if isa(prop, Union{GAMSFiles.GText, GAMSFiles.GArray})
                 c = val.val
-                if GAMSFiles.getname(prop) ∈ ("l", "fx")
-                    x0[Symbol(v.name, inds[1])] = c
+#                 if GAMSFiles.getname(prop) ∈ ("l", "fx")
+#                     x0[Symbol(v.name, inds[1])] = c
                 elseif GAMSFiles.getname(prop) == "lo"
-                    lbs[Symbol(v.name, inds[1])] = c
+                    set_lower_bound(var[inds...], c)
                 elseif GAMSFiles.getname(prop) == "up"
-                    ubs[Symbol(v.name, inds[1])] = c
-                end
+                    set_upper_bound(var[inds...], c)
             end
         end
     end
-    return lbs, ubs, x0
+    return JuMP.all_variables(model)
 end
 
-
+# Initialize JuMP.Model
+m = Model(Gurobi.Optimizer)
 
 # Parsing GAMS Files
 lexed = GAMSFiles.lex(filename)
 gams = GAMSFiles.parsegams(filename)
 GAMSFiles.parseconsts!(gams)
-
-constants = constants(gams)
 
 vars = GAMSFiles.getvars(gams["variables"])
 sets = gams["sets"]
@@ -173,23 +154,17 @@ if haskey(gams, "parameters") && haskey(gams, "assignments")
     GAMSFiles.parseassignments!(preexprs, gams["assignments"], gams["parameters"], sets)
 end
 
-# Variable data parsing
-vks, vartypes = vars_to_vks(gams["variables"]);
-lbs, ubs, x0 = get_bounds(gams["variables"]);
+# Getting variables
+constants_to_global(gams)
+all_vars = generate_variables!(model, gams)
 
-# Initialize GlobalModel
-all_vars = GAMSFiles.allvars(gams)
-m = JuMP.Model()
-syms = [:x,:y,:z]
+# Getting objective
+@objective(model, Min, sum(model[i] for i in gams["minimizing"]))
 
-c = zeros(length(vks));
-c[findall(i -> i == Symbol(gams["minimizing"]), vks)] .= 1;
-model = OCT.GlobalModel(c = c, vks = vks);
-
-# Create BlackBoxFunction expressions
+# Creating BlackBoxFunction expressions
 for (key, eq) in gams["equations"]
     if key isa GAMSFiles.GText
-        constr_fn = eq_to_fn(eq, sets, constants)
+        constr_fn = eq_to_fn(eq, sets, consts)
         bbf = OCT.BlackBoxFunction(fn = constr_fn, vks = find_vks_in_eq(eq, gams["variables"]),
                                name = GAMSFiles.getname(key))
        add_fn!(model, bbf)
@@ -200,7 +175,7 @@ for (key, eq) in gams["equations"]
             next_all = Dict(key.indices[i].text => allocation[i] for i=1:length(key.indices))
             new_key = string(key.name, "_", allocation)
             new_set = merge(sets, next_all)
-            constr_fn = eq_to_fn(eq, new_set, constants)
+            constr_fn = eq_to_fn(eq, new_set, consts)
             bbf = OCT.BlackBoxFunction(fn = constr_fn, vks = find_vks_in_eq(eq, gams["variables"]),
                                     name = new_key)
             add_fn!(model, bbf)
