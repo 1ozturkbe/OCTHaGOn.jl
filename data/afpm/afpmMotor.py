@@ -675,14 +675,14 @@ def input_ranges_coreless():
     """ Returns ranges around the baseline to explore. """
     ranges = {}
     # Variables =======================
-    ranges['D_out'] =          np.array([0.5,1.5]) * 13 * units.cm  # Outer Diameter of the motor
-    ranges['D_in'] =           np.array([0.5,1.5]) * 7.6 * units.cm  # Inner Diameter of the motor
-    ranges['D_sh'] =           np.array([0.5,1.5]) * 1.0 * units.cm  # Diameter of motor shaft
-    ranges['N_coils'] =        np.array([0.5,1.5]) * 18  # Number of coils on each stator, must be =n*m_1--If motor_type==1 must be >2*p, If motor_type==2 must be >p,
-    ranges['TPC'] =            np.array([0.5,1.5]) * 10  # Number of turns per coil on each stator
-    ranges['p'] =              np.array([0.5,1.5]) * 16  # Half the number of poles on each rotor
-    ranges['wire_dimension'] = [np.array([0.5,1.5]) * 0.15,
-                               np.array([0.5,1.5]) * 3.0] * units.mm  # Reference dimension of the wire: Diameter for circle, width for square
+    ranges['D_out'] =          np.array([0.75,1.25]) * 12.5 * units.cm  # Outer Diameter of the motor
+    ranges['D_in'] =           np.array([0.75,1.25]) * 7.5 * units.cm  # Inner Diameter of the motor
+    ranges['D_sh'] =           np.array([0.75,1.25]) * 1.0 * units.cm  # Diameter of motor shaft
+    ranges['N_coils'] =        np.array([0.75,1.25]) * 18  # Number of coils on each stator, must be =n*m_1--If motor_type==1 must be >2*p, If motor_type==2 must be >p,
+    ranges['TPC'] =            np.array([0.75,1.25]) * 12  # Number of turns per coil on each stator
+    ranges['p'] =              np.array([0.75,1.25]) * 14  # Half the number of poles on each rotor
+    ranges['wire_dimension'] = [np.array([0.75,1.25]) * 1.02,
+                               np.array([0.75,1.25]) * 1.93] * units.mm  # Reference dimension of the wire: Diameter for circle, width for square
     return ranges
 
 def generate_dcts(n_samples, dct, ranges):
