@@ -675,14 +675,14 @@ def input_ranges_coreless():
     """ Returns ranges around the baseline to explore. """
     ranges = {}
     # Variables =======================
-    ranges['D_out'] =          np.array([0.75,1.25]) * 12.5 * units.cm  # Outer Diameter of the motor
-    ranges['D_in'] =           np.array([0.75,1.25]) * 7.5 * units.cm  # Inner Diameter of the motor
-    ranges['D_sh'] =           np.array([0.75,1.25]) * 1.0 * units.cm  # Diameter of motor shaft
-    ranges['N_coils'] =        np.array([0.75,1.25]) * 18  # Number of coils on each stator, must be =n*m_1--If motor_type==1 must be >2*p, If motor_type==2 must be >p,
-    ranges['TPC'] =            np.array([0.75,1.25]) * 12  # Number of turns per coil on each stator
-    ranges['p'] =              np.array([0.75,1.25]) * 14  # Half the number of poles on each rotor
-    ranges['wire_dimension'] = [np.array([0.75,1.25]) * 1.02,
-                               np.array([0.75,1.25]) * 1.93] * units.mm  # Reference dimension of the wire: Diameter for circle, width for square
+    ranges['D_out'] =          np.array([0.5,1.5]) * 12.5 * units.cm  # Outer Diameter of the motor
+    ranges['D_in'] =           np.array([0.5,1.5]) * 7.5 * units.cm  # Inner Diameter of the motor
+    ranges['D_sh'] =           np.array([0.5,1.5]) * 1.0 * units.cm  # Diameter of motor shaft
+    ranges['N_coils'] =        np.array([0.5,1.5]) * 18  # Number of coils on each stator, must be =n*m_1--If motor_type==1 must be >2*p, If motor_type==2 must be >p,
+    ranges['TPC'] =            np.array([0.5,1.5]) * 12  # Number of turns per coil on each stator
+    ranges['p'] =              np.array([0.5,1.5]) * 14  # Half the number of poles on each rotor
+    ranges['wire_dimension'] = [np.array([0.5,1.5]) * 1.02,
+                               np.array([0.5,1.5]) * 1.93] * units.mm  # Reference dimension of the wire: Diameter for circle, width for square
     return ranges
 
 def generate_dcts(n_samples, dct, ranges):
@@ -746,61 +746,67 @@ if __name__ == '__main__':
     dcts, infeas_dcts = generate_dcts(n_sims, dct, input_ranges_coreless())
     pickle.dump(dcts, open('dcts.inp', 'wb'))
 
-    ress, opts = simulate_dcts(dcts, filename="motors", tol=1e-3)
-
-    dcts = pickle.load(open('dcts.inp', 'rb'))
-    ress = pickle.load(open('motors.out','rb'))
-    opts = pickle.load(open('motors.sol', 'rb'))
-
-    ranges = input_ranges_coreless()
-    indep_vars = list(ranges.keys())
-    dep_vars = list(opts[0].keys())
-
-    # # Prepping data for DataFrames
-    inputs = pd.DataFrame()
-    for i in indep_vars:
-        if i == "wire_dimension":
-            small = [mag(dct[i][0]) for dct in dcts]
-            large = [mag(dct[i][1])  for dct in dcts]
-            inputs["wire_w"] = small
-            inputs["wire_h"] = large
-            inputs['wire_A'] = np.multiply(small, large)
-        else:
-            dat = [mag(dct[i]) for dct in dcts]
-            inputs[i] = dat
-    outputs = pd.DataFrame()
-    for i in dep_vars:
-        dat = [mag(opt[i]) for opt in opts]
-        outputs[i] = dat
-    inputs.to_csv("afpm_inputs.csv")
-    outputs.to_csv("afpm_outputs.csv")
-
-    # Also include infeasible inputs
-    infeas_inputs = pd.DataFrame()
-    for i in indep_vars:
-        if i == "wire_dimension":
-            small = [mag(dct[i][0]) for dct in infeas_dcts]
-            large = [mag(dct[i][1])  for dct in infeas_dcts]
-            infeas_inputs["wire_w"] = small
-            infeas_inputs["wire_h"] = large
-            infeas_inputs['wire_A'] = np.multiply(small, large)
-        else:
-            dat = [mag(dct[i]) for dct in infeas_dcts]
-            infeas_inputs[i] = dat
-    infeas_inputs.to_csv("afpm_infeas_inputs.csv")
-
-    # Simulating optimized motors
-    # opt_inp = pd.read_csv("afpm_opt.csv")
+    # ress, opts = simulate_dcts(dcts, filename="motors", tol=1e-3)
+    #
+    # dcts = pickle.load(open('dcts.inp', 'rb'))
+    # ress = pickle.load(open('motors.out','rb'))
+    # opts = pickle.load(open('motors.sol', 'rb'))
+    #
+    # ranges = input_ranges_coreless()
+    # indep_vars = list(ranges.keys())
+    # dep_vars = list(opts[0].keys())
+    #
+    # # # Prepping data for DataFrames
+    # inputs = pd.DataFrame()
+    # for i in indep_vars:
+    #     if i == "wire_dimension":
+    #         small = [mag(dct[i][0]) for dct in dcts]
+    #         large = [mag(dct[i][1])  for dct in dcts]
+    #         inputs["wire_w"] = small
+    #         inputs["wire_h"] = large
+    #         inputs['wire_A'] = np.multiply(small, large)
+    #     else:
+    #         dat = [mag(dct[i]) for dct in dcts]
+    #         inputs[i] = dat
+    # outputs = pd.DataFrame()
+    # for i in dep_vars:
+    #     dat = [mag(opt[i]) for opt in opts]
+    #     outputs[i] = dat
+    # inputs.to_csv("afpm_inputs.csv")
+    # outputs.to_csv("afpm_outputs.csv")
+    #
+    # # Also include infeasible inputs
+    # infeas_inputs = pd.DataFrame()
+    # for i in indep_vars:
+    #     if i == "wire_dimension":
+    #         small = [mag(dct[i][0]) for dct in infeas_dcts]
+    #         large = [mag(dct[i][1])  for dct in infeas_dcts]
+    #         infeas_inputs["wire_w"] = small
+    #         infeas_inputs["wire_h"] = large
+    #         infeas_inputs['wire_A'] = np.multiply(small, large)
+    #     else:
+    #         dat = [mag(dct[i]) for dct in infeas_dcts]
+    #         infeas_inputs[i] = dat
+    # infeas_inputs.to_csv("afpm_infeas_inputs.csv")
+    #
+    # # Simulating optimized motors
+    # # opt_inp = pd.read_csv("afpm_opt.csv")
     # bs = baseline()
-    # out = [10.4905, 3.80149, 0.503253, 27, 15, 9, [0.619257, 2.70]] #Spec Power
-    # out = [16.5162, 3.80149, 1.49968, 27, 5, 9, [0.15, 2.7]] #Efficiency
-    # out = [12.61, 6.54, 0.5014, 24, 5, 8, [0.225, 2.381]] #Efficiency
-    # out = [160, 80, 1.5, 27, 15, 9, [0.075, 4.5]] #Efficiency
+    # # out = [10.4905, 3.80149, 0.503253, 27, 15, 9, [0.619257, 2.70]] #Spec Power
+    # # out = [16.5162, 3.80149, 1.49968, 27, 5, 9, [0.15, 2.7]] #Efficiency
+    # # out = [12.61, 6.54, 0.5014, 24, 5, 8, [0.225, 2.381]] #Efficiency
+    # out = [16.0, 3.8, 0.5, 27, 15, 9, [0.075, 4.5]] #Efficiency
+    # out = [8.51, 3.89, 0.5, 27, 15, 24, [0.25, 1.2]]
+    # # Cody's optimum
+    # out = [12.5, 7.5, 0.5, 18, 12, 14, [1.02, 1.93]]
+    # out = [10.5, 6.37, 0.75, 21, 9, 11, [0.765, 2.412]]
     # keys = ["D_out", "D_in", "D_sh", "N_coils", "TPC", "p", "wire_dimension"]
     # for i in range(len(keys)):
-    #     if type(bs[keys[i]]) is int:
-    #         bs[keys[i]] = bs[keys[i]] * out[i]
+    #     if keys[i] in ["N_coils", "TPC", "p"]:
+    #         bs[keys[i]] = out[i]
     #     else:
     #         bs[keys[i]] = bs[keys[i]].units * out[i]
+    #
     # res, opt = simulate_motor(bs, tol=1e-3)
+    # opt
 
