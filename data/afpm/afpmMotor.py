@@ -746,49 +746,49 @@ if __name__ == '__main__':
     dcts, infeas_dcts = generate_dcts(n_sims, dct, input_ranges_coreless())
     pickle.dump(dcts, open('dcts.inp', 'wb'))
 
-    # ress, opts = simulate_dcts(dcts, filename="motors", tol=1e-3)
-    #
-    # dcts = pickle.load(open('dcts.inp', 'rb'))
-    # ress = pickle.load(open('motors.out','rb'))
-    # opts = pickle.load(open('motors.sol', 'rb'))
-    #
-    # ranges = input_ranges_coreless()
-    # indep_vars = list(ranges.keys())
-    # dep_vars = list(opts[0].keys())
-    #
-    # # # Prepping data for DataFrames
-    # inputs = pd.DataFrame()
-    # for i in indep_vars:
-    #     if i == "wire_dimension":
-    #         small = [mag(dct[i][0]) for dct in dcts]
-    #         large = [mag(dct[i][1])  for dct in dcts]
-    #         inputs["wire_w"] = small
-    #         inputs["wire_h"] = large
-    #         inputs['wire_A'] = np.multiply(small, large)
-    #     else:
-    #         dat = [mag(dct[i]) for dct in dcts]
-    #         inputs[i] = dat
-    # outputs = pd.DataFrame()
-    # for i in dep_vars:
-    #     dat = [mag(opt[i]) for opt in opts]
-    #     outputs[i] = dat
-    # inputs.to_csv("afpm_inputs.csv")
-    # outputs.to_csv("afpm_outputs.csv")
-    #
-    # # Also include infeasible inputs
-    # infeas_inputs = pd.DataFrame()
-    # for i in indep_vars:
-    #     if i == "wire_dimension":
-    #         small = [mag(dct[i][0]) for dct in infeas_dcts]
-    #         large = [mag(dct[i][1])  for dct in infeas_dcts]
-    #         infeas_inputs["wire_w"] = small
-    #         infeas_inputs["wire_h"] = large
-    #         infeas_inputs['wire_A'] = np.multiply(small, large)
-    #     else:
-    #         dat = [mag(dct[i]) for dct in infeas_dcts]
-    #         infeas_inputs[i] = dat
-    # infeas_inputs.to_csv("afpm_infeas_inputs.csv")
-    #
+    ress, opts = simulate_dcts(dcts, filename="motors", tol=1e-3)
+
+    dcts = pickle.load(open('dcts.inp', 'rb'))
+    ress = pickle.load(open('motors.out','rb'))
+    opts = pickle.load(open('motors.sol', 'rb'))
+
+    ranges = input_ranges_coreless()
+    indep_vars = list(ranges.keys())
+    dep_vars = list(opts[0].keys())
+
+    # # Prepping data for DataFrames
+    inputs = pd.DataFrame()
+    for i in indep_vars:
+        if i == "wire_dimension":
+            small = [mag(dct[i][0]) for dct in dcts]
+            large = [mag(dct[i][1])  for dct in dcts]
+            inputs["wire_w"] = small
+            inputs["wire_h"] = large
+            inputs['wire_A'] = np.multiply(small, large)
+        else:
+            dat = [mag(dct[i]) for dct in dcts]
+            inputs[i] = dat
+    outputs = pd.DataFrame()
+    for i in dep_vars:
+        dat = [mag(opt[i]) for opt in opts]
+        outputs[i] = dat
+    inputs.to_csv("afpm_inputs.csv")
+    outputs.to_csv("afpm_outputs.csv")
+
+    # Also include infeasible inputs
+    infeas_inputs = pd.DataFrame()
+    for i in indep_vars:
+        if i == "wire_dimension":
+            small = [mag(dct[i][0]) for dct in infeas_dcts]
+            large = [mag(dct[i][1])  for dct in infeas_dcts]
+            infeas_inputs["wire_w"] = small
+            infeas_inputs["wire_h"] = large
+            infeas_inputs['wire_A'] = np.multiply(small, large)
+        else:
+            dat = [mag(dct[i]) for dct in infeas_dcts]
+            infeas_inputs[i] = dat
+    infeas_inputs.to_csv("afpm_infeas_inputs.csv")
+
     # # Simulating optimized motors
     # # opt_inp = pd.read_csv("afpm_opt.csv")
     # bs = baseline()
