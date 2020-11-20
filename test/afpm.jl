@@ -2,7 +2,6 @@ include("../test/load.jl")
 
 using DataFrames
 using Test
-using Plots
 using CSV
 using Gurobi
 
@@ -36,10 +35,10 @@ end
 
 # Bounding and Integer constraints for input variables
 N_coils, TPC, p = inputs[4:6];
-baseline = Dict(inputs[i] => [13, 7.6, 1., 18, 10, 16, 0.15, 3.0, 0.45][i] for i=1:length(varkeys));
-ranges = Dict(key => [0.5*value, 1.5*value] for (key, value) in baseline);
-ranges[inputs[9]] = [0.25*baseline[inputs[9]], 2.25*baseline[inputs[9]]]; # wire_A needs special care...
-ranges = Dict(key => log.(value) for (key, value) in ranges)
+# baseline = Dict(inputs[i] => [13, 7.6, 1., 18, 10, 16, 0.15, 3.0, 0.45][i] for i=1:length(varkeys));
+# ranges = Dict(key => [0.5*value, 1.5*value] for (key, value) in baseline);
+# ranges[inputs[9]] = [0.25*baseline[inputs[9]], 2.25*baseline[inputs[9]]]; # wire_A needs special care...
+# ranges = Dict(key => log.(value) for (key, value) in ranges)
 ranges = Dict(var => [log.(minimum(X[string(var)])),log.(maximum(X[string(var)]))] for var in inputs)
 
 # Bounding for output variables of interest
@@ -47,12 +46,16 @@ idxs = [1, 4, 6, 8, 10, 12];
 feas_idxs = findall(x -> x .>= 0.5, Y.Efficiency);
 X_feas = X[feas_idxs, :];
 Y_feas = Y[feas_idxs, :];
-out_ranges = Dict(key => [minimum(log.(Y_feas[Symbol(key)])), maximum(log.(Y_feas[Symbol(key)]))] for key in outputs[idxs]);
+out_ranges = Dict(key => [minimum((Y_feas[Symbol(key)])), maximum((Y_feas[Symbol(key)]))] for key in outputs[idxs]);
 bound!(m, ranges);
 
+# Geometry feasibility
+# lnr = IAI.fit(base_otc(), )
+
 # Geometry constraints (in logspace)
-D_out, D_in = inputs[1:2]
-@constraint(m, D_out >= D_in + 0.5)
+D_out, D_in, N_coils, wire_w = inputs[1], inputs[2], inputs[4], inputs[7]
+@constraint(m, D_out >= D_in)
+@constraint(m, log(pi) + D_in >= log(0.2) + wire_w + N_coils) #pi*D_in >= 2*0.1*wire_w*N_coils
 
 N_coils_range = log.(unique(X_feas["N_coils"]));
 int = @variable(m, [1:length(N_coils_range)], Bin)
@@ -63,40 +66,56 @@ p_range = log.(unique(X_feas["p"]))
 int = @variable(m, [1:length(p_range)], Bin)
 @constraint(m, sum(int) == 1)
 @constraint(m, p == sum(p_range .* int))
-@constraint(m, N_coils >= p + 1) # motor type 2
+@constraint(m, N_coils >= p + 1e-3) # motor type 2
+
+TPC_range = log.(unique(X_feas["TPC"]))
+int = @variable(m, [1:length(TPC_range)], Bin)
+@constraint(m, sum(int) == 1)
+@constraint(m, TPC == sum(TPC_range .* int))
 
 # Objectives and FOMs
 output_idxs = [1, 4, 6, 8, 10, 12];
 P_shaft, Torque, Rotational_Speed, Efficiency, Mass, Mass_Specific_Power = [outputs[idx] for idx in idxs]
-# set_lower_bound(Efficiency, 0)
-# set_upper_bound(Efficiency, 0)
-@constraint(m, log.(9.8) <= P_shaft <= log.(10.2))
-@constraint(m, log.(7800) <= Rotational_Speed <= log.(8200))
+set_upper_bound(Efficiency, 1)
+@constraint(m, log(10.) == P_shaft)
+@constraint(m, log.(8000) == Rotational_Speed)
 
 # Fitting power closure, and creating a global model
 # simulation = DataConstraint(vars = inputs)
-# feasmap = zeros(size(Y, 1)); feasmap[feas_idxs] .= 1;
+feasmap = zeros(size(Y, 1)); feasmap[feas_idxs] .= 1;
 # add_data!(simulation, log.(X), feasmap)
 # learn_constraint!(simulation)
 # lnr = IAI.fit!(base_otc(), log.(X), feasmap)
 # IAI.write_json("power_closure.json", lnr)
-# lnr = IAI.read_json("power_closure.json")
+lnr = IAI.read_json("power_closure.json")
 # constrs, leaf_vars = add_feas_constraints!(m, inputs, lnr, M=1e3, return_data = true)
 # simulation.mi_constraints = constrs; # Note: this is needed to monitor the presence of tree
 # simulation.leaf_variables = leaf_vars; #  constraints and variables in gm.model
 
-# Only one feasible leaf (4), so can just use regression equations
-FOMs = [Mass_Specific_Power, Mass, Efficiency, P_shaft]
-reg_lnr = base_otr()
-reg_lnr.hyperplane_config = (sparsity = 2,)
-for FOM in FOMs
-    lnr = IAI.fit!(reg_lnr, log.(X_feas), log.(Y_feas[string(FOM)]))
-    IAI.write_json(string(FOM) * ".json", lnr)
-end
+# Fitting appropriate power
+feasmap = 10.2 .>= Y_feas["P_shaft"] .>= 9.8;
+lnr = IAI.fit!(base_otc(), log.(X_feas), feasmap);
+constrs, leaf_vars = add_feas_constraints!(m, inputs, lnr, M=1e3, return_data = true);
 
-# leaf = 5;
-#
-# # Regressions over leaves
+# Fitting appropriate RPM
+feasmap = Y_feas["Rotational Speed"] .>= 7800;
+lnr = IAI.fit!(base_otc(), log.(X_feas), feasmap);
+constrs, leaf_vars = add_feas_constraints!(m, inputs, lnr, M=1e3, return_data = true)
+
+
+# Only one feasible leaf (4), so can just use regression equations
+# reg_lnr = base_otr()
+# reg_lnr.hyperplane_config = (sparsity = 1,)
+# for FOM in FOMs
+#     lnr = IAI.fit!(reg_lnr, log.(X_feas), log.(Y_feas[string(FOM)]))
+#     IAI.write_json(string(FOM) * ".json", lnr)
+# end
+
+leaf = 5;
+
+# Regressions over leaves
+# P_shaft, Torque, Rotational_Speed, Efficiency, Mass, Mass_Specific_Power = [outputs[idx] for idx in idxs]
+# FOMs = [P_shaft, Rotational_Speed]
 # leaf_index, all_leaves = bin_to_leaves(lnr, log.(X_feas))
 # for FOM in FOMs
 #     regressor = regress(log.(X_feas), log.(Y_feas[string(FOM)]))
@@ -113,9 +132,9 @@ end
 #     end
 #     @constraint(m, sum(β .* inputs) + constant == FOM)
 # end
-#
+
 # Solving
-@objective(m, Max, Efficiency)
+@objective(m, Min, Mass)
 optimize!(m)
 println("Inputs")
 for i=1:length(inputs)
