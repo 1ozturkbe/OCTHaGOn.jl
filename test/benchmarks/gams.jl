@@ -11,20 +11,21 @@ using IterTools
 
 filename = "data/baron_nc_ns/problem3.13.gms"
 
-function constants_to_global(gams)
-    function constants(gams::Dict{String, Any})
-        """Returns all constants from GAMS Model. """
-        consts = Dict(); #
-        for p in ("parameters", "tables")
-            if haskey(gams, p)
-                for (k, v) in gams[p]
-                    v = v isa Ref ? v[] : v
-                    consts[Symbol(GAMSFiles.getname(k))] = v;
-                end
+function constants(gams::Dict{String, Any})
+    """Returns all constants from GAMS Model. """
+    consts = Dict(); #
+    for p in ("parameters", "tables")
+        if haskey(gams, p)
+            for (k, v) in gams[p]
+                v = v isa Ref ? v[] : v
+                consts[Symbol(GAMSFiles.getname(k))] = v;
             end
         end
-        return consts
     end
+    return consts
+end
+
+function constants_to_global(gams)
     consts = constants(gams)
     for (key, value) in consts
         eval(Meta.parse("$(key) = $(value)"))
@@ -65,24 +66,31 @@ function eq_to_fn(eq, sets, constants)
 end
 
 
-function find_vks_in_eq(eq, variables)
+function find_vars_in_eq(model, eq, variables)
     """Finds and returns all varkeys in equation. """
     lhs, rhs, op = eq.args[1], eq.args[2], GAMSFiles.eqops[GAMSFiles.getname(eq)]
-    vks = Symbol[];
-    vars = []
+    vks = []
     for (var, vinfo) in variables
         if var isa GAMSFiles.GText
             if GAMSFiles.hasvar(lhs, var.text) || GAMSFiles.hasvar(rhs, var.text)
-                push!(vars, var)
+                push!(vks, var)
             end
         elseif var isa GAMSFiles.GArray
             if GAMSFiles.hasvar(lhs, var.name) || GAMSFiles.hasvar(rhs, var.name)
-                push!(vars, var)
+                push!(vks, var)
             end
         end
     end
-    vks, _ = vars_to_vks(Dict((var => gams["variables"][var]) for var in vars))
-    return vks
+    vars = []
+    for vk in vks
+        if vk isa GAMSFiles.GArray
+            push!(vars, JuMP.variable_by_name(model, string(vk.name)))
+        elseif vk isa GAMSFiles.GText
+            push!(vars, JuMP.variable_by_name(model, string(vk.text)))
+        end
+    end
+    @assert length(vars) == length(vks)
+    return vars
 end
 
 
@@ -152,31 +160,34 @@ end
 # Getting variables
 constants_to_global(gams)
 all_vars = generate_variables!(model, gams)
-#
-# # Getting objective
-# @objective(model, Min, sum(model[i] for i in gams["minimizing"]))
-#
+
+# Getting objective
+# @objective(model, Min, sum(JuMP.variable_by_name(model, string(i)) for i in gams["minimizing"]))
+
 # # Creating BlackBoxFunction expressions
-# for (key, eq) in gams["equations"]
-#     if key isa GAMSFiles.GText
-#         constr_fn = eq_to_fn(eq, sets, consts)
-#         bbf = OCT.BlackBoxFunction(fn = constr_fn, vks = find_vks_in_eq(eq, gams["variables"]),
-#                                name = GAMSFiles.getname(key))
-#        add_fn!(model, bbf)
-#     elseif key isa GAMSFiles.GArray
-#         axes = GAMSFiles.getaxes(key.indices, sets)
-#         ar = sets_to_idxs(key.indices, sets)
-#         for allocation in ar
-#             next_all = Dict(key.indices[i].text => allocation[i] for i=1:length(key.indices))
-#             new_key = string(key.name, "_", allocation)
-#             new_set = merge(sets, next_all)
-#             constr_fn = eq_to_fn(eq, new_set, consts)
-#             bbf = OCT.BlackBoxFunction(fn = constr_fn, vks = find_vks_in_eq(eq, gams["variables"]),
-#                                     name = new_key)
-#             add_fn!(model, bbf)
-#         end
-#     end
-# end
+gm = GlobalModel(model = model)
+consts = constants(gams)
+for (key, eq) in gams["equations"]
+    if key isa GAMSFiles.GText
+        constr_fn = eq_to_fn(eq, sets, consts)
+        vars = find_vars_in_eq(model, eq, gams["variables"])
+        add_nonlinear_constraint(gm, constr_fn, vars,
+                                 name = GAMSFiles.getname(key))
+       add_fn!(model, bbf)
+    elseif key isa GAMSFiles.GArray
+        axes = GAMSFiles.getaxes(key.indices, sets)
+        ar = sets_to_idxs(key.indices, sets)
+        for allocation in ar
+            next_all = Dict(key.indices[i].text => allocation[i] for i=1:length(key.indices))
+            new_key = string(key.name, "_", allocation)
+            new_set = merge(sets, next_all)
+            constr_fn = eq_to_fn(eq, new_set, consts)
+            vars = find_vars_in_eq(model, eq, gams["variables"])
+            add_nonlinear_constraint(gm, constr_fn, vars,
+                                     name = new_key)
+        end
+    end
+end
 #
 # inp = Dict(vk => 1 for vk in model.vks)
 # model.bbfs[2](inp)
