@@ -4,8 +4,8 @@ gams:
 - Author: Berk
 - Date: 2020-09-10
 =#
-include("test/load.jl")
-include("../GAMSFiles.jl/src/GAMSFiles.jl")
+
+include("../../../GAMSFiles.jl/src/GAMSFiles.jl")
 using .GAMSFiles
 using IterTools
 
@@ -118,21 +118,16 @@ function generate_variables!(model, gams)
             @variable(model, base_name = sym)
         end
         for (prop, val) in vinfo.assignments
-            inds = nothing
-            if isa(prop, GAMSFiles.GText)
-                inds = (i,)
-            elseif isa(prop, GAMSFiles.GArray)
-                inds = map(x->x.val, prop.indices)
-            end
-            println(inds)
+            inds = map(x->x.val, prop.indices)
             if isa(prop, Union{GAMSFiles.GText, GAMSFiles.GArray})
                 c = val.val
 #                 if GAMSFiles.getname(prop) ∈ ("l", "fx")
 #                     x0[Symbol(v.name, inds[1])] = c
-                elseif GAMSFiles.getname(prop) == "lo"
+                if GAMSFiles.getname(prop) == "lo"
                     set_lower_bound(var[inds...], c)
                 elseif GAMSFiles.getname(prop) == "up"
                     set_upper_bound(var[inds...], c)
+                end
             end
         end
     end
@@ -140,7 +135,7 @@ function generate_variables!(model, gams)
 end
 
 # Initialize JuMP.Model
-m = Model(Gurobi.Optimizer)
+model = Model(Gurobi.Optimizer)
 
 # Parsing GAMS Files
 lexed = GAMSFiles.lex(filename)
@@ -157,31 +152,31 @@ end
 # Getting variables
 constants_to_global(gams)
 all_vars = generate_variables!(model, gams)
-
-# Getting objective
-@objective(model, Min, sum(model[i] for i in gams["minimizing"]))
-
-# Creating BlackBoxFunction expressions
-for (key, eq) in gams["equations"]
-    if key isa GAMSFiles.GText
-        constr_fn = eq_to_fn(eq, sets, consts)
-        bbf = OCT.BlackBoxFunction(fn = constr_fn, vks = find_vks_in_eq(eq, gams["variables"]),
-                               name = GAMSFiles.getname(key))
-       add_fn!(model, bbf)
-    elseif key isa GAMSFiles.GArray
-        axes = GAMSFiles.getaxes(key.indices, sets)
-        ar = sets_to_idxs(key.indices, sets)
-        for allocation in ar
-            next_all = Dict(key.indices[i].text => allocation[i] for i=1:length(key.indices))
-            new_key = string(key.name, "_", allocation)
-            new_set = merge(sets, next_all)
-            constr_fn = eq_to_fn(eq, new_set, consts)
-            bbf = OCT.BlackBoxFunction(fn = constr_fn, vks = find_vks_in_eq(eq, gams["variables"]),
-                                    name = new_key)
-            add_fn!(model, bbf)
-        end
-    end
-end
-
-inp = Dict(vk => 1 for vk in model.vks)
-model.bbfs[2](inp)
+#
+# # Getting objective
+# @objective(model, Min, sum(model[i] for i in gams["minimizing"]))
+#
+# # Creating BlackBoxFunction expressions
+# for (key, eq) in gams["equations"]
+#     if key isa GAMSFiles.GText
+#         constr_fn = eq_to_fn(eq, sets, consts)
+#         bbf = OCT.BlackBoxFunction(fn = constr_fn, vks = find_vks_in_eq(eq, gams["variables"]),
+#                                name = GAMSFiles.getname(key))
+#        add_fn!(model, bbf)
+#     elseif key isa GAMSFiles.GArray
+#         axes = GAMSFiles.getaxes(key.indices, sets)
+#         ar = sets_to_idxs(key.indices, sets)
+#         for allocation in ar
+#             next_all = Dict(key.indices[i].text => allocation[i] for i=1:length(key.indices))
+#             new_key = string(key.name, "_", allocation)
+#             new_set = merge(sets, next_all)
+#             constr_fn = eq_to_fn(eq, new_set, consts)
+#             bbf = OCT.BlackBoxFunction(fn = constr_fn, vks = find_vks_in_eq(eq, gams["variables"]),
+#                                     name = new_key)
+#             add_fn!(model, bbf)
+#         end
+#     end
+# end
+#
+# inp = Dict(vk => 1 for vk in model.vks)
+# model.bbfs[2](inp)
