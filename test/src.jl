@@ -135,4 +135,4 @@ bound!(model, Dict(z => [-10,10]))
 @test 0 <= accuracy(bbf) <= 1
 
 # Training a model
-(constraints, leaf_variables) = add_feas_constraints!(model, bbf.vars, bbf.learners[1].lnr, return_data = true);
+constraints, leaf_variables = add_feas_constraints!(model, bbf.vars, bbf.learners[1], return_data = true);

@@ -4,6 +4,7 @@ test_speedreducer:
 - Author: Berk
 - Date: 2020-08-10
 Speed reducer problem from [Li, 2017]
+Known optimum is 2999.76.
 =#
 
 function speed_reducer()
@@ -55,28 +56,29 @@ gm = speed_reducer()
 n_samples = 100;
 
 # First solve nonlinearly
-using Ipopt
-set_optimizer(gm, Ipopt.Optimizer)
-nl_model = nonlinearize!(gm)
+# using Ipopt
+# set_optimizer(gm, Ipopt.Optimizer)
+# nl_model = nonlinearize!(gm)
 
 # Initial sampling (boundary and interior)
-# gm = speed_reducer()
-# set_optimizer(gm, Gurobi.Optimizer)
-# sample_and_eval!(gm, n_samples=n_samples)
-# println("Constraint feasibilities: ", feasibility(gm))
-#
-# # See if KNN sampling makes a difference for feasibility!
-# sample_and_eval!(gm)
-# println("Constraint feasibilities: ", feasibility(gm))
-#
-# feas, infeas = fns_by_feasibility(gm)
-# for idx in infeas
-#     sample_and_eval!(gm.bbfs[idx])
-# end
-#
-# learn_constraint!(gm)
-#
-# globalsolve(gm)
-#
-# x_vals = getvalue.(gm.vars);
-# feasible, infeasible = evaluate_feasibility(gm);
+gm = speed_reducer()
+set_optimizer(gm, Gurobi.Optimizer)
+sample_and_eval!(gm, n_samples=n_samples)
+println("Constraint feasibilities: ", feasibility(gm))
+
+# See if KNN sampling makes a difference for feasibility!
+sample_and_eval!(gm)
+println("Constraint feasibilities: ", feasibility(gm))
+
+# Making sure that the bounds are identical
+old_bounds = get_bounds(gm);
+find_bounds!(gm, all_bounds = true);
+new_bounds = get_bounds(gm);
+@test old_bounds == new_bounds
+
+# Fitting and finding bounds with some bbfs
+learn_constraint!(gm, ignore_checks=true);
+globalsolve(gm);
+soln = solution(gm);
+
+feasible, infeasible = evaluate_feasibility(gm);

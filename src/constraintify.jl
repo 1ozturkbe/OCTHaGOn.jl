@@ -29,6 +29,10 @@ function add_tree_constraints!(gm::GlobalModel, bbfs::Array{BlackBoxFunction}; M
     for bbf in bbfs
         if bbf.feas_ratio == 1.0
             return
+        elseif size(bbf.X, 1) == 0
+            @warn("Constraint " * string(bbf.name) * " has not been sampled yet...")
+        elseif length(bbf.learners) == 0
+            @warn("Constraint " * string(bbf.name) * " has not been learned yet...")
         elseif bbf.feas_ratio == 0.0
             @warn("Constraint " * string(bbf.name) * " is INFEASIBLE but you tried to include it in
                    your global problem. For now, the constraint is OMITTED.
