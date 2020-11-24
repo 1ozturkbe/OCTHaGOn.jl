@@ -30,53 +30,13 @@ expr_vars = [x,y,z]
 @test vars_from_expr(expr, model) == expr_vars
 @test vars_from_expr(simp_expr, model) == [x]
 
-vars = flat(expr_vars)
-aux_vars = [Symbol("aux$(i)") for i=1:length(vars)]
-varmap = get_varmap(expr_vars, vars)
-lhs = :(($(aux_vars)...))
-vars_copy = deepcopy(expr.args[1].args)
-expr_copy = deepcopy(expr.args[2])
-
-
-for i = 1:length(expr_vars)
-    tuple_idxs = findall(x -> x[1] == i, varmap)
-    if length(tuple_idxs) == 1 # Scalar inputs to the function
-        expr_copy = substitute(expr_copy, vars_copy[i]=> aux_vars[tuple_idxs[1]])
-    else
-        expr_copy = substitute(expr_copy, vars_copy[i] => aux_vars[tuple_idxs])
-    end
-end
-fn = :($(lhs) -> $(expr_copy))
-
-
-# Expression registering
-using JuMP
-model = Model()
-@variables(model, begin
-    -5 <= x[1:5] <= 5
-    -4 <= y[1:3] <= 1
-    -30 <= z
-end)
-# Testing expression parsing
-ex = :((x, y, z) -> sum(x[i] for i=1:4) - y[1] * y[2] + z)
-fex = :((x...) -> $(ex)(x[1], x[2], x[3]))
-symb = :feg
-JuMP.register(model, symb, 3, eval(fex); autodiff = true)
-vars = [x,y,z]
-JuMP.add_NL_constraint(model, :($(symb)($(vars)...) == 0))
-
-
-# Testing "flattening of expressions"
+# Testing "flattening of expressions" for nonlinearization
 vars = vars_from_expr(expr, model)
 var_ranges = [(1:5),(6:8),9]
-flat_expr = :((x...) -> $(expr)(x[$(i for i in var_ranges)]...))
+flat_expr = :((x...) -> $(expr)([x[i] for i in $(var_ranges)]...))
 fn = eval(flat_expr)
-vars = flat(vars)
-symb=:fg
-JuMP.register(model, symb, length(vars), fn; autodiff = true)
-expr = Expr(:call, symb, vars...)
-JuMP.add_NL_constraint(model, :($(expr) >= 0))
-
+@test fn([1,2,3,4,1,5,-6,-7,7]...) == f([1,2,3,4,1], [5,-6,-7], 7)
+@test fn(flat(vars)...) == f(x,y,z)
 
 @constraint(model, sum(x[4]^2 + x[5]^2) <= z)
 @constraint(model, sum(y[:]) >= -2)

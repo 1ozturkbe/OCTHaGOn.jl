@@ -144,12 +144,28 @@ function nonlinearize!(gm::GlobalModel, bbfs::Array{BlackBoxFunction})
         if bbf.constraint isa JuMP.ConstraintRef
             JuMP.add_constraint(gm.model, bbf.constraint)
         elseif bbf.constraint isa Expr
-            f = Symbol(bbf.name)
-            JuMP.register(gm.model, f, length(bbf.expr_vars), bbf.fn; autodiff = true)
+            symb = Symbol(bbf.name)
+            expr_vars = bbf.expr_vars
+            vars = flat(vars)
+            var_ranges = []
+            count = 0
+            for varlist in expr_vars
+                if varlist isa VariableRef
+                    count += 1
+                    push!(var_ranges, count)
+                else
+                    push!(var_ranges, (count + 1 : count + length(varlist)))
+                    count += length(varlist)
+                end
+            end
+            expr = bbf.constraint
+            flat_expr = :((x...) -> $(expr)([x[i] for i in $(var_ranges)]...))
+            fn = eval(flat_expr)
+            JuMP.register(model, symb, length(vars), fn; autodiff = true)
             if bbf.equality
-                JuMP.add_NL_constraint(gm.model, :($(f)($(bbf.expr_vars)...) == 0))
+                JuMP.add_NL_constraint(model, :($(symb)($(vars)...) == 0))
             else
-                JuMP.add_NL_constraint(gm.model, :($(f)($(bbf.expr_vars)...) >= 0))
+                JuMP.add_NL_constraint(model, :($(symb)($(vars)...) >= 0))
             end
         end
     end
