@@ -401,9 +401,8 @@ function evaluate_feasibility(gm::GlobalModel)
     for fn in gm.bbfs
         eval!(fn, soln)
     end
-    fn_names = getfield.(gm.bbfs, :name);
-    infeas_idxs = fn_names[findall(vk -> gm(vk).Y[end] .< 0, fn_names)]
-    feas_idxs = fn_names[findall(vk -> gm(vk).Y[end] .>= 0, fn_names)]
+    infeas_idxs = findall(idx -> gm.bbfs[idx].Y[end] .< 0, collect(1:length(gm.bbfs))) #TODO: optimize
+    feas_idxs = findall(idx -> gm.bbfs[idx].Y[end] .>= 0, collect(1:length(gm.bbfs)))
     return feas_idxs, infeas_idxs
 end
 
@@ -412,8 +411,9 @@ end
 
 Finds the outer variable bounds of GlobalModel by solving only over the linear constraints
 and listed BBFs.
+TODO: improve! Only find bounds of non-binary variables.
 """
-function find_bounds!(gm::GlobalModel; bbfs::Array{BlackBoxFunction} = [], M = 1e5, all_bounds::Bool=true)
+function find_bounds!(gm::GlobalModel; bbfs::Array{BlackBoxFunction} = BlackBoxFunction[], M = 1e5, all_bounds::Bool=true)
     new_bounds = Dict(var => [-Inf, Inf] for var in gm.vars)
     # Finding bounds by min/maximizing each variable
     clear_tree_constraints!(gm)
