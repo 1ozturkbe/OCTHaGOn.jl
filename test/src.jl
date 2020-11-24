@@ -49,8 +49,6 @@ end
 fn = :($(lhs) -> $(expr_copy))
 
 
-
-
 # Expression registering
 using JuMP
 model = Model()
@@ -66,6 +64,18 @@ symb = :feg
 JuMP.register(model, symb, 3, eval(fex); autodiff = true)
 vars = [x,y,z]
 JuMP.add_NL_constraint(model, :($(symb)($(vars)...) == 0))
+
+
+# Testing "flattening of expressions"
+vars = vars_from_expr(expr, model)
+var_ranges = [(1:5),(6:8),9]
+flat_expr = :((x...) -> $(expr)(x[$(i for i in var_ranges)]...))
+fn = eval(flat_expr)
+vars = flat(vars)
+symb=:fg
+JuMP.register(model, symb, length(vars), fn; autodiff = true)
+expr = Expr(:call, symb, vars...)
+JuMP.add_NL_constraint(model, :($(expr) >= 0))
 
 
 @constraint(model, sum(x[4]^2 + x[5]^2) <= z)
