@@ -397,38 +397,44 @@ function evaluate_feasibility(gm::GlobalModel)
     for fn in gm.bbfs
         eval!(fn, soln)
     end
-    fn_names = getfield.(gm.bbfs, :name);
-    infeas_idxs = fn_names[findall(vk -> gm(vk).Y[end] .< 0, fn_names)]
-    feas_idxs = fn_names[findall(vk -> gm(vk).Y[end] .>= 0, fn_names)]
+    infeas_idxs = findall(idx -> gm.bbfs[idx].Y[end] .< 0, collect(1:length(gm.bbfs))) #TODO: optimize
+    feas_idxs = findall(idx -> gm.bbfs[idx].Y[end] .>= 0, collect(1:length(gm.bbfs)))
     return feas_idxs, infeas_idxs
 end
 
-function find_bounds!(gm::GlobalModel; all_bounds=true)
-    """Finds the outer variable bounds of GlobalModel by solving over the linear constraints. """
-    ubs = Dict(gm.vars .=> Inf)
-    lbs = Dict(gm.vars .=> -Inf)
+"""
+    find_bounds!(gm::GlobalModel; bbfs::Array{BlackBoxFunction} = [], M = 1e5, all_bounds::Bool=true)
+
+Finds the outer variable bounds of GlobalModel by solving only over the linear constraints
+and listed BBFs.
+TODO: improve! Only find bounds of non-binary variables.
+"""
+function find_bounds!(gm::GlobalModel; bbfs::Array{BlackBoxFunction} = BlackBoxFunction[], M = 1e5, all_bounds::Bool=true)
+    new_bounds = Dict(var => [-Inf, Inf] for var in gm.vars)
     # Finding bounds by min/maximizing each variable
     clear_tree_constraints!(gm)
+    if !isempty(bbfs)
+        add_tree_constraints!(gm, bbfs, M=M)
+    end
     m = gm.model;
     x = gm.vars;
-    current_bounds = get_bounds(m);
-    orig_objective = JuMP.objective_function(gm)
+    old_bounds = get_bounds(m);
+    orig_objective = JuMP.objective_function(gm.model)
     @showprogress 0.5 "Finding bounds..." for var in gm.vars
-        if isinf(current_bounds(var)) || all_bounds
+        if isinf(old_bounds[var][1]) || all_bounds
             @objective(m, Min, var);
             JuMP.optimize!(m);
-            lbs[var] = getvalue(var);
+            new_bounds[var][1] = getvalue(var);
         end
-        if isinf(current_bounds(var)) || all_bounds
+        if isinf(old_bounds[var][2]) || all_bounds
             @objective(m, Max, var);
             JuMP.optimize!(m);
-            ubs[var] = getvalue(var);
+            new_bounds[var][2] = getvalue(var);
         end
     end
     # Revert objective
     @objective(m, Min, orig_objective)
-    bounds = Dict(var => [lbs[var], ubs[var]] for var in x)
-    bound!(gm, bounds)
+    bound!(gm, new_bounds)
     return
 end
 
