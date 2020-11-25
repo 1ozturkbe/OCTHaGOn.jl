@@ -56,9 +56,10 @@ gm = speed_reducer()
 n_samples = 100;
 
 # First solve nonlinearly
-# using Ipopt
-# set_optimizer(gm, Ipopt.Optimizer)
-# nl_model = nonlinearize!(gm)
+using Ipopt
+set_optimizer(gm, Ipopt.Optimizer)
+nonlinearize!(gm)
+optimize!(gm)
 
 # Initial sampling (boundary and interior)
 gm = speed_reducer()

@@ -138,25 +138,36 @@ end
 
 Turns gm.model into the nonlinear representation.
 NOTE: to get back to MI-compatible forms, must rebuild model from scratch.
-TODO: Complete!
 """
 function nonlinearize!(gm::GlobalModel, bbfs::Array{BlackBoxFunction})
-    for bbf in bbfs
+    for (i, bbf) in enumerate(bbfs)
         if bbf.constraint isa JuMP.ConstraintRef
             JuMP.add_constraint(gm.model, bbf.constraint)
         elseif bbf.constraint isa Expr
-            continue
-#             JuMP.register(gm.model, Symbol(bbf.name), length(bbf.expr_vars), bbf.fn, autodiff=true)
-#             x = bbf.expr_vars
-#             if bbf.equality
-#                 @NLconstraint(gm.model, Symbol(bbf.name)(x...) >= 0)
-# #                 JuMP.add_NL_constraint(gm.model, Expr(:call, :(==), bbf.constraint.args[2], 0))
-# #                 @NLconstraint(gm.model, Expr(:call, :($bbf.name), x...) == 0)
-#             else
-#                 @NLconstraint(gm.model, f(x...) == 0)
-# #                 @NLconstraint(gm.model, Expr(:call, :($bbf.name), x...) >= 0)
-# #                 @NLconstraint(gm.model, bbf.fn(bbf.expr_vars...) >= 0)
-#             end
+            symb = Symbol(bbf.name)
+            expr_vars = bbf.expr_vars
+            vars = flat(expr_vars)
+            var_ranges = []
+            count = 0
+            for varlist in expr_vars
+                if varlist isa VariableRef
+                    count += 1
+                    push!(var_ranges, count)
+                else
+                    push!(var_ranges, (count + 1 : count + length(varlist)))
+                    count += length(varlist)
+                end
+            end
+            expr = bbf.constraint
+            flat_expr = :((x...) -> $(expr)([x[i] for i in $(var_ranges)]...))
+            fn = eval(flat_expr)
+            JuMP.register(gm.model, symb, length(vars), fn; autodiff = true)
+            expr = Expr(:call, symb, vars...)
+            if bbf.equality
+                JuMP.add_NL_constraint(gm.model, :($(expr) == 0))
+            else
+                JuMP.add_NL_constraint(gm.model, :($(expr) >= 0))
+            end
         end
     end
     return
