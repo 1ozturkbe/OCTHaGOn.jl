@@ -77,8 +77,6 @@ int = @variable(m, [1:length(TPC_range)], Bin)
 output_idxs = [1, 4, 6, 8, 10, 12];
 P_shaft, Torque, Rotational_Speed, Efficiency, Mass, Mass_Specific_Power = [outputs[idx] for idx in idxs]
 set_upper_bound(Efficiency, 1)
-@constraint(m, log(10.) == P_shaft)
-@constraint(m, log.(8000) == Rotational_Speed)
 
 # Fitting power closure, and creating a global model
 # simulation = DataConstraint(vars = inputs)
@@ -88,52 +86,34 @@ feasmap = zeros(size(Y, 1)); feasmap[feas_idxs] .= 1;
 # lnr = IAI.fit!(base_otc(), log.(X), feasmap)
 # IAI.write_json("power_closure.json", lnr)
 lnr = IAI.read_json("power_closure.json")
-# constrs, leaf_vars = add_feas_constraints!(m, inputs, lnr, M=1e3, return_data = true)
+constrs, leaf_vars = add_feas_constraints!(m, inputs, lnr, M=1e3, return_data = true)
 # simulation.mi_constraints = constrs; # Note: this is needed to monitor the presence of tree
 # simulation.leaf_variables = leaf_vars; #  constraints and variables in gm.model
 
-# Fitting appropriate power
-feasmap = 10.2 .>= Y_feas["P_shaft"] .>= 9.8;
-lnr = IAI.fit!(base_otc(), log.(X_feas), feasmap);
-constrs, leaf_vars = add_feas_constraints!(m, inputs, lnr, M=1e3, return_data = true);
-
-# Fitting appropriate RPM
-feasmap = Y_feas["Rotational Speed"] .>= 7800;
-lnr = IAI.fit!(base_otc(), log.(X_feas), feasmap);
-constrs, leaf_vars = add_feas_constraints!(m, inputs, lnr, M=1e3, return_data = true)
-
-
 # Only one feasible leaf (4), so can just use regression equations
-# reg_lnr = base_otr()
-# reg_lnr.hyperplane_config = (sparsity = 1,)
-# for FOM in FOMs
-#     lnr = IAI.fit!(reg_lnr, log.(X_feas), log.(Y_feas[string(FOM)]))
-#     IAI.write_json(string(FOM) * ".json", lnr)
-# end
-
-leaf = 5;
-
 # Regressions over leaves
-# P_shaft, Torque, Rotational_Speed, Efficiency, Mass, Mass_Specific_Power = [outputs[idx] for idx in idxs]
-# FOMs = [P_shaft, Rotational_Speed]
-# leaf_index, all_leaves = bin_to_leaves(lnr, log.(X_feas))
-# for FOM in FOMs
-#     regressor = regress(log.(X_feas), log.(Y_feas[string(FOM)]))
-#     constant = IAI.get_prediction_constant(regressor)
-#     weights  = IAI.get_prediction_weights(regressor)[1]
-#     vks = Symbol.(names(X_feas))
-#     β = []
-#     for i = 1:size(vks, 1)
-#         if vks[i] in keys(weights)
-#             append!(β, weights[vks[i]])
-#         else
-#             append!(β, 0.0)
-#         end
-#     end
-#     @constraint(m, sum(β .* inputs) + constant == FOM)
-# end
+P_shaft, Torque, Rotational_Speed, Efficiency, Mass, Mass_Specific_Power = [outputs[idx] for idx in idxs]
+FOMs = [P_shaft, Rotational_Speed, Mass, Efficiency]
+leaf_index, all_leaves = bin_to_leaves(lnr, log.(X_feas))
+for FOM in FOMs
+    regressor = regress(log.(X_feas), log.(Y_feas[string(FOM)]))
+    constant = IAI.get_prediction_constant(regressor)
+    weights  = IAI.get_prediction_weights(regressor)[1]
+    vks = Symbol.(names(X_feas))
+    β = []
+    for i = 1:size(vks, 1)
+        if vks[i] in keys(weights)
+            append!(β, weights[vks[i]])
+        else
+            append!(β, 0.0)
+        end
+    end
+    @constraint(m, sum(β .* inputs) + constant == FOM)
+end
 
 # Solving
+@constraint(m, log(9.8) <= P_shaft)
+@constraint(m, log.(7800) <= Rotational_Speed <= log(8200))
 @objective(m, Min, Mass)
 optimize!(m)
 println("Inputs")
