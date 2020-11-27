@@ -1,0 +1,29 @@
+# afm_despmtr (design parameters for axial flux motor)
+# written by John Dannenhoffer, edited by Berk Ozturk and Cody Karcher
+# all dimensions in millimeters
+
+INTERFACE . ALL
+
+CFGPMTR   coil:ncoil          18        # number of coils
+DESPMTR   coil:rinner         74.60     # inner radius of rotor
+DESPMTR   coil:router        125.40     # outer radius of rotor
+DESPMTR   coil:rcorner         8.00     # radius of corners
+DESPMTR   coil:drramp         10.00     # radius difference for ramp
+DESPMTR   coil:width           2.13     # width  of coil racetrack
+DESPMTR   coil:height         18.53     # height of coil racetrack
+DESPMTR   coil:sep             1.00     # axial separation between coils
+DESPMTR   coil:tablen          5.00     # length of wire tabs
+DESPMTR   coil:ahole           5.50     # offset angle of coolant hole
+
+CFGPMTR   tile:nwire           12       # number of wires
+DESPMTR   tile:tinsul          0.10     # insulation thickness all around
+DESPMTR   tile:twire           1.01     # wire thickness
+CFGPMTR   tile:endType         1        # 0=circle, 1=wedge, 2=square   
+
+DESPMTR   rotor:thickness     2.51     # Thickness of the rotor
+DESPMTR   rotor:rinner       71.00     # inner radius of rotor
+DESPMTR   rotor:router      158.00     # outer radius of rotor
+DESPMTR   rotor:airgap        1.00     # gap between rotor and stator    
+
+
+END
