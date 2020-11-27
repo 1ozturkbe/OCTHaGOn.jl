@@ -793,8 +793,9 @@ if __name__ == '__main__':
     # # opt_inp = pd.read_csv("afpm_opt.csv")
     bs = baseline()
     # out = [12.5, 7.5, 0.5, 18, 12, 15, [1.02, 1.93]] # Cody's optimum
-    out = [10.33, 5.625, 0.75, 18, 15, 17, [1.05, 1.448]]   # Mass minimizing
-    out = [11.98, 5.625, 0.75, 18, 9, 17, [1.27, 2.41]]   # Efficiency maximizing
+    # out = [12.54, 7.46, 0.5, 18, 12, 15, [1.01, 1.93]] # Cody's optimum
+    out = [10.33, 5.625, 0.75, 18, 15, 17, [1.05, 1.45]]   # Mass minimizing
+    # out = [11.98, 5.625, 0.75, 18, 9, 17, [1.27, 2.41]]   # Efficiency maximizing
     keys = ["D_out", "D_in", "D_sh", "N_coils", "TPC", "p", "wire_dimension"]
     for i in range(len(keys)):
         if keys[i] in ["N_coils", "TPC", "p"]:
