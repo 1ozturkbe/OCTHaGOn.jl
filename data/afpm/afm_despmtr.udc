@@ -4,20 +4,20 @@
 
 INTERFACE . ALL
 
-CFGPMTR   coil:ncoil          18        # number of coils
-DESPMTR   coil:rinner         74.60     # inner radius of rotor
-DESPMTR   coil:router        125.40     # outer radius of rotor
+CFGPMTR   coil:ncoil          18        # number of coils (N_coils)
+DESPMTR   coil:rinner         74.60     # inner radius of rotor (D_in)
+DESPMTR   coil:router        125.40     # outer radius of rotor (D_out)
 DESPMTR   coil:rcorner         8.00     # radius of corners
 DESPMTR   coil:drramp         10.00     # radius difference for ramp
-DESPMTR   coil:width           2.13     # width  of coil racetrack
-DESPMTR   coil:height         18.53     # height of coil racetrack
+DESPMTR   coil:width           2.13     # width  of coil racetrack (w_wire + 2*tinsul)
+DESPMTR   coil:height         18.53     # height of coil racetrack (1.5*nwire*twire+2*tinsul)
 DESPMTR   coil:sep             1.00     # axial separation between coils
 DESPMTR   coil:tablen          5.00     # length of wire tabs
 DESPMTR   coil:ahole           5.50     # offset angle of coolant hole
 
-CFGPMTR   tile:nwire           12       # number of wires
+CFGPMTR   tile:nwire           12       # number of wires (TPC)
 DESPMTR   tile:tinsul          0.10     # insulation thickness all around
-DESPMTR   tile:twire           1.01     # wire thickness
+DESPMTR   tile:twire           1.01     # wire thickness (wire_w)
 CFGPMTR   tile:endType         1        # 0=circle, 1=wedge, 2=square   
 
 DESPMTR   rotor:thickness     2.51     # Thickness of the rotor
