@@ -6,17 +6,17 @@ nonlinear_model can contain JuMP.NonlinearConstraints.
 """
 @with_kw mutable struct GlobalModel
     model::JuMP.Model                                                     # JuMP model
-    name::Union{Symbol, String} = "Model"                                 # Example name
-    bbfs::Array{BlackBoxFunction} = Array{BlackBoxFunction}[]              # Black box (>/= 0) functions
+    name::Union{Nothing, String} = nothing                                # Example name
+    bbfs::Array{BlackBoxFunction} = Array{BlackBoxFunction}[]             # Black box (>/= 0) functions
     vars::Array{VariableRef} = JuMP.all_variables(model)                  # JuMP variables
 end
 
 """
-    (gm::GlobalModel)(name::Union{String, Int64})
+    (gm::GlobalModel)(name::String)
 
 Finds BlackBoxFunction in GlobalModel by name.
 """
-function (gm::GlobalModel)(name::Union{String, Int64})
+function (gm::GlobalModel)(name::String)
     fn_names = getfield.(gm.bbfs, :name)
     fns = gm.bbfs[findall(x -> x == name, fn_names)]
     if length(fns) == 1
@@ -111,7 +111,11 @@ function add_nonlinear_constraint(gm::GlobalModel,
         bbf_vars = vars
     end
     if isnothing(name)
-        name = string("bbf", length(gm.bbfs) + 1)
+        if isnothing(gm.name)
+            throw(OCTException("Cannot name BlackBoxFunctions in unnamed GlobalModel."))
+        else
+            name = string(gm.name, "_", length(gm.bbfs) + 1)
+        end
     end
     if constraint isa JuMP.ScalarConstraint #TODO: clean up.
         con = JuMP.add_constraint(gm.model, bbf.constraint)

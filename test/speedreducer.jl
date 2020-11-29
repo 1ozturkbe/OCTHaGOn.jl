@@ -14,7 +14,7 @@ function speed_reducer()
     BBF = BlackBoxFunction;
     lbs = Dict(x .=> [2.6, 0.7, 17, 7.3, 7.3, 2.9, 5, 0])
     ubs = Dict(x .=> [3.6, 0.8, 28, 8.3, 8.3, 3.9, 5.5, 5000])
-    gm = GlobalModel(model = m, name = "speed reducer")
+    gm = GlobalModel(model = m, name = "speed_reducer")
     bound!(gm, Dict(var => [lbs[var], ubs[var]] for var in gm.vars))
     x = gm.vars
 

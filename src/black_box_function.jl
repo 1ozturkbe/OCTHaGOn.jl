@@ -109,9 +109,9 @@ Also contains data w.r.t. samples from the function.
 Can be tagged with additional info.
 """
 @with_kw mutable struct BlackBoxFunction
-    constraint::Union{JuMP.ConstraintRef, Expr}        # The "raw" constraint
-    vars::Array{JuMP.VariableRef,1}                      # JuMP variables (flat)
-    name::Union{String, Real} = ""                     # Function name
+    constraint::Union{JuMP.ConstraintRef, Expr}                    # The "raw" constraint
+    vars::Array{JuMP.VariableRef,1}                                # JuMP variables (flat)
+    name::Union{String, Nothing} = nothing                         # Function name
     expr_vars = vars_from_expr(constraint, vars[1].model)          # Function inputs (nonflat JuMP variables)
     varmap::Union{Nothing,Array} = get_varmap(expr_vars, vars)     # ... with the required varmapping.
     fn::Union{Nothing, Function} = functionify(constraint)         # ... and actually evaluated f'n
