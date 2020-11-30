@@ -5,6 +5,7 @@ module OptimalConstraintTree
     using Gurobi
     using JuMP
     using LatinHypercubeSampling
+    using MacroTools
     using Main.IAI
     using MathOptInterface
     using MathOptSetDistances
@@ -81,6 +82,6 @@ module OptimalConstraintTree
             clear_data!, chop_dict,
             # Small scripts
             vars_from_expr, get_varmap, deconstruct, flat,
-            infarray
+            infarray, substitute, substitute_expr, substitute_args
 end
 

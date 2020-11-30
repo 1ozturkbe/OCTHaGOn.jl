@@ -19,22 +19,31 @@ model = Model()
 end)
 
 # Testing expression parsing
-ex = :((x, y, z) -> sum(x[i] for i=1:4) - y[1] * y[2] + z)
-simp_ex = :(x -> sum(5 .* x))
-f = eval(ex)
-simp_f = eval(simp_ex)
-ex_vars = [x,y,z]
-@assert f(ones(4), ones(2),5) isa Float64
-@assert f(x,y,z) isa JuMP.GenericQuadExpr
-@assert vars_from_expr(ex, flat([x[1:4], y[1:2], z])) == ex_vars
-@assert vars_from_expr(simp_ex, flat([x])) == [x]
+expr = :((x, y, z) -> sum(x[i] for i=1:4) - y[1] * y[2] + z)
+simp_expr = :(x -> sum(5 .* x))
+f = eval(expr)
+simp_f = eval(simp_expr)
+expr_vars = [x,y,z]
+
+@test f(ones(4), ones(2),5) isa Float64
+@test f(x,y,z) isa JuMP.GenericQuadExpr && f(expr_vars...) == sum(x[1:4]) - y[1] * y[2] + z
+@test vars_from_expr(expr, model) == expr_vars
+@test vars_from_expr(simp_expr, model) == [x]
+
+# Testing "flattening of expressions" for nonlinearization
+vars = vars_from_expr(expr, model)
+var_ranges = [(1:5),(6:8),9]
+flat_expr = :((x...) -> $(expr)([x[i] for i in $(var_ranges)]...))
+fn = eval(flat_expr)
+@test fn([1,2,3,4,1,5,-6,-7,7]...) == f([1,2,3,4,1], [5,-6,-7], 7)
+@test fn(flat(vars)...) == f(x,y,z)
 
 @constraint(model, sum(x[4]^2 + x[5]^2) <= z)
 @constraint(model, sum(y[:]) >= -2)
 
 # Testing proper mapping for expressions
 flatvars = flat([y[2], z, x[1:4]])
-vars = vars_from_expr(ex, flatvars)
+vars = vars_from_expr(expr, model)
 @test get_varmap(vars, flatvars) == [(2,2), (3,0), (1,1), (1, 2), (1,3), (1,4)]
 @test infarray([(1,4), (1,3), (2,0)]) == [[Inf, Inf, Inf, Inf], Inf]
 
@@ -68,7 +77,7 @@ inp_df = DataFrame(inp_dict)
 # Separation of constraints of generated nl_model
 nl_model = copy(model) # NOTE: copy only works if JuMP.Model has no NLconstraints.
 l_constrs, nl_constrs = classify_constraints(nl_model)
-@test length(l_constrs) == 20 && length(nl_constrs) == 1
+@test length(l_constrs) == 20 && length(nl_constrs) == 2
 
 # Set constants
 sets = [MOI.GreaterThan(2), MOI.EqualTo(0), MOI.SecondOrderCone(3), MOI.GeometricMeanCone(2), MOI.SOS1([1,2,3])]
@@ -76,10 +85,10 @@ sets = [MOI.GreaterThan(2), MOI.EqualTo(0), MOI.SecondOrderCone(3), MOI.Geometri
 
 # Test BBF creation from a variety of functions
 @test isnothing(functionify(nl_constrs[1]))
-@test functionify(ex) isa Function
+@test functionify(expr) isa Function
 # @test_throws
 bbfs = [BlackBoxFunction(constraint = nl_constrs[1], vars = [x[4], x[5], z]),
-        BlackBoxFunction(constraint = ex, vars = flat([x[1:4], y[1:2], z]))]
+        BlackBoxFunction(constraint = expr, vars = flat([x[1:4], y[1:2], z]))]
 
 # Evaluation (scalar)
 # Quadratic (JuMP compatible) constraint
@@ -135,4 +144,4 @@ bound!(model, Dict(z => [-10,10]))
 @test 0 <= accuracy(bbf) <= 1
 
 # Training a model
-(constraints, leaf_variables) = add_feas_constraints!(model, bbf.vars, bbf.learners[1], return_data = true);
+constraints, leaf_variables = add_feas_constraints!(model, bbf.vars, bbf.learners[1], return_data = true);

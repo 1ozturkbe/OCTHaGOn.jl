@@ -138,32 +138,45 @@ end
 
 Turns gm.model into the nonlinear representation.
 NOTE: to get back to MI-compatible forms, must rebuild model from scratch.
-TODO: Complete!
 """
-# function nonlinearize!(gm::GlobalModel, bbfs::Array{BlackBoxFunction})
-#     for bbf in bbfs
-#         if bbf.constraint isa JuMP.ConstraintRef
-#             JuMP.add_constraint(gm.model, bbf.constraint)
-#         elseif bbf.constraint isa Expr
-#             JuMP.register(gm.model, Symbol(bbf.name), length(bbf.expr_vars), bbf.fn, autodiff=true)
-#             x = bbf.expr_vars
-#             if bbf.equality
-#                 @NLconstraint(gm.model, Symbol(bbf.name)(x...) >= 0)
-# #                 JuMP.add_NL_constraint(gm.model, Expr(:call, :(==), bbf.constraint.args[2], 0))
-# #                 @NLconstraint(gm.model, Expr(:call, :($bbf.name), x...) == 0)
-#             else
-#                 @NLconstraint(gm.model, f(x...) == 0)
-# #                 @NLconstraint(gm.model, Expr(:call, :($bbf.name), x...) >= 0)
-# #                 @NLconstraint(gm.model, bbf.fn(bbf.expr_vars...) >= 0)
-#             end
-#         end
-#     end
-#     return
-# end
-#
-# function nonlinearize!(gm::GlobalModel)
-#     nonlinearize!(gm, gm.bbfs)
-# end
+
+function nonlinearize!(gm::GlobalModel, bbfs::Array{BlackBoxFunction})
+    for (i, bbf) in enumerate(bbfs)
+        if bbf.constraint isa JuMP.ConstraintRef
+            JuMP.add_constraint(gm.model, bbf.constraint)
+        elseif bbf.constraint isa Expr
+            symb = Symbol(bbf.name)
+            expr_vars = bbf.expr_vars
+            vars = flat(expr_vars)
+            var_ranges = []
+            count = 0
+            for varlist in expr_vars
+                if varlist isa VariableRef
+                    count += 1
+                    push!(var_ranges, count)
+                else
+                    push!(var_ranges, (count + 1 : count + length(varlist)))
+                    count += length(varlist)
+                end
+            end
+            expr = bbf.constraint
+            flat_expr = :((x...) -> $(expr)([x[i] for i in $(var_ranges)]...))
+            fn = eval(flat_expr)
+            JuMP.register(gm.model, symb, length(vars), fn; autodiff = true)
+            expr = Expr(:call, symb, vars...)
+            if bbf.equality
+                JuMP.add_NL_constraint(gm.model, :($(expr) == 0))
+            else
+                JuMP.add_NL_constraint(gm.model, :($(expr) >= 0))
+            end
+        end
+    end
+    return
+end
+
+function nonlinearize!(gm::GlobalModel)
+    nonlinearize!(gm, gm.bbfs)
+end
 
 function bound!(model::Union{GlobalModel, JuMP.Model},
                 bounds::Dict)
@@ -402,38 +415,44 @@ function evaluate_feasibility(gm::GlobalModel)
     for fn in gm.bbfs
         eval!(fn, soln)
     end
-    fn_names = getfield.(gm.bbfs, :name);
-    infeas_idxs = fn_names[findall(vk -> gm(vk).Y[end] .< 0, fn_names)]
-    feas_idxs = fn_names[findall(vk -> gm(vk).Y[end] .>= 0, fn_names)]
+    infeas_idxs = findall(idx -> gm.bbfs[idx].Y[end] .< 0, collect(1:length(gm.bbfs))) #TODO: optimize
+    feas_idxs = findall(idx -> gm.bbfs[idx].Y[end] .>= 0, collect(1:length(gm.bbfs)))
     return feas_idxs, infeas_idxs
 end
 
-function find_bounds!(gm::GlobalModel; all_bounds=true)
-    """Finds the outer variable bounds of GlobalModel by solving over the linear constraints. """
-    ubs = Dict(gm.vars .=> Inf)
-    lbs = Dict(gm.vars .=> -Inf)
+"""
+    find_bounds!(gm::GlobalModel; bbfs::Array{BlackBoxFunction} = [], M = 1e5, all_bounds::Bool=true)
+
+Finds the outer variable bounds of GlobalModel by solving only over the linear constraints
+and listed BBFs.
+TODO: improve! Only find bounds of non-binary variables.
+"""
+function find_bounds!(gm::GlobalModel; bbfs::Array{BlackBoxFunction} = BlackBoxFunction[], M = 1e5, all_bounds::Bool=true)
+    new_bounds = Dict(var => [-Inf, Inf] for var in gm.vars)
     # Finding bounds by min/maximizing each variable
     clear_tree_constraints!(gm)
+    if !isempty(bbfs)
+        add_tree_constraints!(gm, bbfs, M=M)
+    end
     m = gm.model;
     x = gm.vars;
-    current_bounds = get_bounds(m);
-    orig_objective = JuMP.objective_function(gm)
+    old_bounds = get_bounds(m);
+    orig_objective = JuMP.objective_function(gm.model)
     @showprogress 0.5 "Finding bounds..." for var in gm.vars
-        if isinf(current_bounds(var)) || all_bounds
+        if isinf(old_bounds[var][1]) || all_bounds
             @objective(m, Min, var);
             JuMP.optimize!(m);
-            lbs[var] = getvalue(var);
+            new_bounds[var][1] = getvalue(var);
         end
-        if isinf(current_bounds(var)) || all_bounds
+        if isinf(old_bounds[var][2]) || all_bounds
             @objective(m, Max, var);
             JuMP.optimize!(m);
-            ubs[var] = getvalue(var);
+            new_bounds[var][2] = getvalue(var);
         end
     end
     # Revert objective
     @objective(m, Min, orig_objective)
-    bounds = Dict(var => [lbs[var], ubs[var]] for var in x)
-    bound!(gm, bounds)
+    bound!(gm, new_bounds)
     return
 end
 
