@@ -115,7 +115,7 @@ Can be tagged with additional info.
     expr_vars = vars_from_expr(constraint, vars[1].model)          # Function inputs (nonflat JuMP variables)
     varmap::Union{Nothing,Array} = get_varmap(expr_vars, vars)     # ... with the required varmapping.
     fn::Union{Nothing, Function} = functionify(constraint)         # ... and actually evaluated f'n
-    X::DataFrame = DataFrame([Float64 for i=1:length(varmap)], string.(vars))
+    X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars))
                                                        # Function samples
     Y::Array = []                                      # Function values
     feas_ratio::Float64 = 0.                           # Feasible sample proportion
