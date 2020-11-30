@@ -11,9 +11,9 @@ function speed_reducer()
     m = JuMP.Model(Gurobi.Optimizer)
     @variable(m, x[1:8])
     @objective(m, Min, x[8])
+    gm = GlobalModel(model = m, name = "speed reducer")
     lbs = Dict(x .=> [2.6, 0.7, 17, 7.3, 7.3, 2.9, 5, 0])
     ubs = Dict(x .=> [3.6, 0.8, 28, 8.3, 8.3, 3.9, 5.5, 5000])
-    gm = GlobalModel(model = m, name = "speed reducer")
     bound!(gm, Dict(var => [lbs[var], ubs[var]] for var in gm.vars))
 
     # Objective
