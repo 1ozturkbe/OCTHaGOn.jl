@@ -11,12 +11,10 @@ function speed_reducer()
     m = JuMP.Model(Gurobi.Optimizer)
     @variable(m, x[1:8])
     @objective(m, Min, x[8])
-    BBF = BlackBoxFunction;
+    gm = GlobalModel(model = m, name = "speed reducer")
     lbs = Dict(x .=> [2.6, 0.7, 17, 7.3, 7.3, 2.9, 5, 0])
     ubs = Dict(x .=> [3.6, 0.8, 28, 8.3, 8.3, 3.9, 5.5, 5000])
-    gm = GlobalModel(model = m, name = "speed reducer")
     bound!(gm, Dict(var => [lbs[var], ubs[var]] for var in gm.vars))
-    x = gm.vars
 
     # Objective
     add_nonlinear_constraint(gm, :(x -> x[8] - (0.7854*x[1]*x[2]^2*(10. / 3. *x[3]^2 + 14.9334*x[3] - 43.0934) -
@@ -48,7 +46,6 @@ function speed_reducer()
 
 #     It turns out constraint g11 is actually completely infeasible... how could they publish these results?
 #     add_nonlinear_constraint!(gm, :(x -> x[5] - 1.5*x[7] - 1.9), vars = [x[5], x[7]])
-#     add_fn!(gm, BBF(name = "g11", fn = x -> x[5] - 1.5*x[7] - 1.9, vks = [:x5, :x7]))
     return gm
 end
 

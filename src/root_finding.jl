@@ -5,7 +5,7 @@ root_finding:
 Root-finding methods sampling nonlinear functions
 =#
 
-function normalized_data(bbf::BlackBoxFunction)
+function normalized_data(bbf::Union{BlackBoxFunction, DataConstraint})
     """ Normalizes and returns data (0-1) by lower and upper bounds."""
     bounds = get_bounds(bbf.vars)
     vks = string.(bbf.vars)

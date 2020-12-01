@@ -77,7 +77,7 @@ inp_df = DataFrame(inp_dict)
 # Separation of constraints of generated nl_model
 nl_model = copy(model) # NOTE: copy only works if JuMP.Model has no NLconstraints.
 l_constrs, nl_constrs = classify_constraints(nl_model)
-@test length(l_constrs) == 20 && length(nl_constrs) == 2
+@test length(l_constrs) == 20 && length(nl_constrs) == 1
 
 # Set constants
 sets = [MOI.GreaterThan(2), MOI.EqualTo(0), MOI.SecondOrderCone(3), MOI.GeometricMeanCone(2), MOI.SOS1([1,2,3])]
@@ -144,4 +144,4 @@ bound!(model, Dict(z => [-10,10]))
 @test 0 <= accuracy(bbf) <= 1
 
 # Training a model
-constraints, leaf_variables = add_feas_constraints!(model, bbf.vars, bbf.learners[1], return_data = true);
+constraints, leaf_variables = add_feas_constraints!(model, bbf.vars, bbf.learners[1].lnr, return_data = true);

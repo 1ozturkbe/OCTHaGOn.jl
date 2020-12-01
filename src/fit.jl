@@ -30,8 +30,8 @@ function learn_from_data!(X::DataFrame, Y::AbstractArray, grid; idxs::Union{Noth
 end
 
 """ Checks that a BlackBoxFunction has enough feasible/infeasible samples. """
-function check_feasibility(bbf::Union{GlobalModel, BlackBoxFunction})
-    if isa(bbf, BlackBoxFunction)
+function check_feasibility(bbf::Union{GlobalModel, BlackBoxFunction, DataConstraint})
+    if bbf isa BlackBoxFunction || bbf isa DataConstraint
         return bbf.feas_ratio >= bbf.threshold_feasibility
     else
         return [check_feasibility(fn) for fn in bbf.bbfs]
@@ -39,8 +39,8 @@ function check_feasibility(bbf::Union{GlobalModel, BlackBoxFunction})
 end
 
 """ Checks that a BlackBoxFunction.learner has adequate accuracy."""
-function check_accuracy(bbf::Union{GlobalModel, BlackBoxFunction})
-    if isa(bbf, BlackBoxFunction)
+function check_accuracy(bbf::Union{GlobalModel, BlackBoxFunction, DataConstraint})
+    if bbf isa BlackBoxFunction || bbf isa DataConstraint
         return bbf.accuracies[end] >= bbf.threshold_accuracy
     else
         return [check_accuracy(fn) for fn in bbf.bbfs]
@@ -74,7 +74,8 @@ Arguments:
 Returns:
     nothing
 """
-function learn_constraint!(bbf::Union{GlobalModel, Array{BlackBoxFunction}, BlackBoxFunction};
+function learn_constraint!(bbf::Union{GlobalModel, Array{BlackBoxFunction, DataConstraint},
+                                      BlackBoxFunction, DataConstraint};
                            lnr::IAI.OptimalTreeLearner = base_otc(),
                            weights::Union{Array, Symbol} = :autobalance, dir::String = "-",
                            validation_criterion=:misclassification,
@@ -85,7 +86,7 @@ function learn_constraint!(bbf::Union{GlobalModel, Array{BlackBoxFunction}, Blac
                               validation_criterion = validation_criterion, ignore_checks=ignore_checks)
         end
         return
-    elseif isa(bbf, Array{BlackBoxFunction})
+    elseif isa(bbf, Array{BlackBoxFunction, DataConstraint})
         for fn in bbf
             learn_constraint!(fn, lnr=lnr, weights=weights, dir=dir,
                               validation_criterion = validation_criterion, ignore_checks=ignore_checks)

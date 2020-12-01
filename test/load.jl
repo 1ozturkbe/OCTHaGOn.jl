@@ -5,6 +5,7 @@ load:
 - Date: 2020-09-04
 =#
 
+global PROJECT_ROOT = @__DIR__
 using DataFrames
 using Gurobi
 using JuMP
@@ -16,6 +17,5 @@ include("../src/OptimalConstraintTree.jl")
 using .OptimalConstraintTree
 global OCT = OptimalConstraintTree
 global MOI = MathOptInterface
-global PROJECT_ROOT = @__DIR__
 Random.seed!(1);
 MOI.Silent() = true

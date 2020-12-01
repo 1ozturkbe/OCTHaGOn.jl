@@ -5,7 +5,7 @@ gams:
 - Date: 2020-09-10
 =#
 include("../load.jl")
-include("../../../GAMSFiles.jl/src/GAMSFiles.jl")
+include("../GAMSFiles.jl/src/GAMSFiles.jl")
 using .GAMSFiles
 using IterTools
 
@@ -88,7 +88,7 @@ function find_vks_in_eq(eq, variables)
     return vks
 end
 
-function get_constants(gams::Dict{String, Any})
+function constants(gams::Dict{String, Any})
     """Returns all constants from GAMS Model. """
     constants = Dict(); #
     for p in ("parameters", "tables")
@@ -101,6 +101,35 @@ function get_constants(gams::Dict{String, Any})
     end
     return constants
 end
+
+function sets_to_idxs(setnames, sets)
+    axs = GAMSFiles.getaxes(setnames, sets)
+    if axs isa Tuple{}
+        return nothing
+    elseif axs isa Tuple{Base.OneTo{Int},Vararg{Base.OneTo{Int}}}
+        ar = collect(Base.product([collect(ax) for ax in axs]...))
+        return ar
+    else
+        return OffsetArray{Float64}(undef, axs)
+    end
+end
+
+function generate_variables!(model, gams_variables)
+    """Takes gams["variables"] and turns them into JuMP.Variables"""
+    for (v, vinfo) in gams_variables
+        idxs = nothing
+        if v isa GAMSFiles.GArray
+            sym = Symbol(v.name)
+            axs = vinfo.axs
+            idxs = collect(Base.product([collect(ax) for ax in axs]...))
+            @variable(model, eval(Meta.parse($sym))[size(idxs)])
+        elseif v isa GAMSFiles.GText
+            sym = Symbol(v.text)
+            @variable(model, eval(Meta.parse($sym)))
+        end
+    end
+end
+
 
 function get_bounds(variables)
     """Returns all bounds and initial points from gams["variables"]."""
@@ -128,24 +157,14 @@ function get_bounds(variables)
     return lbs, ubs, x0
 end
 
-function sets_to_idxs(setnames, sets)
-    axs = GAMSFiles.getaxes(setnames, sets)
-    if axs isa Tuple{}
-        return nothing
-    elseif axs isa Tuple{Base.OneTo{Int},Vararg{Base.OneTo{Int}}}
-        ar = collect(Base.product([collect(ax) for ax in axs]...))
-        return ar
-    else
-        return OffsetArray{Float64}(undef, axs)
-    end
-end
+
 
 # Parsing GAMS Files
 lexed = GAMSFiles.lex(filename)
 gams = GAMSFiles.parsegams(filename)
 GAMSFiles.parseconsts!(gams)
 
-constants = get_constants(gams)
+constants = constants(gams)
 
 vars = GAMSFiles.getvars(gams["variables"])
 sets = gams["sets"]
@@ -160,6 +179,9 @@ lbs, ubs, x0 = get_bounds(gams["variables"]);
 
 # Initialize GlobalModel
 all_vars = GAMSFiles.allvars(gams)
+m = JuMP.Model()
+syms = [:x,:y,:z]
+
 c = zeros(length(vks));
 c[findall(i -> i == Symbol(gams["minimizing"]), vks)] .= 1;
 model = OCT.GlobalModel(c = c, vks = vks);
