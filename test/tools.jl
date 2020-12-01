@@ -71,7 +71,7 @@ println("Optimal X: ", vcat(exp.([5.01063529, 3.40119660, -0.48450710]), [-147-2
 # clear_tree_constraints!(md) # Clears all BBF constraints
 # @test all([!is_valid(md.model, constraint) for constraint in md.bbfs[2].mi_constraints])
 # md.bbfs[2].mi_constraints, md.bbfs[2].leaf_variables = add_feas_constraints!(md.model, [md.vars[vk] for vk in md.bbfs[2].vks],
-#                                               md.bbfs[2].learners[end], md.bbfs[2].vks,
+#                                               md.bbfs[2].learners[end].lnr, md.bbfs[2].vks,
 #                                               return_data = true) # Adds only one bbf constraint
 # clear_tree_constraints!(md) # Finds and clears the one remaining BBF constraint.
 # @test all([!is_valid(md.model, constraint) for constraint in md.bbfs[1].mi_constraints])

@@ -93,20 +93,6 @@ function find_vars_in_eq(model, eq, variables)
     return vars
 end
 
-
-
-function sets_to_idxs(setnames, sets)
-    axs = GAMSFiles.getaxes(setnames, sets)
-    if axs isa Tuple{}
-        return nothing
-    elseif axs isa Tuple{Base.OneTo{Int},Vararg{Base.OneTo{Int}}}
-        ar = collect(Base.product([collect(ax) for ax in axs]...))
-        return ar
-    else
-        return OffsetArray{Float64}(undef, axs)
-    end
-end
-
 function generate_variables!(model, gams)
     """Takes gams["variables"] and turns them into JuMP.Variables"""
     gams_variables = gams["variables"]
@@ -163,6 +149,7 @@ all_vars = generate_variables!(model, gams)
 
 # Getting objective
 # @objective(model, Min, sum(JuMP.variable_by_name(model, string(i)) for i in gams["minimizing"]))
+
 
 # # Creating BlackBoxFunction expressions
 gm = GlobalModel(model = model)

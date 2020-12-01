@@ -601,7 +601,7 @@ def simulate_motor(dct, tol=1e-6, verbosity=0, skipfailure=False):
     t1 = time()
     check_config(dct)
     # Run (solve for whichever value you did not specify above) =======================
-    res = spo.minimize(powerResidual, 1.0, args=(dct), method='Nelder-Mead')
+    res = spo.minimize(powerResidual, 1.0, args=(dct), method='SLSQP')
     dct_post = copy.deepcopy(dct)
     dct_post['mode'] = 3
     opt = powerResidual([res['x'][0]],dct_post)
@@ -675,14 +675,14 @@ def input_ranges_coreless():
     """ Returns ranges around the baseline to explore. """
     ranges = {}
     # Variables =======================
-    ranges['D_out'] =          np.array([0.5,1.5]) * 13 * units.cm  # Outer Diameter of the motor
-    ranges['D_in'] =           np.array([0.5,1.5]) * 7.6 * units.cm  # Inner Diameter of the motor
+    ranges['D_out'] =          np.array([0.5,1.5]) * 12.5 * units.cm  # Outer Diameter of the motor
+    ranges['D_in'] =           np.array([0.5,1.5]) * 7.5 * units.cm  # Inner Diameter of the motor
     ranges['D_sh'] =           np.array([0.5,1.5]) * 1.0 * units.cm  # Diameter of motor shaft
     ranges['N_coils'] =        np.array([0.5,1.5]) * 18  # Number of coils on each stator, must be =n*m_1--If motor_type==1 must be >2*p, If motor_type==2 must be >p,
-    ranges['TPC'] =            np.array([0.5,1.5]) * 10  # Number of turns per coil on each stator
-    ranges['p'] =              np.array([0.5,1.5]) * 16  # Half the number of poles on each rotor
-    ranges['wire_dimension'] = [np.array([0.5,1.5]) * 0.15,
-                               np.array([0.5,1.5]) * 3.0] * units.mm  # Reference dimension of the wire: Diameter for circle, width for square
+    ranges['TPC'] =            np.array([0.5,1.5]) * 12  # Number of turns per coil on each stator
+    ranges['p'] =              np.array([0.5,1.5]) * 14  # Half the number of poles on each rotor
+    ranges['wire_dimension'] = [np.array([0.5,1.5]) * 1.02,
+                               np.array([0.5,1.5]) * 1.93] * units.mm  # Reference dimension of the wire: Diameter for circle, width for square
     return ranges
 
 def generate_dcts(n_samples, dct, ranges):
@@ -698,9 +698,10 @@ def generate_dcts(n_samples, dct, ranges):
         new_dct = copy.deepcopy(dct)
         j = 0
         for key, value in ranges.items():
-            if key == 'wire_dimension' and isinstance(value, list):
-                new_dct[key] = [value[0][0] + (value[0][1]-value[0][0])*lhs_samples[i, j],
-                                value[1][0] + (value[1][1]-value[1][0])*lhs_samples[i, j]]
+            if key == 'wire_dimension':
+                new_dct[key] = [mag(value[0][0] + (value[0][1]-value[0][0])*lhs_samples[i, j]),
+                                mag(value[1][0] + (value[1][1]-value[1][0])*lhs_samples[i, j+1])] * units('mm')
+                j += 1
             elif key in ['N_coils', 'TPC', 'p']:
                 new_dct[key] = round(value[0] + (value[1]-value[0])*lhs_samples[i, j])
             else:
@@ -740,8 +741,8 @@ if __name__ == '__main__':
     dct = baseline()
     dct['mode'] = 0
     res, opt = simulate_motor(dct, tol=1e-3) # Experiments show 1e-3 is sufficient
-    #
-    n_sims = 5000
+
+    n_sims = 15000
     dcts, infeas_dcts = generate_dcts(n_sims, dct, input_ranges_coreless())
     pickle.dump(dcts, open('dcts.inp', 'wb'))
 
@@ -755,7 +756,7 @@ if __name__ == '__main__':
     indep_vars = list(ranges.keys())
     dep_vars = list(opts[0].keys())
 
-    # Prepping data for DataFrames
+    # # Prepping data for DataFrames
     inputs = pd.DataFrame()
     for i in indep_vars:
         if i == "wire_dimension":
@@ -787,3 +788,19 @@ if __name__ == '__main__':
             dat = [mag(dct[i]) for dct in infeas_dcts]
             infeas_inputs[i] = dat
     infeas_inputs.to_csv("afpm_infeas_inputs.csv")
+
+    # # Simulating optimized motors
+    # # opt_inp = pd.read_csv("afpm_opt.csv")
+    bs = baseline()
+    # out = [12.5, 7.5, 0.5, 18, 12, 15, [1.02, 1.93]] # Cody's optimum
+    # out = [12.54, 7.46, 0.5, 18, 12, 15, [1.01, 1.93]] # Cody's optimum
+    out = [10.33, 5.625, 0.75, 18, 15, 17, [1.05, 1.45]]   # Mass minimizing
+    # out = [11.98, 5.625, 0.75, 18, 9, 17, [1.27, 2.41]]   # Efficiency maximizing
+    keys = ["D_out", "D_in", "D_sh", "N_coils", "TPC", "p", "wire_dimension"]
+    for i in range(len(keys)):
+        if keys[i] in ["N_coils", "TPC", "p"]:
+            bs[keys[i]] = out[i]
+        else:
+            bs[keys[i]] = bs[keys[i]].units * out[i]
+
+    res, opt = simulate_motor(bs, tol=1e-3)

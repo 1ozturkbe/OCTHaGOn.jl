@@ -26,6 +26,8 @@ module OptimalConstraintTree
 
     include("black_box_function.jl")
 
+    include("data_constraint.jl")
+
     include("root_finding.jl")
 
     include("post_process.jl")
@@ -45,21 +47,27 @@ module OptimalConstraintTree
     include("tools.jl")
 
            # Structs
-    export GlobalModel, BlackBoxFunction,
+    export GlobalModel, BlackBoxFunction, DataConstraint,
            # GlobalModel Functions
            fns_by_feasibility, globalsolve,
            # JuMP.Model extensions to GlobalModel
-#            set_optimizer, optimize!, JuMP.all_variables,
-           # Functions on GlobalModel and BlackBoxFunctions
-           gridify, learn_from_data!, find_bounds!, add_nonlinear_constraint,
+           set_optimizer, optimize!,
+           # Functions on GlobalModel and BlackBoxFunctions and DataConstraints
+           gridify, get_learner, learn_from_data!, find_bounds!, add_nonlinear_constraint,
            lh_sample, boundary_sample,
            accuracy, feasibility, check_accuracy, check_feasibility, check_bounds,
            solution, evaluate_feasibility,
            nonlinearize!,
-           # Functions on BlackBoxFunctions
-           eval!, sample_and_eval!, plot, learn_constraint!,
+           # Functions on both BlackBoxFunctions and DataConstraints
+           show_trees, learn_constraint!,
+           # Functions on BlackBoxFunctions only
+           eval!, sample_and_eval!,
            secant_method, knn_sample, build_knn_tree,
            find_knn, classify_patches,
+           # Functions on DataConstraints only
+           add_data!,
+           # Functions on IAI structs
+           bin_to_leaves, regress,
            # Functions on JuMP objects
            evaluate, fetch_variable, get_bounds,
            linearize_objective!, classify_constraints,
@@ -68,7 +76,7 @@ module OptimalConstraintTree
            distance_to_set, get_constant,
            add_feas_constraints!, add_regr_constraints!,
            add_tree_constraints!, clear_tree_constraints!,
-           base_otr, base_otc, sample,
+           base_otr, base_otc,
            functionify,
            # Functions to import global optimization problems,
            sagemark_to_GlobalModel,
@@ -76,7 +84,6 @@ module OptimalConstraintTree
            # Exceptions
            OCTException,
            # Display and plotting
-           show_trees,
 #            plot_2d, plot_2d_predictions, plot_accuracies
            # Debugging tools
             clear_data!, chop_dict,
