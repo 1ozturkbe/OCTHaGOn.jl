@@ -63,3 +63,28 @@ get_outers borrowed from here:
 https://discourse.julialang.org/t/determine-the-scope-of-symbols-in-an-expr/47993/2
 """
 get_outers(ex) = (unique! ∘ _get_outers ∘ JuliaVariables.solve_from_local ∘ JuliaVariables.simplify_ex)(ex)
+
+# Dummy code generating functions from Exprs. Could come in useful.
+
+constr_fn = let lhs = lhsexpr, rhs = rhsexpr, op = op, consts = consts
+    if op in [:(=), :>]
+        function (x)
+            for (key, value) in union(x, consts, sets)
+                eval(Meta.parse("$key = $value"))
+            end
+            lhs_evaled = eval(lhs)
+            rhs_evaled = eval(rhs)
+            return lhs_evaled-rhs_evaled
+        end
+    elseif op == :<
+        function (x)
+            for (key, value) in union(x, consts, sets)
+                eval(Meta.parse("$key = $value"))
+            end
+            lhs_evaled = eval(lhs)
+            rhs_evaled = eval(rhs)
+            return rhs_evaled-lhs_evaled
+        end
+    else
+        error("unexpected operator ", op)
+    end

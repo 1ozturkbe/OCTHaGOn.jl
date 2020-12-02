@@ -25,71 +25,52 @@ function constants(gams::Dict{String, Any})
     return consts
 end
 
-function constants_to_global(gams)
+function constants_to_global(gams::Dict{String, Any})
     consts = constants(gams)
     for (key, value) in consts
         eval(Meta.parse("$(key) = $(value)"))
     end
 end
 
-function eq_to_fn(eq, sets, constants)
-    @assert(eq isa GAMSFiles.GCall && length(eq.args)==2)
-    lhs, rhs, op = eq.args[1], eq.args[2], GAMSFiles.eqops[GAMSFiles.getname(eq)]
+""" Turns GAMSFiles.GCall into an Expr. """
+function eq_to_expr(eq::GAMSFiles.GCall, sets::Dict{String, Any}, consts::Dict)
+    @assert(length(eq.args)==2)
+    lhs, rhs = eq.args[1], eq.args[2]
     lhsexpr = convert(Expr, lhs)
     rhsexpr = convert(Expr, rhs)
     GAMSFiles.replace_reductions!(lhsexpr, sets)
     GAMSFiles.replace_reductions!(rhsexpr, sets)
-    constr_fn = let lhs = lhsexpr, rhs = rhsexpr, op = op, constants = constants
-        if op in [:(=), :>]
-            function (x)
-                for (key, value) in union(x, constants, sets)
-                    eval(Meta.parse("$key = $value"))
-                end
-                lhs_evaled = eval(lhs)
-                rhs_evaled = eval(rhs)
-                return lhs_evaled-rhs_evaled
-            end
-        elseif op == :<
-            function (x)
-                for (key, value) in union(x, constants, sets)
-                    eval(Meta.parse("$key = $value"))
-                end
-                lhs_evaled = eval(lhs)
-                rhs_evaled = eval(rhs)
-                return rhs_evaled-lhs_evaled
-            end
-        else
-            error("unexpected operator ", op)
-        end
+    if op in [:(=), :>]
+        :($(lhsexpr) - $(rhsexpr))
+    elseif op == :<
+        :($(rhsexpr) - $(lhsexpr))
+    else
+        error("unexpected operator ", op)
     end
-    return constr_fn
+end
+
+""" Returns whether a GAMSFiles.GCall is an equality. """
+function is_equality(eq::GAMSFiles.GCall)
+    @assert(length(eq.args)==2)
+    GAMSFiles.eqops[GAMSFiles.getname(eq)] == :(=)
 end
 
 
-function find_vars_in_eq(model, eq, variables)
+function find_vars_in_eq(model::JuMP.Model, eq::GAMSFiles.GCall, gams::Dict{String, Any})
     """Finds and returns all varkeys in equation. """
-    lhs, rhs, op = eq.args[1], eq.args[2], GAMSFiles.eqops[GAMSFiles.getname(eq)]
-    vks = []
-    for (var, vinfo) in variables
+    lhs, rhs = eq.args[1], eq.args[2]
+    vars = []
+    for (var, vinfo) in gams["variables"]
         if var isa GAMSFiles.GText
             if GAMSFiles.hasvar(lhs, var.text) || GAMSFiles.hasvar(rhs, var.text)
-                push!(vks, var)
+                push!(vars, JuMP.variable_by_name(model, string(var.text)))
             end
         elseif var isa GAMSFiles.GArray
             if GAMSFiles.hasvar(lhs, var.name) || GAMSFiles.hasvar(rhs, var.name)
-                push!(vks, var)
+                push!(vars, JuMP.variable_by_name(model, string(var.name)))
             end
         end
     end
-    vars = []
-    for vk in vks
-        if vk isa GAMSFiles.GArray
-            push!(vars, JuMP.variable_by_name(model, string(vk.name)))
-        elseif vk isa GAMSFiles.GText
-            push!(vars, JuMP.variable_by_name(model, string(vk.text)))
-        end
-    end
-    @assert length(vars) == length(vks)
     return vars
 end
 
@@ -154,23 +135,27 @@ all_vars = generate_variables!(model, gams)
 # # Creating BlackBoxFunction expressions
 gm = GlobalModel(model = model)
 consts = constants(gams)
+equations = []
 for (key, eq) in gams["equations"]
+    push!(equations, key => eq)
+end
+for (key, eq) in equations
     if key isa GAMSFiles.GText
-        constr_fn = eq_to_fn(eq, sets, consts)
-        vars = find_vars_in_eq(model, eq, gams["variables"])
-        add_nonlinear_constraint(gm, constr_fn, vars,
-                                 name = GAMSFiles.getname(key))
-       add_fn!(model, bbf)
+        constr_fn = eq_to_expr(eq, sets, consts)
+        constr_vars = find_vars_in_eq(model, eq, gams)
+        add_nonlinear_constraint(gm, constr_fn, vars = constr_vars,
+                                 equality = is_equality(eq), name = GAMSFiles.getname(key))
     elseif key isa GAMSFiles.GArray
-        axes = GAMSFiles.getaxes(key.indices, sets)
-        ar = sets_to_idxs(key.indices, sets)
-        for allocation in ar
-            next_all = Dict(key.indices[i].text => allocation[i] for i=1:length(key.indices))
-            new_key = string(key.name, "_", allocation)
-            new_set = merge(sets, next_all)
-            constr_fn = eq_to_fn(eq, new_set, consts)
-            vars = find_vars_in_eq(model, eq, gams["variables"])
-            add_nonlinear_constraint(gm, constr_fn, vars,
+        axs = GAMSFiles.getaxes(key.indices, sets)
+        idxs = collect(Base.product([collect(ax) for ax in axs]...))
+        for idx in idxs
+            next_idx = Dict(key.indices[i].text => idxs[i] for i=1:length(key.indices))
+            new_key = string(key.name, "_", idx)
+            new_set = merge(sets, next_idx)
+            constr_fn = eq_to_expr(eq, new_set, consts)
+            constr_vars = find_vars_in_eq(model, eq, gams)
+            add_nonlinear_constraint(gm, constr_fn, vars = constr_vars,
+                                     equality = is_equality(eq),
                                      name = new_key)
         end
     end
