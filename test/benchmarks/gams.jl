@@ -109,57 +109,58 @@ function generate_variables!(model, gams)
     return JuMP.all_variables(model)
 end
 
-# Initialize JuMP.Model
-model = Model(Gurobi.Optimizer)
+""" Converts a GAMS optimization model to a GlobalModel..."""
+function GAMS_to_GlobalModel(filename::String)
+    model = JuMP.Model(Gurobi.Optimizer)
+    # Parsing GAMS Files
+    lexed = GAMSFiles.lex(filename)
+    gams = GAMSFiles.parsegams(filename)
+    GAMSFiles.parseconsts!(gams)
 
-# Parsing GAMS Files
-lexed = GAMSFiles.lex(filename)
-gams = GAMSFiles.parsegams(filename)
-GAMSFiles.parseconsts!(gams)
+    vars = GAMSFiles.getvars(gams["variables"])
+    sets = gams["sets"]
+    preexprs, bodyexprs = Expr[], Expr[]
+    if haskey(gams, "parameters") && haskey(gams, "assignments")
+        GAMSFiles.parseassignments!(preexprs, gams["assignments"], gams["parameters"], sets)
+    end
 
-vars = GAMSFiles.getvars(gams["variables"])
-sets = gams["sets"]
-preexprs, bodyexprs = Expr[], Expr[]
-if haskey(gams, "parameters") && haskey(gams, "assignments")
-    GAMSFiles.parseassignments!(preexprs, gams["assignments"], gams["parameters"], sets)
-end
+    # Getting variables
+    all_JuMP_vars = generate_variables!(model, gams)
 
-# Getting variables
-constants_to_global(gams)
-all_vars = generate_variables!(model, gams)
+    # Getting objective
+    if gams["minimizing"] isa String
+        @objective(model, Min, JuMP.variable_by_name(model, gams["minimizing"]))
+    else
+        @objective(model, Min, sum([JuMP.variable_by_name(i) for i in gams["minimizing"]]))
+    end
 
-# Getting objective
-# @objective(model, Min, sum(JuMP.variable_by_name(model, string(i)) for i in gams["minimizing"]))
-
-
-# # Creating BlackBoxFunction expressions
-gm = GlobalModel(model = model)
-consts = constants(gams)
-equations = []
-for (key, eq) in gams["equations"]
-    push!(equations, key => eq)
-end
-for (key, eq) in equations
-    if key isa GAMSFiles.GText
-        constr_fn = eq_to_expr(eq, sets, consts)
-        constr_vars = find_vars_in_eq(model, eq, gams)
-        add_nonlinear_constraint(gm, constr_fn, vars = constr_vars,
-                                 equality = is_equality(eq), name = GAMSFiles.getname(key))
-    elseif key isa GAMSFiles.GArray
-        axs = GAMSFiles.getaxes(key.indices, sets)
-        idxs = collect(Base.product([collect(ax) for ax in axs]...))
-        for idx in idxs
-            next_idx = Dict(key.indices[i].text => idxs[i] for i=1:length(key.indices))
-            new_key = string(key.name, "_", idx)
-            new_set = merge(sets, next_idx)
-            constr_fn = eq_to_expr(eq, new_set, consts)
+    # Creating GlobalModel
+    gm = GlobalModel(model = model)
+    consts = constants(gams)
+    equations = [] # For debugging purposes...
+    for (key, eq) in gams["equations"]
+        push!(equations, key => eq)
+    end
+    for (key, eq) in equations
+        if key isa GAMSFiles.GText
+            constr_fn = eq_to_expr(eq, sets, consts)
             constr_vars = find_vars_in_eq(model, eq, gams)
             add_nonlinear_constraint(gm, constr_fn, vars = constr_vars,
-                                     equality = is_equality(eq),
-                                     name = new_key)
+                                     equality = is_equality(eq), name = GAMSFiles.getname(key))
+        elseif key isa GAMSFiles.GArray
+            axs = GAMSFiles.getaxes(key.indices, sets)
+            idxs = collect(Base.product([collect(ax) for ax in axs]...))
+            for idx in idxs
+                next_idx = Dict(key.indices[i].text => idxs[i] for i=1:length(key.indices))
+                new_key = string(key.name, "_", idx)
+                new_set = merge(sets, next_idx)
+                constr_fn = eq_to_expr(eq, new_set, consts)
+                constr_vars = find_vars_in_eq(model, eq, gams)
+                add_nonlinear_constraint(gm, constr_fn, vars = constr_vars,
+                                         equality = is_equality(eq),
+                                         name = new_key)
+            end
         end
     end
+    return gm
 end
-#
-# inp = Dict(vk => 1 for vk in model.vks)
-# model.bbfs[2](inp)
