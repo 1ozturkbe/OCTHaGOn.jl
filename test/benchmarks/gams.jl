@@ -30,7 +30,7 @@ function constants_to_global(gams::Dict{String, Any})
 end
 
 """ Turns GAMSFiles.GCall into an Expr. """
-function eq_to_expr(eq::GAMSFiles.GCall, sets::Dict{String, Any}, consts::Dict)
+function eq_to_expr(eq::GAMSFiles.GCall, sets::Dict{String, Any})
     @assert(length(eq.args)==2)
     lhs, rhs, op = eq.args[1], eq.args[2], GAMSFiles.eqops[GAMSFiles.getname(eq)]
     lhsexpr = convert(Expr, lhs)
@@ -55,6 +55,7 @@ end
 
 function find_vars_in_eq(model::JuMP.Model, eq::GAMSFiles.GCall, gams::Dict{String, Any})
     """Finds and returns all varkeys in equation. """
+    vars = []
     lhs, rhs = eq.args[1], eq.args[2]
     for (var, vinfo) in GAMSFiles.allvars(gams)
         if GAMSFiles.hasvar(lhs, var) || GAMSFiles.hasvar(rhs, var)
@@ -65,31 +66,32 @@ function find_vars_in_eq(model::JuMP.Model, eq::GAMSFiles.GCall, gams::Dict{Stri
 end
 
 """Takes gams and turns them into JuMP.Variables"""
-function generate_variables!(model::JuMP.Model, gams::Dict(String, Any})
+function generate_variables!(model::JuMP.Model, gams::Dict{String, Any})
     gamsvars = GAMSFiles.allvars(gams)
     for (var, vinfo) in gamsvars
         if vinfo isa Array
-            sizes = [1:vin for vin in size(vinfo)]
-            idxs = collect(Base.product([collect(s) for s in sizes]...))
-            nv = @variable(model, [sizes...], base_name = var) # splatting is useless here...
-                                                                        # Need workaround.
-            for i in idxs
-                fix(nv[i...], vinfo[i...])
+            sizes = [Base.OneTo(vin) for vin in size(vinfo)]
+            dims = length(sizes)
+            nv = JuMP.Containers.DenseAxisArray{JuMP.VariableRef}(undef, sizes...)
+            for idx in eachindex(nv)
+                nv[idx] = @variable(model)
+                set_name(nv[idx], "$(var)[$(join(Tuple(idx),","))]")
+                fix(nv[idx], vinfo[idx])
             end
         elseif vinfo isa Real
             nv = @variable(model, base_name = var)
             fix(nv, vinfo)
         else
             axs = vinfo.axs
-            idxs = collect(Base.product([collect(ax) for ax in axs]...))
             nv = nothing
-            if size(idxs) == ()
+            if axs == ()
                 nv = @variable(model, base_name = var)
-            elseif idxs[1] isa Tuple{Int64}
-                nv = @variable(model, [1:length(idxs)], base_name = var)
             else
-                sizes = [1:s for s in size(idxs)]
-                nv = @variable(model, [sizes...], base_name = var) # same here, splatting issues.
+                nv = JuMP.Containers.DenseAxisArray{JuMP.VariableRef}(undef, axs...)
+                for idx in eachindex(nv)
+                    nv[idx] = @variable(model)
+                    set_name(nv[idx], "$(var)[$(join(Tuple(idx),","))]")
+                end
             end
             for (prop, val) in vinfo.assignments
                 inds = map(x->x.val, prop.indices)
@@ -142,7 +144,7 @@ function GAMS_to_GlobalModel(filename::String)
     end
     for (key, eq) in equations
         if key isa GAMSFiles.GText
-            constr_fn = eq_to_expr(eq, sets, consts)
+            constr_fn = eq_to_expr(eq, sets)
             constr_vars = find_vars_in_eq(model, eq, gams)
             add_nonlinear_constraint(gm, constr_fn, vars = constr_vars,
                                      equality = is_equality(eq), name = GAMSFiles.getname(key))
@@ -153,7 +155,7 @@ function GAMS_to_GlobalModel(filename::String)
                 next_idx = Dict(key.indices[i].text => idxs[i] for i=1:length(key.indices))
                 new_key = string(key.name, "_", idx)
                 new_set = merge(sets, next_idx)
-                constr_fn = eq_to_expr(eq, new_set, consts)
+                constr_fn = eq_to_expr(eq, new_set)
                 constr_vars = find_vars_in_eq(model, eq, gams)
                 add_nonlinear_constraint(gm, constr_fn, vars = constr_vars,
                                          equality = is_equality(eq),
