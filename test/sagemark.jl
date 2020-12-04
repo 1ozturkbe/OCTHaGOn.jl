@@ -153,14 +153,3 @@ clear_tree_constraints!(gm, [gm.bbfs[1]])
 clear_tree_constraints!(gm) # Finds and clears the one remaining BBF constraint.
 @test all([!is_valid(gm.model, constraint) for constraint in gm.bbfs[1].mi_constraints])
 @test all([!is_valid(gm.model, var) for var in gm.bbfs[1].leaf_variables])
-
-
-# Resampling and resolving via KNN
-sample_and_eval!(gm);
-learn_constraint!(gm);
-println("Approximation accuracies: ", accuracy(gm))
-
-Solving again
-globalsolve(gm);
-println("X values: ", solution(gm))
-println("Optimal X: ", vcat(exp.([5.01063529, 3.40119660, -0.48450710]), [-147-2/3]))
