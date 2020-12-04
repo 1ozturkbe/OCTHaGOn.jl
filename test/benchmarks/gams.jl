@@ -7,9 +7,6 @@ gams:
 
 include("../../../GAMSFiles.jl/src/GAMSFiles.jl")
 using .GAMSFiles
-using IterTools
-
-filename = "data/baron_nc_ns/problem3.13.gms"
 
 function constants(gams::Dict{String, Any})
     """Returns all constants from GAMS Model. """
@@ -35,7 +32,7 @@ end
 """ Turns GAMSFiles.GCall into an Expr. """
 function eq_to_expr(eq::GAMSFiles.GCall, sets::Dict{String, Any}, consts::Dict)
     @assert(length(eq.args)==2)
-    lhs, rhs = eq.args[1], eq.args[2]
+    lhs, rhs, op = eq.args[1], eq.args[2], GAMSFiles.eqops[GAMSFiles.getname(eq)]
     lhsexpr = convert(Expr, lhs)
     rhsexpr = convert(Expr, rhs)
     GAMSFiles.replace_reductions!(lhsexpr, sets)
@@ -59,49 +56,52 @@ end
 function find_vars_in_eq(model::JuMP.Model, eq::GAMSFiles.GCall, gams::Dict{String, Any})
     """Finds and returns all varkeys in equation. """
     lhs, rhs = eq.args[1], eq.args[2]
-    vars = []
-    for (var, vinfo) in gams["variables"]
-        if var isa GAMSFiles.GText
-            if GAMSFiles.hasvar(lhs, var.text) || GAMSFiles.hasvar(rhs, var.text)
-                push!(vars, JuMP.variable_by_name(model, string(var.text)))
-            end
-        elseif var isa GAMSFiles.GArray
-            if GAMSFiles.hasvar(lhs, var.name) || GAMSFiles.hasvar(rhs, var.name)
-                push!(vars, JuMP.variable_by_name(model, string(var.name)))
-            end
+    for (var, vinfo) in GAMSFiles.allvars(gams)
+        if GAMSFiles.hasvar(lhs, var) || GAMSFiles.hasvar(rhs, var)
+            push!(vars, JuMP.variable_by_name(model, var))
         end
     end
     return vars
 end
 
-function generate_variables!(model, gams)
-    """Takes gams["variables"] and turns them into JuMP.Variables"""
-    gams_variables = gams["variables"]
-    for (v, vinfo) in gams_variables
-        idxs = nothing
-        if v isa GAMSFiles.GArray
-            sym = String(v.name)
+"""Takes gams and turns them into JuMP.Variables"""
+function generate_variables!(model::JuMP.Model, gams::Dict(String, Any})
+    gamsvars = GAMSFiles.allvars(gams)
+    for (var, vinfo) in gamsvars
+        if vinfo isa Array
+            sizes = [1:vin for vin in size(vinfo)]
+            idxs = collect(Base.product([collect(s) for s in sizes]...))
+            nv = @variable(model, [sizes...], base_name = var) # splatting is useless here...
+                                                                        # Need workaround.
+            for i in idxs
+                fix(nv[i...], vinfo[i...])
+            end
+        elseif vinfo isa Real
+            nv = @variable(model, base_name = var)
+            fix(nv, vinfo)
+        else
             axs = vinfo.axs
             idxs = collect(Base.product([collect(ax) for ax in axs]...))
-            if idxs[1] isa Tuple{Int64}
-                var = @variable(model, [1:length(idxs)], base_name = sym)
+            nv = nothing
+            if size(idxs) == ()
+                nv = @variable(model, base_name = var)
+            elseif idxs[1] isa Tuple{Int64}
+                nv = @variable(model, [1:length(idxs)], base_name = var)
             else
-                var = @variable(model, [size(idxs)], base_name = sym)
+                sizes = [1:s for s in size(idxs)]
+                nv = @variable(model, [sizes...], base_name = var) # same here, splatting issues.
             end
-        elseif v isa GAMSFiles.GText
-            sym = String(v.text)
-            @variable(model, base_name = sym)
-        end
-        for (prop, val) in vinfo.assignments
-            inds = map(x->x.val, prop.indices)
-            if isa(prop, Union{GAMSFiles.GText, GAMSFiles.GArray})
-                c = val.val
-#                 if GAMSFiles.getname(prop) ∈ ("l", "fx")
-#                     x0[Symbol(v.name, inds[1])] = c
-                if GAMSFiles.getname(prop) == "lo"
-                    set_lower_bound(var[inds...], c)
-                elseif GAMSFiles.getname(prop) == "up"
-                    set_upper_bound(var[inds...], c)
+            for (prop, val) in vinfo.assignments
+                inds = map(x->x.val, prop.indices)
+                if isa(prop, Union{GAMSFiles.GText, GAMSFiles.GArray})
+                    c = val.val
+    #                 if GAMSFiles.getname(prop) ∈ ("l", "fx")
+    #                     x0[Symbol(nv.name, inds[1])] = c
+                    if GAMSFiles.getname(prop) == "lo"
+                        set_lower_bound(nv[inds...], c)
+                    elseif GAMSFiles.getname(prop) == "up"
+                        set_upper_bound(nv[inds...], c)
+                    end
                 end
             end
         end
@@ -109,7 +109,7 @@ function generate_variables!(model, gams)
     return JuMP.all_variables(model)
 end
 
-""" Converts a GAMS optimization model to a GlobalModel..."""
+""" Converts a GAMS optimization model to a GlobalModel."""
 function GAMS_to_GlobalModel(filename::String)
     model = JuMP.Model(Gurobi.Optimizer)
     # Parsing GAMS Files
@@ -136,7 +136,6 @@ function GAMS_to_GlobalModel(filename::String)
 
     # Creating GlobalModel
     gm = GlobalModel(model = model)
-    consts = constants(gams)
     equations = [] # For debugging purposes...
     for (key, eq) in gams["equations"]
         push!(equations, key => eq)
@@ -164,3 +163,8 @@ function GAMS_to_GlobalModel(filename::String)
     end
     return gm
 end
+
+filename = "data/baron_nc_ns/problem3.13.gms"
+gm = GAMS_to_GlobalModel(filename)
+@test length(gm.vars) == 8
+
