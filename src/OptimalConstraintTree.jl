@@ -13,7 +13,6 @@ module OptimalConstraintTree
     using Parameters
 #     using Plots
     using ProgressMeter
-    using PyCall
     using Random
 
     include("small_scripts.jl")
@@ -43,8 +42,6 @@ module OptimalConstraintTree
     include("fit.jl")
 
     include("plot.jl")
-
-    include("tools.jl")
 
            # Structs
     export GlobalModel, BlackBoxFunction, DataConstraint,
