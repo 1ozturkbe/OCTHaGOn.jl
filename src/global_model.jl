@@ -143,7 +143,6 @@ end
 Turns gm.model into the nonlinear representation.
 NOTE: to get back to MI-compatible forms, must rebuild model from scratch.
 """
-
 function nonlinearize!(gm::GlobalModel, bbfs::Array{BlackBoxFunction})
     for (i, bbf) in enumerate(bbfs)
         if bbf.constraint isa JuMP.ConstraintRef
