@@ -100,6 +100,7 @@ end
 function add_nonlinear_constraint(gm::GlobalModel,
                      constraint::Union{JuMP.ScalarConstraint, JuMP.ConstraintRef, Expr};
                      vars::Union{Nothing, Array{JuMP.VariableRef, 1}} = nothing,
+                     expr_vars::Union{Nothing, Array} = nothing,
                      name::Union{Nothing, String} = nothing,
                      equality::Bool = false)
 """ Adds a new nonlinear constraint to Global Model.
@@ -113,11 +114,14 @@ function add_nonlinear_constraint(gm::GlobalModel,
     if isnothing(name)
         name = string("bbf", length(gm.bbfs) + 1)
     end
+    if isnothing(expr_vars) && constraint isa Expr
+        expr_vars = vars_from_expr(constraint, vars[1].model)
+    end
     if constraint isa JuMP.ScalarConstraint #TODO: clean up.
         con = JuMP.add_constraint(gm.model, bbf.constraint)
         JuMP.delete(gm.model, con)
-        new_bbf = BlackBoxFunction(constraint = con, vars = bbf_vars, equality = equality,
-                                   name = name)
+        new_bbf = BlackBoxFunction(constraint = con, vars = bbf_vars, expr_vars = expr_vars,
+                                   equality = equality, name = name)
         @assert length(new_bbf.vars) == length(new_bbf.varmap)
         push!(gm.bbfs, new_bbf)
         return
@@ -125,8 +129,8 @@ function add_nonlinear_constraint(gm::GlobalModel,
     if constraint isa JuMP.ConstraintRef
         JuMP.delete(gm.model, constraint)
     end
-    new_bbf = BlackBoxFunction(constraint = constraint, vars = bbf_vars, equality = equality,
-                               name = name)
+    new_bbf = BlackBoxFunction(constraint = constraint, vars = bbf_vars, expr_vars = expr_vars,
+                               equality = equality, name = name)
     @assert length(new_bbf.vars) == length(new_bbf.varmap)
     push!(gm.bbfs, new_bbf)
     return
