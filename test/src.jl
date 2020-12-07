@@ -88,7 +88,8 @@ sets = [MOI.GreaterThan(2), MOI.EqualTo(0), MOI.SecondOrderCone(3), MOI.Geometri
 @test functionify(expr) isa Function
 # @test_throws
 bbfs = [BlackBoxFunction(constraint = nl_constrs[1], vars = [x[4], x[5], z]),
-        BlackBoxFunction(constraint = expr, vars = flat([x[1:4], y[1:2], z]))]
+        BlackBoxFunction(constraint = expr, vars = flat([x[1:4], y[1:2], z]),
+                         expr_vars = [x,y,z])]
 
 # Evaluation (scalar)
 # Quadratic (JuMP compatible) constraint

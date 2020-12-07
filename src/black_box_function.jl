@@ -112,7 +112,7 @@ Can be tagged with additional info.
     constraint::Union{JuMP.ConstraintRef, Expr}        # The "raw" constraint
     vars::Array{JuMP.VariableRef,1}                      # JuMP variables (flat)
     name::Union{String, Real} = ""                     # Function name
-    expr_vars = vars_from_expr(constraint, vars[1].model)          # Function inputs (nonflat JuMP variables)
+    expr_vars:: Union{Array, Nothing} = nothing        # Function inputs (nonflat JuMP variables)
     varmap::Union{Nothing,Array} = get_varmap(expr_vars, vars)     # ... with the required varmapping.
     fn::Union{Nothing, Function} = functionify(constraint)         # ... and actually evaluated f'n
     X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars))
