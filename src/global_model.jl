@@ -99,7 +99,7 @@ end
 
 function add_nonlinear_constraint(gm::GlobalModel,
                      constraint::Union{JuMP.ScalarConstraint, JuMP.ConstraintRef, Expr};
-                     vars::Union{Nothing, Array{JuMP.VariableRef}} = nothing,
+                     vars::Union{Nothing, Array{JuMP.VariableRef, 1}} = nothing,
                      name::Union{Nothing, String} = nothing,
                      equality::Bool = false)
 """ Adds a new nonlinear constraint to Global Model.

@@ -66,6 +66,7 @@ module OptimalConstraintTree
            # Functions on IAI structs
            bin_to_leaves, regress,
            # Functions on JuMP objects
+           variable_by_symbol,
            evaluate, fetch_variable, get_bounds,
            linearize_objective!, classify_constraints,
            bound!,

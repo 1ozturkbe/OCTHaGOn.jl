@@ -105,6 +105,24 @@ function functionify(constraint)
 end
 
 """
+    variable_by_symbol(model::JuMP.Model, symb::Symbol, )
+
+Helper function to find JuMP.VariableRefs in JuMP.Model.
+"""
+function variable_by_symbol(model::JuMP.Model, symb::Symbol, )
+    try
+        return model[symb]
+    catch UndefVarError
+        var = JuMP.variable_by_name(model, string(symb))
+        if isnothing(var)
+            throw(OCTException("Model tries to access variable " * string(symb) * ", which is invalid."))
+        else
+            return var
+        end
+    end
+end
+
+"""
     vars_from_expr(expr::Expression, model::JuMP.Model)
 
 Returns the JuMP Variables that are associated with a given function.
@@ -116,9 +134,11 @@ Note: Function Expr's must be defined with a single input or a tuple of inputs, 
 function vars_from_expr(expr::Expr, model::JuMP.Model)
     eval(expr) isa Function || throw(OCTException((string("eval of the following
                                      Expr must return a function: ", expr))))
-    expr.args[1] isa Symbol && return [model[expr.args[1]]]
-    return [model[outer] for outer in expr.args[1].args]
-
+    if expr.args[1] isa Symbol
+        return [variable_by_symbol(model, expr.args[1])]
+    else
+        return [variable_by_symbol(model, arg) for arg in expr.args[1].args]
+    end
 end
 
 function vars_from_expr(expr::Union{JuMP.ScalarConstraint, JuMP.ConstraintRef}, model::JuMP.Model)
