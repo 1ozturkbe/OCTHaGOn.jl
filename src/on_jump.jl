@@ -109,7 +109,7 @@ end
 
 Helper function to find JuMP.VariableRefs in JuMP.Model.
 """
-function variable_by_symbol(model::JuMP.Model, symb::Symbol, )
+function variable_by_symbol(model::JuMP.Model, symb::Symbol)
     try
         return model[symb]
     catch UndefVarError
