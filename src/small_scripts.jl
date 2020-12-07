@@ -81,7 +81,3 @@ function substitute_args(ex::Expr, vars)
     end
     return ex
 end
-
-# function flatten_expr(expr::Expr, vars::Array, expr_vars::Array, varmap::Array)
-#     vars = vars_from_expr(expr, model)
-#     ars
