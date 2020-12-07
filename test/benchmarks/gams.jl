@@ -8,20 +8,23 @@ gams:
 include("../../../GAMSFiles.jl/src/GAMSFiles.jl")
 using .GAMSFiles
 
+"""Returns all constants from GAMS Model. """
 function constants(gams::Dict{String, Any})
-    """Returns all constants from GAMS Model. """
     consts = Dict(); #
     for p in ("parameters", "tables")
         if haskey(gams, p)
             for (k, v) in gams[p]
                 v = v isa Ref ? v[] : v
-                consts[Symbol(GAMSFiles.getname(k))] = v;
+                consts[GAMSFiles.getname(k)] = v;
             end
         end
     end
     return consts
 end
 
+""" Moves GAMS constants into the global scope.
+    NOTE: This is only for debugging purposes, could cause bugs.
+"""
 function constants_to_global(gams::Dict{String, Any})
     consts = constants(gams)
     for (key, value) in consts
@@ -53,11 +56,11 @@ function is_equality(eq::GAMSFiles.GCall)
 end
 
 
-function find_vars_in_eq(eq::GAMSFiles.GCall, gams::Dict{String, Any})
+function find_vars_in_eq(eq::GAMSFiles.GCall, vardict::Dict{String, Any})
     """Finds and returns all varkeys in equation. """
     vars = String[]
     lhs, rhs = eq.args[1], eq.args[2]
-    for (var, vinfo) in GAMSFiles.allvars(gams)
+    for (var, vinfo) in vardict
         if GAMSFiles.hasvar(lhs, var) || GAMSFiles.hasvar(rhs, var)
             push!(vars, var)
         end
@@ -69,6 +72,7 @@ end
 function generate_variables!(model::JuMP.Model, gams::Dict{String, Any})
     gamsvars = GAMSFiles.allvars(gams)
     vardict = Dict{String, Any}()
+    constdict = Dict{String, Any}()
     for (var, vinfo) in gamsvars
         if vinfo isa Array
             sizes = [Base.OneTo(vin) for vin in size(vinfo)]
@@ -79,11 +83,11 @@ function generate_variables!(model::JuMP.Model, gams::Dict{String, Any})
                 set_name(nv[idx], "$(var)[$(join(Tuple(idx),","))]")
                 fix(nv[idx], vinfo[idx])
             end
-            vardict[var] = nv
+            constdict[var] = nv
         elseif vinfo isa Real
             nv = @variable(model, base_name = var)
             fix(nv, vinfo)
-            vardict[var] = nv
+            constdict[var] = nv
         else
             axs = vinfo.axs
             nv = nothing
@@ -112,7 +116,7 @@ function generate_variables!(model::JuMP.Model, gams::Dict{String, Any})
             end
         end
     end
-    return vardict
+    return vardict, constdict
 end
 
 filename = "data/baron_nc_ns/problem3.13.gms"
@@ -132,7 +136,8 @@ if haskey(gams, "parameters") && haskey(gams, "assignments")
 end
 
 # Getting variables
-vardict = generate_variables!(model, gams)
+vardict, constdict = generate_variables!(model, gams) # Actual JuMP variables
+consts = constants(gams)                              # Dict of values of constants.
 
 # Getting objective
 if gams["minimizing"] isa String
@@ -150,11 +155,21 @@ end
 for (key, eq) in equations
     if key isa GAMSFiles.GText
         constr_expr = eq_to_expr(eq, sets)
-        constr_varkeys = find_vars_in_eq(eq, gams)
-        input = Symbol.(constr_varkeys)
-        constr_expr = :($(input...) -> $(constr_expr))
-        constr_vars = Array{VariableRef}(flat([vardict[varkey] for varkey in constr_varkeys]))
-        add_nonlinear_constraint(gm, constr_expr, vars = constr_vars,
+        # Substitute constant variables
+        constkeys = find_vars_in_eq(eq, constdict)
+        const_pairs = Dict(Symbol(constkey) => constdict[constkey] for constkey in constkeys)
+        for (constkey, constvar) in const_pairs
+            constr_expr = substitute(constr_expr, :($constkey) => constvar)
+        end
+        # Designate free variables
+        varkeys = find_vars_in_eq(eq, vardict)
+        vars = Array{VariableRef}(flat([vardict[varkey] for varkey in varkeys]))
+        input = Symbol.(varkeys)
+        constr_fn = :(($(input...),) -> $(constr_expr))
+        if length(input) == 1
+            constr_fn = :($(input...) -> $(constr_expr))
+        end
+        add_nonlinear_constraint(gm, constr_fn, vars = vars,
                                  equality = is_equality(eq), name = GAMSFiles.getname(key))
 #         elseif key isa GAMSFiles.GArray
 #             axs = GAMSFiles.getaxes(key.indices, sets)
