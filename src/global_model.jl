@@ -137,6 +137,38 @@ function add_nonlinear_constraint(gm::GlobalModel,
 end
 
 """
+    add_nonlinear_or_compatible(gm::GlobalModel,
+                         constraint::Union{JuMP.ScalarConstraint, JuMP.ConstraintRef, Expr};
+                         vars::Union{Nothing, Array{JuMP.VariableRef, 1}} = nothing,
+                         expr_vars::Union{Nothing, Array} = nothing,
+                         name::Union{Nothing, String} = nothing,
+                         equality::Bool = false)
+
+Extents add_nonlinear_constraint to recognize JuMP compatible constraints and add them
+as normal JuMP constraints
+"""
+function add_nonlinear_or_compatible(gm::GlobalModel,
+                     constraint::Union{JuMP.ScalarConstraint, JuMP.ConstraintRef, Expr};
+                     vars::Union{Nothing, Array{JuMP.VariableRef, 1}} = nothing,
+                     expr_vars::Union{Nothing, Array} = nothing,
+                     name::Union{Nothing, String} = nothing,
+                     equality::Bool = false)
+     fn = eval(constraint)
+     @assert fn isa Function
+     try
+        constr_expr = fn(expr_vars...)
+        if equality
+            @constraint(model, constr_expr == 0)
+        else
+            @constraint(model, constr_expr >= 0)
+        end
+     catch
+         add_nonlinear_constraint(gm, constraint, vars = vars, expr_vars = expr_vars,
+                                      equality = equality, name = name)
+     end
+end
+
+"""
     nonlinearize!(gm::GlobalModel, bbfs::Array{BlackBoxFunction})
     nonlinearize!(gm::GlobalModel)
 
