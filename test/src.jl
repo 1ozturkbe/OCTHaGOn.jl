@@ -101,7 +101,7 @@ bbfs = [BlackBoxFunction(constraint = nl_constrs[1], vars = [x[4], x[5], z]),
 # Evaluation (vector)
 inp_df = DataFrame(-5 .+ 10 .*rand(3, size(inp_df,2)), string.(keys(inp)))
 inp_dict = data_to_Dict(inp_df, model)
-@test evaluate(bbfs[1], inp_dict) == evaluate(bbfs[1], inp_df) == inp_df["z"] - inp_df["x[4]"].^2 - inp_df["x[5]"].^2
+@test evaluate(bbfs[1], inp_dict) == evaluate(bbfs[1], inp_df) == inp_df[!, "z"] - inp_df[!, "x[4]"].^2 - inp_df[!, "x[5]"].^2
 @test evaluate(bbfs[2], inp_dict) == evaluate(bbfs[2], inp_df)
 
 # BBF CHECKS
@@ -110,7 +110,7 @@ bbf = bbfs[1]
 # Check evaluation of samples
 samples = DataFrame(randn(10, length(bbf.vars)),string.(bbf.vars))
 vals = bbf(samples);
-@test vals ≈ -1*samples["x[4]"].^2 - samples["x[5]"].^2 + samples["z"]
+@test vals ≈ -1*samples[!, "x[4]"].^2 - samples[!, "x[5]"].^2 + samples[!, "z"]
 
 # Checks different kinds of sampling
 X_bound = boundary_sample(bbf);

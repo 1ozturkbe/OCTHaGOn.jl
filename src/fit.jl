@@ -106,7 +106,7 @@ function learn_constraint!(bbf::Union{GlobalModel, Array{BlackBoxFunction, DataC
                               weights=weights,
                               validation_criterion=:misclassification);
         push!(bbf.learners, nl);
-        push!(bbf.accuracies, IAI.score(nl, Matrix(bbf.X), bbf.Y .>= 0))
+        push!(bbf.accuracies, IAI.score(nl, bbf.X, bbf.Y .>= 0))
     else
         @warn("Not enough feasible samples for constraint " * string(bbf.name) * ".")
     end
