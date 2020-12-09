@@ -3,19 +3,20 @@ test_src:
 - Author: Berk
 - Date: 2020-06-16
 This tests everything to do with the core of the OptimalConstraintTree code,
-without any machine learning components
-All the rest of the tests look at examples
+without *many* machine learning components
 =#
 
 ##########################
-# BLACKBOXFUNCTION TESTS #
+# SOURCE TESTS #
 ##########################
 
+# Test model, with "user-generated" variables, as well as programmatic ones
 model = Model()
 @variables(model, begin
     -5 <= x[1:5] <= 5
     -4 <= y[1:3] <= 1
     -30 <= z
+    -2 <= a[1:2, 1:3] <= 2
 end)
 
 # Testing expression parsing
@@ -77,7 +78,7 @@ inp_df = DataFrame(inp_dict)
 # Separation of constraints of generated nl_model
 nl_model = copy(model) # NOTE: copy only works if JuMP.Model has no NLconstraints.
 l_constrs, nl_constrs = classify_constraints(nl_model)
-@test length(l_constrs) == 20 && length(nl_constrs) == 1
+@test length(l_constrs) == 32 && length(nl_constrs) == 1
 
 # Set constants
 sets = [MOI.GreaterThan(2), MOI.EqualTo(0), MOI.SecondOrderCone(3), MOI.GeometricMeanCone(2), MOI.SOS1([1,2,3])]

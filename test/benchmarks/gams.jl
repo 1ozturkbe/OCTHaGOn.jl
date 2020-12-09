@@ -86,6 +86,7 @@ function generate_variables!(model::JuMP.Model, gams::Dict{String, Any})
             constdict[var] = nv
         elseif vinfo isa Real
             nv = @variable(model, base_name = var)
+            model[Symbol(var)] = nv
             fix(nv, vinfo)
             constdict[var] = nv
         else
@@ -93,12 +94,14 @@ function generate_variables!(model::JuMP.Model, gams::Dict{String, Any})
             nv = nothing
             if axs == ()
                 nv = @variable(model, base_name = var)
+                model[Symbol(var)] = nv
             else
                 nv = JuMP.Containers.DenseAxisArray{JuMP.VariableRef}(undef, axs...)
                 for idx in eachindex(nv)
                     nv[idx] = @variable(model)
                     set_name(nv[idx], "$(var)[$(join(Tuple(idx),","))]")
                 end
+                model[Symbol(var)] = nv
             end
             vardict[var] = nv
             for (prop, val) in vinfo.assignments
