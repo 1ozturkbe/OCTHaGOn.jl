@@ -1,7 +1,7 @@
 name = "OptimalConstraintTree"
 uuid = "0bb7ae64-b219-4fe7-9577-362e06a335f4"
 authors = ["Berk Ozturk <1ozturkbe@gmail.com>"]
-version = "0.1.0"
+version = "0.1.1"
 
 [deps]
 Combinatorics = "861a8166-3701-5b0c-9a16-15d98fcdc6aa"

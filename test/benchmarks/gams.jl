@@ -10,7 +10,7 @@ using .GAMSFiles
 
 """Returns all constants from GAMS Model. """
 function constants(gams::Dict{String, Any})
-    consts = Dict(); #
+    consts = Dict{String, Any}(); #
     for p in ("parameters", "tables")
         if haskey(gams, p)
             for (k, v) in gams[p]
@@ -56,12 +56,12 @@ function is_equality(eq::GAMSFiles.GCall)
 end
 
 
-function find_vars_in_eq(eq::GAMSFiles.GCall, vardict::Dict{String, Any})
+function find_vars_in_eq(eq::GAMSFiles.GCall, vardict::Dict{Symbol, Any})
     """Finds and returns all varkeys in equation. """
-    vars = String[]
+    vars = Symbol[]
     lhs, rhs = eq.args[1], eq.args[2]
     for (var, vinfo) in vardict
-        if GAMSFiles.hasvar(lhs, var) || GAMSFiles.hasvar(rhs, var)
+        if GAMSFiles.hasvar(lhs, string(var)) || GAMSFiles.hasvar(rhs, string(var))
             push!(vars, var)
         end
     end
@@ -71,30 +71,19 @@ end
 """Takes gams and turns them into JuMP.Variables"""
 function generate_variables!(model::JuMP.Model, gams::Dict{String, Any})
     gamsvars = GAMSFiles.allvars(gams)
-    vardict = Dict{String, Any}()
-    constdict = Dict{String, Any}()
+    vardict = Dict{Symbol, Any}()
+    constdict = Dict{Symbol, Any}()
     for (var, vinfo) in gamsvars
-        if vinfo isa Array
-            sizes = [Base.OneTo(vin) for vin in size(vinfo)]
-            dims = length(sizes)
-            nv = JuMP.Containers.DenseAxisArray{JuMP.VariableRef}(undef, sizes...)
-            for idx in eachindex(nv)
-                nv[idx] = @variable(model)
-                set_name(nv[idx], "$(var)[$(join(Tuple(idx),","))]")
-                fix(nv[idx], vinfo[idx])
-            end
-            constdict[var] = nv
-        elseif vinfo isa Real
-            nv = @variable(model, base_name = var)
-            model[Symbol(var)] = nv
-            fix(nv, vinfo)
-            constdict[var] = nv
+        if vinfo isa Union{Array, Real}
+            model[Symbol(var)] = vinfo
+            constdict[Symbol(var)] = vinfo
         else
             axs = vinfo.axs
             nv = nothing
             if axs == ()
                 nv = @variable(model, base_name = var)
                 model[Symbol(var)] = nv
+                vardict[Symbol(var)] = nv
             else
                 nv = JuMP.Containers.DenseAxisArray{JuMP.VariableRef}(undef, axs...)
                 for idx in eachindex(nv)
@@ -102,8 +91,8 @@ function generate_variables!(model::JuMP.Model, gams::Dict{String, Any})
                     set_name(nv[idx], "$(var)[$(join(Tuple(idx),","))]")
                 end
                 model[Symbol(var)] = nv
+                vardict[Symbol(var)] = nv
             end
-            vardict[var] = nv
             for (prop, val) in vinfo.assignments
                 inds = map(x->x.val, prop.indices)
                 if isa(prop, Union{GAMSFiles.GText, GAMSFiles.GArray})
@@ -124,7 +113,7 @@ end
 
 """ Converts a GAMS optimization model to a GlobalModel."""
 function GAMS_to_GlobalModel(filename::String)
-    model = JuMP.Model(Gurobi.Optimizer)
+    model = JuMP.Model()
     # Parsing GAMS Files
     lexed = GAMSFiles.lex(filename)
     gams = GAMSFiles.parsegams(filename)
@@ -139,7 +128,6 @@ function GAMS_to_GlobalModel(filename::String)
 
     # Getting variables
     vardict, constdict = generate_variables!(model, gams) # Actual JuMP variables
-    consts = constants(gams)                              # Dict of values of constants.
 
     # Getting objective
     if gams["minimizing"] isa String
@@ -159,9 +147,9 @@ function GAMS_to_GlobalModel(filename::String)
             constr_expr = eq_to_expr(eq, sets)
             # Substitute constant variables
             constkeys = find_vars_in_eq(eq, constdict)
-            const_pairs = Dict(Symbol(constkey) => constdict[constkey] for constkey in constkeys)
-            for (constkey, constvar) in const_pairs
-                constr_expr = substitute(constr_expr, :($constkey) => constvar)
+            const_pairs = Dict(constkey => model[constkey] for constkey in constkeys)
+            for (constkey, constval) in const_pairs
+                constr_expr = substitute(constr_expr, :($constkey) => constval)
             end
             # Designate free variables
             varkeys = find_vars_in_eq(eq, vardict)
@@ -180,9 +168,9 @@ function GAMS_to_GlobalModel(filename::String)
             constr_expr = eq_to_expr(eq, sets)
                     # Substitute constant variables
             constkeys = find_vars_in_eq(eq, constdict)
-            const_pairs = Dict(Symbol(constkey) => constdict[constkey] for constkey in constkeys)
-            for (constkey, constvar) in const_pairs
-                constr_expr = substitute(constr_expr, :($constkey) => constvar)
+            const_pairs = Dict(Symbol(constkey) => model[constkey] for constkey in constkeys)
+            for (constkey, constval) in const_pairs
+                constr_expr = substitute(constr_expr, :($constkey) => constval)
             end
             # Designate free variables
             varkeys = find_vars_in_eq(eq, vardict)
@@ -212,6 +200,6 @@ end
 
 filename = "data/baron_nc_ns/problem3.13.gms"
 gm = GAMS_to_GlobalModel(filename)
-@test length(gm.vars) == 103
+@test length(gm.vars) == 8
 @test length(gm.bbfs) == 13
 
