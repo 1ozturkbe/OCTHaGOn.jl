@@ -46,7 +46,7 @@ module OptimalConstraintTree
            # Structs
     export GlobalModel, BlackBoxFunction, DataConstraint,
            # GlobalModel Functions
-           fns_by_feasibility, globalsolve,
+           globalsolve,
            # JuMP.Model extensions to GlobalModel
            set_optimizer, optimize!,
            # Functions on GlobalModel and BlackBoxFunctions and DataConstraints

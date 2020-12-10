@@ -30,29 +30,21 @@ function learn_from_data!(X::DataFrame, Y::AbstractArray, grid; idxs::Union{Noth
 end
 
 """ Checks that a BlackBoxFunction has enough feasible/infeasible samples. """
-function check_feasibility(bbf::Union{GlobalModel, BlackBoxFunction, DataConstraint})
-    if bbf isa BlackBoxFunction || bbf isa DataConstraint
-        return bbf.feas_ratio >= bbf.threshold_feasibility
-    else
-        return [check_feasibility(fn) for fn in bbf.bbfs]
-    end
+function check_feasibility(bbf::Union{BlackBoxFunction, DataConstraint})
+    return bbf.feas_ratio >= bbf.threshold_feasibility
+end
+
+function check_feasibility(gm::GlobalModel)
+    return [check_feasibility(bbf) for bbf in gm.bbfs]
 end
 
 """ Checks that a BlackBoxFunction.learner has adequate accuracy."""
-function check_accuracy(bbf::Union{GlobalModel, BlackBoxFunction, DataConstraint})
-    if bbf isa BlackBoxFunction || bbf isa DataConstraint
-        return bbf.accuracies[end] >= bbf.threshold_accuracy
-    else
-        return [check_accuracy(fn) for fn in bbf.bbfs]
-    end
+function check_accuracy(bbf::Union{BlackBoxFunction, DataConstraint})
+    return bbf.accuracies[end] >= bbf.threshold_accuracy
 end
 
-""" Classifies and returns names of functions that pass/fail the feasibility check. """
-function fns_by_feasibility(gm::GlobalModel)
-    arr = [check_feasibility(fn) for fn in gm.bbfs]
-    infeas_idxs = findall(x -> x .== 0, arr)
-    feas_idxs = findall(x -> x .!= 0, arr) # TODO: use complement.
-    return gm.bbfs[feas_idxs], gm.bbfs[infeas_idxs]
+function check_accuracy(gm::GlobalModel)
+    return [check_accuracy(bbf) for bbf in gm.bbfs]
 end
 
 """
