@@ -5,8 +5,8 @@ expr:
 - Date: 2020-11-04
 Note: This is a dump file when BBFs used to take raw expressions instead of Expr(Function)'s
 =#
-"""
 
+"""
 Generates a map for the auxiliary variables for Expr -> Function conversion.
 """
 function generate_auxmap(ex::Expr, vars::Array{JuMP.VariableRef}, model::JuMP.Model)
