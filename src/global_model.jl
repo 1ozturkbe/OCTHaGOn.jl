@@ -135,7 +135,7 @@ function add_nonlinear_constraint(gm::GlobalModel,
                      expr_vars::Union{Nothing, Array} = nothing,
                      name::Union{Nothing, String} = gm.name * " " * string(length(gm.bbfs) + 1),
                      equality::Bool = false)
-    determine_vars(gm, constraint, vars = vars, expr_vars = expr_vars)
+    vars, expr_vars = determine_vars(gm, constraint, vars = vars, expr_vars = expr_vars)
     if constraint isa JuMP.ScalarConstraint #TODO: clean up.
         con = JuMP.add_constraint(gm.model, constraint)
         JuMP.delete(gm.model, con)
@@ -147,7 +147,7 @@ function add_nonlinear_constraint(gm::GlobalModel,
     if constraint isa JuMP.ConstraintRef
         JuMP.delete(gm.model, constraint)
     end
-    new_bbf = BlackBoxFunction(constraint = constraint, vars = bbf_vars, expr_vars = expr_vars,
+    new_bbf = BlackBoxFunction(constraint = constraint, vars = vars, expr_vars = expr_vars,
                                equality = equality, name = name)
     push!(gm.bbfs, new_bbf)
     return

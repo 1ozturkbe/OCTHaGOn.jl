@@ -24,7 +24,7 @@ include("load.jl");
 
 #     include(string(PROJECT_ROOT, "/lse.jl"))
 
-    include(string(PROJECT_ROOT, "/benchmark/gams.jl"))
+    include(string(PROJECT_ROOT, "/benchmarks/gams.jl"))
 end
 
 # Other tests to try later
