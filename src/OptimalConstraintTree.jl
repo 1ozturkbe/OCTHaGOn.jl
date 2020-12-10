@@ -84,7 +84,7 @@ module OptimalConstraintTree
            # Display and plotting
 #            plot_2d, plot_2d_predictions, plot_accuracies
            # Debugging tools
-            clear_data!, chop_dict,
+            clear_data!,
             # Small scripts
             vars_from_expr, get_varmap, deconstruct, flat,
             infarray, substitute
