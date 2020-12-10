@@ -5,9 +5,10 @@ test_coverage:
 - Date: 2020-07-24
 =#
 
-# Get coverage (from within julia)
-# Restart julia from within the julia folder and run this file.
+# run julia --project=. --code-coverage test/all.jl first
+# Restart julia from within OptimalConstraintTree and run this file.
 global PROJECT_ROOT = @__DIR__
+ENV["CODECOV_TOKEN"]="16d10cc5-d038-4ca4-868f-73d8b5ded063"
 using Coverage
 # process '*.cov' files
 coverage = process_folder() # defaults to src/; alternatively, supply the folder name as argument
@@ -26,3 +27,5 @@ println("Total lines: ", total_lines)
 println("Ratio: ", covered_lines/total_lines)
 # To clear coverage files
 # Coverage.
+
+Codecov.submit_local(coverage)
