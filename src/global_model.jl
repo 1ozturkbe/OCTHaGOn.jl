@@ -445,9 +445,13 @@ function JuMP.optimize!(gm::GlobalModel; kwargs...)
     optimize!(gm.model, kwargs...)
 end
 
+"""
+    globalsolve(gm::GlobalModel)
+
+Creates and solves the global optimization model using the linear constraints from GlobalModel,
+and approximated nonlinear constraints from inside its BlackBoxFunctions.
+"""
 function globalsolve(gm::GlobalModel)
-    """ Creates and solves the global optimization model using the linear constraints from GlobalModel,
-        and approximated nonlinear constraints from inside its BlackBoxFunctions."""
     clear_tree_constraints!(gm); # remove trees from previous solve (if any).
     add_tree_constraints!(gm); # refresh latest tree constraints.
     status = JuMP.optimize!(gm.model);
@@ -483,9 +487,6 @@ function find_bounds!(gm::GlobalModel; bbfs::Array{BlackBoxFunction} = BlackBoxF
     new_bounds = Dict(var => [-Inf, Inf] for var in gm.vars)
     # Finding bounds by min/maximizing each variable
     clear_tree_constraints!(gm)
-    if !isempty(bbfs)
-        add_tree_constraints!(gm, bbfs, M=M)
-    end
     m = gm.model;
     x = gm.vars;
     old_bounds = get_bounds(m);
@@ -494,12 +495,16 @@ function find_bounds!(gm::GlobalModel; bbfs::Array{BlackBoxFunction} = BlackBoxF
         if isinf(old_bounds[var][1]) || all_bounds
             @objective(m, Min, var);
             JuMP.optimize!(m);
-            new_bounds[var][1] = getvalue(var);
+            if termination_status(m) == MOI.OPTIMAL
+                new_bounds[var][1] = getvalue(var);
+            end
         end
         if isinf(old_bounds[var][2]) || all_bounds
             @objective(m, Max, var);
             JuMP.optimize!(m);
-            new_bounds[var][2] = getvalue(var);
+            if termination_status(m) == MOI.OPTIMAL
+                new_bounds[var][2] = getvalue(var);
+            end
         end
     end
     # Revert objective
