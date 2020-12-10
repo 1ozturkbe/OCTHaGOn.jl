@@ -127,15 +127,15 @@ log_inp = Dict(vk => log(val) for (vk, val) in inp);
 # Actually trying to optimize...
 gm = sagemark_to_GlobalModel(3; lse=false);
 set_optimizer(gm, Gurobi.Optimizer)
+old_bounds = get_bounds(gm)
+find_bounds!(gm, all_bounds=true)
+@test old_bounds == get_bounds(gm)
 bound!(gm, Dict(gm.vars[end] => [-300, 0]))
 sample_and_eval!(gm, n_samples = 500)
 sample_and_eval!(gm, n_samples = 500)
 
 learn_constraint!(gm)
 println("Approximation accuracies: ", accuracy(gm))
-
-# Testing addition and removal of tree constraints.
-
 
 # Solving of model
 status = globalsolve(gm)
