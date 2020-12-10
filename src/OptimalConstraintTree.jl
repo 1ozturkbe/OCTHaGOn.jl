@@ -29,8 +29,6 @@ module OptimalConstraintTree
 
     include("root_finding.jl")
 
-    include("post_process.jl")
-
     include("iai_wrappers.jl")
 
     include("global_model.jl")
