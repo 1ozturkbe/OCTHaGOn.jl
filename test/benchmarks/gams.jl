@@ -5,8 +5,7 @@ gams:
 - Date: 2020-09-10
 =#
 
-include("../../../GAMSFiles.jl/src/GAMSFiles.jl")
-using .GAMSFiles
+using GAMSFiles
 
 """Returns all constants from GAMS Model. """
 function constants(gams::Dict{String, Any})
@@ -159,7 +158,7 @@ function GAMS_to_GlobalModel(filename::String)
             if length(input) == 1
                 constr_fn = :($(input...) -> $(constr_expr))
             end
-            add_nonlinear_constraint(gm, constr_fn, vars = vars, expr_vars = [vardict[varkey] for varkey in varkeys],
+            add_nonlinear_or_compatible(gm, constr_fn, vars = vars, expr_vars = [vardict[varkey] for varkey in varkeys],
                                      equality = is_equality(eq), name = GAMSFiles.getname(key))
         elseif key isa GAMSFiles.GArray
             axs = GAMSFiles.getaxes(key.indices, sets)
@@ -189,7 +188,7 @@ function GAMS_to_GlobalModel(filename::String)
                 push!(constr_fns, new_fn)
             end
             for i = 1:length(idxs)
-                add_nonlinear_constraint(gm, constr_fns[i], vars = vars, expr_vars = [vardict[varkey] for varkey in varkeys],
+                add_nonlinear_or_compatible(gm, constr_fns[i], vars = vars, expr_vars = [vardict[varkey] for varkey in varkeys],
                                          equality = is_equality(eq),
                                          name = names[i])
             end

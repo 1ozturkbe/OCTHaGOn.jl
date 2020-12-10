@@ -51,6 +51,7 @@ module OptimalConstraintTree
            set_optimizer, optimize!,
            # Functions on GlobalModel and BlackBoxFunctions and DataConstraints
            gridify, get_learner, learn_from_data!, find_bounds!, add_nonlinear_constraint,
+           add_nonlinear_or_compatible,
            lh_sample, boundary_sample,
            accuracy, feasibility, check_accuracy, check_feasibility, check_bounds,
            solution, evaluate_feasibility,
@@ -66,7 +67,6 @@ module OptimalConstraintTree
            # Functions on IAI structs
            bin_to_leaves, regress,
            # Functions on JuMP objects
-           variable_by_symbol,
            evaluate, fetch_variable, get_bounds,
            linearize_objective!, classify_constraints,
            bound!,

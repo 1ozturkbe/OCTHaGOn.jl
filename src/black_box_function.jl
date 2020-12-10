@@ -17,12 +17,8 @@ Returns:
 """
 
 function get_varmap(expr_vars::Array, vars::Array)
-    if isnothing(expr_vars)
-        return
-    else
-        length(flat(expr_vars)) >= length(vars) || throw(OCTException(string("Insufficiently many input
+    length(flat(expr_vars)) >= length(vars) || throw(OCTException(string("Insufficiently many input
         variables declared in ", vars, ".")))
-    end
     unique(vars) == vars || throw(OCTException(string("Nonunique variables among ", vars, ".")))
     varmap = Tuple[(0,0) for i=1:length(vars)]
     for i = 1:length(expr_vars)
@@ -42,6 +38,9 @@ function get_varmap(expr_vars::Array, vars::Array)
             end
         end
     end
+    length(varmap) == length(vars) || throw(OCTException(string("Could not properly map
+                                            expr_vars: ", expr_vars,
+                                            "to vars: ", vars, ".")))
     return varmap
 end
 
@@ -101,9 +100,22 @@ end
     @with_kw mutable struct BlackBoxFunction
 
 Contains all required info to be able to generate a global optimization constraint from a function.
+To be added to GlobalModel.bbfs using functions:
+    add_nonlinear_constraints
+    add_nonlinear_or_compatible
+
 Mandatory arguments:
     constraint::Union{JuMP.ConstraintRef, Expr}
+        A function
     vars::Array{JuMP.VariableRef,1}
+
+Optional arguments:
+    expr_vars::Union{Array, Nothing}
+        JuMP variables as function arguments (i.e. vars rolled up into vector forms).
+        vars ⋐ flat(expr_vars)
+    name::Union{String, Real}
+    equality::Bool
+        Specifies whether function should be satisfied to an equality
 
 Also contains data w.r.t. samples from the function.
 Can be tagged with additional info.

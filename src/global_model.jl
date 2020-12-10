@@ -83,6 +83,7 @@ function get_min(a,b)
     return minimum([a,b])
 end
 
+""" Checks whether any defined bounds are infeasible by given Model. """
 function check_infeasible_bounds(model::Union{GlobalModel, JuMP.Model}, bounds::Dict)
     all_bounds = get_bounds(model);
     lbs_model = Dict(key => minimum(value) for (key, value) in all_bounds)
@@ -97,43 +98,91 @@ function check_infeasible_bounds(model::Union{GlobalModel, JuMP.Model}, bounds::
     return
 end
 
+""" Takes on parsing and allocation of variables depending on user input.
+Note: This can be tricky, vars should in general be equal to flat(expr_vars).
+vars is shorter than expr_vars iff a subset of a vector variable is included. """
+function determine_vars(gm::GlobalModel,
+                        constraint::Union{JuMP.ScalarConstraint, JuMP.ConstraintRef, Expr};
+                        vars::Union{Nothing, Array{JuMP.VariableRef, 1}} = nothing,
+                        expr_vars::Union{Nothing, Array} = nothing)
+    if constraint isa Union{JuMP.ScalarConstraint, JuMP.ConstraintRef}
+        # Since we cannot determine variables inside JuMP constraints yet...
+        return vars, expr_vars
+    else
+        if isnothing(vars) && isnothing(expr_vars)
+            expr_vars = vars_from_expr(constraint, gm.model)
+            vars = flat(expr_vars)
+            return vars, expr_vars
+        elseif isnothing(expr_vars)
+            expr_vars = vars_from_expr(constraint, gm.model)
+            @assert length(flat(expr_vars)) >= length(vars)
+            return vars, expr_vars
+        elseif isnothing(vars)
+            vars = flat(expr_vars)
+            return vars, expr_vars
+        else
+            @assert length(flat(expr_vars)) >= length(vars)
+            return vars, expr_vars
+        end
+    end
+end
+
+
+""" Adds a new nonlinear constraint to Global Model. """
 function add_nonlinear_constraint(gm::GlobalModel,
                      constraint::Union{JuMP.ScalarConstraint, JuMP.ConstraintRef, Expr};
                      vars::Union{Nothing, Array{JuMP.VariableRef, 1}} = nothing,
                      expr_vars::Union{Nothing, Array} = nothing,
-                     name::Union{Nothing, String} = nothing,
+                     name::Union{Nothing, String} = gm.name * " " * string(length(gm.bbfs) + 1),
                      equality::Bool = false)
-""" Adds a new nonlinear constraint to Global Model.
-    Note: Linear constraints should be added using add_linear_constraint. """
-    bbf_vars = []
-    if isnothing(vars)
-        bbf_vars = JuMP.all_variables(gm.model)
-    else
-        bbf_vars = vars
-    end
-    if isnothing(name)
-        name = string("bbf", length(gm.bbfs) + 1)
-    end
-    if isnothing(expr_vars) && constraint isa Expr
-        expr_vars = vars_from_expr(constraint, vars[1].model)
-    end
+    vars, expr_vars = determine_vars(gm, constraint, vars = vars, expr_vars = expr_vars)
     if constraint isa JuMP.ScalarConstraint #TODO: clean up.
-        con = JuMP.add_constraint(gm.model, bbf.constraint)
+        con = JuMP.add_constraint(gm.model, constraint)
         JuMP.delete(gm.model, con)
-        new_bbf = BlackBoxFunction(constraint = con, vars = bbf_vars, expr_vars = expr_vars,
+        new_bbf = BlackBoxFunction(constraint = con, vars = vars, expr_vars = expr_vars,
                                    equality = equality, name = name)
-        @assert length(new_bbf.vars) == length(new_bbf.varmap)
         push!(gm.bbfs, new_bbf)
         return
     end
     if constraint isa JuMP.ConstraintRef
         JuMP.delete(gm.model, constraint)
     end
-    new_bbf = BlackBoxFunction(constraint = constraint, vars = bbf_vars, expr_vars = expr_vars,
+    new_bbf = BlackBoxFunction(constraint = constraint, vars = vars, expr_vars = expr_vars,
                                equality = equality, name = name)
-    @assert length(new_bbf.vars) == length(new_bbf.varmap)
     push!(gm.bbfs, new_bbf)
     return
+end
+
+"""
+    add_nonlinear_or_compatible(gm::GlobalModel,
+                         constraint::Union{JuMP.ScalarConstraint, JuMP.ConstraintRef, Expr};
+                         vars::Union{Nothing, Array{JuMP.VariableRef, 1}} = nothing,
+                         expr_vars::Union{Nothing, Array} = nothing,
+                         name::Union{Nothing, String} = nothing,
+                         equality::Bool = false)
+
+Extents add_nonlinear_constraint to recognize JuMP compatible constraints and add them
+as normal JuMP constraints
+"""
+function add_nonlinear_or_compatible(gm::GlobalModel,
+                     constraint::Union{JuMP.ScalarConstraint, JuMP.ConstraintRef, Expr};
+                     vars::Union{Nothing, Array{JuMP.VariableRef, 1}} = nothing,
+                     expr_vars::Union{Nothing, Array} = nothing,
+                     name::Union{Nothing, String} = nothing,
+                     equality::Bool = false)
+     fn = eval(constraint)
+     @assert fn isa Function
+     try
+        constr_expr = fn(expr_vars...)
+        if equality
+            @constraint(model, constr_expr == 0)
+        else
+            @constraint(model, constr_expr >= 0)
+        end
+     catch
+         add_nonlinear_constraint(gm, constraint, vars = vars, expr_vars = expr_vars,
+                                      equality = equality, name = name)
+     end
 end
 
 """

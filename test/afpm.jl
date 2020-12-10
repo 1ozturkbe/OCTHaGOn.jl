@@ -26,11 +26,15 @@ objkeys = Symbol.(names(Y))
 m = Model(Gurobi.Optimizer)
 inputs = [];
 for key in varkeys
-    push!(inputs, @variable(m, base_name = string(key)));
+    nv = @variable(m, base_name = string(key))
+    m[Symbol(key)] = nv
+    push!(inputs, nv);
 end
 outputs = [];
 for key in objkeys
-    push!(outputs, @variable(m, base_name = string(key)));
+    nv = @variable(m, base_name = string(key))
+    m[Symbol(key)] = nv
+    push!(outputs, nv);
 end
 
 # Bounding and Integer constraints for input variables
