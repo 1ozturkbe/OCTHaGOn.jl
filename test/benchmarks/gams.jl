@@ -5,8 +5,7 @@ gams:
 - Date: 2020-09-10
 =#
 
-include("../../../GAMSFiles.jl/src/GAMSFiles.jl")
-using .GAMSFiles
+using GAMSFiles
 
 """Returns all constants from GAMS Model. """
 function constants(gams::Dict{String, Any})
