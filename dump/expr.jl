@@ -88,3 +88,31 @@ constr_fn = let lhs = lhsexpr, rhs = rhsexpr, op = op, consts = consts
     else
         error("unexpected operator ", op)
     end
+
+
+"""
+    substitute_expr(expr::Expr, data::Dict)
+
+Substitutes for the outer variables (symbols from the expr) using data.
+"""
+function substitute_expr(expr::Expr, data::Dict)
+    new_expr = copy(expr)
+    for (key, value) in data
+        new_expr = substitute(new_expr, :($key) => value)
+    end
+    return eval(new_expr)
+end
+
+"""
+    substitute_args is a helper function, by Oscar Dowson.
+    See here for more details:
+    https://discourse.julialang.org/t/procedural-nonlinear-constaint-generation-string-to-nlconstraint/34799/4
+"""
+substitute_args(ex, vars) = ex
+substitute_args(ex::Symbol, vars) = get(vars, ex, ex)
+function substitute_args(ex::Expr, vars)
+    for (i, arg) in enumerate(ex.args)
+        ex.args[i] = substitute_args(arg, vars)
+    end
+    return ex
+end

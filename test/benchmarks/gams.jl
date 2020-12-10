@@ -54,9 +54,8 @@ function is_equality(eq::GAMSFiles.GCall)
     GAMSFiles.eqops[GAMSFiles.getname(eq)] == :(=)
 end
 
-
+""" Finds and returns all varkeys in equation. """
 function find_vars_in_eq(eq::GAMSFiles.GCall, vardict::Dict{Symbol, Any})
-    """Finds and returns all varkeys in equation. """
     vars = Symbol[]
     lhs, rhs = eq.args[1], eq.args[2]
     for (var, vinfo) in vardict
@@ -67,7 +66,7 @@ function find_vars_in_eq(eq::GAMSFiles.GCall, vardict::Dict{Symbol, Any})
     return vars
 end
 
-"""Takes gams and turns them into JuMP.Variables"""
+""" Takes gams and turns them into JuMP.Variables"""
 function generate_variables!(model::JuMP.Model, gams::Dict{String, Any})
     gamsvars = GAMSFiles.allvars(gams)
     vardict = Dict{Symbol, Any}()

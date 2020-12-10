@@ -87,6 +87,6 @@ module OptimalConstraintTree
             clear_data!, chop_dict,
             # Small scripts
             vars_from_expr, get_varmap, deconstruct, flat,
-            infarray, substitute, substitute_expr, substitute_args
+            infarray, substitute
 end
 
