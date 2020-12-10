@@ -33,8 +33,6 @@ module OptimalConstraintTree
 
     include("iai_wrappers.jl")
 
-    include("augment.jl")
-
     include("global_model.jl")
 
     include("constraintify.jl")
@@ -50,7 +48,7 @@ module OptimalConstraintTree
            # JuMP.Model extensions to GlobalModel
            set_optimizer, optimize!,
            # Functions on GlobalModel and BlackBoxFunctions and DataConstraints
-           gridify, get_learner, learn_from_data!, find_bounds!, add_nonlinear_constraint,
+           gridify, learn_from_data!, find_bounds!, add_nonlinear_constraint,
            add_nonlinear_or_compatible,
            lh_sample, boundary_sample,
            accuracy, feasibility, check_accuracy, check_feasibility, check_bounds,

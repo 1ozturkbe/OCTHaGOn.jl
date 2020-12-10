@@ -40,6 +40,8 @@ function add_tree_constraints!(gm::GlobalModel, bbfs::Array{BlackBoxFunction}; M
         elseif isempty(bbf.learners)
             throw(OCTException("Constraint " * string(bbf.name) * " must be learned before tree constraints
                                 can be generated."))
+        elseif check_accuracy(bbf)
+            throw(OCTException("Constraint " * string(bbf.name) * " is inaccurately approximated. "))
         else
             constrs, leaf_vars = add_feas_constraints!(gm.model,
                                         bbf.vars,
@@ -132,8 +134,8 @@ function add_regr_constraints!(m::JuMP.Model, x::Array, y, grid::IAI.GridSearch;
         grid: A fitted Grid
         M:: coefficient in bigM formulation
     """
-    lnr = IAI.get_learner(grid);
-    check_if_trained(lnr);
+    lnr = IAI.get_learner(grid)
+    check_if_trained(lnr)
     n_nodes = IAI.get_num_nodes(lnr)
     # Add a binary variable for each leaf
     all_leaves = [i for i = 1:n_nodes if IAI.is_leaf(lnr, i)]

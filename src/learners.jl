@@ -49,11 +49,3 @@ function gridify(lnr::IAI.Learner)
     end
     return grid
 end
-
-function get_learner(grid::Union{IAI.GridSearch, IAI.OptimalTreeLearner})
-    if hasproperty(lnr, :lnr)
-        return grid.lnr
-    else
-        return grid
-    end
-end

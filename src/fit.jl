@@ -113,11 +113,8 @@ end
 Basic regression purely for debugging.
 TODO: refine and/or remove.
 """
-function regress(points::DataFrame, values::Array; weights::Union{Array, Nothing} = nothing)
+function regress(points::DataFrame, values::Array; weights::Array = ones(length(values)))
     lnr= IAI.OptimalFeatureSelectionRegressor(sparsity = :all); # TODO: optimize regression method.
-    if isnothing(weights)
-        weights = ones(length(values));
-    end
     IAI.fit!(lnr, points, values, sample_weight=weights)
     return lnr
 end
