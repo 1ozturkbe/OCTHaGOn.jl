@@ -54,22 +54,21 @@ function add_tree_constraints!(gm::GlobalModel, bbfs::Array{BlackBoxFunction}; M
 end
 
 function add_tree_constraints!(gm::GlobalModel; M=1e5)
-    """ Generates MI constraints from gm.learners. """
     add_tree_constraints!(gm, gm.bbfs, M=M)
     return
 end
 
-function add_feas_constraints!(m::JuMP.Model, x, lnr::IAI.OptimalTreeLearner;
-                               M::Float64 = 1.e5, eq = false,
-                               return_data::Bool = false)
-    """
+"""
     Creates a set of binary feasibility constraints from
     a binary classification tree:
     Arguments:
         lnr: A fitted IAI.OptimalTreeLearner
         m:: JuMP Model
         x:: JuMPVariables (features in lnr)
-    """
+"""
+function add_feas_constraints!(m::JuMP.Model, x, lnr::IAI.OptimalTreeLearner;
+                               M::Float64 = 1.e5, eq = false,
+                               return_data::Bool = false)
     check_if_trained(lnr);
     n_nodes = IAI.get_num_nodes(lnr);
     # Add a binary variable for each leaf
