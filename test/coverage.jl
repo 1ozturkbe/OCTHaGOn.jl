@@ -25,7 +25,6 @@ covered_lines, total_lines = get_summary(coverage)
 println("Covered lines: ", covered_lines)
 println("Total lines: ", total_lines)
 println("Ratio: ", covered_lines/total_lines)
-# To clear coverage files
-# Coverage.
 
+# Submit to coverage
 Codecov.submit_local(coverage)
