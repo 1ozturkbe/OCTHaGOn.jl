@@ -16,19 +16,28 @@ on_jumpmodels:
 Returns JuMP.VariableRefs that match a given Symbol, String, VariableRef,
 or array of these.
 """
-function fetch_variable(model::JuMP.Model, varkey::Union{Symbol, String, VariableRef, Array})
-    if varkey isa Array
-        return [fetch_variable(model, key) for key in varkey]
-    end
+function fetch_variable(model::JuMP.Model, varkey::Union{Symbol, String, VariableRef})
     if varkey isa Symbol
-        return model[varkey]
+        try
+            return model[varkey]
+        catch UndefVarError
+            throw(KeyError(string("Varkey ", varkey,
+                              " is invalid for Model.")))
+        end
     elseif varkey isa VariableRef
         is_valid(model, varkey) && return varkey
         throw(KeyError(string("Varkey ", varkey,
                               " is invalid for Model.")))
     elseif varkey isa String
-        return JuMP.variable_by_name(model, varkey)
+        ret = JuMP.variable_by_name(model, varkey)
+        !isnothing(ret) && return ret
+        throw(KeyError(string("Varkey ", varkey,
+                              " is invalid for Model.")))
     end
+end
+
+function fetch_variable(model::JuMP.Model, varkey::Array)
+    return [fetch_variable(model, key) for key in varkey]
 end
 
 """
@@ -105,24 +114,6 @@ function functionify(constraint)
 end
 
 """
-    variable_by_symbol(model::JuMP.Model, symb::Symbol, )
-
-Helper function to find JuMP.VariableRefs in JuMP.Model.
-"""
-function variable_by_symbol(model::JuMP.Model, symb::Symbol)
-    try
-        return model[symb]
-    catch UndefVarError
-        var = JuMP.variable_by_name(model, string(symb))
-        if isnothing(var)
-            throw(OCTException("Model tries to access variable " * string(symb) * ", which is invalid."))
-        else
-            return var
-        end
-    end
-end
-
-"""
     vars_from_expr(expr::Expression, model::JuMP.Model)
 
 Returns the JuMP Variables that are associated with a given function.
@@ -135,9 +126,9 @@ function vars_from_expr(expr::Expr, model::JuMP.Model)
     eval(expr) isa Function || throw(OCTException((string("eval of the following
                                      Expr must return a function: ", expr))))
     if expr.args[1] isa Symbol
-        return [variable_by_symbol(model, expr.args[1])]
+        return [fetch_variable(model, expr.args[1])]
     else
-        return [variable_by_symbol(model, arg) for arg in expr.args[1].args]
+        return [fetch_variable(model, arg) for arg in expr.args[1].args]
     end
 end
 
