@@ -144,6 +144,19 @@ Can be tagged with additional info.
 end
 
 """
+    add_data!(bbf::Union{BlackBoxFunction, DataConstraint}, X::DataFrame, Y::Array)
+
+Adds data to a BlackBoxFunction or DataConstraint.
+"""
+function add_data!(bbf::Union{BlackBoxFunction, DataConstraint}, X::DataFrame, Y::Array)
+    @assert length(Y) == size(X, 1)
+    append!(bbf.X, X[:,string.(bbf.vars)], cols=:setequal)
+    append!(bbf.Y, Y)
+    bbf.feas_ratio = sum(bbf.Y .>= 0)/length(bbf.Y); #TODO: optimize.
+    return
+end
+
+"""
     evaluate(constraint::JuMP.ConstraintRef, data::Union{Dict, DataFrame})
 
 Evaluates constraint violation on data in the variables, and returns distance from set.
@@ -174,23 +187,21 @@ function evaluate(bbf::BlackBoxFunction, data::Union{Dict, DataFrame})
         arrs = deconstruct(clean_data, bbf.vars, bbf.varmap)
         vals = [bbf.fn(arr...) for arr in arrs]
         length(vals) == 1 && return vals[1]
-        return vals    end
+        return vals
+    end
 end
 
 """
     function (bbf::BlackBoxFunction)(x::Union{DataFrame,Dict,DataFrameRow})
 
-Makes the BBF callable as a function.
+Makes the BlackBoxFunction callable as a function.
 """
-function (bbf::BlackBoxFunction)(x::Union{DataFrame,Dict,DataFrameRow})
-    return evaluate(bbf, x)
+function (bbf::BlackBoxFunction)(X::Union{DataFrame,Dict,DataFrameRow})
+    return evaluate(bbf, X)
 end
 
 """ Evaluates BlackBoxFunction at all X and stores the resulting data. """
 function eval!(bbf::BlackBoxFunction, X::DataFrame)
-    values = bbf(X);
-    append!(bbf.X, X[:,string.(bbf.vars)], cols=:setequal)
-    append!(bbf.Y, values);
-    bbf.feas_ratio = sum(bbf.Y .>= 0)/length(bbf.Y); #TODO: optimize.
-    return
+    Y = bbf(X);
+    add_data!(bbf, X, Y)
 end

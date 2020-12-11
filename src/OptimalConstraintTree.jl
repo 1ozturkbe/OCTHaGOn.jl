@@ -23,9 +23,9 @@ module OptimalConstraintTree
 
     include("exceptions.jl")
 
-    include("black_box_function.jl")
-
     include("data_constraint.jl")
+
+    include("black_box_function.jl")
 
     include("root_finding.jl")
 
@@ -58,7 +58,7 @@ module OptimalConstraintTree
            eval!, sample_and_eval!,
            secant_method, knn_sample, build_knn_tree,
            find_knn, classify_patches,
-           # Functions on DataConstraints only
+           # Functions on BlackBoxFunctions and DataConstraints
            add_data!,
            # Functions on IAI structs
            bin_to_leaves, regress,

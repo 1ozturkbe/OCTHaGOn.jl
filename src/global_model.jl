@@ -452,6 +452,8 @@ Creates and solves the global optimization model using the linear constraints fr
 and approximated nonlinear constraints from inside its BlackBoxFunctions.
 """
 function globalsolve(gm::GlobalModel)
+    check_accuracy(gm) || throw(OCTException("GlobalModel " * gm.name * " has inaccurate " *
+                                             "BlackBoxFunction approximations."))
     clear_tree_constraints!(gm); # remove trees from previous solve (if any).
     add_tree_constraints!(gm); # refresh latest tree constraints.
     status = JuMP.optimize!(gm.model);
