@@ -51,6 +51,9 @@ function generate_variables!(model::JuMP.Model, gams::Dict{String, Any})
         if vinfo isa Union{Array, Real}
             model[Symbol(var)] = vinfo
             constdict[Symbol(var)] = vinfo
+        elseif vinfo isa Base.RefValue
+            model[Symbol(var)] = vinfo.x
+            constdict[Symbol(var)] = vinfo.x
         else
             axs = vinfo.axs
             nv = nothing
@@ -86,11 +89,11 @@ function generate_variables!(model::JuMP.Model, gams::Dict{String, Any})
 end
 
 """ Converts a GAMS optimization model to a GlobalModel."""
-function GAMS_to_GlobalModel(filename::String)
+function GAMS_to_GlobalModel(dir::String, filename::String)
     model = JuMP.Model()
     # Parsing GAMS Files
-    lexed = GAMSFiles.lex(filename)
-    gams = GAMSFiles.parsegams(filename)
+    lexed = GAMSFiles.lex(dir * filename)
+    gams = GAMSFiles.parsegams(dir * filename)
     GAMSFiles.parseconsts!(gams)
 
     vars = GAMSFiles.getvars(gams["variables"])
@@ -111,7 +114,7 @@ function GAMS_to_GlobalModel(filename::String)
     end
 
     # Creating GlobalModel
-    gm = GlobalModel(model = model)
+    gm = GlobalModel(model = model, name = filename)
     equations = [] # For debugging purposes...
     for (key, eq) in gams["equations"]
         push!(equations, key => eq)
@@ -172,8 +175,22 @@ function GAMS_to_GlobalModel(filename::String)
     return gm
 end
 
-filename = "data/baron_nc_ns/problem3.13.gms"
-gm = GAMS_to_GlobalModel(filename)
+DATA_DIR = "data/baron_nc_ns/"
+filenums = [2.15, 2.16, 2.17, 2.18, 3.2, "3.10", 3.13, 3.15, 3.16, 3.18, 3.25]
+filenames = ["problem" * string(filenum) * ".gms" for filenum in filenums]
+gms = Dict()
+for filename in filenames
+    try
+        gms[filename] = GAMS_to_GlobalModel(DATA_DIR, filename)
+    catch
+        throw(OCTException(filename * " has an import issue."))
+    end
+end
+
+
+filename = "problem3.13.gms"
+gm = GAMS_to_GlobalModel(DATA_DIR, filename);
 @test length(gm.vars) == 8
 @test length(gm.bbfs) == 13
+
 

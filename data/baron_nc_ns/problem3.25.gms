@@ -1,9 +1,10 @@
 Sets  i    /1*15/
       j    /1*10/
       k    /1*5/
+      l    /1*95/
 ;
 
-Parameter Y ;
+Parameter Y(l);
 
  Y('1') =  -16.;
  Y('2') =   0.;
