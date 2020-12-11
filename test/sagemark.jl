@@ -131,8 +131,8 @@ old_bounds = get_bounds(gm)
 find_bounds!(gm, all_bounds=true)
 @test old_bounds == get_bounds(gm)
 bound!(gm, Dict(gm.vars[end] => [-300, 0]))
-sample_and_eval!(gm, n_samples = 500)
-sample_and_eval!(gm, n_samples = 500)
+sample_and_eval!(gm, n_samples = 200)
+sample_and_eval!(gm, n_samples = 200)
 
 learn_constraint!(gm)
 println("Approximation accuracies: ", accuracy(gm))
@@ -164,4 +164,4 @@ set_optimizer(gm, Gurobi.Optimizer);
 load_fit(gm);
 @test all([bbf.settings[:reloaded] == true for bbf in gm.bbfs])
 globalsolve(gm);
-@test all(vals .== solution(gm));
+@test all(vals[!,key] ≈ solution(gm)[!,key] for key in string.(gm.vars))
