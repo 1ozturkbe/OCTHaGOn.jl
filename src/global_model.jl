@@ -474,13 +474,9 @@ Creates and solves the global optimization model using the linear constraints fr
 and approximated nonlinear constraints from inside its BlackBoxFunctions.
 """
 function globalsolve(gm::GlobalModel)
-    if any(check_accuracy(gm) .== 0) && !gm.settings[:ignore_accuracy]
-        throw(OCTException("GlobalModel " * gm.name * " has inaccurate " *
-                                             "BlackBoxFunction approximations."))
-    end
-    clear_tree_constraints!(gm); # remove trees from previous solve (if any).
-    add_tree_constraints!(gm); # refresh latest tree constraints.
-    status = optimize!(gm.model);
+    clear_tree_constraints!(gm)   # remove trees from previous solve (if any).
+    add_tree_constraints!(gm)     # refresh latest tree constraints.
+    status = optimize!(gm.model)
     return status
 end
 
@@ -539,14 +535,7 @@ function find_bounds!(gm::GlobalModel; bbfs::Array{BlackBoxFunction} = BlackBoxF
     return
 end
 
-""" Returns trees trained over given GlobalModel,
-where filename points to the model name. """
-function import_trees(dir, gm::GlobalModel)
-    trees = [IAI.read_json(string(dir, "_tree_", i, ".json")) for i=1:length(gm.bbfs)];
-    return trees
-end
-
-""" Deletes all data associated with a BBF. """
+""" Deletes all data associated with a BlackBoxFunction or GlobalModel. """
 function clear_data!(bbf::BlackBoxFunction)
     bbf.X = DataFrame([Float64 for i=1:length(bbf.vars)], string.(bbf.vars))  # Function samples
     bbf.Y = [];

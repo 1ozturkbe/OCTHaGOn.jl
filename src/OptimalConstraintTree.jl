@@ -15,6 +15,9 @@ module OptimalConstraintTree
     using ProgressMeter
     using Random
 
+    const PROJECT_ROOT = pwd()
+    const SAVE_DIR = PROJECT_ROOT * "\\data\\"
+
     include("small_scripts.jl")
 
     include("on_jump.jl")

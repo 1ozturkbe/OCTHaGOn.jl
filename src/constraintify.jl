@@ -29,18 +29,18 @@ function add_tree_constraints!(gm::GlobalModel, bbfs::Array{BlackBoxFunction}; M
     for bbf in bbfs
         if bbf.feas_ratio == 1.0
             return
-        elseif size(bbf.X, 1) == 0
+        elseif size(bbf.X, 1) == 0 && !bbf.settings[:reloaded]
             @warn("Constraint " * string(bbf.name) * " has not been sampled yet...")
         elseif length(bbf.learners) == 0
             @warn("Constraint " * string(bbf.name) * " has not been learned yet...")
-        elseif bbf.feas_ratio == 0.0
+        elseif bbf.feas_ratio == 0.0 && !bbf.settings[:reloaded]
             @warn("Constraint " * string(bbf.name) * " is INFEASIBLE but you tried to include it in
                    your global problem. For now, the constraint is OMITTED.
                    Find at least one feasible solution, train and try again.")
         elseif isempty(bbf.learners)
             throw(OCTException("Constraint " * string(bbf.name) * " must be learned before tree constraints
                                 can be generated."))
-        elseif check_accuracy(bbf) && !gm.settings[:ignore_accuracy]
+        elseif check_accuracy(bbf) && (gm.settings[:ignore_accuracy] || !bbf.settings[:reloaded])
             throw(OCTException("Constraint " * string(bbf.name) * " is inaccurately approximated. "))
         else
             constrs, leaf_vars = add_feas_constraints!(gm.model,

@@ -5,8 +5,6 @@ load:
 - Date: 2020-09-04
 =#
 
-global PROJECT_ROOT = @__DIR__
-global SAVE_DIR = PROJECT_ROOT * "\\data\\"
 using DataFrames
 using Gurobi
 using JuMP

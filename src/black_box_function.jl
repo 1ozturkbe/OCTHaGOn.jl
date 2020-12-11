@@ -98,8 +98,8 @@ end
 
 """ Returns default BlackBoxFunction settings for approximation."""
 function bbf_defaults()
-    settings = Dict(:threshold_accuracy => 0.95      # Minimum tree accuracy
-                    :threshold_feasibility => 0.15   # Minimum feasibility ratio
+    settings = Dict(:threshold_accuracy => 0.95,      # Minimum tree accuracy
+                    :threshold_feasibility => 0.15,   # Minimum feasibility ratio
                     :reloaded => false)
 end
 

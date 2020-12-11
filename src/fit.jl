@@ -143,7 +143,7 @@ function load_fit(bbf::Union{BlackBoxFunction, DataConstraint}, dir::String = SA
     size(IAI.variable_importance(loaded_grid.lnr), 1) == length(bbf.vars) || throw(
         OCTException("Object " * bbf.name * " does not match associated learner."))
     bbf.settings[:reloaded] = true
-    push!(bbf.learners, loaded_lnr)
+    push!(bbf.learners, loaded_grid)
 end
 
 load_fit(bbfs::Array, dir::String = SAVE_DIR) = [load_fit(bbf, dir) for bbf in bbfs]

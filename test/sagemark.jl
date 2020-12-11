@@ -141,7 +141,8 @@ println("Approximation accuracies: ", accuracy(gm))
 @test_throws OCTException globalsolve(gm) # inaccuracy check in globalsolve.
 gm.settings[:ignore_accuracy] = true
 globalsolve(gm);
-println("X values: ", solution(gm))
+vals = solution(gm);
+println("X values: ", vals)
 println("Optimal X: ", vcat(exp.([5.01063529, 3.40119660, -0.48450710]), [-147-2/3]))
 
 # Testing constraint addition and removal
@@ -158,3 +159,9 @@ clear_tree_constraints!(gm) # Finds and clears the one remaining BBF constraint.
 
 # Checking saving/loading of GlobalModels with fits
 save_fit(gm)
+gm = sagemark_to_GlobalModel(3; lse=false);
+set_optimizer(gm, Gurobi.Optimizer);
+load_fit(gm);
+@test all([bbf.settings[:reloaded] == true for bbf in gm.bbfs])
+globalsolve(gm);
+@test all(vals .== solution(gm));
