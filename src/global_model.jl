@@ -2,9 +2,10 @@
 Returns default GlobalModel settings for approximation and optimization.
 """
 function gm_defaults()
-    settings = Dict{Symbol, Bool}(:ignore_checks => false,
-                                :linear => true,
-                                :convex => false)
+    settings = Dict{Symbol, Bool}(:ignore_feasibility => false,
+                                  :ignore_accuracy => false,
+                                  :linear => true,
+                                  :convex => false)
 end
 
 """
@@ -55,13 +56,8 @@ function JuMP.all_variables(gm::Union{GlobalModel, BlackBoxFunction})
 end
 
 """ Extends JuMP.set_optimizer to GlobalModels. """
-function JuMP.set_optimizer(gm::GlobalModel, optimizer_factory)
-    set_optimizer(gm.model, optimizer_factory)
-end
-
-""" Extends JuMP.optimize! to GlobalModels. """
-function JuMP.optimize!(gm::GlobalModel)
-    optimize!(gm.model)
+function set_optimizer(gm::GlobalModel, optimizer_factory)
+    JuMP.set_optimizer(gm.model, optimizer_factory)
 end
 
 """ Returns bounds of all variables from a JuMP.Model. """
@@ -152,7 +148,7 @@ function add_nonlinear_constraint(gm::GlobalModel,
                      constraint::Union{JuMP.ScalarConstraint, JuMP.ConstraintRef, Expr};
                      vars::Union{Nothing, Array{JuMP.VariableRef, 1}} = nothing,
                      expr_vars::Union{Nothing, Array} = nothing,
-                     name::Union{Nothing, String} = gm.name * " " * string(length(gm.bbfs) + 1),
+                     name::Union{Nothing, String} = gm.name * "_" * string(length(gm.bbfs) + 1),
                      equality::Bool = false)
     vars, expr_vars = determine_vars(gm, constraint, vars = vars, expr_vars = expr_vars)
     if constraint isa JuMP.ScalarConstraint #TODO: clean up.
@@ -250,7 +246,7 @@ function nonlinearize!(gm::GlobalModel)
 end
 
 """Adds outer bounds to JuMP Model from dictionary of data. """
-function bound!(model::JuMP.Model, bounds::Dict{Any, Array})
+function bound!(model::JuMP.Model, bounds::Dict)
     check_infeasible_bounds(model, bounds)
     for (key, value) in bounds
         @assert value isa Array && length(value) == 2
@@ -275,7 +271,7 @@ function bound!(model::JuMP.Model, bounds::Dict{Any, Array})
     return
 end
 
-function!(model::GlobalModel, bounds::Dict{Any, Array})
+function bound!(model::GlobalModel, bounds::Dict)
     bound!(model.model, bounds)
 end
 
@@ -467,8 +463,8 @@ function sample_and_eval!(bbf::Union{BlackBoxFunction, GlobalModel, Array{BlackB
 end
 
 """ Extends JuMP.optimize! to GlobalModels. """
-function JuMP.optimize!(gm::GlobalModel; kwargs...)
-    optimize!(gm.model, kwargs...)
+function optimize!(gm::GlobalModel; kwargs...)
+    JuMP.optimize!(gm.model, kwargs...)
 end
 
 """
@@ -478,11 +474,13 @@ Creates and solves the global optimization model using the linear constraints fr
 and approximated nonlinear constraints from inside its BlackBoxFunctions.
 """
 function globalsolve(gm::GlobalModel)
-    any(check_accuracy(gm) .== 0) || throw(OCTException("GlobalModel " * gm.name * " has inaccurate " *
+    if any(check_accuracy(gm) .== 0) && !gm.settings[:ignore_accuracy]
+        throw(OCTException("GlobalModel " * gm.name * " has inaccurate " *
                                              "BlackBoxFunction approximations."))
+    end
     clear_tree_constraints!(gm); # remove trees from previous solve (if any).
     add_tree_constraints!(gm); # refresh latest tree constraints.
-    status = JuMP.optimize!(gm.model);
+    status = optimize!(gm.model);
     return status
 end
 

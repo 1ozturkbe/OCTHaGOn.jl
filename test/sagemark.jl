@@ -138,7 +138,9 @@ learn_constraint!(gm)
 println("Approximation accuracies: ", accuracy(gm))
 
 # Solving of model
-status = globalsolve(gm)
+@test_throws OCTException globalsolve(gm)
+gm.settings[:ignore_accuracy] = true
+globalsolve(gm);
 println("X values: ", solution(gm))
 println("Optimal X: ", vcat(exp.([5.01063529, 3.40119660, -0.48450710]), [-147-2/3]))
 
