@@ -56,7 +56,7 @@ function JuMP.all_variables(gm::Union{GlobalModel, BlackBoxFunction})
 end
 
 """ Extends JuMP.set_optimizer to GlobalModels. """
-function set_optimizer(gm::GlobalModel, optimizer_factory)
+function JuMP.set_optimizer(gm::GlobalModel, optimizer_factory)
     JuMP.set_optimizer(gm.model, optimizer_factory)
 end
 
@@ -463,7 +463,7 @@ function sample_and_eval!(bbf::Union{BlackBoxFunction, GlobalModel, Array{BlackB
 end
 
 """ Extends JuMP.optimize! to GlobalModels. """
-function optimize!(gm::GlobalModel; kwargs...)
+function JuMP.optimize!(gm::GlobalModel; kwargs...)
     JuMP.optimize!(gm.model, kwargs...)
 end
 

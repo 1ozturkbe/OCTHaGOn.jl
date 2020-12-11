@@ -40,7 +40,7 @@ function add_tree_constraints!(gm::GlobalModel, bbfs::Array{BlackBoxFunction}; M
         elseif isempty(bbf.learners)
             throw(OCTException("Constraint " * string(bbf.name) * " must be learned before tree constraints
                                 can be generated."))
-        elseif check_accuracy(bbf) || gm.settings[:ignore_accuracy]
+        elseif check_accuracy(bbf) && !gm.settings[:ignore_accuracy]
             throw(OCTException("Constraint " * string(bbf.name) * " is inaccurately approximated. "))
         else
             constrs, leaf_vars = add_feas_constraints!(gm.model,
