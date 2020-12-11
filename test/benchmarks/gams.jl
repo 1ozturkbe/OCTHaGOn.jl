@@ -7,30 +7,6 @@ gams:
 
 using GAMSFiles
 
-"""Returns all constants from GAMS Model. """
-function constants(gams::Dict{String, Any})
-    consts = Dict{String, Any}(); #
-    for p in ("parameters", "tables")
-        if haskey(gams, p)
-            for (k, v) in gams[p]
-                v = v isa Ref ? v[] : v
-                consts[GAMSFiles.getname(k)] = v;
-            end
-        end
-    end
-    return consts
-end
-
-""" Moves GAMS constants into the global scope.
-    NOTE: This is only for debugging purposes, could cause bugs.
-"""
-function constants_to_global(gams::Dict{String, Any})
-    consts = constants(gams)
-    for (key, value) in consts
-        eval(Meta.parse("$(key) = $(value)"))
-    end
-end
-
 """ Turns GAMSFiles.GCall into an Expr. """
 function eq_to_expr(eq::GAMSFiles.GCall, sets::Dict{String, Any})
     @assert(length(eq.args)==2)
@@ -54,9 +30,8 @@ function is_equality(eq::GAMSFiles.GCall)
     GAMSFiles.eqops[GAMSFiles.getname(eq)] == :(=)
 end
 
-
+""" Finds and returns all varkeys in equation. """
 function find_vars_in_eq(eq::GAMSFiles.GCall, vardict::Dict{Symbol, Any})
-    """Finds and returns all varkeys in equation. """
     vars = Symbol[]
     lhs, rhs = eq.args[1], eq.args[2]
     for (var, vinfo) in vardict
@@ -67,7 +42,7 @@ function find_vars_in_eq(eq::GAMSFiles.GCall, vardict::Dict{Symbol, Any})
     return vars
 end
 
-"""Takes gams and turns them into JuMP.Variables"""
+""" Takes gams and turns them into JuMP.Variables"""
 function generate_variables!(model::JuMP.Model, gams::Dict{String, Any})
     gamsvars = GAMSFiles.allvars(gams)
     vardict = Dict{Symbol, Any}()

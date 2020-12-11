@@ -23,17 +23,13 @@ module OptimalConstraintTree
 
     include("exceptions.jl")
 
-    include("black_box_function.jl")
-
     include("data_constraint.jl")
+
+    include("black_box_function.jl")
 
     include("root_finding.jl")
 
-    include("post_process.jl")
-
     include("iai_wrappers.jl")
-
-    include("augment.jl")
 
     include("global_model.jl")
 
@@ -46,11 +42,11 @@ module OptimalConstraintTree
            # Structs
     export GlobalModel, BlackBoxFunction, DataConstraint,
            # GlobalModel Functions
-           fns_by_feasibility, globalsolve,
+           globalsolve,
            # JuMP.Model extensions to GlobalModel
            set_optimizer, optimize!,
            # Functions on GlobalModel and BlackBoxFunctions and DataConstraints
-           gridify, get_learner, learn_from_data!, find_bounds!, add_nonlinear_constraint,
+           gridify, learn_from_data!, find_bounds!, add_nonlinear_constraint,
            add_nonlinear_or_compatible,
            lh_sample, boundary_sample,
            accuracy, feasibility, check_accuracy, check_feasibility, check_bounds,
@@ -62,7 +58,7 @@ module OptimalConstraintTree
            eval!, sample_and_eval!,
            secant_method, knn_sample, build_knn_tree,
            find_knn, classify_patches,
-           # Functions on DataConstraints only
+           # Functions on BlackBoxFunctions and DataConstraints
            add_data!,
            # Functions on IAI structs
            bin_to_leaves, regress,
@@ -84,9 +80,9 @@ module OptimalConstraintTree
            # Display and plotting
 #            plot_2d, plot_2d_predictions, plot_accuracies
            # Debugging tools
-            clear_data!, chop_dict,
+            clear_data!,
             # Small scripts
             vars_from_expr, get_varmap, deconstruct, flat,
-            infarray, substitute, substitute_expr, substitute_args
+            infarray, substitute
 end
 

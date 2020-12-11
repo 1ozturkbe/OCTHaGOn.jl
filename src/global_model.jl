@@ -1,4 +1,14 @@
 """
+Returns default GlobalModel settings for approximation and optimization.
+"""
+function gm_defaults()
+    settings = Dict{Symbol, Bool}(:ignore_feasibility => false,
+                                  :ignore_accuracy => false,
+                                  :linear => true,
+                                  :convex => false)
+end
+
+"""
 Contains all required info to be able to generate a global optimization problem.
 NOTE: proper construction is to use add_nonlinear_constraint to add bbfs.
 model must be a mixed integer convex model.
@@ -7,8 +17,9 @@ nonlinear_model can contain JuMP.NonlinearConstraints.
 @with_kw mutable struct GlobalModel
     model::JuMP.Model                                                     # JuMP model
     name::Union{Symbol, String} = "Model"                                 # Example name
-    bbfs::Array{BlackBoxFunction} = Array{BlackBoxFunction}[]              # Black box (>/= 0) functions
+    bbfs::Array{BlackBoxFunction} = Array{BlackBoxFunction}[]             # Black box (>/= 0) functions
     vars::Array{VariableRef} = JuMP.all_variables(model)                  # JuMP variables
+    settings::Dict{Symbol, Bool} = gm_defaults()                          # GM settings
 end
 
 """
@@ -44,30 +55,25 @@ function JuMP.all_variables(gm::Union{GlobalModel, BlackBoxFunction})
     return gm.vars
 end
 
+""" Extends JuMP.set_optimizer to GlobalModels. """
 function JuMP.set_optimizer(gm::GlobalModel, optimizer_factory)
-    """ Extends JuMP.set_optimizer to GlobalModels. """
-    set_optimizer(gm.model, optimizer_factory)
+    JuMP.set_optimizer(gm.model, optimizer_factory)
 end
 
-function JuMP.optimize!(gm::GlobalModel)
-    """ Extends JuMP.optimize! to GlobalModels. """
-    optimize!(gm.model)
-end
-
+""" Returns bounds of all variables from a JuMP.Model. """
 function get_bounds(model::Union{GlobalModel, JuMP.Model, BlackBoxFunction})
-    """ Returns bounds of all variables from a JuMP.Model. """
     all_vars = all_variables(model)
     return get_bounds(all_vars)
 end
 
+""" Returns bounds of all variables from a JuMP.Model. """
 function get_bounds(bbfs::Array{BlackBoxFunction})
-    """ Returns bounds of all variables from a JuMP.Model. """
     all_vars = unique(Iterators.flatten(([all_variables(bbf) for bbf in bbfs])))
     return get_bounds(all_vars)
 end
 
+""" Checks outer-boundedness of variables. """
 function check_bounds(bounds::Dict)
-    """ Checks outer-boundedness. """
     if any(isinf.(Iterators.flatten(values(bounds))))
         throw(OCTException("Unbounded variables in model!"))
     else
@@ -128,12 +134,21 @@ function determine_vars(gm::GlobalModel,
 end
 
 
-""" Adds a new nonlinear constraint to Global Model. """
-function add_nonlinear_constraint(gm::GlobalModel,
+"""
+    add_nonlinear_constraint(gm::GlobalModel,
                      constraint::Union{JuMP.ScalarConstraint, JuMP.ConstraintRef, Expr};
                      vars::Union{Nothing, Array{JuMP.VariableRef, 1}} = nothing,
                      expr_vars::Union{Nothing, Array} = nothing,
                      name::Union{Nothing, String} = gm.name * " " * string(length(gm.bbfs) + 1),
+                     equality::Bool = false)
+
+ Adds a new nonlinear constraint to Global Model. Standard method for adding BBFs.
+"""
+function add_nonlinear_constraint(gm::GlobalModel,
+                     constraint::Union{JuMP.ScalarConstraint, JuMP.ConstraintRef, Expr};
+                     vars::Union{Nothing, Array{JuMP.VariableRef, 1}} = nothing,
+                     expr_vars::Union{Nothing, Array} = nothing,
+                     name::Union{Nothing, String} = gm.name * "_" * string(length(gm.bbfs) + 1),
                      equality::Bool = false)
     vars, expr_vars = determine_vars(gm, constraint, vars = vars, expr_vars = expr_vars)
     if constraint isa JuMP.ScalarConstraint #TODO: clean up.
@@ -230,13 +245,8 @@ function nonlinearize!(gm::GlobalModel)
     nonlinearize!(gm, gm.bbfs)
 end
 
-function bound!(model::Union{GlobalModel, JuMP.Model},
-                bounds::Dict)
-    """Adds outer bounds to JuMP Model from dictionary of data. """
-    if model isa GlobalModel
-        bound!(model.model, bounds)
-        return
-    end
+"""Adds outer bounds to JuMP Model from dictionary of data. """
+function bound!(model::JuMP.Model, bounds::Dict)
     check_infeasible_bounds(model, bounds)
     for (key, value) in bounds
         @assert value isa Array && length(value) == 2
@@ -261,8 +271,12 @@ function bound!(model::Union{GlobalModel, JuMP.Model},
     return
 end
 
+function bound!(model::GlobalModel, bounds::Dict)
+    bound!(model.model, bounds)
+end
+
+"""Separates and returns linear and nonlinear constraints in a model. """
 function classify_constraints(model::Union{GlobalModel, JuMP.Model})
-    """Separates and returns linear and nonlinear constraints in a model. """
     jump_model = model
     if model isa GlobalModel
         jump_model = model.model
@@ -313,12 +327,12 @@ function accuracy(bbf::Union{GlobalModel, BlackBoxFunction})
     end
 end
 
-function lh_sample(bbf::BlackBoxFunction; iterations::Int64 = 3,
-                n_samples::Int64 = 1000)
 """
 Uniformly Latin Hypercube samples the variables of GlobalModel, as long as all
 lbs and ubs are defined.
 """
+function lh_sample(bbf::BlackBoxFunction; iterations::Int64 = 3,
+                n_samples::Int64 = 1000)
    bounds = get_bounds(bbf.vars)
    check_bounds(bounds)
    n_dims = length(bbf.vars)
@@ -331,10 +345,12 @@ function choose(large::Int64, small::Int64)
     return Int64(factorial(big(large)) / (factorial(big(large-small))*factorial(big(small))))
 end
 
-function boundary_sample(bbf::BlackBoxFunction; fraction::Float64 = 0.5)
-""" *Smartly* samples the constraint along the variable boundaries.
+"""
+*Smartly* samples the constraint along the variable boundaries.
     NOTE: Because we are sampling symmetrically for lower and upper bounds,
-    the choose coefficient has to be less than ceil(half of number of dims). """
+    the choose coefficient has to be less than ceil(half of number of dims).
+"""
+function boundary_sample(bbf::BlackBoxFunction; fraction::Float64 = 0.5)
     bounds = get_bounds(bbf.vars);
     check_bounds(bounds);
     n_vars = length(bbf.vars);
@@ -368,9 +384,11 @@ function boundary_sample(bbf::BlackBoxFunction; fraction::Float64 = 0.5)
     return nX
 end
 
+"""
+Does KNN and interval arithmetic based sampling once there is at least one feasible
+    sample to a BlackBoxFunction.
+"""
 function knn_sample(bbf::BlackBoxFunction; k::Int64 = 15)
-    """ Does KNN and interval arithmetic based sampling once there is at least one feasible
-        sample to a BlackBoxFunction. """
     if bbf.feas_ratio == 0. || bbf.feas_ratio == 1.0
         throw(OCTException("Constraint " * string(bbf.name) * " must have at least one feasible or
                             infeasible sample to be KNN-sampled!"))
@@ -392,18 +410,22 @@ function knn_sample(bbf::BlackBoxFunction; k::Int64 = 15)
     return df
 end
 
+"""
+    sample_and_eval!(bbf::Union{BlackBoxFunction, GlobalModel, Array{BlackBoxFunction}};
+                              n_samples:: Union{Int64, Nothing} = nothing,
+                              boundary_fraction::Float64 = 0.5,
+                              iterations::Int64 = 3)
+
+Samples and evaluates BlackBoxFunction, with n_samples new samples.
+Arguments:
+    n_samples: number of samples, overwrites bbf.n_samples.
+    boundary_fraction: maximum ratio of boundary samples
+    iterations: number of GA populations for LHC sampling (0 is a random LH.)
+"""
 function sample_and_eval!(bbf::Union{BlackBoxFunction, GlobalModel, Array{BlackBoxFunction}};
                           n_samples:: Union{Int64, Nothing} = nothing,
                           boundary_fraction::Float64 = 0.5,
                           iterations::Int64 = 3)
-    """ Samples and evaluates BlackBoxFunction, with n_samples new samples.
-    Arguments
-    n_samples: number of samples, overwrites bbf.n_samples.
-    boundary_fraction: maximum ratio of boundary samples
-    iterations: number of GA populations for LHC sampling (0 is a random LH.)
-    ratio:
-    If there is an optimized gp, ratio*n_samples is how many random LHC samples are generated
-    for prediction from GP. """
     if bbf isa GlobalModel
         for fn in bbf.bbfs
             sample_and_eval!(fn, n_samples = n_samples, boundary_fraction = boundary_fraction,
@@ -442,15 +464,23 @@ end
 
 """ Extends JuMP.optimize! to GlobalModels. """
 function JuMP.optimize!(gm::GlobalModel; kwargs...)
-    optimize!(gm.model, kwargs...)
+    JuMP.optimize!(gm.model, kwargs...)
 end
 
+"""
+    globalsolve(gm::GlobalModel)
+
+Creates and solves the global optimization model using the linear constraints from GlobalModel,
+and approximated nonlinear constraints from inside its BlackBoxFunctions.
+"""
 function globalsolve(gm::GlobalModel)
-    """ Creates and solves the global optimization model using the linear constraints from GlobalModel,
-        and approximated nonlinear constraints from inside its BlackBoxFunctions."""
+    if any(check_accuracy(gm) .== 0) && !gm.settings[:ignore_accuracy]
+        throw(OCTException("GlobalModel " * gm.name * " has inaccurate " *
+                                             "BlackBoxFunction approximations."))
+    end
     clear_tree_constraints!(gm); # remove trees from previous solve (if any).
     add_tree_constraints!(gm); # refresh latest tree constraints.
-    status = JuMP.optimize!(gm.model);
+    status = optimize!(gm.model);
     return status
 end
 
@@ -460,8 +490,8 @@ function solution(gm::GlobalModel)
     return DataFrame(vals', string.(gm.vars))
 end
 
+""" Evaluates each constraint at solution to make sure it is feasible. """
 function evaluate_feasibility(gm::GlobalModel)
-    """ Evaluates each constraint at solution to make sure it is feasible. """
     soln = solution(gm);
     feas = [];
     for fn in gm.bbfs
@@ -483,9 +513,6 @@ function find_bounds!(gm::GlobalModel; bbfs::Array{BlackBoxFunction} = BlackBoxF
     new_bounds = Dict(var => [-Inf, Inf] for var in gm.vars)
     # Finding bounds by min/maximizing each variable
     clear_tree_constraints!(gm)
-    if !isempty(bbfs)
-        add_tree_constraints!(gm, bbfs, M=M)
-    end
     m = gm.model;
     x = gm.vars;
     old_bounds = get_bounds(m);
@@ -494,12 +521,16 @@ function find_bounds!(gm::GlobalModel; bbfs::Array{BlackBoxFunction} = BlackBoxF
         if isinf(old_bounds[var][1]) || all_bounds
             @objective(m, Min, var);
             JuMP.optimize!(m);
-            new_bounds[var][1] = getvalue(var);
+            if termination_status(m) == MOI.OPTIMAL
+                new_bounds[var][1] = getvalue(var);
+            end
         end
         if isinf(old_bounds[var][2]) || all_bounds
             @objective(m, Max, var);
             JuMP.optimize!(m);
-            new_bounds[var][2] = getvalue(var);
+            if termination_status(m) == MOI.OPTIMAL
+                new_bounds[var][2] = getvalue(var);
+            end
         end
     end
     # Revert objective
@@ -508,20 +539,19 @@ function find_bounds!(gm::GlobalModel; bbfs::Array{BlackBoxFunction} = BlackBoxF
     return
 end
 
+""" Returns trees trained over given GlobalModel,
+where filename points to the model name. """
 function import_trees(dir, gm::GlobalModel)
-    """ Returns trees trained over given GlobalModel,
-    where filename points to the model name. """
     trees = [IAI.read_json(string(dir, "_tree_", i, ".json")) for i=1:length(gm.bbfs)];
     return trees
 end
 
+""" Deletes all data associated with a BBF. """
 function clear_data!(bbf::BlackBoxFunction)
     bbf.X = DataFrame([Float64 for i=1:length(bbf.vars)], string.(bbf.vars))  # Function samples
     bbf.Y = [];
-    return
 end
 
 function clear_data!(gm::GlobalModel)
     clear_data!.(gm.bbfs)
-    return
 end

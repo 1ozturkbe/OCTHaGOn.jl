@@ -34,12 +34,3 @@ Can be tagged with additional info.
     threshold_feasibility::Float64 = 0.15              # Minimum feas_ratio
     tags::Array{String} = []                           # Other tags
 end
-
-""" Adds data to a DataConstraint. """
-function add_data!(dc::DataConstraint, X::DataFrame, Y::Array)
-    @assert length(Y) == size(X, 1)
-    append!(dc.X, X[:,string.(dc.vars)], cols=:setequal)
-    append!(dc.Y, Y)
-    dc.feas_ratio = sum(dc.Y .>= 0)/length(dc.Y); #TODO: optimize.
-    return
-end

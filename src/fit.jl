@@ -30,29 +30,21 @@ function learn_from_data!(X::DataFrame, Y::AbstractArray, grid; idxs::Union{Noth
 end
 
 """ Checks that a BlackBoxFunction has enough feasible/infeasible samples. """
-function check_feasibility(bbf::Union{GlobalModel, BlackBoxFunction, DataConstraint})
-    if bbf isa BlackBoxFunction || bbf isa DataConstraint
-        return bbf.feas_ratio >= bbf.threshold_feasibility
-    else
-        return [check_feasibility(fn) for fn in bbf.bbfs]
-    end
+function check_feasibility(bbf::Union{BlackBoxFunction, DataConstraint})
+    return bbf.feas_ratio >= bbf.threshold_feasibility
+end
+
+function check_feasibility(gm::GlobalModel)
+    return [check_feasibility(bbf) for bbf in gm.bbfs]
 end
 
 """ Checks that a BlackBoxFunction.learner has adequate accuracy."""
-function check_accuracy(bbf::Union{GlobalModel, BlackBoxFunction, DataConstraint})
-    if bbf isa BlackBoxFunction || bbf isa DataConstraint
-        return bbf.accuracies[end] >= bbf.threshold_accuracy
-    else
-        return [check_accuracy(fn) for fn in bbf.bbfs]
-    end
+function check_accuracy(bbf::Union{BlackBoxFunction, DataConstraint})
+    return bbf.accuracies[end] >= bbf.threshold_accuracy
 end
 
-""" Classifies and returns names of functions that pass/fail the feasibility check. """
-function fns_by_feasibility(gm::GlobalModel)
-    arr = [check_feasibility(fn) for fn in gm.bbfs]
-    infeas_idxs = findall(x -> x .== 0, arr)
-    feas_idxs = findall(x -> x .!= 0, arr) # TODO: use complement.
-    return gm.bbfs[feas_idxs], gm.bbfs[infeas_idxs]
+function check_accuracy(gm::GlobalModel)
+    return [check_accuracy(bbf) for bbf in gm.bbfs]
 end
 
 """
@@ -60,7 +52,7 @@ end
                            lnr::IAI.OptimalTreeLearner = base_otc(),
                            weights::Union{Array, Symbol} = :autobalance, dir::String = "-",
                            validation_criterion=:misclassification,
-                           ignore_checks::Bool = false)
+                           ignore_checks::Bool = false or gm.settings[:ignore_feasibility])
 
 Constructs a constraint tree from a BlackBoxFunction and dumps in bbf.learners.
 Arguments:
@@ -69,30 +61,14 @@ Arguments:
     X: new data to add to BlackBoxFunction and evaluate
     weights: weighting of the data points
     dir: save location
-    ignore_checks: True only for debugging purposes.
-                   Ignores feasibility and sample distribution checks.
 Returns:
     nothing
 """
-function learn_constraint!(bbf::Union{GlobalModel, Array{BlackBoxFunction, DataConstraint},
-                                      BlackBoxFunction, DataConstraint};
+function learn_constraint!(bbf::Union{BlackBoxFunction, DataConstraint};
                            lnr::IAI.OptimalTreeLearner = base_otc(),
                            weights::Union{Array, Symbol} = :autobalance, dir::String = "-",
                            validation_criterion=:misclassification,
                            ignore_checks::Bool = false)
-    if isa(bbf, GlobalModel)
-        for fn in bbf.bbfs
-            learn_constraint!(fn, lnr=lnr, weights=weights, dir=dir,
-                              validation_criterion = validation_criterion, ignore_checks=ignore_checks)
-        end
-        return
-    elseif isa(bbf, Array{BlackBoxFunction, DataConstraint})
-        for fn in bbf
-            learn_constraint!(fn, lnr=lnr, weights=weights, dir=dir,
-                              validation_criterion = validation_criterion, ignore_checks=ignore_checks)
-        end
-        return
-    end
     if isa(bbf.X, Nothing)
         throw(OCTException(string("BlackBoxFn ", bbf.name, " must be sampled first.")))
     end
@@ -100,7 +76,6 @@ function learn_constraint!(bbf::Union{GlobalModel, Array{BlackBoxFunction, DataC
     if bbf.feas_ratio == 1.0
         return
     elseif check_feasibility(bbf) || ignore_checks
-        # TODO: optimize Matrix/DataFrame conversion. Perhaps change the choice.
         nl = learn_from_data!(bbf.X, bbf.Y .>= 0,
                               gridify(lnr),
                               weights=weights,
@@ -117,15 +92,33 @@ function learn_constraint!(bbf::Union{GlobalModel, Array{BlackBoxFunction, DataC
     return
 end
 
+function learn_constraint!(bbf::Array;
+                           lnr::IAI.OptimalTreeLearner = base_otc(),
+                           weights::Union{Array, Symbol} = :autobalance, dir::String = "-",
+                           validation_criterion=:misclassification,
+                           ignore_checks::Bool = false)
+   for fn in bbf
+        learn_constraint!(fn, lnr=lnr, weights=weights, dir=dir,
+                          validation_criterion = validation_criterion, ignore_checks = ignore_checks)
+   end
+end
+
+function learn_constraint!(gm::GlobalModel;
+                           lnr::IAI.OptimalTreeLearner = base_otc(),
+                           weights::Union{Array, Symbol} = :autobalance, dir::String = "-",
+                           validation_criterion=:misclassification,
+                           ignore_checks::Bool = gm.settings[:ignore_feasibility])
+   gm.settings[:ignore_feasibility] = ignore_checks # update check settings
+   learn_constraint!(gm.bbfs, lnr=lnr, weights=weights, dir=dir,
+                          validation_criterion = validation_criterion, ignore_checks = ignore_checks)
+end
+
 """
 Basic regression purely for debugging.
 TODO: refine and/or remove.
 """
-function regress(points::DataFrame, values::Array; weights::Union{Array, Nothing} = nothing)
+function regress(points::DataFrame, values::Array; weights::Array = ones(length(values)))
     lnr= IAI.OptimalFeatureSelectionRegressor(sparsity = :all); # TODO: optimize regression method.
-    if isnothing(weights)
-        weights = ones(length(values));
-    end
     IAI.fit!(lnr, points, values, sample_weight=weights)
     return lnr
 end

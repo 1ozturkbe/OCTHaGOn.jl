@@ -120,14 +120,14 @@ end
 @constraint(m, log.(7800) <= Rotational_Speed <= log(8200))
 @objective(m, Min, Mass)
 optimize!(m)
-println("Inputs")
-for i=1:length(inputs)
-    println(string(inputs[i], " ", exp(getvalue(inputs[i]))))
-end
-println("FOMs")
-for FOM in FOMs
-    println(string(FOM, " ", exp(getvalue(FOM))))
-end
+# println("Inputs")
+# for i=1:length(inputs)
+#     println(string(inputs[i], " ", exp(getvalue(inputs[i]))))
+# end
+# println("FOMs")
+# for FOM in FOMs
+#     println(string(FOM, " ", exp(getvalue(FOM))))
+# end
 
 # fdf = DataFrame(names(X) .=> exp.(getvalue.(inputs)))
 # CSV.write("data/afpm/afpm_opt.csv", fdf)
