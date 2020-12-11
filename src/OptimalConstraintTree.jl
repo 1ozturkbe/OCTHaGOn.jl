@@ -52,6 +52,7 @@ module OptimalConstraintTree
            accuracy, feasibility, check_accuracy, check_feasibility, check_bounds,
            solution, evaluate_feasibility,
            nonlinearize!,
+           save_fit, load_fit,
            # Functions on both BlackBoxFunctions and DataConstraints
            show_trees, learn_constraint!,
            # Functions on BlackBoxFunctions only

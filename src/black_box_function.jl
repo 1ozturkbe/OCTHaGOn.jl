@@ -96,6 +96,13 @@ function deconstruct(data::DataFrame, vars::Array, varmap::Array)
     return arrs
 end
 
+""" Returns default BlackBoxFunction settings for approximation."""
+function bbf_defaults()
+    settings = Dict(:threshold_accuracy => 0.95      # Minimum tree accuracy
+                    :threshold_feasibility => 0.15   # Minimum feasibility ratio
+                    :reloaded => false)
+end
+
 """
     @with_kw mutable struct BlackBoxFunction
 
@@ -113,17 +120,16 @@ Optional arguments:
     expr_vars::Union{Array, Nothing}
         JuMP variables as function arguments (i.e. vars rolled up into vector forms).
         vars ⋐ flat(expr_vars)
-    name::Union{String, Real}
+    name::String
     equality::Bool
         Specifies whether function should be satisfied to an equality
 
 Also contains data w.r.t. samples from the function.
-Can be tagged with additional info.
 """
 @with_kw mutable struct BlackBoxFunction
     constraint::Union{JuMP.ConstraintRef, Expr}        # The "raw" constraint
-    vars::Array{JuMP.VariableRef,1}                      # JuMP variables (flat)
-    name::Union{String, Real} = ""                     # Function name
+    vars::Array{JuMP.VariableRef,1}                    # JuMP variables (flat)
+    name::String = ""                                  # Function name
     expr_vars:: Union{Array, Nothing} = nothing        # Function inputs (nonflat JuMP variables)
     varmap::Union{Nothing,Array} = get_varmap(expr_vars, vars)     # ... with the required varmapping.
     fn::Union{Nothing, Function} = functionify(constraint)         # ... and actually evaluated f'n
@@ -136,11 +142,10 @@ Can be tagged with additional info.
     mi_constraints::Array = []                         # and their corresponding MI constraints,
     leaf_variables::Array = []                         # and their binary leaf variables,
     accuracies::Array{Float64} = []                    # and the tree misclassification scores.
-    threshold_accuracy::Float64 = 0.95                 # Minimum tree accuracy
-    threshold_feasibility::Float64 = 0.15              # Minimum feas_ratio
+
     n_samples::Int = 100                               # For next set of samples, set and forget.
     knn_tree::Union{KDTree, Nothing} = nothing         # KNN tree
-    tags::Array{String} = []                           # Other tags
+    settings = bbf_defaults()                          # Relevant settings
 end
 
 """

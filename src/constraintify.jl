@@ -78,7 +78,7 @@ function add_feas_constraints!(m::JuMP.Model, x, lnr::IAI.OptimalTreeLearner;
     feas_leaves =
         [i for i in all_leaves if Bool(IAI.get_classification_label(lnr, i))];
     infeas_leaves = [i for i in all_leaves if i ∉ feas_leaves];
-    count = 0; constraints = []; leaf_variables = [];
+    constraints = []; leaf_variables = [];
     z_feas = @variable(m, [1:size(feas_leaves, 1)], Bin)
     append!(leaf_variables, z_feas)
     push!(constraints, @constraint(m, sum(z_feas) == 1))
@@ -139,7 +139,7 @@ function add_regr_constraints!(m::JuMP.Model, x::Array, y, grid::IAI.GridSearch;
     n_nodes = IAI.get_num_nodes(lnr)
     # Add a binary variable for each leaf
     all_leaves = [i for i = 1:n_nodes if IAI.is_leaf(lnr, i)]
-    count = 0; constraints = []; leaf_variables = [];
+    constraints = []; leaf_variables = [];
     z = @variable(m, [1:size(all_leaves, 1)], Bin)
     append!(leaf_variables, z)
     push!(constraints, @constraint(m, sum(z) == 1))

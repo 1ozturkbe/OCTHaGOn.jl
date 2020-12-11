@@ -64,7 +64,7 @@ function sagemark_to_GlobalModel(idx; lse=false)
     @variable(model, obj)
     @objective(model, Min, obj)
     # Assigning objective
-    gm = GlobalModel(model = model)
+    gm = GlobalModel(model = model, name = "sagemark" * string(idx))
     obj_fn, objvars = alphac_to_objexpr(gm.model, f.alpha, f.c, lse=lse)
     add_nonlinear_constraint(gm, obj_fn, vars = objvars)
     # Adding the rest
@@ -155,3 +155,6 @@ clear_tree_constraints!(gm, [gm.bbfs[1]])
 clear_tree_constraints!(gm) # Finds and clears the one remaining BBF constraint.
 @test all([!is_valid(gm.model, constraint) for constraint in gm.bbfs[1].mi_constraints])
 @test all([!is_valid(gm.model, var) for var in gm.bbfs[1].leaf_variables])
+
+# Checking saving/loading of GlobalModels with fits
+save_fit(gm)

@@ -53,9 +53,6 @@ Y_feas = Y[feas_idxs, :];
 out_ranges = Dict(key => [minimum((Y_feas[Symbol(key)])), maximum((Y_feas[Symbol(key)]))] for key in outputs[idxs]);
 bound!(m, ranges);
 
-# Geometry feasibility
-# lnr = IAI.fit(base_otc(), )
-
 # Geometry constraints (in logspace)
 D_out, D_in, N_coils, wire_w = inputs[1], inputs[2], inputs[4], inputs[7]
 @constraint(m, D_out >= D_in)
