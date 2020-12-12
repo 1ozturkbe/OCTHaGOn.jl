@@ -27,29 +27,29 @@ Generates MI constraints from gm.learners, and adds them to gm.model.
 """
 function add_tree_constraints!(gm::GlobalModel, bbfs::Array{BlackBoxFunction}; M=1e5)
     for bbf in bbfs
-        if bbf.feas_ratio == 1.0
-            return
-        elseif size(bbf.X, 1) == 0
-            @warn("Constraint " * string(bbf.name) * " has not been sampled yet...")
+        # Battery of checks
+        if size(bbf.X, 1) == 0 && !bbf.settings[:reloaded]
+            throw(OCTException("Constraint " * string(bbf.name) * " has not been sampled yet, and is thus untrained."))
         elseif length(bbf.learners) == 0
-            @warn("Constraint " * string(bbf.name) * " has not been learned yet...")
-        elseif bbf.feas_ratio == 0.0
-            @warn("Constraint " * string(bbf.name) * " is INFEASIBLE but you tried to include it in
-                   your global problem. For now, the constraint is OMITTED.
-                   Find at least one feasible solution, train and try again.")
+            throw(OCTException("Constraint " * string(bbf.name) * " has not been learned yet"))
+        elseif bbf.feas_ratio == 0.0 && !bbf.settings[:reloaded]
+            throw(OCTException("Constraint " * string(bbf.name) * " is INFEASIBLE but you tried to include it in
+                   your global problem. Find at least one feasible solution, train and try again."))
         elseif isempty(bbf.learners)
             throw(OCTException("Constraint " * string(bbf.name) * " must be learned before tree constraints
                                 can be generated."))
-        elseif check_accuracy(bbf) && !gm.settings[:ignore_accuracy]
-            throw(OCTException("Constraint " * string(bbf.name) * " is inaccurately approximated. "))
+        elseif !gm.settings[:ignore_accuracy] # accuracy checks
+            if !bbf.settings[:reloaded] && !check_accuracy(bbf)
+                throw(OCTException("Constraint " * string(bbf.name) * " is inaccurately approximated. "))
+            end
+        end
+        if bbf.feas_ratio == 1.0
+            continue
         else
-            constrs, leaf_vars = add_feas_constraints!(gm.model,
-                                        bbf.vars,
-                                        bbf.learners[end].lnr;
-                              M=M, eq=bbf.equality,
-                              return_data = true);
-            bbf.mi_constraints = constrs; # Note: this is needed to monitor the presence of tree
-            bbf.leaf_variables = leaf_vars; #  constraints and variables in gm.model
+            constrs, leaf_vars = add_feas_constraints!(gm.model, bbf.vars, bbf.learners[end].lnr;
+                                                       M=M, eq=bbf.equality, return_data = true);
+            bbf.mi_constraints = constrs;    # Note: this is needed to monitor the presence of tree
+            bbf.leaf_variables = leaf_vars;  #        constraints and variables in gm.model.
         end
     end
     return
@@ -78,7 +78,7 @@ function add_feas_constraints!(m::JuMP.Model, x, lnr::IAI.OptimalTreeLearner;
     feas_leaves =
         [i for i in all_leaves if Bool(IAI.get_classification_label(lnr, i))];
     infeas_leaves = [i for i in all_leaves if i ∉ feas_leaves];
-    count = 0; constraints = []; leaf_variables = [];
+    constraints = []; leaf_variables = [];
     z_feas = @variable(m, [1:size(feas_leaves, 1)], Bin)
     append!(leaf_variables, z_feas)
     push!(constraints, @constraint(m, sum(z_feas) == 1))
@@ -139,7 +139,7 @@ function add_regr_constraints!(m::JuMP.Model, x::Array, y, grid::IAI.GridSearch;
     n_nodes = IAI.get_num_nodes(lnr)
     # Add a binary variable for each leaf
     all_leaves = [i for i = 1:n_nodes if IAI.is_leaf(lnr, i)]
-    count = 0; constraints = []; leaf_variables = [];
+    constraints = []; leaf_variables = [];
     z = @variable(m, [1:size(all_leaves, 1)], Bin)
     append!(leaf_variables, z)
     push!(constraints, @constraint(m, sum(z) == 1))

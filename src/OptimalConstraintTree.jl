@@ -15,6 +15,9 @@ module OptimalConstraintTree
     using ProgressMeter
     using Random
 
+    const PROJECT_ROOT = pwd()
+    const SAVE_DIR = PROJECT_ROOT * "\\data\\"
+
     include("small_scripts.jl")
 
     include("on_jump.jl")
@@ -52,6 +55,7 @@ module OptimalConstraintTree
            accuracy, feasibility, check_accuracy, check_feasibility, check_bounds,
            solution, evaluate_feasibility,
            nonlinearize!,
+           save_fit, load_fit,
            # Functions on both BlackBoxFunctions and DataConstraints
            show_trees, learn_constraint!,
            # Functions on BlackBoxFunctions only

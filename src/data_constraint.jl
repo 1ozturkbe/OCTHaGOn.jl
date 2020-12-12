@@ -5,6 +5,13 @@ data_constraint:
 - Date: 2020-11-12
 =#
 
+""" Returns default DataConstraint settings for approximation."""
+function dc_defaults()
+    settings = Dict(:threshold_accuracy => 0.95,      # Minimum tree accuracy
+                    :threshold_feasibility => 0.15,   # Minimum feasibility ratio
+                    :reloaded => false)
+end
+
 
 """
     @with_kw mutable struct DataConstraint
@@ -19,7 +26,7 @@ Can be tagged with additional info.
 @with_kw mutable struct DataConstraint
     xvars::Array{JuMP.VariableRef,1}                      # Input JuMP variables (flat)
     yvars::Union{Array{JuMP.VariableRef, 1}, Nothing}     # Output JuMP variables (flat)
-    name::Union{String, Real} = ""                     # Function name
+    name::String = ""                                     # Function name
     X::DataFrame = DataFrame([Float64 for i=1:length(xvars)], string.(xvars))
                                                        # Function inputs
     Y::DataFrame = DataFrame()                         # Function outputs
@@ -30,7 +37,5 @@ Can be tagged with additional info.
     mi_constraints::Array = []                         # and their corresponding MI constraints,
     leaf_variables::Array = []                         # and their binary leaf variables,
     accuracies::Array{Float64} = []                    # and the tree misclassification scores.
-    threshold_accuracy::Float64 = 0.95                 # Minimum tree accuracy
-    threshold_feasibility::Float64 = 0.15              # Minimum feas_ratio
-    tags::Array{String} = []                           # Other tags
+    settings = dc_defaults()                           # Relevant settings
 end

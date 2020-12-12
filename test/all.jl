@@ -14,19 +14,19 @@ Note: All tests should be run from a julia REPR within the julia folder, using:
 include("load.jl");
 
 @testset "OptimalConstraintTree" begin
-    include(string(PROJECT_ROOT, "/src.jl"))
+    include(string(OptimalConstraintTree.PROJECT_ROOT, "/test/src.jl"))
 
-#     include(string(PROJECT_ROOT, "/cbf.jl"))
+#     include(string(OptimalConstraintTree.PROJECT_ROOT, "/test/cbf.jl"))
 
-    include(string(PROJECT_ROOT, "/sagemark.jl"))
+    include(string(OptimalConstraintTree.PROJECT_ROOT, "/test/sagemark.jl"))
 
-#     include(string(PROJECT_ROOT, "/speedreducer.jl"))
+#     include(string(OptimalConstraintTree.PROJECT_ROOT, "/test/speedreducer.jl"))
 
-#     include(string(PROJECT_ROOT, "/lse.jl"))
+#     include(string(OptimalConstraintTree.PROJECT_ROOT, "/test/lse.jl"))
 
-    include(string(PROJECT_ROOT, "/benchmarks/gams.jl"))
+    include(string(OptimalConstraintTree.PROJECT_ROOT, "/test/benchmarks/gams.jl"))
 end
 
 # Other tests to try later
 
-# include("test/test_transonic.jl");
+# include("/test/test_transonic.jl");

@@ -64,7 +64,7 @@ function sagemark_to_GlobalModel(idx; lse=false)
     @variable(model, obj)
     @objective(model, Min, obj)
     # Assigning objective
-    gm = GlobalModel(model = model)
+    gm = GlobalModel(model = model, name = "sagemark" * string(idx))
     obj_fn, objvars = alphac_to_objexpr(gm.model, f.alpha, f.c, lse=lse)
     add_nonlinear_constraint(gm, obj_fn, vars = objvars)
     # Adding the rest
@@ -131,8 +131,8 @@ old_bounds = get_bounds(gm)
 find_bounds!(gm, all_bounds=true)
 @test old_bounds == get_bounds(gm)
 bound!(gm, Dict(gm.vars[end] => [-300, 0]))
-sample_and_eval!(gm, n_samples = 500)
-sample_and_eval!(gm, n_samples = 500)
+sample_and_eval!(gm, n_samples = 200)
+sample_and_eval!(gm, n_samples = 200)
 
 learn_constraint!(gm)
 println("Approximation accuracies: ", accuracy(gm))
@@ -141,7 +141,8 @@ println("Approximation accuracies: ", accuracy(gm))
 @test_throws OCTException globalsolve(gm) # inaccuracy check in globalsolve.
 gm.settings[:ignore_accuracy] = true
 globalsolve(gm);
-println("X values: ", solution(gm))
+vals = solution(gm);
+println("X values: ", vals)
 println("Optimal X: ", vcat(exp.([5.01063529, 3.40119660, -0.48450710]), [-147-2/3]))
 
 # Testing constraint addition and removal
@@ -155,3 +156,12 @@ clear_tree_constraints!(gm, [gm.bbfs[1]])
 clear_tree_constraints!(gm) # Finds and clears the one remaining BBF constraint.
 @test all([!is_valid(gm.model, constraint) for constraint in gm.bbfs[1].mi_constraints])
 @test all([!is_valid(gm.model, var) for var in gm.bbfs[1].leaf_variables])
+
+# Checking saving/loading of GlobalModels with fits
+save_fit(gm)
+gm = sagemark_to_GlobalModel(3; lse=false);
+set_optimizer(gm, Gurobi.Optimizer);
+load_fit(gm);
+@test all([bbf.settings[:reloaded] == true for bbf in gm.bbfs])
+globalsolve(gm);
+@test all(vals[!,key] ≈ solution(gm)[!,key] for key in string.(gm.vars))

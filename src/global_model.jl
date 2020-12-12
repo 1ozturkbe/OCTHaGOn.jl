@@ -2,10 +2,10 @@
 Returns default GlobalModel settings for approximation and optimization.
 """
 function gm_defaults()
-    settings = Dict{Symbol, Bool}(:ignore_feasibility => false,
-                                  :ignore_accuracy => false,
-                                  :linear => true,
-                                  :convex => false)
+    settings = Dict(:ignore_feasibility => false,
+                  :ignore_accuracy => false,
+                  :linear => true,
+                  :convex => false)
 end
 
 """
@@ -15,19 +15,19 @@ model must be a mixed integer convex model.
 nonlinear_model can contain JuMP.NonlinearConstraints.
 """
 @with_kw mutable struct GlobalModel
-    model::JuMP.Model                                                     # JuMP model
-    name::Union{Symbol, String} = "Model"                                 # Example name
-    bbfs::Array{BlackBoxFunction} = Array{BlackBoxFunction}[]             # Black box (>/= 0) functions
-    vars::Array{VariableRef} = JuMP.all_variables(model)                  # JuMP variables
-    settings::Dict{Symbol, Bool} = gm_defaults()                          # GM settings
+    model::JuMP.Model                                            # JuMP model
+    name::String = "Model"                                       # Example name
+    bbfs::Array{BlackBoxFunction} = Array{BlackBoxFunction}[]    # Black box (>/= 0) functions
+    vars::Array{VariableRef} = JuMP.all_variables(model)         # JuMP variables
+    settings::Dict{Symbol, Bool} = gm_defaults()                 # GM settings
 end
 
 """
-    (gm::GlobalModel)(name::Union{String, Int64})
+    (gm::GlobalModel)(name::String)
 
 Finds BlackBoxFunction in GlobalModel by name.
 """
-function (gm::GlobalModel)(name::Union{String, Int64})
+function (gm::GlobalModel)(name::String)
     fn_names = getfield.(gm.bbfs, :name)
     fns = gm.bbfs[findall(x -> x == name, fn_names)]
     if length(fns) == 1
@@ -139,7 +139,7 @@ end
                      constraint::Union{JuMP.ScalarConstraint, JuMP.ConstraintRef, Expr};
                      vars::Union{Nothing, Array{JuMP.VariableRef, 1}} = nothing,
                      expr_vars::Union{Nothing, Array} = nothing,
-                     name::Union{Nothing, String} = gm.name * " " * string(length(gm.bbfs) + 1),
+                     name::String = gm.name * " " * string(length(gm.bbfs) + 1),
                      equality::Bool = false)
 
  Adds a new nonlinear constraint to Global Model. Standard method for adding BBFs.
@@ -148,7 +148,7 @@ function add_nonlinear_constraint(gm::GlobalModel,
                      constraint::Union{JuMP.ScalarConstraint, JuMP.ConstraintRef, Expr};
                      vars::Union{Nothing, Array{JuMP.VariableRef, 1}} = nothing,
                      expr_vars::Union{Nothing, Array} = nothing,
-                     name::Union{Nothing, String} = gm.name * "_" * string(length(gm.bbfs) + 1),
+                     name::String = gm.name * "_" * string(length(gm.bbfs) + 1),
                      equality::Bool = false)
     vars, expr_vars = determine_vars(gm, constraint, vars = vars, expr_vars = expr_vars)
     if constraint isa JuMP.ScalarConstraint #TODO: clean up.
@@ -173,7 +173,7 @@ end
                          constraint::Union{JuMP.ScalarConstraint, JuMP.ConstraintRef, Expr};
                          vars::Union{Nothing, Array{JuMP.VariableRef, 1}} = nothing,
                          expr_vars::Union{Nothing, Array} = nothing,
-                         name::Union{Nothing, String} = nothing,
+                         name::String = gm.name * "_" * string(length(gm.bbfs) + 1),
                          equality::Bool = false)
 
 Extents add_nonlinear_constraint to recognize JuMP compatible constraints and add them
@@ -183,7 +183,7 @@ function add_nonlinear_or_compatible(gm::GlobalModel,
                      constraint::Union{JuMP.ScalarConstraint, JuMP.ConstraintRef, Expr};
                      vars::Union{Nothing, Array{JuMP.VariableRef, 1}} = nothing,
                      expr_vars::Union{Nothing, Array} = nothing,
-                     name::Union{Nothing, String} = nothing,
+                     name::String = gm.name * "_" * string(length(gm.bbfs) + 1),
                      equality::Bool = false)
      fn = eval(constraint)
      @assert fn isa Function
@@ -474,13 +474,9 @@ Creates and solves the global optimization model using the linear constraints fr
 and approximated nonlinear constraints from inside its BlackBoxFunctions.
 """
 function globalsolve(gm::GlobalModel)
-    if any(check_accuracy(gm) .== 0) && !gm.settings[:ignore_accuracy]
-        throw(OCTException("GlobalModel " * gm.name * " has inaccurate " *
-                                             "BlackBoxFunction approximations."))
-    end
-    clear_tree_constraints!(gm); # remove trees from previous solve (if any).
-    add_tree_constraints!(gm); # refresh latest tree constraints.
-    status = optimize!(gm.model);
+    clear_tree_constraints!(gm)   # remove trees from previous solve (if any).
+    add_tree_constraints!(gm)     # refresh latest tree constraints.
+    status = optimize!(gm.model)
     return status
 end
 
@@ -539,14 +535,7 @@ function find_bounds!(gm::GlobalModel; bbfs::Array{BlackBoxFunction} = BlackBoxF
     return
 end
 
-""" Returns trees trained over given GlobalModel,
-where filename points to the model name. """
-function import_trees(dir, gm::GlobalModel)
-    trees = [IAI.read_json(string(dir, "_tree_", i, ".json")) for i=1:length(gm.bbfs)];
-    return trees
-end
-
-""" Deletes all data associated with a BBF. """
+""" Deletes all data associated with a BlackBoxFunction or GlobalModel. """
 function clear_data!(bbf::BlackBoxFunction)
     bbf.X = DataFrame([Float64 for i=1:length(bbf.vars)], string.(bbf.vars))  # Function samples
     bbf.Y = [];
