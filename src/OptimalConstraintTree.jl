@@ -50,7 +50,7 @@ module OptimalConstraintTree
            set_optimizer, optimize!,
            # Functions on GlobalModel and BlackBoxFunctions and DataConstraints
            gridify, learn_from_data!, find_bounds!, add_nonlinear_constraint,
-           add_nonlinear_or_compatible,
+           add_nonlinear_or_compatible, determine_vars,
            lh_sample, boundary_sample,
            accuracy, feasibility, check_accuracy, check_feasibility, check_bounds,
            solution, evaluate_feasibility,
@@ -87,6 +87,6 @@ module OptimalConstraintTree
             clear_data!,
             # Small scripts
             vars_from_expr, get_varmap, deconstruct, flat,
-            infarray, substitute
+            infarray, substitute, power
 end
 

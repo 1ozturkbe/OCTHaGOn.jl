@@ -23,12 +23,16 @@ function data_to_Dict(data::Union{Dict, DataFrame, DataFrameRow}, model::JuMP.Mo
     end
 end
 
-""" Wrapper around Iterators.flatten. """
-flat(arr::Array) = collect(Iterators.flatten(arr))
+""" Wrapper around Iterators.flatten for variables. """
+flat(arr) = Array{VariableRef, 1}(collect(Iterators.flatten(arr)))
 
+""" For substitution into expressions. IMPORTANT. """
 function substitute(e::Expr, pair)
     MacroTools.prewalk(e) do s
         s == pair.first && return pair.second
         s
     end
 end
+
+""" power function from gams """
+power(var, num) = var^num
