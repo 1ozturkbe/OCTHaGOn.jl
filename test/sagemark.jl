@@ -161,6 +161,7 @@ clear_tree_constraints!(gm) # Finds and clears the one remaining BBF constraint.
 save_fit(gm)
 gm = sagemark_to_GlobalModel(3; lse=false);
 set_optimizer(gm, Gurobi.Optimizer);
+bound!(gm, Dict(gm.vars[end] => [-300, 0]))
 load_fit(gm);
 @test all([bbf.settings[:reloaded] == true for bbf in gm.bbfs])
 globalsolve(gm);
