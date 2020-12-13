@@ -185,14 +185,16 @@ function add_nonlinear_or_compatible(gm::GlobalModel,
                      expr_vars::Union{Nothing, Array} = nothing,
                      name::String = gm.name * "_" * string(length(gm.bbfs) + 1),
                      equality::Bool = false)
+     vars, expr_vars = determine_vars(gm, constraint, vars = vars, expr_vars = expr_vars)
      fn = eval(constraint)
      @assert fn isa Function
      try
         constr_expr = fn(expr_vars...)
+        println(name * " passed this far...")
         if equality
-            @constraint(model, constr_expr == 0)
+            @constraint(gm.model, constr_expr == 0)
         else
-            @constraint(model, constr_expr >= 0)
+            @constraint(gm.model, constr_expr >= 0)
         end
      catch
          add_nonlinear_constraint(gm, constraint, vars = vars, expr_vars = expr_vars,

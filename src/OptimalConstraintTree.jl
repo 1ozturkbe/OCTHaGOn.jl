@@ -2,6 +2,7 @@ module OptimalConstraintTree
     using Combinatorics
     using ConicBenchmarkUtilities
     using DataFrames
+    using GAMSFiles
     using Gurobi
     using JuMP
     using LatinHypercubeSampling
@@ -17,6 +18,7 @@ module OptimalConstraintTree
 
     const PROJECT_ROOT = pwd()
     const SAVE_DIR = PROJECT_ROOT * "\\data\\"
+    const GAMS_DIR = PROJECT_ROOT * "\\data\\baron_nc_ns\\"
 
     include("small_scripts.jl")
 
@@ -41,6 +43,8 @@ module OptimalConstraintTree
     include("fit.jl")
 
     include("plot.jl")
+
+    include("gams.jl")
 
            # Structs
     export GlobalModel, BlackBoxFunction, DataConstraint,
@@ -87,6 +91,8 @@ module OptimalConstraintTree
             clear_data!,
             # Small scripts
             vars_from_expr, get_varmap, deconstruct, flat,
-            infarray, substitute, power
+            infarray, substitute, power,
+            # GAMS
+            GAMS_to_GlobalModel
 end
 
