@@ -24,7 +24,7 @@ include("load.jl");
 
 #     include(string(OptimalConstraintTree.PROJECT_ROOT, "/test/lse.jl"))
 
-    include(string(OptimalConstraintTree.PROJECT_ROOT, "/test/benchmarks/gams.jl"))
+    include(string(OptimalConstraintTree.PROJECT_ROOT, "/test/gams.jl"))
 end
 
 # Other tests to try later

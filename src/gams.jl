@@ -1,11 +1,9 @@
 #=
-gams:
-- Julia version: 1.3.1
+gams.jl:
+- Julia version: 1.5.1
 - Author: Berk
-- Date: 2020-09-10
+- Date: 2020-12-13
 =#
-
-using GAMSFiles
 
 """ Turns GAMSFiles.GCall into an Expr. """
 function eq_to_expr(eq::GAMSFiles.GCall, sets::Dict{String, Any})
@@ -56,7 +54,6 @@ function generate_variables!(model::JuMP.Model, gams::Dict{String, Any})
             constdict[Symbol(var)] = vinfo.x
         else
             axs = vinfo.axs
-            nv = nothing
             if axs == ()
                 nv = @variable(model, base_name = var)
                 model[Symbol(var)] = nv
@@ -72,14 +69,15 @@ function generate_variables!(model::JuMP.Model, gams::Dict{String, Any})
             end
             for (prop, val) in vinfo.assignments
                 inds = map(x->x.val, prop.indices)
+                nv = model[Symbol(var)][inds...]
                 if isa(prop, Union{GAMSFiles.GText, GAMSFiles.GArray})
                     c = val.val
-    #                 if GAMSFiles.getname(prop) ∈ ("l", "fx")
-    #                     x0[Symbol(nv.name, inds[1])] = c
-                    if GAMSFiles.getname(prop) == "lo"
-                        set_lower_bound(nv[inds...], c)
-                    elseif GAMSFiles.getname(prop) == "up"
-                        set_upper_bound(nv[inds...], c)
+                    if prop.name ∈ ("l", "fx")
+                        JuMP.set_start_value(nv, c)
+                    elseif prop.name == "lo"
+                        JuMP.set_lower_bound(nv, c)
+                    elseif prop.name == "up"
+                        JuMP.set_upper_bound(nv, c)
                     end
                 end
             end
@@ -89,11 +87,11 @@ function generate_variables!(model::JuMP.Model, gams::Dict{String, Any})
 end
 
 """ Converts a GAMS optimization model to a GlobalModel."""
-function GAMS_to_GlobalModel(dir::String, filename::String)
+function GAMS_to_GlobalModel(GAMS_DIR::String, filename::String)
     model = JuMP.Model()
     # Parsing GAMS Files
-    lexed = GAMSFiles.lex(dir * filename)
-    gams = GAMSFiles.parsegams(dir * filename)
+    lexed = GAMSFiles.lex(GAMS_DIR * filename)
+    gams = GAMSFiles.parsegams(GAMS_DIR * filename)
     GAMSFiles.parseconsts!(gams)
 
     vars = GAMSFiles.getvars(gams["variables"])
@@ -137,11 +135,11 @@ function GAMS_to_GlobalModel(dir::String, filename::String)
                 constr_fn = :($(input...) -> $(constr_expr))
             end
             add_nonlinear_or_compatible(gm, constr_fn, vars = vars, expr_vars = [vardict[varkey] for varkey in varkeys],
-                                     equality = is_equality(eq), name = GAMSFiles.getname(key))
+                                     equality = is_equality(eq), name = gm.name * "_" * GAMSFiles.getname(key))
         elseif key isa GAMSFiles.GArray
             axs = GAMSFiles.getaxes(key.indices, sets)
             idxs = collect(Base.product([collect(ax) for ax in axs]...))
-            names = [key.name * string(idx) for idx in idxs]
+            names = [gm.name * "_" * key.name * string(idx) for idx in idxs]
             constr_expr = eq_to_expr(eq, sets)
                     # Substitute constant variables
             constkeys = find_vars_in_eq(eq, constdict)
@@ -174,23 +172,3 @@ function GAMS_to_GlobalModel(dir::String, filename::String)
     end
     return gm
 end
-
-DATA_DIR = "data/baron_nc_ns/"
-filenums = [2.15, 2.16, 2.17, 2.18, 3.2, "3.10", 3.13, 3.15, 3.16, 3.18, 3.25]
-filenames = ["problem" * string(filenum) * ".gms" for filenum in filenums]
-gms = Dict()
-for filename in filenames
-    try
-        gms[filename] = GAMS_to_GlobalModel(DATA_DIR, filename)
-    catch
-        throw(OCTException(filename * " has an import issue."))
-    end
-end
-
-
-filename = "problem3.13.gms"
-gm = GAMS_to_GlobalModel(DATA_DIR, filename);
-@test length(gm.vars) == 8
-@test length(gm.bbfs) == 13
-
-

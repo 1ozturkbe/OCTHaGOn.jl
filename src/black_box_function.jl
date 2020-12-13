@@ -191,7 +191,6 @@ function evaluate(bbf::BlackBoxFunction, data::Union{Dict, DataFrame})
     else
         arrs = deconstruct(clean_data, bbf.vars, bbf.varmap)
         vals = [bbf.fn(arr...) for arr in arrs]
-        length(vals) == 1 && return vals[1]
         return vals
     end
 end

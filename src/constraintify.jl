@@ -28,28 +28,27 @@ Generates MI constraints from gm.learners, and adds them to gm.model.
 function add_tree_constraints!(gm::GlobalModel, bbfs::Array{BlackBoxFunction}; M=1e5)
     for bbf in bbfs
         # Battery of checks
-        if size(bbf.X, 1) == 0 && !bbf.settings[:reloaded]
+        if bbf.settings[:reloaded]
+            bbf.mi_constraints, bbf.leaf_variables = add_feas_constraints!(gm.model, bbf.vars,
+                                            bbf.learners[end].lnr;
+                                            M=M, eq=bbf.equality, return_data = true);
+        elseif bbf.feas_ratio == 1.0
+            continue
+        elseif size(bbf.X, 1) == 0
             throw(OCTException("Constraint " * string(bbf.name) * " has not been sampled yet, and is thus untrained."))
         elseif length(bbf.learners) == 0
             throw(OCTException("Constraint " * string(bbf.name) * " has not been learned yet"))
-        elseif bbf.feas_ratio == 0.0 && !bbf.settings[:reloaded]
+        elseif bbf.feas_ratio == 0.0
             throw(OCTException("Constraint " * string(bbf.name) * " is INFEASIBLE but you tried to include it in
                    your global problem. Find at least one feasible solution, train and try again."))
         elseif isempty(bbf.learners)
             throw(OCTException("Constraint " * string(bbf.name) * " must be learned before tree constraints
                                 can be generated."))
-        elseif !gm.settings[:ignore_accuracy] # accuracy checks
-            if !bbf.settings[:reloaded] && !check_accuracy(bbf)
-                throw(OCTException("Constraint " * string(bbf.name) * " is inaccurately approximated. "))
-            end
-        end
-        if bbf.feas_ratio == 1.0
-            continue
+        elseif !gm.settings[:ignore_accuracy] && !check_accuracy(bbf)
+            throw(OCTException("Constraint " * string(bbf.name) * " is inaccurately approximated. "))
         else
-            constrs, leaf_vars = add_feas_constraints!(gm.model, bbf.vars, bbf.learners[end].lnr;
+            bbf.mi_constraints, bbf.leaf_variables = add_feas_constraints!(gm.model, bbf.vars, bbf.learners[end].lnr;
                                                        M=M, eq=bbf.equality, return_data = true);
-            bbf.mi_constraints = constrs;    # Note: this is needed to monitor the presence of tree
-            bbf.leaf_variables = leaf_vars;  #        constraints and variables in gm.model.
         end
     end
     return
