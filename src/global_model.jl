@@ -190,7 +190,6 @@ function add_nonlinear_or_compatible(gm::GlobalModel,
      @assert fn isa Function
      try
         constr_expr = fn(expr_vars...)
-        println(name * " passed this far...")
         if equality
             @constraint(gm.model, constr_expr == 0)
         else

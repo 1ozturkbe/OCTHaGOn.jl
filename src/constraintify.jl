@@ -28,7 +28,9 @@ Generates MI constraints from gm.learners, and adds them to gm.model.
 function add_tree_constraints!(gm::GlobalModel, bbfs::Array{BlackBoxFunction}; M=1e5)
     for bbf in bbfs
         # Battery of checks
-        if size(bbf.X, 1) == 0 && !bbf.settings[:reloaded]
+        if bbf.feas_ratio == 1.0
+            continue
+        elseif size(bbf.X, 1) == 0 && !bbf.settings[:reloaded]
             throw(OCTException("Constraint " * string(bbf.name) * " has not been sampled yet, and is thus untrained."))
         elseif length(bbf.learners) == 0
             throw(OCTException("Constraint " * string(bbf.name) * " has not been learned yet"))
@@ -42,9 +44,6 @@ function add_tree_constraints!(gm::GlobalModel, bbfs::Array{BlackBoxFunction}; M
             if !bbf.settings[:reloaded] && !check_accuracy(bbf)
                 throw(OCTException("Constraint " * string(bbf.name) * " is inaccurately approximated. "))
             end
-        end
-        if bbf.feas_ratio == 1.0
-            continue
         else
             constrs, leaf_vars = add_feas_constraints!(gm.model, bbf.vars, bbf.learners[end].lnr;
                                                        M=M, eq=bbf.equality, return_data = true);

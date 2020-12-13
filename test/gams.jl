@@ -6,22 +6,11 @@ function gams_import_checks()
     gms = Dict()
     for filename in filenames
         try
-            gms[filename] = GAMS_to_GlobalModel(GAMS_DIR, filename)
+            gms[filename] = GAMS_to_GlobalModel(OCT.GAMS_DIR, filename)
         catch
             throw(OCTException(filename * " has an import issue."))
         end
     end
-
-    filename = "problem3.13.gms"
-    gm =  GAMS_to_GlobalModel(GAMS_DIR, filename)
-    x = gm.model[:x]
-    @test length(gm.vars) == 8
-    @test all(bound == [0,100] for bound in values(get_bounds(flat(gm.model[:x]))))
-    @test length(gm.bbfs) == 13
-    bound!(gm, Dict(var => [-300,300] for var in gm.vars))
-    sample_and_eval!(gm.bbfs[1])
-    learn_constraint!(gm.bbfs[1])
-
     return true
 end
 
@@ -46,6 +35,16 @@ function nonlinear_solve(gm::GlobalModel)
 end
 
 @test gams_import_checks()
+
+filename = "problem3.13.gms"
+gm =  GAMS_to_GlobalModel(OCT.GAMS_DIR, filename)
+x = gm.model[:x]
+@test length(gm.vars) == 8
+@test all(bound == [0,100] for bound in values(get_bounds(flat(gm.model[:x]))))
+@test length(gm.bbfs) == 13
+bound!(gm, Dict(var => [-300,300] for var in gm.vars))
+sample_and_eval!(gm.bbfs[1])
+learn_constraint!(gm.bbfs[1])
 
 # filename = "problem3.13.gms"
 # gm = GAMS_to_GlobalModel(GAMS_DIR, filename)
