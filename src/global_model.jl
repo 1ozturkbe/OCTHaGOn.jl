@@ -104,7 +104,13 @@ function check_infeasible_bounds(model::Union{GlobalModel, JuMP.Model}, bounds::
     return
 end
 
-""" Takes on parsing and allocation of variables depending on user input.
+"""
+    determine_vars(gm::GlobalModel,
+                        constraint::Union{JuMP.ScalarConstraint, JuMP.ConstraintRef, Expr};
+                        vars::Union{Nothing, Array{JuMP.VariableRef, 1}} = nothing,
+                        expr_vars::Union{Nothing, Array} = nothing)
+
+Takes on parsing and allocation of variables depending on user input.
 Note: This can be tricky, vars should in general be equal to flat(expr_vars).
 vars is shorter than expr_vars iff a subset of a vector variable is included. """
 function determine_vars(gm::GlobalModel,
@@ -186,18 +192,21 @@ function add_nonlinear_or_compatible(gm::GlobalModel,
                      name::String = gm.name * "_" * string(length(gm.bbfs) + 1),
                      equality::Bool = false)
      vars, expr_vars = determine_vars(gm, constraint, vars = vars, expr_vars = expr_vars)
-     fn = eval(constraint)
-     @assert fn isa Function
      try
-        constr_expr = fn(expr_vars...)
+        fn = functionify(constraint)
+        constr_expr = Base.invokelatest(fn, expr_vars...)
         if equality
             @constraint(gm.model, constr_expr == 0)
         else
             @constraint(gm.model, constr_expr >= 0)
         end
-     catch
-         add_nonlinear_constraint(gm, constraint, vars = vars, expr_vars = expr_vars,
+     catch err
+        if err isa MethodError
+            throw(err) # Making sure that world age errors do not fall through cracks.
+        else
+            add_nonlinear_constraint(gm, constraint, vars = vars, expr_vars = expr_vars,
                                       equality = equality, name = name)
+        end
      end
 end
 
