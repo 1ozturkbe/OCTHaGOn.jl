@@ -200,13 +200,9 @@ function add_nonlinear_or_compatible(gm::GlobalModel,
         else
             @constraint(gm.model, constr_expr >= 0)
         end
-     catch err
-        if err isa MethodError
-            throw(err) # Making sure that world age errors do not fall through cracks.
-        else
-            add_nonlinear_constraint(gm, constraint, vars = vars, expr_vars = expr_vars,
-                                      equality = equality, name = name)
-        end
+     catch
+        add_nonlinear_constraint(gm, constraint, vars = vars, expr_vars = expr_vars,
+                                  equality = equality, name = name)
      end
 end
 
