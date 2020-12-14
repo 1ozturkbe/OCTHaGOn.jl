@@ -41,7 +41,7 @@ gm =  GAMS_to_GlobalModel(OCT.GAMS_DIR, filename)
 x = gm.model[:x]
 @test length(gm.vars) == 8
 @test all(bound == [0,100] for bound in values(get_bounds(flat(gm.model[:x]))))
-@test length(gm.bbfs) == 13
+@test length(gm.bbfs) == 1
 bound!(gm, Dict(var => [-300,300] for var in gm.vars))
 sample_and_eval!(gm.bbfs[1])
 learn_constraint!(gm.bbfs[1])
