@@ -96,8 +96,7 @@ function get_constant(set::MOI.AbstractSet)
 end
 
 """
-    functionify(constraint::JuMP.ConstraintRef, vars::Array)
-    functionify(constraint::Expr, vars::Array)
+    functionify(constraint)
 
 Blunt function that returns an "evaluate-able" function from an Expr, or
 nothing for a JuMP.ConstraintRef.
@@ -107,7 +106,7 @@ function functionify(constraint)
     if constraint isa Expr
         f = eval(constraint)
         f isa Function && return f
-        throw(OCTException(string("functionify", f, "is not a valid function")))
+        throw(OCTException(string("functionify(", f, ") is not a valid function.")))
     else
         return nothing
     end
@@ -123,8 +122,6 @@ Note: Function Expr's must be defined with a single input or a tuple of inputs, 
     ex = :((x, y, z) -> sum(x[i] for i=1:4) - y[1] * y[2] + z)
 """
 function vars_from_expr(expr::Expr, model::JuMP.Model)
-    eval(expr) isa Function || throw(OCTException((string("eval of the following
-                                     Expr must return a function: ", expr))))
     if expr.args[1] isa Symbol
         return [fetch_variable(model, expr.args[1])]
     else
