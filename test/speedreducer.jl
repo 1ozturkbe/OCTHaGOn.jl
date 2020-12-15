@@ -22,7 +22,7 @@ function speed_reducer()
              0.7854*(x[4]*x[6]^2 + x[5]*x[7]^2))))
 
     # Constraints
-    add_nonlinear_or_compatible(gm, :(x -> -27 +x[1] * x[2]^2 * x[3]), vars = x[1:3])
+    add_nonlinear_or_compatible(gm, :(x -> -27 + x[1] * x[2]^2 * x[3]), vars = x[1:3])
 
     add_nonlinear_or_compatible(gm, :(x -> -397.5 + x[1] * x[2]^2 * x[3]^2), vars = x[1:3])
 

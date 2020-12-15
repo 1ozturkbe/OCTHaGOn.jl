@@ -58,6 +58,34 @@ function get_bounds(vars::Array{VariableRef})
     return bounds
 end
 
+function get_bounds(gm::Union{JuMP.Model, GlobalModel})
+    return get_bounds(all_variables(gm))
+end
+
+"""
+    get_unbounds(vars::Array{VariableRef})
+    get_unbounds(gm::Union{JuMP.Model, GlobalModel})
+
+Returns variables with no lower and/or upper bounds.
+"""
+function get_unbounds(vars::Array{VariableRef})
+    bounds = Dict();
+    for var in vars
+        if JuMP.has_lower_bound(var)
+            if !JuMP.has_upper_bound(var)
+                bounds[var] = [JuMP.lower_bound(var), Inf]
+            end
+        else
+            if JuMP.has_upper_bound(var)
+                bounds[var] = [-Inf, JuMP.upper_bound(var)]
+            else
+                bounds[var] = [-Inf, Inf]
+            end
+        end
+    end
+    return bounds
+end
+
 """
     data_to_DataFrame(data::Union{Dict, DataFrame, DataFrameRow})
 

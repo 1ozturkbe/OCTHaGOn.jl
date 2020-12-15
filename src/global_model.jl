@@ -60,16 +60,35 @@ function JuMP.set_optimizer(gm::GlobalModel, optimizer_factory)
     JuMP.set_optimizer(gm.model, optimizer_factory)
 end
 
-""" Returns bounds of all variables from a JuMP.Model. """
+"""
+    get_bounds(model::Union{GlobalModel, JuMP.Model, BlackBoxFunction})
+    get_bounds(bbfs::Array{BlackBoxFunction})
+
+Returns bounds of all variables.
+"""
 function get_bounds(model::Union{GlobalModel, JuMP.Model, BlackBoxFunction})
     all_vars = all_variables(model)
     return get_bounds(all_vars)
 end
 
-""" Returns bounds of all variables from a JuMP.Model. """
 function get_bounds(bbfs::Array{BlackBoxFunction})
     all_vars = unique(Iterators.flatten(([all_variables(bbf) for bbf in bbfs])))
     return get_bounds(all_vars)
+end
+
+"""
+    get_unbounds(model::Union{GlobalModel, JuMP.Model, BlackBoxFunction})
+    get_unbounds(bbfs::Array{BlackBoxFunction})
+
+Returns bounds of all unbounded variables.
+"""
+function get_unbounds(gm::Union{JuMP.Model, GlobalModel, BlackBoxFunction})
+    return get_unbounds(all_variables(gm))
+end
+
+function get_unbounds(bbfs::Array{BlackBoxFunction})
+    all_vars = unique(Iterators.flatten(([all_variables(bbf) for bbf in bbfs])))
+    return get_unbounds(all_vars)
 end
 
 """ Checks outer-boundedness of variables. """
@@ -334,17 +353,27 @@ function accuracy(bbf::Union{GlobalModel, BlackBoxFunction})
 end
 
 """
+    lh_sample(vars::Array{JuMP.VariableRef, 1}; iterations::Int64 = 3,
+                   n_samples::Int64 = 1000)
+    lh_sample(bbf::BlackBoxFunction; iterations::Int64 = 3,
+                   n_samples::Int64 = 1000)
+
 Uniformly Latin Hypercube samples the variables of GlobalModel, as long as all
 lbs and ubs are defined.
 """
-function lh_sample(bbf::BlackBoxFunction; iterations::Int64 = 3,
-                n_samples::Int64 = 1000)
-   bounds = get_bounds(bbf.vars)
+function lh_sample(vars::Array{JuMP.VariableRef, 1}; iterations::Int64 = 3,
+                   n_samples::Int64 = 1000)
+   bounds = get_bounds(vars)
    check_bounds(bounds)
-   n_dims = length(bbf.vars)
+   n_dims = length(vars)
    plan, _ = LHCoptim(n_samples, n_dims, iterations);
-   X = scaleLHC(plan,[(minimum(bounds[var]), maximum(bounds[var])) for var in bbf.vars]);
-   return DataFrame(X, string.(bbf.vars))
+   X = scaleLHC(plan,[(minimum(bounds[var]), maximum(bounds[var])) for var in vars]);
+   return DataFrame(X, string.(vars))
+end
+
+function lh_sample(bbf::BlackBoxFunction; iterations::Int64 = 3,
+                   n_samples::Int64 = 1000)
+   return lh_sample(bbf.vars, iterations = iterations, n_samples = n_samples)
 end
 
 function choose(large::Int64, small::Int64)
@@ -352,25 +381,30 @@ function choose(large::Int64, small::Int64)
 end
 
 """
+    boundary_sample(bbf::BlackBoxFunction; fraction::Float64 = 0.5)
+    boundary_sample(vars::Array{JuMP.VariableRef, 1}; n_samples = 100, fraction::Float64 = 0.5,
+                         warn_string::String = "")
+
 *Smartly* samples the constraint along the variable boundaries.
     NOTE: Because we are sampling symmetrically for lower and upper bounds,
     the choose coefficient has to be less than ceil(half of number of dims).
 """
-function boundary_sample(bbf::BlackBoxFunction; fraction::Float64 = 0.5)
-    bounds = get_bounds(bbf.vars);
+function boundary_sample(vars::Array{JuMP.VariableRef, 1}; n_samples::Int64 = 100, fraction::Float64 = 0.5,
+                         warn_string::String = "")
+    bounds = get_bounds(vars);
     check_bounds(bounds);
-    n_vars = length(bbf.vars);
-    vks = string.(bbf.vars);
+    n_vars = length(vars);
+    vks = string.(vars);
     lbs = DataFrame(Dict(string(key) => minimum(value) for (key, value) in bounds))
     ubs = DataFrame(Dict(string(key) => maximum(value) for (key, value) in bounds))
     n_comb = sum(choose(n_vars, i) for i=0:n_vars);
     nX = DataFrame([Float64 for i in vks], vks)
     sample_indices = [];
-    if n_comb >= fraction*bbf.n_samples
-        @warn("Can't exhaustively sample the boundary of Constraint " * string(bbf.name) * ".")
+    if n_comb >= fraction*n_samples
+        @warn("Can't exhaustively sample the boundary of Constraint " * string(warn_string) * ".")
         n_comb = 2*n_vars+2; # Everything is double because we choose min's and max's
         choosing = 1;
-        while n_comb <= fraction*bbf.n_samples
+        while n_comb <= fraction*n_samples
             choosing = choosing + 1;
             n_comb += 2*choose(n_vars, choosing);
         end
@@ -389,6 +423,12 @@ function boundary_sample(bbf::BlackBoxFunction; fraction::Float64 = 0.5)
     end
     return nX
 end
+
+function boundary_sample(bbf::BlackBoxFunction; fraction::Float64 = 0.5)
+    return boundary_sample(bbf.vars, n_samples = bbf.n_samples, fraction = fraction,
+                           warn_string = bbf.name)
+end
+
 
 """
 Does KNN and interval arithmetic based sampling once there is at least one feasible
@@ -486,10 +526,23 @@ function globalsolve(gm::GlobalModel)
     return status
 end
 
-""" Returns the optimal solution of the solved global optimization model. """
+"""
+    solution(gm::GlobalModel)
+
+Returns the optimal solution of the GlobalModel.
+"""
 function solution(gm::GlobalModel)
     vals = getvalue.(gm.vars)
     return DataFrame(vals', string.(gm.vars))
+end
+
+"""
+    save_solution(gm::GlobalModel; dir::String = SAVE_DIR)
+
+Saves the optimal solution of GlobalModel as a CSV.
+"""
+function save_solution(gm::GlobalModel; name::String = gm.name, dir::String = SAVE_DIR)
+    CSV.write(dir * name * ".csv", solution(gm))
 end
 
 """ Evaluates each constraint at solution to make sure it is feasible. """
