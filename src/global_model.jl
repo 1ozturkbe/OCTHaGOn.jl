@@ -105,10 +105,10 @@ end
 """ Checks whether any defined bounds are infeasible by given Model. """
 function check_infeasible_bounds(model::Union{GlobalModel, JuMP.Model}, bounds::Dict)
     all_bounds = get_bounds(model);
-    lbs_model = Dict(key => minimum(value) for (key, value) in all_bounds)
-    ubs_model = Dict(key => maximum(value) for (key, value) in all_bounds)
-    lbs_bounds = Dict(key => minimum(value) for (key, value) in bounds)
-    ubs_bounds = Dict(key => maximum(value) for (key, value) in bounds)
+    lbs_model = Dict(key => minimum(val) for (key, val) in all_bounds)
+    ubs_model = Dict(key => maximum(val) for (key, val) in all_bounds)
+    lbs_bounds = Dict(key => minimum(val) for (key, val) in bounds)
+    ubs_bounds = Dict(key => maximum(val) for (key, val) in bounds)
     nlbs = merge(get_max, lbs_model, lbs_bounds)
     nubs = merge(get_min, ubs_model, ubs_bounds)
     if any([nlbs[var] .> nubs[var] for var in keys(nlbs)])
@@ -267,23 +267,23 @@ end
 """Adds outer bounds to JuMP Model from dictionary of data. """
 function bound!(model::JuMP.Model, bounds::Dict)
     check_infeasible_bounds(model, bounds)
-    for (key, value) in bounds
-        @assert value isa Array && length(value) == 2
+    for (key, val) in bounds
+        @assert val isa Array && length(val) == 2
         var = fetch_variable(model, key);
         if var isa Array # make sure all elements are bounded.
             for v in var
-                bound!(model, Dict(v => value))
+                bound!(model, Dict(v => val))
             end
         else
-            if JuMP.has_lower_bound(var) && JuMP.lower_bound(var) <= minimum(value)
-                set_lower_bound(var, minimum(value))
-            elseif !JuMP.has_lower_bound(var)
-                set_lower_bound(var, minimum(value))
+            if JuMP.has_lower_bound(var) && JuMP.lower_bound(var) <= minimum(val)
+                JuMP.set_lower_bound(var, minimum(val))
+            elseif !JuMP.has_lower_bound(var) && !isinf(minimum(val))
+                JuMP.set_lower_bound(var, minimum(val))
             end
-            if JuMP.has_upper_bound(var) && JuMP.upper_bound(var) >= maximum(value)
-                set_upper_bound(var, maximum(value))
-            else !JuMP.has_upper_bound(var)
-                set_upper_bound(var, maximum(value))
+            if JuMP.has_upper_bound(var) && JuMP.upper_bound(var) >= maximum(val)
+                JuMP.set_upper_bound(var, maximum(val))
+            else !JuMP.has_upper_bound(var) && !isinf(maximum(val))
+                JuMP.set_upper_bound(var, maximum(val))
             end
         end
     end
@@ -389,8 +389,8 @@ function boundary_sample(vars::Array{JuMP.VariableRef, 1}; n_samples::Int64 = 10
     check_bounds(bounds);
     n_vars = length(vars);
     vks = string.(vars);
-    lbs = DataFrame(Dict(string(key) => minimum(value) for (key, value) in bounds))
-    ubs = DataFrame(Dict(string(key) => maximum(value) for (key, value) in bounds))
+    lbs = DataFrame(Dict(string(key) => minimum(val) for (key, val) in bounds))
+    ubs = DataFrame(Dict(string(key) => maximum(val) for (key, val) in bounds))
     n_comb = sum(choose(n_vars, i) for i=0:n_vars);
     nX = DataFrame([Float64 for i in vks], vks)
     sample_indices = [];

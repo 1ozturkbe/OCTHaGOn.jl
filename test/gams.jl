@@ -45,7 +45,7 @@ function recipe(gm)
     return
 end
 
-@test gams_import_checks()
+# @test gams_import_checks()
 
 filename = "problem3.13.gms"
 gm =  GAMS_to_GlobalModel(OCT.GAMS_DIR, filename)
@@ -56,10 +56,16 @@ x = gm.model[:x]
 
 filename = "problem3.13.gms"
 gm = GAMS_to_GlobalModel(OCT.GAMS_DIR, filename)
-bound!(gm, Dict(var => [-1, 1] for var in [gm.model[:f], gm.model[:y]]))
-bound!(gm, Dict(gm.model[:objvar] => [-40,-30]))
+# bound!(gm, Dict(var => [-1, 1] for var in [gm.model[:f], gm.model[:y]]))
+# bound!(gm, Dict(gm.model[:objvar] => [-40,-30]))
 # recipe(gm)
 
-gm2 = GAMS_to_GlobalModel(OCT.GAMS_DIR, filename)
-nonlinear_solve(gm2)
-sol2 = solution(gm2)
+# gm2 = GAMS_to_GlobalModel(OCT.GAMS_DIR, filename)
+# nonlinear_solve(gm2)
+# sol2 = solution(gm2)
+
+set_optimizer(gm, Gurobi.Optimizer)
+find_bounds!(gm, all_bounds=true)
+bbf = gm.bbfs[1]
+bounds = get_bounds(bbf)
+unbounds = get_unbounds(bbf)
