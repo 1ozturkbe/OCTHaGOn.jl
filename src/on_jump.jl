@@ -1,5 +1,5 @@
 #=
-on_jumpmodels:
+on_jump:
 - Julia version: 1.5.1
 - Author: Berk
 - Date: 2020-09-25
@@ -151,10 +151,6 @@ function vars_from_expr(expr::Expr, model::JuMP.Model)
     else
         return [fetch_variable(model, arg) for arg in expr.args[1].args]
     end
-end
-
-function vars_from_expr(expr::Union{JuMP.ScalarConstraint, JuMP.ConstraintRef}, model::JuMP.Model)
-    return nothing
 end
 
 """
