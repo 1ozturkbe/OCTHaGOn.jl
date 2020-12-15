@@ -1,3 +1,11 @@
+using Ipopt
+
+""" Solver wrapper for GAMS benchmarking. """
+function nonlinear_solve(gm::GlobalModel; solver = Ipopt.Optimizer)
+    nonlinearize!(gm)
+    set_optimizer(gm, solver)
+    optimize!(gm)
+end
 
 """ Testing that problems are correctly imported, with some random checking. """
 function gams_import_checks()
@@ -6,7 +14,14 @@ function gams_import_checks()
     gms = Dict()
     for filename in filenames
         try
-            gms[filename] = GAMS_to_GlobalModel(OCT.GAMS_DIR, filename)
+            println("Problem " * filename * " loading....")
+            gm = GAMS_to_GlobalModel(OCT.GAMS_DIR, filename)
+            println("    Problem NL constraints: " * string(length(gm.bbfs)))
+            types = JuMP.list_of_constraint_types(gm.model)
+            if !isempty(types)
+                total_constraints = sum(length(all_constraints(gm.model, type[1], type[2])) for type in types)
+                println("    Problem total constraints: " * string(total_constraints))
+            end
         catch
             throw(OCTException(filename * " has an import issue."))
         end
@@ -17,7 +32,8 @@ end
 function recipe(gm)
     @info "GlobalModel " * gm.name * " in progress..."
     set_optimizer(gm, Gurobi.Optimizer)
-    find_bounds!(gm, all_bounds=false)
+    find_bounds!(gm, all_bounds=true)
+    gm.settings[:ignore_feasibility] = true
     gm.settings[:ignore_accuracy] = true
     sample_and_eval!(gm, n_samples = 500)
     sample_and_eval!(gm, n_samples = 500)
@@ -26,12 +42,7 @@ function recipe(gm)
     @info("Approximation accuracies: ", accuracy(gm))
     save_fit(gm)
     globalsolve(gm)
-end
-
-function nonlinear_solve(gm::GlobalModel)
-    nonlinearize!(gm)
-    set_optimizer(gm, Ipopt.Optimizer)
-    optimize!(gm)
+    return
 end
 
 @test gams_import_checks()
@@ -42,19 +53,13 @@ x = gm.model[:x]
 @test length(gm.vars) == 8
 @test all(bound == [0,100] for bound in values(get_bounds(flat(gm.model[:x]))))
 @test length(gm.bbfs) == 1
-bound!(gm, Dict(var => [-300,300] for var in gm.vars))
-sample_and_eval!(gm.bbfs[1])
-learn_constraint!(gm.bbfs[1])
 
-# filename = "problem3.13.gms"
-# gm = GAMS_to_GlobalModel(GAMS_DIR, filename)
-# bound!(gm, Dict(var => [-1000, 1000] for var in gm.vars))
-# sample_and_eval!(gm);
-# sample_and_eval!(gm);
-# learn_constraint!(gm);
-# set_optimizer(gm, Gurobi.Optimizer)
-# gm.settings[:ignore_accuracy] = true
-# globalsolve(gm)
-# solution(gm)
-#
-# nonlinear_solve(gm)
+filename = "problem3.13.gms"
+gm = GAMS_to_GlobalModel(OCT.GAMS_DIR, filename)
+bound!(gm, Dict(var => [-1, 1] for var in [gm.model[:f], gm.model[:y]]))
+bound!(gm, Dict(gm.model[:objvar] => [-40,-30]))
+# recipe(gm)
+
+gm2 = GAMS_to_GlobalModel(OCT.GAMS_DIR, filename)
+nonlinear_solve(gm2)
+sol2 = solution(gm2)
