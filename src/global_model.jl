@@ -55,6 +55,11 @@ function JuMP.all_variables(gm::Union{GlobalModel, BlackBoxFunction})
     return gm.vars
 end
 
+function JuMP.all_variables(bbfs::Array{BlackBoxFunction})
+    return unique(Iterators.flatten(([all_variables(bbf) for bbf in bbfs])))
+end
+
+
 """ Extends JuMP.set_optimizer to GlobalModels. """
 function JuMP.set_optimizer(gm::GlobalModel, optimizer_factory)
     JuMP.set_optimizer(gm.model, optimizer_factory)
@@ -66,14 +71,8 @@ end
 
 Returns bounds of all variables.
 """
-function get_bounds(model::Union{GlobalModel, JuMP.Model, BlackBoxFunction})
-    all_vars = all_variables(model)
-    return get_bounds(all_vars)
-end
-
-function get_bounds(bbfs::Array{BlackBoxFunction})
-    all_vars = unique(Iterators.flatten(([all_variables(bbf) for bbf in bbfs])))
-    return get_bounds(all_vars)
+function get_bounds(model::Union{GlobalModel, JuMP.Model, BlackBoxFunction, Array{BlackBoxFunction}})
+    return get_bounds(all_variables(model))
 end
 
 """
@@ -82,13 +81,8 @@ end
 
 Returns bounds of all unbounded variables.
 """
-function get_unbounds(gm::Union{JuMP.Model, GlobalModel, BlackBoxFunction})
-    return get_unbounds(all_variables(gm))
-end
-
-function get_unbounds(bbfs::Array{BlackBoxFunction})
-    all_vars = unique(Iterators.flatten(([all_variables(bbf) for bbf in bbfs])))
-    return get_unbounds(all_vars)
+function get_unbounds(model::Union{JuMP.Model, GlobalModel, BlackBoxFunction, Array{BlackBoxFunction}})
+    return get_unbounds(all_variables(model))
 end
 
 """ Checks outer-boundedness of variables. """

@@ -58,10 +58,6 @@ function get_bounds(vars::Array{VariableRef})
     return bounds
 end
 
-function get_bounds(gm::Union{JuMP.Model, GlobalModel})
-    return get_bounds(all_variables(gm))
-end
-
 """
     get_unbounds(vars::Array{VariableRef})
     get_unbounds(gm::Union{JuMP.Model, GlobalModel})
