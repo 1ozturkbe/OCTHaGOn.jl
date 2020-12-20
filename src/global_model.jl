@@ -232,11 +232,10 @@ function nonlinearize!(gm::GlobalModel, bbfs::Array{BlackBoxFunction})
             JuMP.add_constraint(gm.model, bbf.constraint)
         elseif bbf.constraint isa Expr
             symb = Symbol(bbf.name)
-            expr_vars = bbf.expr_vars
-            vars = flat(expr_vars)
+            vars = flat(bbf.expr_vars) # We want flattening of dense vars.
             var_ranges = []
             count = 0
-            for varlist in expr_vars
+            for varlist in bbf.expr_vars
                 if varlist isa VariableRef
                     count += 1
                     push!(var_ranges, count)
@@ -282,7 +281,7 @@ function bound!(model::JuMP.Model, bounds::Dict)
             end
             if JuMP.has_upper_bound(var) && JuMP.upper_bound(var) >= maximum(val)
                 JuMP.set_upper_bound(var, maximum(val))
-            else !JuMP.has_upper_bound(var) && !isinf(maximum(val))
+            elseif !JuMP.has_upper_bound(var) && !isinf(maximum(val))
                 JuMP.set_upper_bound(var, maximum(val))
             end
         end
