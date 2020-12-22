@@ -18,7 +18,8 @@ module OptimalConstraintTree
 
     const PROJECT_ROOT = pwd()
     const SAVE_DIR = PROJECT_ROOT * "\\data\\"
-    const GAMS_DIR = PROJECT_ROOT * "\\data\\baron_nc_ns\\"
+    const GAMS_DIR = PROJECT_ROOT * "\\data\\gams\\"
+    const BARON_DIR = PROJECT_ROOT * "\\data\\baron\\"
 
     include("small_scripts.jl")
 

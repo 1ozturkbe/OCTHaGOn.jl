@@ -131,11 +131,13 @@ Also contains data w.r.t. samples from the function.
     vars::Array{JuMP.VariableRef,1}                    # JuMP variables (flat)
     name::String = ""                                  # Function name
     expr_vars:: Union{Array, Nothing} = nothing        # Function inputs (nonflat JuMP variables)
-    varmap::Union{Nothing,Array} = get_varmap(expr_vars, vars)     # ... with the required varmapping.
-    fn::Union{Nothing, Function} = functionify(constraint)         # ... and actually evaluated f'n
+    varmap::Union{Nothing,Array} = get_varmap(expr_vars, vars)     # ... with the required varmapping,
+    f::Union{Nothing, Function} = functionify(constraint)          # ... actually evaluated f'n,
+    g::Union{Nothing, Function} = ADgradientify(f)                 # ... and its gradient f'n.
     X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars))
                                                        # Function samples
-    Y::Array = []                                      # Function values
+    Y::Array = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Function gradients                                      # Function values
+    gradY::DataFrame
     feas_ratio::Float64 = 0.                           # Feasible sample proportion
     equality::Bool = false                             # Equality check
     learners::Array{IAI.GridSearch} = []               # Learners...
@@ -169,7 +171,7 @@ Evaluates constraint violation on data in the variables, and returns distance fr
 """
 function evaluate(bbf::BlackBoxFunction, data::Union{Dict, DataFrame})
     clean_data = data_to_DataFrame(data);
-    if isnothing(bbf.fn)
+    if isnothing(bbf.f)
         constr_obj = constraint_object(bbf.constraint)
         rhs_const = get_constant(constr_obj.set)
         vals = [JuMP.value(constr_obj.func, i -> clean_data[!,string(i)][j]) for j=1:size(clean_data,1)]
@@ -190,7 +192,7 @@ function evaluate(bbf::BlackBoxFunction, data::Union{Dict, DataFrame})
         return vals
     else
         arrs = deconstruct(clean_data, bbf.vars, bbf.varmap)
-        vals = [bbf.fn(arr...) for arr in arrs]
+        vals = [bbf.f(arr...) for arr in arrs]
         return vals
     end
 end

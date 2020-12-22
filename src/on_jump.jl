@@ -137,6 +137,17 @@ function functionify(constraint)
 end
 
 """
+    ADgradientify(func::Union{Nothing, Function})
+
+Returns the Forward AD gradient functions.
+"""
+function ADgradientify(func::Function)
+    return nothing
+end
+
+ADgradientify(func::Nothing) = nothing
+
+"""
     vars_from_expr(expr::Expression, model::JuMP.Model)
 
 Returns the JuMP Variables that are associated with a given function.
