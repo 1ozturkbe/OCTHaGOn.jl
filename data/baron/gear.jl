@@ -11,36 +11,22 @@
 //  Seventh International Conference on Genetic Algorithms. 1997,
 //  pp. 521-528.
 
-INTEGER_VARIABLES  i1,i2,i3,i4;		// number of teeth in each of the gears
-
-LOWER_BOUNDS{
-i1: 12;
-i2: 12;
-i3: 12;
-i4: 12;
-}
-
-UPPER_BOUNDS{
-i1: 60;
-i2: 60;
-i3: 60;
-i4: 60;
-}
-
-EQUATIONS  e2,e3;			// symmetry constraints
-
-e2:  - i3 + i4 >= 0;
-e3:    i1 - i2 >= 0;
-
-// the objective aimms to make the reciprocal of the
-// gear ratio  as close to 6.931 as possible.
-// an ideal design will have an objective equal to 1.
-
-OBJ: minimize (6.931 - i1*i2/(i3*i4))^2 + 1;
-
-STARTING_POINT{
-i1: 24;
-i2: 24;
-i3: 24;
-i4: 24;
-}
+function gear(gm::Bool = false)
+    m = JuMP.Model()
+    @variable(m, 12 <= i[1:4] <= 60, Int)
+    for j = 1:4
+        JuMP.set_start_value(i[j], 24)
+    end
+    @constraint(m, - i[3] + i[4] >= 0)
+    @constraint(m, i[1] - i[2] >= 0)
+    if !gm
+        @NLobjective(m, Min, (6.931 - i[1]*i[2]/(i[3]*i[4]))^2 + 1)
+    else
+        @variable(m, obj)
+        gm = GlobalModel(m)
+        add_nonlinear_constraint(gm, :((i, obj) -> obj - ((6.931 - i[1]*i[2]/(i[3]*i[4]))^2 + 1)))
+        bound!(gm, obj => [0,2]) # Optimal objective is 1.
+        return gm
+    end
+    return m
+end
