@@ -13,5 +13,10 @@ __pycache__
 *.png
 *.cbf
 *.cbf.gz
+*.cov
+*.log
+*.lst
+*.lxi
+
 
 /dump/
