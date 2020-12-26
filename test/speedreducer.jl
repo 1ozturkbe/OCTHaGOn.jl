@@ -58,27 +58,42 @@ using Ipopt
 set_optimizer(gm, Ipopt.Optimizer)
 nonlinearize!(gm)
 optimize!(gm)
+#
+# # Initial sampling (boundary and interior)
+# gm = speed_reducer()
+# set_optimizer(gm, Gurobi.Optimizer)
+# sample_and_eval!(gm, n_samples=n_samples)
+# println("Constraint feasibilities: ", feasibility(gm))
+#
+# # See if KNN sampling makes a difference for feasibility!
+# sample_and_eval!(gm)
+# println("Constraint feasibilities: ", feasibility(gm))
+#
+# # Making sure that the bounds are identical
+# old_bounds = get_bounds(gm);
+# find_bounds!(gm, all_bounds = true);
+# new_bounds = get_bounds(gm);
+# @test old_bounds == new_bounds
+#
+# # Fitting and finding bounds with some bbfs
+# learn_constraint!(gm, ignore_checks=true);
+# gm.settings[:ignore_accuracy] = true
+# globalsolve(gm);
+# soln = solution(gm);
+#
+# feasible, infeasible = evaluate_feasibility(gm);
 
-# Initial sampling (boundary and interior)
-gm = speed_reducer()
-set_optimizer(gm, Gurobi.Optimizer)
-sample_and_eval!(gm, n_samples=n_samples)
-println("Constraint feasibilities: ", feasibility(gm))
 
-# See if KNN sampling makes a difference for feasibility!
-sample_and_eval!(gm)
-println("Constraint feasibilities: ", feasibility(gm))
+#MWE
+using JuMP
+using BARON
+m = Model(BARON.Optimizer)
+@variable(m, x)
+f = x -> x
+JuMP.register(m, :f, 1, f, autodiff=true)
+@objective(m, Min, x)
+@NLconstraint(m, f(x) >= 1)
+optimize!(m)
 
-# Making sure that the bounds are identical
-old_bounds = get_bounds(gm);
-find_bounds!(gm, all_bounds = true);
-new_bounds = get_bounds(gm);
-@test old_bounds == new_bounds
-
-# Fitting and finding bounds with some bbfs
-learn_constraint!(gm, ignore_checks=true);
-gm.settings[:ignore_accuracy] = true
-globalsolve(gm);
-soln = solution(gm);
-
-feasible, infeasible = evaluate_feasibility(gm);
+# BARON TESTS
+[gear, gear20, iqp1, milp, minlp, nlp1, nlp2, nlp3, pool, robot, sqp1]
