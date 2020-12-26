@@ -209,3 +209,9 @@ function eval!(bbf::BlackBoxFunction, X::DataFrame)
     Y = bbf(X);
     add_data!(bbf, X, Y)
 end
+
+""" Deletes all data associated with a BlackBoxFunction or GlobalModel. """
+function clear_data!(bbf::BlackBoxFunction)
+    bbf.X = DataFrame([Float64 for i=1:length(bbf.vars)], string.(bbf.vars))
+    bbf.Y = [];
+end

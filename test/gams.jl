@@ -9,18 +9,18 @@ end
 
 """ Testing that problems are correctly imported, with some random checking. """
 function gams_import_checks()
+    @info("Testing gams imports.")
     filenums = [2.15, 2.16, 2.17, 2.18, 3.2, "3.10", 3.13, 3.15, 3.16, 3.18, 3.25]
     filenames = ["problem" * string(filenum) * ".gms" for filenum in filenums]
     gms = Dict()
     for filename in filenames
         try
-            println("Problem " * filename * " loading....")
             gm = GAMS_to_GlobalModel(OCT.GAMS_DIR, filename)
-            println("    Problem NL constraints: " * string(length(gm.bbfs)))
+#             println("    Problem NL constraints: " * string(length(gm.bbfs)))
             types = JuMP.list_of_constraint_types(gm.model)
             if !isempty(types)
                 total_constraints = sum(length(all_constraints(gm.model, type[1], type[2])) for type in types)
-                println("    Problem total constraints: " * string(total_constraints))
+#                 println("    Problem total constraints: " * string(total_constraints))
             end
         catch
             throw(OCTException(filename * " has an import issue."))
@@ -56,16 +56,14 @@ x = gm.model[:x]
 
 filename = "problem3.13.gms"
 gm = GAMS_to_GlobalModel(OCT.GAMS_DIR, filename)
-# bound!(gm, Dict(var => [-1, 1] for var in [gm.model[:f], gm.model[:y]]))
+bound!(gm, Dict(var => [-1, 1] for var in [gm.model[:f], gm.model[:y]]))
 # bound!(gm, Dict(gm.model[:objvar] => [-40,-30]))
 # recipe(gm)
-
-# gm2 = GAMS_to_GlobalModel(OCT.GAMS_DIR, filename)
-# nonlinear_solve(gm2)
-# sol2 = solution(gm2)
 
 set_optimizer(gm, Gurobi.Optimizer)
 find_bounds!(gm, all_bounds=true)
 bbf = gm.bbfs[1]
-bounds = get_bounds(bbf)
+orig_bounds = get_bounds(bbf)
 unbounds = get_unbounds(bbf)
+@test length(unbounds) == 0
+bounded_dict = Dict(key => val for (key, val) in orig_bounds if !any(isinf.(val)))

@@ -18,7 +18,7 @@ module OptimalConstraintTree
 
     const PROJECT_ROOT = pwd()
     const SAVE_DIR = PROJECT_ROOT * "\\data\\"
-    const GAMS_DIR = PROJECT_ROOT * "\\data\\baron_nc_ns\\"
+    const GAMS_DIR = PROJECT_ROOT * "\\data\\gams\\"
 
     include("small_scripts.jl")
 
@@ -38,9 +38,15 @@ module OptimalConstraintTree
 
     include("global_model.jl")
 
+    include("sample.jl")
+
     include("constraintify.jl")
 
     include("fit.jl")
+
+    include("refine.jl")
+
+    include("optimize.jl")
 
     include("plot.jl")
 
@@ -68,7 +74,7 @@ module OptimalConstraintTree
            secant_method, knn_sample, build_knn_tree,
            find_knn, classify_patches,
            # Functions on BlackBoxFunctions and DataConstraints
-           add_data!,
+           add_data!, match_bbfs_to_vars,
            # Functions on IAI structs
            bin_to_leaves, regress,
            # Functions on JuMP objects
