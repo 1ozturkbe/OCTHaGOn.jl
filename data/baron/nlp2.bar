@@ -1,0 +1,19 @@
+// (Stoecker, 1971; modified)
+// solution is: x1=6.2934300, x2=3.8218391, x3=201.1593341
+// objective = 201.1593341  
+
+POSITIVE_VARIABLES x1, x2, x3;
+
+UPPER_BOUNDS{
+x1: 9.422;
+x2: 5.9023;
+x3: 267.417085245;
+}
+
+EQUATIONS e1, e2, e3;
+
+e1: 250 + 30*x1 - 6*x1^2 - x3 == 0;
+e2: 300 + 20*x2 - 12*x2^2 - x3 == 0;
+e3: 150 + 0.5*(x1+x2)^2 - x3 == 0;
+
+OBJ: minimize x3;

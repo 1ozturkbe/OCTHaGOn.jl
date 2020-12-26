@@ -1,0 +1,14 @@
+// solution is x1=6, x2=2/3; objective = -6.666667
+
+POSITIVE_VARIABLES x1, x2;
+
+UPPER_BOUNDS{
+x1: 6;
+x2: 4;
+}
+
+EQUATION e1;
+
+e1: x1*x2 <= 4;
+
+OBJ: minimize -x1 - x2;

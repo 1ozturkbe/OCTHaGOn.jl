@@ -9,8 +9,8 @@ function normalized_data(bbf::Union{BlackBoxFunction, DataConstraint})
     """ Normalizes and returns data (0-1) by lower and upper bounds."""
     bounds = get_bounds(bbf.vars)
     vks = string.(bbf.vars)
-    lbs = [minimum(value) for (key, value) in bounds]
-    ubs = [maximum(value) for (key, value) in bounds]
+    lbs = [minimum(val) for (key, val) in bounds]
+    ubs = [maximum(val) for (key, val) in bounds]
     normalized_X = reduce(hcat,[(bbf.X[:, i] .- lbs[i]) ./(ubs[i] - lbs[i]) for i=1:length(vks)]);
     return normalized_X
 end
