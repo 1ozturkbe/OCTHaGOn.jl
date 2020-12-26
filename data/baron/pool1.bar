@@ -1,0 +1,28 @@
+// use the general purpose NLP module to solve a small pooling problem
+
+POSITIVE_VARIABLE x1, x2, x3, x4, x5, x6, x7;
+
+LOWER_BOUNDS{
+x2 : 3;
+x3 : 1;
+x4 : 2;
+}
+
+UPPER_BOUNDS{
+x1 : 10;
+x2 : 20;
+x3 : 2;
+x4 : 4;
+x5 : 10;
+x6: 201;
+x7: 100;
+}
+
+EQUATIONS  e1,e2,e3, e4;
+
+e1 : x3^2+x4^2 <= 12;
+e2 : 3 <= x1^2-x2^2+x4^2 <= 100;
+e3 : 10 <= x1+x2-5*x3+2*x4 <= 20;
+e4 : x4 -x6^2 +4*x7^2 <= 0;
+
+OBJ : minimize 6*x1 + 16*x2 -9*x3 - 10*x4;

@@ -65,7 +65,7 @@ end
 Returns variables with no lower and/or upper bounds.
 """
 function get_unbounds(vars::Array{VariableRef})
-    bounds = Dict();
+    bounds = Dict{JuMP.VariableRef, Array}();
     for var in vars
         if JuMP.has_lower_bound(var)
             if !JuMP.has_upper_bound(var)
@@ -93,7 +93,7 @@ function data_to_DataFrame(data::Union{Dict, DataFrame, DataFrameRow})
     elseif data isa DataFrameRow
         return DataFrame(data)
     else
-        newdata = Dict(string(key) => value for (key, value) in data)
+        newdata = Dict(string(key) => val for (key, val) in data)
         return DataFrame(newdata)
     end
 end
@@ -103,7 +103,7 @@ end
     distance_to_set(val::Union{Array{<:Real},<:Real}, set::MOI.AbstractSet)
 
 Wrapper around MathOptSetDistances.distance_to_set.
-Distance 0 if value ∈ set. Otherwise, returns Float64.
+Distance 0 if val ∈ set. Otherwise, returns Float64.
 """
 function distance_to_set(val::Union{Array{<:Real},<:Real}, set::MOI.AbstractSet)
 

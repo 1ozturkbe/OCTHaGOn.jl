@@ -12,7 +12,7 @@ Turns data into a Dict, with JuMP.VariableRef subs.
 """
 function data_to_Dict(data::Union{Dict, DataFrame, DataFrameRow}, model::JuMP.Model)
     if data isa Dict
-        return Dict(fetch_variable(model, key) => value for (key, value) in data)
+        return Dict(fetch_variable(model, key) => val for (key, val) in data)
     else
         colnames = names(data)
         if size(data, 1) == 1
