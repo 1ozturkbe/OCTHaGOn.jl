@@ -69,7 +69,7 @@ linearize_objective!(model);
 
 # "sanitizing data"
 inp = Dict(x[1] => 1., x[2] => 2, x[3] => 3, x[4] => 4, x[5] => 1, y[1] => 5, y[2] => -6, y[3] => -7, z => 7)
-inp_dict = Dict(string(key) => value for (key, value) in inp)
+inp_dict = Dict(string(key) => val for (key, val) in inp)
 inp_df = DataFrame(inp_dict)
 @test data_to_DataFrame(inp) == data_to_DataFrame(inp_dict) == data_to_DataFrame(inp_df) == inp_df
 @test data_to_Dict(inp_df, model) == data_to_Dict(inp, model) == data_to_Dict(inp_dict, model) == inp

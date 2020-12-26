@@ -45,7 +45,7 @@ function recipe(gm)
     return
 end
 
-@test gams_import_checks()
+# @test gams_import_checks()
 
 filename = "problem3.13.gms"
 gm =  GAMS_to_GlobalModel(OCT.GAMS_DIR, filename)

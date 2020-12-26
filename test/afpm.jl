@@ -40,9 +40,9 @@ end
 # Bounding and Integer constraints for input variables
 N_coils, TPC, p = inputs[4:6];
 # baseline = Dict(inputs[i] => [13, 7.6, 1., 18, 10, 16, 0.15, 3.0, 0.45][i] for i=1:length(varkeys));
-# ranges = Dict(key => [0.5*value, 1.5*value] for (key, value) in baseline);
+# ranges = Dict(key => [0.5*val, 1.5*val] for (key, val) in baseline);
 # ranges[inputs[9]] = [0.25*baseline[inputs[9]], 2.25*baseline[inputs[9]]]; # wire_A needs special care...
-# ranges = Dict(key => log.(value) for (key, value) in ranges)
+# ranges = Dict(key => log.(val) for (key, val) in ranges)
 ranges = Dict(var => [log.(minimum(X[string(var)])),log.(maximum(X[string(var)]))] for var in inputs)
 
 # Bounding for output variables of interest
