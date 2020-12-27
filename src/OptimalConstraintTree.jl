@@ -2,7 +2,6 @@ module OptimalConstraintTree
     using Combinatorics
     using ConicBenchmarkUtilities
     using DataFrames
-    using GAMSFiles
     using Gurobi
     using JuMP
     using LatinHypercubeSampling
@@ -98,8 +97,6 @@ module OptimalConstraintTree
             clear_data!,
             # Small scripts
             vars_from_expr, get_varmap, deconstruct, flat,
-            infarray, substitute, power,
-            # GAMS
-            GAMS_to_GlobalModel
+            infarray, substitute, power
 end
 

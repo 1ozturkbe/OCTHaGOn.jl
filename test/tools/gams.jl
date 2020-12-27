@@ -1,0 +1,219 @@
+using GAMSFiles
+using Ipopt
+
+""" Turns GAMSFiles.GCall into an Expr. """
+function eq_to_expr(eq::GAMSFiles.GCall, sets::Dict{String, Any})
+    @assert(length(eq.args)==2)
+    lhs, rhs, op = eq.args[1], eq.args[2], GAMSFiles.eqops[GAMSFiles.getname(eq)]
+    lhsexpr = convert(Expr, lhs)
+    rhsexpr = convert(Expr, rhs)
+    GAMSFiles.replace_reductions!(lhsexpr, sets)
+    GAMSFiles.replace_reductions!(rhsexpr, sets)
+    if op in [:(=), :>]
+        :($(lhsexpr) - $(rhsexpr))
+    elseif op == :<
+        :($(rhsexpr) - $(lhsexpr))
+    else
+        error("unexpected operator ", op)
+    end
+end
+
+""" Returns whether a GAMSFiles.GCall is an equality. """
+function is_equality(eq::GAMSFiles.GCall)
+    @assert(length(eq.args)==2)
+    GAMSFiles.eqops[GAMSFiles.getname(eq)] == :(=)
+end
+
+""" Finds and returns all varkeys in equation. """
+function find_vars_in_eq(eq::GAMSFiles.GCall, vardict::Dict{Symbol, Any})
+    vars = Symbol[]
+    lhs, rhs = eq.args[1], eq.args[2]
+    for (var, vinfo) in vardict
+        if GAMSFiles.hasvar(lhs, string(var)) || GAMSFiles.hasvar(rhs, string(var))
+            push!(vars, var)
+        end
+    end
+    return vars
+end
+
+""" Takes gams and turns them into JuMP.Variables"""
+function generate_variables!(model::JuMP.Model, gams::Dict{String, Any})
+    gamsvars = GAMSFiles.allvars(gams)
+    vardict = Dict{Symbol, Any}()
+    constdict = Dict{Symbol, Any}()
+    for (var, vinfo) in gamsvars
+        if vinfo isa Union{Array, Real}
+            model[Symbol(var)] = vinfo
+            constdict[Symbol(var)] = vinfo
+        elseif vinfo isa Base.RefValue
+            model[Symbol(var)] = vinfo.x
+            constdict[Symbol(var)] = vinfo.x
+        else
+            axs = vinfo.axs
+            if axs == ()
+                nv = @variable(model, base_name = var)
+                model[Symbol(var)] = nv
+                vardict[Symbol(var)] = nv
+            else
+                nv = JuMP.Containers.DenseAxisArray{JuMP.VariableRef}(undef, axs...)
+                for idx in eachindex(nv)
+                    nv[idx] = @variable(model)
+                    set_name(nv[idx], "$(var)[$(join(Tuple(idx),","))]")
+                end
+                model[Symbol(var)] = nv
+                vardict[Symbol(var)] = nv
+            end
+            for (prop, val) in vinfo.assignments
+                inds = map(x->x.val, prop.indices)
+                nv = model[Symbol(var)][inds...]
+                if isa(prop, Union{GAMSFiles.GText, GAMSFiles.GArray})
+                    c = val.val
+                    if prop.name ∈ ("l", "fx")
+                        JuMP.set_start_value(nv, c)
+                    elseif prop.name == "lo"
+                        JuMP.set_lower_bound(nv, c)
+                    elseif prop.name == "up"
+                        JuMP.set_upper_bound(nv, c)
+                    end
+                end
+            end
+        end
+    end
+    return vardict, constdict
+end
+
+""" Converts a GAMS optimization model to a GlobalModel."""
+function GAMS_to_GlobalModel(GAMS_DIR::String, filename::String)
+    model = JuMP.Model()
+    # Parsing GAMS Files
+    lexed = GAMSFiles.lex(GAMS_DIR * filename)
+    gams = GAMSFiles.parsegams(GAMS_DIR * filename)
+    GAMSFiles.parseconsts!(gams)
+
+    vars = GAMSFiles.getvars(gams["variables"])
+    sets = gams["sets"]
+    preexprs, bodyexprs = Expr[], Expr[]
+    if haskey(gams, "parameters") && haskey(gams, "assignments")
+        GAMSFiles.parseassignments!(preexprs, gams["assignments"], gams["parameters"], sets)
+    end
+
+    # Getting variables
+    vardict, constdict = generate_variables!(model, gams) # Actual JuMP variables
+
+    # Getting objective
+    if gams["minimizing"] isa String
+        @objective(model, Min, JuMP.variable_by_name(model, gams["minimizing"]))
+    else
+        @objective(model, Min, sum([JuMP.variable_by_name(i) for i in gams["minimizing"]]))
+    end
+
+    # Creating GlobalModel
+    gm = GlobalModel(model = model, name = filename)
+    equations = [] # For debugging purposes...
+    for (key, eq) in gams["equations"]
+        push!(equations, key => eq)
+    end
+    for (key, eq) in equations
+        if key isa GAMSFiles.GText
+            constr_expr = eq_to_expr(eq, sets)
+            # Substitute constant variables
+            constkeys = find_vars_in_eq(eq, constdict)
+            const_pairs = Dict(constkey => model[constkey] for constkey in constkeys)
+            for (constkey, constval) in const_pairs
+                constr_expr = substitute(constr_expr, :($constkey) => constval)
+            end
+            # Designate free variables
+            varkeys = find_vars_in_eq(eq, vardict)
+            vars = Array{VariableRef}(flat([vardict[varkey] for varkey in varkeys]))
+            input = Symbol.(varkeys)
+            constr_fn = :(($(input...),) -> $(constr_expr))
+            if length(input) == 1
+                constr_fn = :($(input...) -> $(constr_expr))
+            end
+            add_nonlinear_or_compatible(gm, constr_fn, vars = vars, expr_vars = [vardict[varkey] for varkey in varkeys],
+                                     equality = is_equality(eq), name = gm.name * "_" * GAMSFiles.getname(key))
+        elseif key isa GAMSFiles.GArray
+            axs = GAMSFiles.getaxes(key.indices, sets)
+            idxs = collect(Base.product([collect(ax) for ax in axs]...))
+            names = [gm.name * "_" * key.name * string(idx) for idx in idxs]
+            constr_expr = eq_to_expr(eq, sets)
+                    # Substitute constant variables
+            constkeys = find_vars_in_eq(eq, constdict)
+            const_pairs = Dict(Symbol(constkey) => model[constkey] for constkey in constkeys)
+            for (constkey, constval) in const_pairs
+                constr_expr = substitute(constr_expr, :($constkey) => constval)
+            end
+            # Designate free variables
+            varkeys = find_vars_in_eq(eq, vardict)
+            vars = Array{VariableRef}(flat([vardict[varkey] for varkey in varkeys]))
+            input = Symbol.(varkeys)
+            constr_fn = :(($(input...),) -> $(constr_expr))
+            if length(input) == 1
+                constr_fn = :($(input...) -> $(constr_expr))
+            end
+            constr_fns = []
+            for idx in idxs
+                new_fn = copy(constr_fn)
+                for ax_number in 1:length(axs)
+                    new_fn = substitute(new_fn, Symbol(key.indices[ax_number].text) => idx[ax_number]);
+                end
+                push!(constr_fns, new_fn)
+            end
+            for i = 1:length(idxs)
+                add_nonlinear_or_compatible(gm, constr_fns[i], vars = vars, expr_vars = [vardict[varkey] for varkey in varkeys],
+                                         equality = is_equality(eq),
+                                         name = names[i])
+            end
+        end
+    end
+    return gm
+end
+
+""" Solver wrapper for GAMS benchmarking. """
+function nonlinear_solve(gm::GlobalModel; solver = Ipopt.Optimizer)
+    nonlinearize!(gm)
+    set_optimizer(gm, solver)
+    optimize!(gm)
+end
+
+function recipe(gm)
+    @info "GlobalModel " * gm.name * " in progress..."
+    set_optimizer(gm, Gurobi.Optimizer)
+    find_bounds!(gm, all_bounds=true)
+    gm.settings[:ignore_feasibility] = true
+    gm.settings[:ignore_accuracy] = true
+    sample_and_eval!(gm, n_samples = 500)
+    sample_and_eval!(gm, n_samples = 500)
+    @info ("Sample feasibilities ", feasibility(gm))
+    learn_constraint!(gm)
+    @info("Approximation accuracies: ", accuracy(gm))
+    save_fit(gm)
+    globalsolve(gm)
+    return
+end
+
+# filename = "problem3.13.gms"
+# gm =  GAMS_to_GlobalModel(OCT.GAMS_DIR, filename)
+# x = gm.model[:x]
+# @test length(gm.vars) == 8
+# @test all(bound == [0,100] for bound in values(get_bounds(flat(gm.model[:x]))))
+# @test length(gm.bbfs) == 1
+#
+# filename = "problem3.13.gms"
+# gm = GAMS_to_GlobalModel(OCT.GAMS_DIR, filename)
+# bound!(gm, Dict(var => [-1, 1] for var in [gm.model[:f], gm.model[:y]]))
+# # bound!(gm, Dict(gm.model[:objvar] => [-40,-30]))
+# # recipe(gm)
+#
+# set_optimizer(gm, Gurobi.Optimizer)
+# find_bounds!(gm, all_bounds=true)
+# bbf = gm.bbfs[1]
+# orig_bounds = get_bounds(bbf)
+# unbounds = get_unbounds(bbf)
+# @test length(unbounds) == 0
+# bounded_dict = Dict(key => val for (key, val) in orig_bounds if !any(isinf.(val)))
+#
+# gm =  GAMS_to_GlobalModel(OCT.GAMS_DIR, filename)
+# nonlinear_solve(gm)
+# feas, infeas = evaluate_feasibility(gm)
+# @test length(infeas) == 0
