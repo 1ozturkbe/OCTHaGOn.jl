@@ -1,9 +1,5 @@
-#=
-gams.jl:
-- Julia version: 1.5.1
-- Author: Berk
-- Date: 2020-12-13
-=#
+using GAMSFiles
+using Ipopt
 
 """ Turns GAMSFiles.GCall into an Expr. """
 function eq_to_expr(eq::GAMSFiles.GCall, sets::Dict{String, Any})
@@ -171,4 +167,27 @@ function GAMS_to_GlobalModel(GAMS_DIR::String, filename::String)
         end
     end
     return gm
+end
+
+""" Solver wrapper for GAMS benchmarking. """
+function nonlinear_solve(gm::GlobalModel; solver = Ipopt.Optimizer)
+    nonlinearize!(gm)
+    set_optimizer(gm, solver)
+    optimize!(gm)
+end
+
+function recipe(gm)
+    @info "GlobalModel " * gm.name * " in progress..."
+    set_optimizer(gm, Gurobi.Optimizer)
+    find_bounds!(gm, all_bounds=true)
+    gm.settings[:ignore_feasibility] = true
+    gm.settings[:ignore_accuracy] = true
+    sample_and_eval!(gm, n_samples = 500)
+    sample_and_eval!(gm, n_samples = 500)
+    @info ("Sample feasibilities ", feasibility(gm))
+    learn_constraint!(gm)
+    @info("Approximation accuracies: ", accuracy(gm))
+    save_fit(gm)
+    globalsolve(gm)
+    return
 end
