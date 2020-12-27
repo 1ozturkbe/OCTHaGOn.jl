@@ -91,7 +91,59 @@ function test_linearize()
     @objective(model, Min, x[3]^2)
     linearize_objective!(model);
     @test JuMP.objective_function(model) isa JuMP.VariableRef
+
+    @constraint(model, sum(x[4]^2 + x[5]^2) <= z)
+    @constraint(model, sum(y[:]) >= -2)
+    # Separation of model constraints
+    l_constrs, nl_constrs = classify_constraints(model)
+    @test length(l_constrs) == 27 && length(nl_constrs) == 1
 end
+
+function test_bbf()
+    model, x, y, z, a = test_model()
+    nl_constr = @constraint(model, sum(x[4]^2 + x[5]^2) <= z)
+    expr = :((x, y, z) -> sum(x[i] for i=1:4) - y[1] * y[2] + z)
+
+    # "Sanitizing" data
+    inp = Dict(x[1] => 1., x[2] => 2, x[3] => 3, x[4] => 4, x[5] => 1, y[1] => 5, y[2] => -6, y[3] => -7, z => 7)
+    inp_dict = Dict(string(key) => val for (key, val) in inp)
+    inp_df = DataFrame(inp_dict)
+    @test data_to_DataFrame(inp) == data_to_DataFrame(inp_dict) == data_to_DataFrame(inp_df) == inp_df
+    @test data_to_Dict(inp_df, model) == data_to_Dict(inp, model) == data_to_Dict(inp_dict, model) == inp
+
+    # Test BBF creation from a variety of functions
+    @test isnothing(functionify(nl_constr))
+    @test functionify(expr) isa Function
+    bbfs = [BlackBoxFunction(constraint = nl_constr, vars = [x[4], x[5], z]),
+        BlackBoxFunction(constraint = expr, vars = flat([x[1:4], y[1:2], z]),
+                         expr_vars = [x,y,z])]
+
+    # Evaluation (scalar)
+    # Quadratic (JuMP compatible) constraint
+    @test evaluate(bbfs[1], inp) == evaluate(bbfs[1], inp_dict) == evaluate(bbfs[1], inp_df) == -10.
+    # Nonlinear expression
+    @test evaluate(bbfs[2], inp) == evaluate(bbfs[2], inp_dict) == evaluate(bbfs[2], inp_df)
+
+    # Evaluation (vector)
+    inp_df = DataFrame(-5 .+ 10 .*rand(3, size(inp_df,2)), string.(keys(inp)))
+    inp_dict = data_to_Dict(inp_df, model)
+    @test evaluate(bbfs[1], inp_dict) == evaluate(bbfs[1], inp_df) == inp_df[!, "z"] -
+                                                    inp_df[!, "x[4]"].^2 - inp_df[!, "x[5]"].^2
+    @test evaluate(bbfs[2], inp_dict) == evaluate(bbfs[2], inp_df)
+
+    # BBF CHECKS
+    bbf = bbfs[1]
+
+    # Check evaluation of samples
+    samples = DataFrame(randn(10, length(bbf.vars)),string.(bbf.vars))
+    vals = bbf(samples);
+    @test vals ≈ -1*samples[!, "x[4]"].^2 - samples[!, "x[5]"].^2 + samples[!, "z"]
+
+    # TODO: TRY BlackBoxFunction(constraint = expr)!
+end
+
+
+
 
 test_expressions()
 
@@ -103,62 +155,8 @@ test_sets()
 
 test_linearize()
 
+test_bbf()
 
-#
-#
-# @constraint(model, sum(x[4]^2 + x[5]^2) <= z)
-# @constraint(model, sum(y[:]) >= -2)
-#
-#
-
-#
-
-#
-
-#
-# # "sanitizing data"
-# inp = Dict(x[1] => 1., x[2] => 2, x[3] => 3, x[4] => 4, x[5] => 1, y[1] => 5, y[2] => -6, y[3] => -7, z => 7)
-# inp_dict = Dict(string(key) => val for (key, val) in inp)
-# inp_df = DataFrame(inp_dict)
-# @test data_to_DataFrame(inp) == data_to_DataFrame(inp_dict) == data_to_DataFrame(inp_df) == inp_df
-# @test data_to_Dict(inp_df, model) == data_to_Dict(inp, model) == data_to_Dict(inp_dict, model) == inp
-#
-#
-# # Separation of constraints of generated nl_model
-# nl_model = copy(model) # NOTE: copy only works if JuMP.Model has no NLconstraints.
-# l_constrs, nl_constrs = classify_constraints(nl_model)
-# @test length(l_constrs) == 32 && length(nl_constrs) == 1
-
-#
-# # Test BBF creation from a variety of functions
-# @test isnothing(functionify(nl_constrs[1]))
-# @test functionify(expr) isa Function
-# # @test_throws
-# bbfs = [BlackBoxFunction(constraint = nl_constrs[1], vars = [x[4], x[5], z]),
-#         BlackBoxFunction(constraint = expr, vars = flat([x[1:4], y[1:2], z]),
-#                          expr_vars = [x,y,z])]
-#
-# # Evaluation (scalar)
-# # Quadratic (JuMP compatible) constraint
-# @test evaluate(bbfs[1], inp) == evaluate(bbfs[1], inp_dict) == evaluate(bbfs[1], inp_df) == -10.
-# # Nonlinear expression
-# @test evaluate(bbfs[2], inp) == evaluate(bbfs[2], inp_dict) == evaluate(bbfs[2], inp_df)
-#
-#
-# # Evaluation (vector)
-# inp_df = DataFrame(-5 .+ 10 .*rand(3, size(inp_df,2)), string.(keys(inp)))
-# inp_dict = data_to_Dict(inp_df, model)
-# @test evaluate(bbfs[1], inp_dict) == evaluate(bbfs[1], inp_df) == inp_df[!, "z"] - inp_df[!, "x[4]"].^2 - inp_df[!, "x[5]"].^2
-# @test evaluate(bbfs[2], inp_dict) == evaluate(bbfs[2], inp_df)
-#
-# # BBF CHECKS
-# bbf = bbfs[1]
-#
-# # Check evaluation of samples
-# samples = DataFrame(randn(10, length(bbf.vars)),string.(bbf.vars))
-# vals = bbf(samples);
-# @test vals ≈ -1*samples[!, "x[4]"].^2 - samples[!, "x[5]"].^2 + samples[!, "z"]
-#
 # # Checks different kinds of sampling
 # X_bound = boundary_sample(bbf);
 # @test size(X_bound, 1) == 2^(length(bbf.vars)+1)
