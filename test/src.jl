@@ -10,140 +10,186 @@ without *many* machine learning components
 # SOURCE TESTS #
 ##########################
 
-# Test model, with "user-generated" variables, as well as programmatic ones
-model = Model()
-@variables(model, begin
-    -5 <= x[1:5] <= 5
-    -4 <= y[1:3] <= 1
-    -30 <= z
-    -2 <= a[1:2, 1:3] <= 2
-end)
+""" Test JuMP model with a variety of variable bounds and sizes. """
+function test_model()
+    model = Model()
+    @variables(model, begin
+        -5 <= x[1:5] <= 5
+        -4 <= y[1:3] <= 1
+        -30 <= z
+        -2 <= a[1:2, 1:3]
+    end)
+    JuMP.set_upper_bound(a[2,2], 3)
+    JuMP.set_upper_bound(a[1,1], 3)
+    return model, x, y, z, a
+end
 
-# Testing expression parsing
-expr = :((x, y, z) -> sum(x[i] for i=1:4) - y[1] * y[2] + z)
-simp_expr = :(x -> sum(5 .* x))
-f = eval(expr)
-simp_f = eval(simp_expr)
-expr_vars = [x,y,z]
+""" Tests expression parsing. """
+function test_expressions()
+    model, x, y, z, a = test_model()
+    expr = :((x, y, z) -> sum(x[i] for i=1:4) - y[1] * y[2] + z)
+    simp_expr = :(x -> sum(5 .* x))
+    f = functionify(expr)
 
-@test f(ones(4), ones(2),5) isa Float64
-@test f(x,y,z) isa JuMP.GenericQuadExpr && f(expr_vars...) == sum(x[1:4]) - y[1] * y[2] + z
-@test vars_from_expr(expr, model) == expr_vars
-@test vars_from_expr(simp_expr, model) == [x]
+    # Testing function evaluation
+    res = Base.invokelatest(f, (ones(4), ones(2),5)...)
+    @test res isa Float64
+    res = Base.invokelatest(f, (x, y, z)...)
+    @test res isa JuMP.GenericQuadExpr
+    @test res == sum(x[1:4]) - y[1] * y[2] + z
 
-# Testing "flattening of expressions" for nonlinearization
-vars = vars_from_expr(expr, model)
-var_ranges = [(1:5),(6:8),9]
-flat_expr = :((x...) -> $(expr)([x[i] for i in $(var_ranges)]...))
-fn = eval(flat_expr)
-@test fn([1,2,3,4,1,5,-6,-7,7]...) == f([1,2,3,4,1], [5,-6,-7], 7)
-@test fn(flat(vars)...) == f(x,y,z)
+    # Testing variable input parsing from expression
+    @test vars_from_expr(expr, model) == [x,y,z]
+    @test vars_from_expr(simp_expr, model) == [x]
+    @test vars_from_expr(:((x, a) -> x[2] + a[2,2]),model) == [x, a]
 
-@constraint(model, sum(x[4]^2 + x[5]^2) <= z)
-@constraint(model, sum(y[:]) >= -2)
+    # Testing "flattening of expressions" for nonlinearization
+    vars = vars_from_expr(expr, model)
+    var_ranges = [(1:5),(6:8),9]
+    flat_expr = :((x...) -> $(expr)([x[i] for i in $(var_ranges)]...))
+    fn = functionify(flat_expr)
+    @test Base.invokelatest(fn, [1,2,3,4,1,5,-6,-7,7]...) == Base.invokelatest(f, ([1,2,3,4,1], [5,-6,-7], 7)...)
+    @test Base.invokelatest(fn, flat(vars)...) == res
 
-# Testing proper mapping for expressions
-flatvars = flat([y[2], z, x[1:4]])
-vars = vars_from_expr(expr, model)
-@test get_varmap(vars, flatvars) == [(2,2), (3,0), (1,1), (1, 2), (1,3), (1,4)]
-@test infarray([(1,4), (1,3), (2,0)]) == [[Inf, Inf, Inf, Inf], Inf]
+    # Testing proper mapping for expressions
+    flatvars = flat([y[2], z, x[1:4]])
+    vars = vars_from_expr(expr, model)
+    @test get_varmap(vars, flatvars) == [(2,2), (3,0), (1,1), (1, 2), (1,3), (1,4)]
+    @test infarray([(1,4), (1,3), (2,0)]) == [[Inf, Inf, Inf, Inf], Inf]
+end
 
-# Testing getting variables
-varkeys = ["x[1]", x[1], :z, :x];
-vars = [x[1], x[1], z, x[:]];
-@test all(vars .==  fetch_variable(model, varkeys))
+function test_variables()
+    model, x, y, z, a  = test_model()
 
-# Bounds and fixing variables
-bounds = get_bounds(model);
-@test bounds[z] == [-30., Inf]
-bounds = Dict(:x => [-10,1], z => [-10, 10])
-bound!(model, bounds)
-@test get_bounds(model)[z] == [-10, 10]
-@test get_bounds(model)[x[3]] == [-5, 1]
+    # Testing getting variables
+    varkeys = ["x[1]", x[1], :z, :x];
+    vars = [x[1], x[1], z, x[:]];
+    @test all(vars .==  fetch_variable(model, varkeys))
+end
 
-# Linearization of objective
-linearize_objective!(model);
-@objective(model, Min, x[3]^2)
-linearize_objective!(model);
-@test JuMP.objective_function(model) isa JuMP.VariableRef
+function test_bounds()
+    model, x, y, z, a = test_model()
 
-# "sanitizing data"
-inp = Dict(x[1] => 1., x[2] => 2, x[3] => 3, x[4] => 4, x[5] => 1, y[1] => 5, y[2] => -6, y[3] => -7, z => 7)
-inp_dict = Dict(string(key) => val for (key, val) in inp)
-inp_df = DataFrame(inp_dict)
-@test data_to_DataFrame(inp) == data_to_DataFrame(inp_dict) == data_to_DataFrame(inp_df) == inp_df
-@test data_to_Dict(inp_df, model) == data_to_Dict(inp, model) == data_to_Dict(inp_dict, model) == inp
+    # Bounds and fixing variables
+    bounds = get_bounds(model);
+    @test bounds[z] == [-30., Inf]
+    bounds = Dict(:x => [-10,1], z => [-10, 10])
+    bound!(model, bounds)
+    @test get_bounds(model)[z] == [-10, 10]
+    @test get_bounds(model)[x[3]] == [-5, 1]
+end
 
+function test_sets()
+    sets = [MOI.GreaterThan(2), MOI.EqualTo(0), MOI.SecondOrderCone(3), MOI.GeometricMeanCone(2), MOI.SOS1([1,2,3])]
+    @test get_constant.(sets) == [2, 0, nothing, nothing, nothing]
+end
 
-# Separation of constraints of generated nl_model
-nl_model = copy(model) # NOTE: copy only works if JuMP.Model has no NLconstraints.
-l_constrs, nl_constrs = classify_constraints(nl_model)
-@test length(l_constrs) == 32 && length(nl_constrs) == 1
+function test_linearize()
+    model, x, y, z, a = test_model()
+    # Linearization of objective
+    linearize_objective!(model);
+    @objective(model, Min, x[3]^2)
+    linearize_objective!(model);
+    @test JuMP.objective_function(model) isa JuMP.VariableRef
+end
 
-# Set constants
-sets = [MOI.GreaterThan(2), MOI.EqualTo(0), MOI.SecondOrderCone(3), MOI.GeometricMeanCone(2), MOI.SOS1([1,2,3])]
-@test get_constant.(sets) == [2, 0, nothing, nothing, nothing]
+test_expressions()
 
-# Test BBF creation from a variety of functions
-@test isnothing(functionify(nl_constrs[1]))
-@test functionify(expr) isa Function
-# @test_throws
-bbfs = [BlackBoxFunction(constraint = nl_constrs[1], vars = [x[4], x[5], z]),
-        BlackBoxFunction(constraint = expr, vars = flat([x[1:4], y[1:2], z]),
-                         expr_vars = [x,y,z])]
+test_variables()
 
-# Evaluation (scalar)
-# Quadratic (JuMP compatible) constraint
-@test evaluate(bbfs[1], inp) == evaluate(bbfs[1], inp_dict) == evaluate(bbfs[1], inp_df) == -10.
-# Nonlinear expression
-@test evaluate(bbfs[2], inp) == evaluate(bbfs[2], inp_dict) == evaluate(bbfs[2], inp_df)
+test_bounds()
+
+test_sets()
+
+test_linearize()
 
 
-# Evaluation (vector)
-inp_df = DataFrame(-5 .+ 10 .*rand(3, size(inp_df,2)), string.(keys(inp)))
-inp_dict = data_to_Dict(inp_df, model)
-@test evaluate(bbfs[1], inp_dict) == evaluate(bbfs[1], inp_df) == inp_df[!, "z"] - inp_df[!, "x[4]"].^2 - inp_df[!, "x[5]"].^2
-@test evaluate(bbfs[2], inp_dict) == evaluate(bbfs[2], inp_df)
+#
+#
+# @constraint(model, sum(x[4]^2 + x[5]^2) <= z)
+# @constraint(model, sum(y[:]) >= -2)
+#
+#
 
-# BBF CHECKS
-bbf = bbfs[1]
+#
 
-# Check evaluation of samples
-samples = DataFrame(randn(10, length(bbf.vars)),string.(bbf.vars))
-vals = bbf(samples);
-@test vals ≈ -1*samples[!, "x[4]"].^2 - samples[!, "x[5]"].^2 + samples[!, "z"]
+#
 
-# Checks different kinds of sampling
-X_bound = boundary_sample(bbf);
-@test size(X_bound, 1) == 2^(length(bbf.vars)+1)
-@test_throws OCTException knn_sample(bbf, k=3)
-X_lh = lh_sample(bbf);
+#
+# # "sanitizing data"
+# inp = Dict(x[1] => 1., x[2] => 2, x[3] => 3, x[4] => 4, x[5] => 1, y[1] => 5, y[2] => -6, y[3] => -7, z => 7)
+# inp_dict = Dict(string(key) => val for (key, val) in inp)
+# inp_df = DataFrame(inp_dict)
+# @test data_to_DataFrame(inp) == data_to_DataFrame(inp_dict) == data_to_DataFrame(inp_df) == inp_df
+# @test data_to_Dict(inp_df, model) == data_to_Dict(inp, model) == data_to_Dict(inp_dict, model) == inp
+#
+#
+# # Separation of constraints of generated nl_model
+# nl_model = copy(model) # NOTE: copy only works if JuMP.Model has no NLconstraints.
+# l_constrs, nl_constrs = classify_constraints(nl_model)
+# @test length(l_constrs) == 32 && length(nl_constrs) == 1
 
-# Check sample_and_eval
-sample_and_eval!(bbf, n_samples=100);
-sample_and_eval!(bbf, n_samples=100);
-
-# Sampling, learning and showing...
-# plot_2d(bbf);
-learn_constraint!(bbf);
-# show_trees(bbf);
-
-# Showing correct vs incorrect predictions
-# plot_2d_predictions(bbf);
-
-# Check infeasible bounds
-new_bounds = Dict(x[4] => [-10,-6])
-@test_throws OCTException OptimalConstraintTree.check_infeasible_bounds(model, new_bounds)
-@test_throws OCTException bound!(model, new_bounds)
-
-# Check unbounded sampling
-JuMP.delete_lower_bound(z)
-@test_throws OCTException X = lh_sample(bbf, n_samples=100);
-bound!(model, Dict(z => [-10,10]))
-
-# Check feasibility and accuracy
-@test 0 <= feasibility(bbf) <= 1
-@test 0 <= accuracy(bbf) <= 1
-
-# Training a model
-add_feas_constraints!(model, bbf.vars, bbf.learners[1].lnr, return_data = false);
+#
+# # Test BBF creation from a variety of functions
+# @test isnothing(functionify(nl_constrs[1]))
+# @test functionify(expr) isa Function
+# # @test_throws
+# bbfs = [BlackBoxFunction(constraint = nl_constrs[1], vars = [x[4], x[5], z]),
+#         BlackBoxFunction(constraint = expr, vars = flat([x[1:4], y[1:2], z]),
+#                          expr_vars = [x,y,z])]
+#
+# # Evaluation (scalar)
+# # Quadratic (JuMP compatible) constraint
+# @test evaluate(bbfs[1], inp) == evaluate(bbfs[1], inp_dict) == evaluate(bbfs[1], inp_df) == -10.
+# # Nonlinear expression
+# @test evaluate(bbfs[2], inp) == evaluate(bbfs[2], inp_dict) == evaluate(bbfs[2], inp_df)
+#
+#
+# # Evaluation (vector)
+# inp_df = DataFrame(-5 .+ 10 .*rand(3, size(inp_df,2)), string.(keys(inp)))
+# inp_dict = data_to_Dict(inp_df, model)
+# @test evaluate(bbfs[1], inp_dict) == evaluate(bbfs[1], inp_df) == inp_df[!, "z"] - inp_df[!, "x[4]"].^2 - inp_df[!, "x[5]"].^2
+# @test evaluate(bbfs[2], inp_dict) == evaluate(bbfs[2], inp_df)
+#
+# # BBF CHECKS
+# bbf = bbfs[1]
+#
+# # Check evaluation of samples
+# samples = DataFrame(randn(10, length(bbf.vars)),string.(bbf.vars))
+# vals = bbf(samples);
+# @test vals ≈ -1*samples[!, "x[4]"].^2 - samples[!, "x[5]"].^2 + samples[!, "z"]
+#
+# # Checks different kinds of sampling
+# X_bound = boundary_sample(bbf);
+# @test size(X_bound, 1) == 2^(length(bbf.vars)+1)
+# @test_throws OCTException knn_sample(bbf, k=3)
+# X_lh = lh_sample(bbf);
+#
+# # Check sample_and_eval
+# sample_and_eval!(bbf, n_samples=100);
+# sample_and_eval!(bbf, n_samples=100);
+#
+# # Sampling, learning and showing...
+# # plot_2d(bbf);
+# learn_constraint!(bbf);
+# # show_trees(bbf);
+#
+# # Showing correct vs incorrect predictions
+# # plot_2d_predictions(bbf);
+#
+# # Check infeasible bounds
+# new_bounds = Dict(x[4] => [-10,-6])
+# @test_throws OCTException OptimalConstraintTree.check_infeasible_bounds(model, new_bounds)
+# @test_throws OCTException bound!(model, new_bounds)
+#
+# # Check unbounded sampling
+# JuMP.delete_lower_bound(z)
+# @test_throws OCTException X = lh_sample(bbf, n_samples=100);
+# bound!(model, Dict(z => [-10,10]))
+#
+# # Check feasibility and accuracy
+# @test 0 <= feasibility(bbf) <= 1
+# @test 0 <= accuracy(bbf) <= 1
+#
+# # Training a model
+# add_feas_constraints!(model, bbf.vars, bbf.learners[1].lnr, return_data = false);
