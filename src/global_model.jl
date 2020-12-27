@@ -103,18 +103,19 @@ function get_min(a,b)
 end
 
 """ Checks whether any defined bounds are infeasible by given Model. """
-function check_infeasible_bounds(model::Union{GlobalModel, JuMP.Model}, bounds::Dict)
-    all_bounds = get_bounds(model);
-    lbs_model = Dict(key => minimum(val) for (key, val) in all_bounds)
-    ubs_model = Dict(key => maximum(val) for (key, val) in all_bounds)
-    lbs_bounds = Dict(key => minimum(val) for (key, val) in bounds)
-    ubs_bounds = Dict(key => maximum(val) for (key, val) in bounds)
-    nlbs = merge(get_max, lbs_model, lbs_bounds)
-    nubs = merge(get_min, ubs_model, ubs_bounds)
-    if any([nlbs[var] .> nubs[var] for var in keys(nlbs)])
+function check_infeasible_bound(model::Union{GlobalModel, JuMP.Model},
+                                bound::Pair{JuMP.VariableRef, <:Array})
+    key = bound.first
+    val = bound.second
+    @assert length(val) == 2
+    model_bounds = get_bound(model, key)
+    if minimum(model_bounds) >= maximum(val) || maximum(model_bounds) <= minimum(val)
         throw(OCTException("Infeasible bounds."))
+    else
+        tightest = [maximum([minimum(model_bounds), minimum(val)]),
+                    minimum([maximum(model_bounds), maximum(val)])]
+        return key => tightest
     end
-    return
 end
 
 """
@@ -263,33 +264,27 @@ function nonlinearize!(gm::GlobalModel)
     nonlinearize!(gm, gm.bbfs)
 end
 
-"""Adds outer bounds to JuMP Model from dictionary of data. """
-function bound!(model::JuMP.Model, bounds::Dict)
-    check_infeasible_bounds(model, bounds)
-    for (key, val) in bounds
-        @assert val isa Array && length(val) == 2
-        var = fetch_variable(model, key);
-        if var isa Array # make sure all elements are bounded.
-            for v in var
-                bound!(model, Dict(v => val))
-            end
-        else
-            if JuMP.has_lower_bound(var) && JuMP.lower_bound(var) <= minimum(val)
-                JuMP.set_lower_bound(var, minimum(val))
-            elseif !JuMP.has_lower_bound(var) && !isinf(minimum(val))
-                JuMP.set_lower_bound(var, minimum(val))
-            end
-            if JuMP.has_upper_bound(var) && JuMP.upper_bound(var) >= maximum(val)
-                JuMP.set_upper_bound(var, maximum(val))
-            elseif !JuMP.has_upper_bound(var) && !isinf(maximum(val))
-                JuMP.set_upper_bound(var, maximum(val))
-            end
-        end
-    end
+"""
+    bound!(model::JuMP.Model, bound::Pair)
+    bound!(model::JuMP.Model, bounds::Dict)
+    bound!(model::GlobalModel, bounds::Union{Pair,Dict})
+
+Adds outer bounds to JuMP Model from Dict or Pair of data.
+"""
+function bound!(model::JuMP.Model, bound::Pair{JuMP.VariableRef, <:Array})
+    tightest_bound = check_infeasible_bound(model, bound)
+    JuMP.set_lower_bound(f.first, minimum(tightest_bound))
+    JuMP.set_upper_bound(f.first, maximum(tightest_bound))
     return
 end
 
-function bound!(model::GlobalModel, bounds::Dict)
+function bound!(model::JuMP.Model, bounds::Dict)
+    for bd in collect(bounds)
+        bound!(model, bd)
+    end
+end
+
+function bound!(model::GlobalModel, bounds::Union{Pair,Dict})
     bound!(model.model, bounds)
 end
 
