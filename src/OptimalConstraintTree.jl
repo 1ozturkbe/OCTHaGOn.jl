@@ -49,8 +49,6 @@ module OptimalConstraintTree
 
     include("plot.jl")
 
-    include("gams.jl")
-
            # Structs
     export GlobalModel, BlackBoxFunction, DataConstraint,
            # GlobalModel Functions
