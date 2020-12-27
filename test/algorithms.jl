@@ -44,8 +44,9 @@ function test_basic_functions()
     @test true
 end
 
-function test_load_fits()
-    gm = sagemark_to_GlobalModel(3; lse=false);
+""" Tests loading of previously solved GMs.
+NOTE: test_basic_functions MUST be called first. """
+function test_load_fits(gm::GlobalModel = sagemark_to_GlobalModel(3; lse=false))
     set_optimizer(gm, Gurobi.Optimizer);
     load_fit(gm);
     @test all([bbf.settings[:reloaded] == true for bbf in gm.bbfs])
@@ -60,8 +61,17 @@ function test_nonlinear_solve(gm::GlobalModel = GAMS_to_GlobalModel(OCT.GAMS_DIR
     @test length(infeas) == 0
 end
 
+function test_find_bounds(gm::GlobalModel = GAMS_to_GlobalModel(OCT.GAMS_DIR, "problem3.13.gms"))
+    set_optimizer(gm, Gurobi.Optimizer)
+    old_bounds = get_bounds(gm.bbfs)
+    linear_bounds = find_linear_bounds!(gm)
+    @test true
+end
+
 test_basic_functions()
 
 test_load_fits()
 
 test_nonlinear_solve()
+
+test_find_bounds()

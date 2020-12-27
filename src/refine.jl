@@ -6,6 +6,37 @@ refine:
 Refining of variable domains and solutions.
 =#
 
+function find_linear_bounds!(gm::GlobalModel; bbfs::Array{BlackBoxFunction} = gm.bbfs, M=1e5, all_bounds::Bool = false)
+    unbounds = get_unbounds(bbfs)
+    if all_bounds
+        unbounds = get_bounds(bbfs)
+    end
+    clear_tree_constraints!(gm)
+    m = gm.model
+    orig_objective = JuMP.objective_function(m)
+    new_bounds = copy(unbounds)
+    @showprogress 0.5 "Finding bounds..." for var in collect(keys(unbounds))
+        if isinf(unbounds[var][1]) || all_bounds
+            @objective(m, Min, var);
+            JuMP.optimize!(m);
+            if termination_status(m) == MOI.OPTIMAL
+                new_bounds[var][1] = getvalue(var);
+            end
+        end
+        if isinf(unbounds[var][2]) || all_bounds
+            @objective(m, Max, var);
+            JuMP.optimize!(m);
+            if termination_status(m) == MOI.OPTIMAL
+                new_bounds[var][2] = getvalue(var);
+            end
+        end
+    end
+    # Revert objective, bounds and return new_bounds
+    @objective(m, Min, orig_objective)
+    bound!(gm, new_bounds)
+    return new_bounds
+end
+
 
 """
     find_bounds!(gm::GlobalModel; bbfs::Array{BlackBoxFunction} = [], M = 1e5, all_bounds::Bool=true)
@@ -15,34 +46,11 @@ and listed BBFs.
 TODO: improve! Only find bounds of non-binary variables.
 """
 function find_bounds!(gm::GlobalModel; bbfs::Array{BlackBoxFunction} = BlackBoxFunction[], M = 1e5, all_bounds::Bool=true)
-    new_bounds = Dict(var => [-Inf, Inf] for var in gm.vars)
-    # Finding bounds by min/maximizing each variable
-    clear_tree_constraints!(gm)
-    m = gm.model;
-    x = gm.vars;
-    old_bounds = get_bounds(m);
-    orig_objective = JuMP.objective_function(gm.model)
-    @showprogress 0.5 "Finding bounds..." for var in gm.vars
-        if isinf(old_bounds[var][1]) || all_bounds
-            @objective(m, Min, var);
-            JuMP.optimize!(m);
-            if termination_status(m) == MOI.OPTIMAL
-                new_bounds[var][1] = getvalue(var);
-            end
-        end
-        if isinf(old_bounds[var][2]) || all_bounds
-            @objective(m, Max, var);
-            JuMP.optimize!(m);
-            if termination_status(m) == MOI.OPTIMAL
-                new_bounds[var][2] = getvalue(var);
-            end
-        end
+    unbounds = get_unbounds(bbfs)
+    if all_bounds
+        unbounds = get_bounds(bbfs)
     end
-    # Revert objective
-    @objective(m, Min, orig_objective)
-    # Warning in case Inf bounds remain
-    bound!(gm, new_bounds)
-    unbounds = get_unbounds(gm)
+    linear_bounds = find_linear_bounds!(gm, bbfs = bbfs, M = M, all_bounds = all_bounds)
 #     if !isempty(unbounds)
 #         @warn("Unbounded variables in GlobalModel " * gm.name * " in BlackBoxFunctions...")
 #         @warn("Will try to tighten bounds through an exponential search, with M = " * string(M) * ".")
@@ -77,5 +85,5 @@ function find_bounds!(gm::GlobalModel; bbfs::Array{BlackBoxFunction} = BlackBoxF
 #             box_bounds = Dict(bbf.vars[i] => [minimum(feas_X[!,i]), maximum(feas_X[!,i])] for i=1:length(bbf.vars))
 #         end
 #     end
-    return
+    return linear_bounds
 end
