@@ -20,7 +20,7 @@ include("load.jl");
 
 #     include(string(OptimalConstraintTree.PROJECT_ROOT, "/test/cbf.jl"))
 
-#     include(string(OptimalConstraintTree.PROJECT_ROOT, "/test/algorithms.jl"))
+    include(string(OptimalConstraintTree.PROJECT_ROOT, "/test/algorithms.jl"))
 
 #     include(string(OptimalConstraintTree.PROJECT_ROOT, "/test/speedreducer.jl"))
 
