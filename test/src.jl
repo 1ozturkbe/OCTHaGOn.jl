@@ -77,6 +77,11 @@ function test_bounds()
     bound!(model, bounds)
     @test get_bounds(model)[z] == [-10, 10]
     @test get_bounds(model)[x[3]] == [-5, 1]
+
+    # Check infeasible bounds
+    new_bound = x[4] => [-10,-6]
+    @test_throws OCTException OCT.check_infeasible_bound(model, new_bound)
+    @test_throws OCTException bound!(model, new_bound)
 end
 
 function test_sets()
@@ -111,7 +116,7 @@ function test_bbf()
     @test data_to_DataFrame(inp) == data_to_DataFrame(inp_dict) == data_to_DataFrame(inp_df) == inp_df
     @test data_to_Dict(inp_df, model) == data_to_Dict(inp, model) == data_to_Dict(inp_dict, model) == inp
 
-    # Test BBF creation from a variety of functions
+    # Test BBF creation
     @test isnothing(functionify(nl_constr))
     @test functionify(expr) isa Function
     bbfs = [BlackBoxFunction(constraint = nl_constr, vars = [x[4], x[5], z]),
@@ -134,16 +139,40 @@ function test_bbf()
     # BBF CHECKS
     bbf = bbfs[1]
 
+    # Check unbounded sampling
+    @test_throws OCTException X = lh_sample(bbf, n_samples=100);
+
+    # Check knn_sampling without previous samples
+    @test_throws OCTException knn_sample(bbf, k=3)
+
     # Check evaluation of samples
     samples = DataFrame(randn(10, length(bbf.vars)),string.(bbf.vars))
     vals = bbf(samples);
     @test vals ≈ -1*samples[!, "x[4]"].^2 - samples[!, "x[5]"].^2 + samples[!, "z"]
 
     # TODO: TRY BlackBoxFunction(constraint = expr)!
+
+    # Checks different kinds of sampling
+    bound!(model, Dict(z => [-Inf, 10]))
+    X_bound = boundary_sample(bbf);
+    @test size(X_bound, 1) == 2^(length(bbf.vars)+1)
+    @test_throws OCTException knn_sample(bbf, k=3)
+    X_lh = lh_sample(bbf);
+
+    # Check sample_and_eval
+    sample_and_eval!(bbf, n_samples=100);
+    sample_and_eval!(bbf, n_samples=100);
+
+    # Sampling, learning and showing...
+    learn_constraint!(bbf);
+
+    # Check feasibility and accuracy
+    @test 0 <= feasibility(bbf) <= 1
+    @test 0 <= accuracy(bbf) <= 1
+
+    # Training a model
+    add_feas_constraints!(model, bbf.vars, bbf.learners[1].lnr, return_data = false);
 end
-
-
-
 
 test_expressions()
 
@@ -156,38 +185,3 @@ test_sets()
 test_linearize()
 
 test_bbf()
-
-# # Checks different kinds of sampling
-# X_bound = boundary_sample(bbf);
-# @test size(X_bound, 1) == 2^(length(bbf.vars)+1)
-# @test_throws OCTException knn_sample(bbf, k=3)
-# X_lh = lh_sample(bbf);
-#
-# # Check sample_and_eval
-# sample_and_eval!(bbf, n_samples=100);
-# sample_and_eval!(bbf, n_samples=100);
-#
-# # Sampling, learning and showing...
-# # plot_2d(bbf);
-# learn_constraint!(bbf);
-# # show_trees(bbf);
-#
-# # Showing correct vs incorrect predictions
-# # plot_2d_predictions(bbf);
-#
-# # Check infeasible bounds
-# new_bounds = Dict(x[4] => [-10,-6])
-# @test_throws OCTException OptimalConstraintTree.check_infeasible_bounds(model, new_bounds)
-# @test_throws OCTException bound!(model, new_bounds)
-#
-# # Check unbounded sampling
-# JuMP.delete_lower_bound(z)
-# @test_throws OCTException X = lh_sample(bbf, n_samples=100);
-# bound!(model, Dict(z => [-10,10]))
-#
-# # Check feasibility and accuracy
-# @test 0 <= feasibility(bbf) <= 1
-# @test 0 <= accuracy(bbf) <= 1
-#
-# # Training a model
-# add_feas_constraints!(model, bbf.vars, bbf.learners[1].lnr, return_data = false);
