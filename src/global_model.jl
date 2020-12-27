@@ -71,7 +71,7 @@ end
 
 Returns bounds of all variables.
 """
-function get_bounds(model::Union{GlobalModel, JuMP.Model, BlackBoxFunction, Array{BlackBoxFunction}})
+function get_bounds(model::Union{GlobalModel, JuMP.Model, BlackBoxFunction, Array{BlackBoxFunction, 1}})
     return get_bounds(all_variables(model))
 end
 
@@ -104,17 +104,17 @@ end
 
 """ Checks whether any defined bounds are infeasible by given Model. """
 function check_infeasible_bound(model::Union{GlobalModel, JuMP.Model},
-                                bound::Pair{JuMP.VariableRef, <:Array})
+                                bound::Pair)
     key = bound.first
     val = bound.second
-    @assert length(val) == 2
-    model_bounds = get_bound(model, key)
+    @assert key isa JuMP.VariableRef
+    @assert val isa Array
+    model_bounds = get_bound(key)
     if minimum(model_bounds) >= maximum(val) || maximum(model_bounds) <= minimum(val)
         throw(OCTException("Infeasible bounds."))
     else
-        tightest = [maximum([minimum(model_bounds), minimum(val)]),
+        return [maximum([minimum(model_bounds), minimum(val)]),
                     minimum([maximum(model_bounds), maximum(val)])]
-        return key => tightest
     end
 end
 
@@ -271,10 +271,21 @@ end
 
 Adds outer bounds to JuMP Model from Dict or Pair of data.
 """
-function bound!(model::JuMP.Model, bound::Pair{JuMP.VariableRef, <:Array})
-    tightest_bound = check_infeasible_bound(model, bound)
-    JuMP.set_lower_bound(f.first, minimum(tightest_bound))
-    JuMP.set_upper_bound(f.first, maximum(tightest_bound))
+function bound!(model::JuMP.Model, bound::Pair)
+    if !isa(bound.first, JuMP.VariableRef)
+        vars = fetch_variable(model, bound.first)
+        if vars isa JuMP.VariableRef
+            bound!(model, vars => bound.second)
+        elseif vars isa Array
+            bound!(model, Dict(var => bound.second for var in vars))
+        else
+            throw(OCTException("Bound with fetch_variable has failed. Try bounding using JuMP.VariableRefs!"))
+        end
+    else
+        tightest_bound = check_infeasible_bound(model, bound)
+        JuMP.set_lower_bound(bound.first, minimum(tightest_bound))
+        JuMP.set_upper_bound(bound.first, maximum(tightest_bound))
+    end
     return
 end
 
