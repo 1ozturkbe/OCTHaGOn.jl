@@ -190,7 +190,7 @@ function evaluate(bbf::BlackBoxFunction, data::Union{Dict, DataFrame})
         return vals
     else
         arrs = deconstruct(clean_data, bbf.vars, bbf.varmap)
-        vals = [bbf.fn(arr...) for arr in arrs]
+        vals = [Base.invokelatest(bbf.fn, (arr...)) for arr in arrs]
         return vals
     end
 end

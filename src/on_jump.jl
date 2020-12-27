@@ -40,23 +40,34 @@ function fetch_variable(model::JuMP.Model, varkey::Array)
     return [fetch_variable(model, key) for key in varkey]
 end
 
+""" Helper function for finding bounds. """
+function get_bound(var::JuMP.VariableRef)
+    if JuMP.has_lower_bound(var)
+        if JuMP.has_upper_bound(var)
+            return [JuMP.lower_bound(var), JuMP.upper_bound(var)]
+        else
+            return [JuMP.lower_bound(var), Inf]
+        end
+    else
+        if JuMP.has_upper_bound(var)
+            return [-Inf, JuMP.upper_bound(var)]
+        else
+            return [-Inf, Inf]
+        end
+    end
+end
+
 """
-    get_bounds(vars::Array{VariableRef})
+    get_bounds(var::JuMP.VariableRef})
+    get_bounds(vars::Array{JuMP.VariableRef})
 
 Returns bounds of JuMP variables.
 """
-function get_bounds(vars::Array{VariableRef})
-    bounds = Dict(var => [-Inf, Inf] for var in vars);
-    for var in vars
-        if JuMP.has_lower_bound(var)
-            bounds[var][1] = JuMP.lower_bound(var);
-        end
-        if JuMP.has_upper_bound(var)
-            bounds[var][2] = JuMP.upper_bound(var);
-        end
-    end
-    return bounds
+function get_bounds(var::JuMP.VariableRef)
+    return var => get_bound(var)
 end
+
+get_bounds(vars::Array{JuMP.VariableRef}) = Dict(get_bounds(var) for var in vars)
 
 """
     get_unbounds(vars::Array{VariableRef})

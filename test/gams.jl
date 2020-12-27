@@ -67,3 +67,8 @@ orig_bounds = get_bounds(bbf)
 unbounds = get_unbounds(bbf)
 @test length(unbounds) == 0
 bounded_dict = Dict(key => val for (key, val) in orig_bounds if !any(isinf.(val)))
+
+gm =  GAMS_to_GlobalModel(OCT.GAMS_DIR, filename)
+nonlinear_solve(gm)
+feas, infeas = evaluate_feasibility(gm)
+@test length(infeas) == 0
