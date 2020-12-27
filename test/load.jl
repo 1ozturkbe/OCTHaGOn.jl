@@ -18,3 +18,7 @@ global OCT = OptimalConstraintTree
 global MOI = MathOptInterface
 Random.seed!(1);
 MOI.Silent() = true
+
+include(string(OptimalConstraintTree.PROJECT_ROOT, "/test/tools/gams.jl"))
+
+include(string(OptimalConstraintTree.PROJECT_ROOT, "/test/tools/sagemark.jl"))

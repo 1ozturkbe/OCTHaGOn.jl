@@ -54,9 +54,17 @@ function test_gams_to_GlobalModel()
             throw(OCTException(filename * " has an import issue."))
         end
     end
+
+    # Testing problem import.
+    filename = "problem3.13.gms"
+    gm =  GAMS_to_GlobalModel(OCT.GAMS_DIR, filename)
+    x = gm.model[:x]
+    @test length(gm.vars) == 8
+    @test all(bound == [0,100] for bound in values(get_bounds(flat(gm.model[:x]))))
+    @test length(gm.bbfs) == 1
     return true
 end
 
-@test test_gams_to_GlobalModel()
+@test test_sagemark_to_GlobalModel()
 
 @test test_gams_to_GlobalModel()
