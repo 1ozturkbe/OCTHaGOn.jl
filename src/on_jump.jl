@@ -92,7 +92,7 @@ function get_unbounds(var::JuMP.VariableRef)
     end
 end
 
-function OCT.get_unbounds(vars::Array{JuMP.VariableRef})
+function get_unbounds(vars::Array{JuMP.VariableRef})
      unbounds = Dict()
      for var in vars
         res = get_unbounds(var)

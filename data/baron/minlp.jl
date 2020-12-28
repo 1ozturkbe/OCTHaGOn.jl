@@ -11,10 +11,10 @@
 # // Objective nonlinear
 # // Nonlinear constraints
 
-function minlp(gm::Bool = false)
+function minlp(gm::Bool = false, eps = 1e-10)
     m = JuMP.Model()
-    @variable(m, y[1:3], Bin)
-    @variable(m, x[1:3] >= 0)
+    @variable(m, 0 <= y[1:3] <= 1, Int)
+    @variable(m, x[1:3] >= eps)
     JuMP.set_upper_bound(x[1], 2)
     JuMP.set_upper_bound(x[2], 2)
     JuMP.set_upper_bound(x[3], 1)
