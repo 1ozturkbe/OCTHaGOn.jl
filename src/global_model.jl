@@ -358,12 +358,19 @@ end
 
 """
     solution(gm::GlobalModel)
+    solution(m::JuMP.Model)
 
-Returns the optimal solution of the GlobalModel.
+Returns the optimal solution of the GlobalModel/JuMP.Model in a DataFrame.
 """
 function solution(gm::GlobalModel)
     vals = getvalue.(gm.vars)
     return DataFrame(vals', string.(gm.vars))
+end
+
+function solution(m::JuMP.Model)
+    variables = all_variables(m)
+    vals = getvalue.(variables)
+    return DataFrame(vals', string.(variables))
 end
 
 """
