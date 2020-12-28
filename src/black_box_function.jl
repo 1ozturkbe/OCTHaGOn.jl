@@ -143,7 +143,7 @@ Also contains data w.r.t. samples from the function.
     leaf_variables::Array = []                         # and their binary leaf variables,
     accuracies::Array{Float64} = []                    # and the tree misclassification scores.
 
-    n_samples::Int = 100                               # For next set of samples, set and forget.
+    n_samples::Int = Int(ceil(200*sqrt(length(vars)))) # For next set of samples, set and forget.
     knn_tree::Union{KDTree, Nothing} = nothing         # KNN tree
     settings = bbf_defaults()                          # Relevant settings
 end
