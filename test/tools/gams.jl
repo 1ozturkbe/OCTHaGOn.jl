@@ -1,5 +1,4 @@
 using GAMSFiles
-using Ipopt
 
 """ Turns GAMSFiles.GCall into an Expr. """
 function eq_to_expr(eq::GAMSFiles.GCall, sets::Dict{String, Any})

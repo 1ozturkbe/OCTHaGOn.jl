@@ -51,18 +51,19 @@ TODO: improve! Only find bounds of non-binary variables.
 """
 
 function find_bounds!(gm::GlobalModel; bbfs::Array{BlackBoxFunction} = gm.bbfs, M = 1e5, all_bounds::Bool=true)
+    linear_bounds = find_linear_bounds!(gm, bbfs = bbfs, M = M, all_bounds = all_bounds)
     unbounds = get_unbounds(bbfs)
     if all_bounds
         unbounds = get_bounds(bbfs)
     end
-    linear_bounds = find_linear_bounds!(gm, bbfs = bbfs, M = M, all_bounds = all_bounds)
     if !isempty(unbounds)
         @warn("Unbounded variables in GlobalModel " * gm.name * " in BlackBoxFunctions...")
         @warn("Will try to tighten bounds through an exponential search, with M = " * string(M) * ".")
         unbounds = get_unbounds(gm)
         bbf_to_var = match_bbfs_to_vars(gm.bbfs, flat(keys(unbounds)))
+#         while length(unbounds) > 0 || iterations <= max_iterations
 #         for (bbf, unbounded_vars) in bbf_to_var
-#             last_unbounds = Dict(var => local_bounds[var] for var in unbounded_vars)
+#             last_unbounds = Dict(var => linear_bounds[var] for var in unbounded_vars)
 #             for (var, bounds) in last_unbounds
 #                 JuMP.set_lower_bound(var, 0)
 #                 JuMP.set_upper_bound(var, 1)

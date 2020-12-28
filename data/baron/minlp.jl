@@ -1,35 +1,47 @@
-// process synthes1
-// mixed-integer nonlinear program
+# // process synthes1
+# // mixed-integer nonlinear program
+#
+# // Source: Test problem 1 (Synthesis of processing system) in
+# // M. Duran & I.E. Grossmann,
+# // "An outer approximation algorithm for a class of mixed integer nonlinear
+# //  programs", Mathematical Programming 36, pp. 307-339, 1986.
+#
+# // Number of variables:   6 (3 binary variables)
+# // Number of constraints: 6
+# // Objective nonlinear
+# // Nonlinear constraints
 
-// Source: Test problem 1 (Synthesis of processing system) in 
-// M. Duran & I.E. Grossmann,
-// "An outer approximation algorithm for a class of mixed integer nonlinear
-//  programs", Mathematical Programming 36, pp. 307-339, 1986.
+function minlp(gm::Bool = false)
+    m = JuMP.Model()
+    @variable(m, y[1:3], Bin)
+    @variable(m, x[1:3] >= 0)
+    JuMP.set_upper_bound(x[1], 2)
+    JuMP.set_upper_bound(x[2], 2)
+    JuMP.set_upper_bound(x[3], 1)
+    
+    @constraint(m, c3, x[2] - x[1] <= 0)
+    @constraint(m, c4, x[2] - 2*y[1] <= 0)
+    @constraint(m, c5, x[1] - x[2] - 2*y[2] <= 0)
+    @constraint(m, c6, y[1] + y[2] <= 1)
 
-// Number of variables:   6 (3 binary variables)  
-// Number of constraints: 6
-// Objective nonlinear
-// Nonlinear constraints
-
-BINARY_VARIABLES y1, y2, y3;
-
-POSITIVE_VARIABLES x1, x2, x3;
-
-UPPER_BOUNDS{
-x1: 2 ;
-x2: 2 ;
-x3: 1 ;
-}
-
-EQUATIONS c1, c2, c3, c4, c5, c6;
-
-c1: 0.8*log(x2 + 1) + 0.96*log(x1 - x2 + 1) - 0.8*x3 >= 0 ;
-c2: log(x2 + 1) + 1.2*log(x1 - x2 + 1) - x3 - 2*y3 >= -2 ;
-c3: x2 - x1 <= 0 ;
-c4: x2 - 2*y1 <= 0 ;
-c5: x1 - x2 - 2*y2 <= 0 ;
-c6: y1 + y2 <= 1 ;
-
-OBJ: minimize 
-     5*y1 + 6*y2 + 8*y3 + 10*x1 - 7*x3 - 18*log(x2 + 1) 
-     - 19.2*log(x1 - x2 + 1) + 10;
+    if !gm
+        @NLconstraint(m, c1, 0.8*log(x[2] + 1) + 0.96*log(x[1] - x[2] + 1) - 0.8*x[3] >= 0)
+        @NLconstraint(m, c2, log(x[2] + 1) + 1.2*log(x[1] - x[2] + 1) - x[3] - 2*y[3] >= -2)
+        @NLobjective(m, Min, 5*y[1] + 6*y[2] + 8*y[3] + 10*x[1] - 7*x[3] - 18*log(x[2] + 1) -
+                             19.2*log(x[1] - x[2] + 1) + 10)
+        set_optimizer(m, BARON_SILENT)
+    else
+        @variable(m, obj)
+        gm = GlobalModel(model = m, name = "minlp")
+        set_optimizer(gm, GUROBI_SILENT)
+        add_nonlinear_constraint(gm, :(x -> 0.8*log(x[2] + 1) + 0.96*log(x[1] - x[2] + 1) - 0.8*x[3]),
+                                 name = "c1")
+        add_nonlinear_constraint(gm, :((x,y) -> log(x[2] + 1) + 1.2*log(x[1] - x[2] + 1) - x[3] - 2*y[3] + 2),
+                                 name = "c2")
+        add_nonlinear_constraint(gm, :((x, y, obj) -> obj - (5*y[1] + 6*y[2] + 8*y[3] + 10*x[1] - 7*x[3] - 18*log(x[2] + 1) -
+                             19.2*log(x[1] - x[2] + 1) + 10)),
+                                 name = "objective")
+        return gm
+    end
+    return m
+end

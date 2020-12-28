@@ -54,7 +54,6 @@ gm = speed_reducer()
 n_samples = 100;
 
 # First solve nonlinearly
-using Ipopt
 set_optimizer(gm, IPOPT_SILENT)
 nonlinearize!(gm)
 optimize!(gm)
