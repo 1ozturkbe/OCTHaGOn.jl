@@ -8,7 +8,7 @@ Known optimum is 2999.76.
 =#
 
 function speed_reducer()
-    m = JuMP.Model(Gurobi.Optimizer)
+    m = JuMP.Model(GUROBI_SILENT)
     @variable(m, x[1:8])
     @objective(m, Min, x[8])
     gm = GlobalModel(model = m, name = "speed_reducer")
@@ -55,13 +55,13 @@ n_samples = 100;
 
 # First solve nonlinearly
 using Ipopt
-set_optimizer(gm, Ipopt.Optimizer)
+set_optimizer(gm, IPOPT_SILENT)
 nonlinearize!(gm)
 optimize!(gm)
 #
 # # Initial sampling (boundary and interior)
 # gm = speed_reducer()
-# set_optimizer(gm, Gurobi.Optimizer)
+# set_optimizer(gm, GUROBI_SILENT)
 # sample_and_eval!(gm, n_samples=n_samples)
 # println("Constraint feasibilities: ", feasibility(gm))
 #

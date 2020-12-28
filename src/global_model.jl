@@ -410,6 +410,9 @@ function match_bbfs_to_vars(bbfs::Array,
     return bbf_to_var
 end
 
+match_bbfs_to_vars(gm::GlobalModel;
+                   vars::Array{JuMP.VariableRef, 1}) = match_bbfs_to_vars(gm.bbfs, vars)
+
 function clear_data!(gm::GlobalModel)
     clear_data!.(gm.bbfs)
 end

@@ -1,7 +1,6 @@
 module OptimalConstraintTree
     using Combinatorics
     using DataFrames
-    using Gurobi
     using JuMP
     using LatinHypercubeSampling
     using MacroTools

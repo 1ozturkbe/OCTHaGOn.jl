@@ -37,6 +37,10 @@ function find_linear_bounds!(gm::GlobalModel; bbfs::Array{BlackBoxFunction} = gm
     return new_bounds
 end
 
+"""
+"""
+# function find_exponential_bounds!(gm::GlobalModel; bbfs::Array{BlackBoxFunction =
+
 
 """
     find_bounds!(gm::GlobalModel; bbfs::Array{BlackBoxFunction} = [], M = 1e5, all_bounds::Bool=true)
@@ -45,17 +49,18 @@ Finds the outer variable bounds of GlobalModel by solving only over the linear c
 and listed BBFs.
 TODO: improve! Only find bounds of non-binary variables.
 """
-function find_bounds!(gm::GlobalModel; bbfs::Array{BlackBoxFunction} = BlackBoxFunction[], M = 1e5, all_bounds::Bool=true)
+
+function find_bounds!(gm::GlobalModel; bbfs::Array{BlackBoxFunction} = gm.bbfs, M = 1e5, all_bounds::Bool=true)
     unbounds = get_unbounds(bbfs)
     if all_bounds
         unbounds = get_bounds(bbfs)
     end
     linear_bounds = find_linear_bounds!(gm, bbfs = bbfs, M = M, all_bounds = all_bounds)
-#     if !isempty(unbounds)
-#         @warn("Unbounded variables in GlobalModel " * gm.name * " in BlackBoxFunctions...")
-#         @warn("Will try to tighten bounds through an exponential search, with M = " * string(M) * ".")
-#         unbounds = get_unbounds(gm)
-#         bbf_to_var = match_bbfs_to_vars(gm.bbfs, flat(keys(unbounds)))
+    if !isempty(unbounds)
+        @warn("Unbounded variables in GlobalModel " * gm.name * " in BlackBoxFunctions...")
+        @warn("Will try to tighten bounds through an exponential search, with M = " * string(M) * ".")
+        unbounds = get_unbounds(gm)
+        bbf_to_var = match_bbfs_to_vars(gm.bbfs, flat(keys(unbounds)))
 #         for (bbf, unbounded_vars) in bbf_to_var
 #             last_unbounds = Dict(var => local_bounds[var] for var in unbounded_vars)
 #             for (var, bounds) in last_unbounds
@@ -84,6 +89,6 @@ function find_bounds!(gm::GlobalModel; bbfs::Array{BlackBoxFunction} = BlackBoxF
 #             feas_X = bbf.X[findall(x -> x .>= 0, bbf.Y),:];
 #             box_bounds = Dict(bbf.vars[i] => [minimum(feas_X[!,i]), maximum(feas_X[!,i])] for i=1:length(bbf.vars))
 #         end
-#     end
+    end
     return linear_bounds
 end
