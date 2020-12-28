@@ -92,7 +92,20 @@ function get_unbounds(var::JuMP.VariableRef)
     end
 end
 
-get_unbounds(vars::Array{JuMP.VariableRef}) = Dict(get_unbounds(var) for var in vars if !isa(get_unbounds(var), Nothing))
+function OCT.get_unbounds(vars::Array{JuMP.VariableRef})
+     unbounds = Dict()
+     for var in vars
+        res = get_unbounds(var)
+        if !isa(res, Nothing)
+            unbounds[res.first] = res.second
+        end
+    end
+    if length(unbounds) == 0
+        return
+    else
+        return unbounds
+    end
+end
 
 """
     data_to_DataFrame(data::Union{Dict, DataFrame, DataFrameRow})
