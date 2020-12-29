@@ -13,6 +13,7 @@ nonlinear_model can contain JuMP.NonlinearConstraints.
 end
 
 set_param(gm::GlobalModel, key::Symbol, val) = set_param(gm.settings, key, val)
+get_param(gm::GlobalModel, key::Symbol) = get_param(gm.settings, key)
 
 """
     (gm::GlobalModel)(name::String)

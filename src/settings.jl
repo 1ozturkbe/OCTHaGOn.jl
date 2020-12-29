@@ -26,8 +26,17 @@ end
 """ Sets parameters within Dict. """
 function set_param(gm::Dict, key::Symbol, val)
     if haskey(gm, key) && val isa typeof(gm[key])
-        gm.settings[key] = val
+        gm[key] = val
     else
-        throw(OCTException("Parameter of key " * string(key) *" is invalid.")
+        throw(OCTException("Parameter with key " * string(key) *" is invalid.")
+    end
+end
+
+""" gets parameters within Dict. """
+function get_param(gm::Dict, key::Symbol)
+    if haskey(gm, key)
+        return gm[key]
+    else
+        throw(OCTException("Parameter with key " * string(key) *" is invalid.")
     end
 end

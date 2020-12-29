@@ -142,6 +142,7 @@ Also contains data w.r.t. samples from the function.
 end
 
 set_param(bbf::BlackBoxFunction, key::Symbol, val) = set_param(bbf.settings, key, val)
+get_param(bbf::BlackBoxFunction, key::Symbol) = get_param(bbf.settings, key)
 
 """
     add_data!(bbf::Union{BlackBoxFunction, DataConstraint}, X::DataFrame, Y::Array)
