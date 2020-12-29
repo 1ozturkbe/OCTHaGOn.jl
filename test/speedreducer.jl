@@ -76,7 +76,7 @@ optimize!(gm)
 #
 # # Fitting and finding bounds with some bbfs
 # learn_constraint!(gm, ignore_checks=true);
-# gm.settings[:ignore_accuracy] = true
+# set_param(gm, :ignore_accuracy, true)
 # globalsolve(gm);
 # soln = solution(gm);
 #

@@ -63,7 +63,7 @@ module OptimalConstraintTree
            solution, save_solution,
            evaluate_feasibility,
            nonlinearize!,
-           save_fit, load_fit,
+           save_fit, load_fit, set_param,
            # Functions on both BlackBoxFunctions and DataConstraints
            show_trees, learn_constraint!,
            # Functions on BlackBoxFunctions only

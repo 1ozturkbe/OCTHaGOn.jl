@@ -1,10 +1,3 @@
-#=
-imports:
-- Julia version: 1.3.1
-- Author: Berk
-- Date: 2020-12-27
-=#
-
 """
 Makes sure all sage benchmarks import properly.
 For now, just doing first 25, since polynomial examples are not in R+.
