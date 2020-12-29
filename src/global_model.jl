@@ -269,8 +269,8 @@ function bound!(model::JuMP.Model, bound::Pair)
         tightest_bound = check_infeasible_bound(model, bound)
         b_min = minimum(tightest_bound)
         b_max = maximum(tightest_bound)
-        !isinf(b_min) && JuMP.set_lower_bound(bound.first, minimum(tightest_bound))
-        !isinf(b_max) && JuMP.set_upper_bound(bound.first, maximum(tightest_bound))
+        !isinf(b_min) && JuMP.set_lower_bound(bound.first, b_min)
+        !isinf(b_max) && JuMP.set_upper_bound(bound.first, b_max)
     else
         vars = fetch_variable(model, bound.first)
         if vars isa JuMP.VariableRef

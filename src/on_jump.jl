@@ -70,7 +70,7 @@ get_bounds(vars::Array{JuMP.VariableRef}) = Dict(get_bounds(var) for var in vars
 Returns variables with no lower and/or upper bounds.
 """
 function get_unbounds(var::JuMP.VariableRef)
-   if JuMP.has_lower_bound(var)
+   if JuMP.has_lower_bound(var) 
         if !JuMP.has_upper_bound(var)
             return var => [JuMP.lower_bound(var), Inf]
         else
