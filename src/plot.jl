@@ -1,10 +1,3 @@
-#=
-plot:
-- Julia version: 
-- Author: Berk
-- Date: 2020-07-28
-=#
-
 function plot(tree::IAI.GridSearch)
     """ Shows grid in browser. """
     try

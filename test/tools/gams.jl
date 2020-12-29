@@ -179,8 +179,8 @@ function recipe(gm)
     @info "GlobalModel " * gm.name * " in progress..."
     set_optimizer(gm, GUROBI_SILENT)
     find_bounds!(gm, all_bounds=true)
-    gm.settings[:ignore_feasibility] = true
-    gm.settings[:ignore_accuracy] = true
+    set_param(gm, :ignore_feasibility, true)
+    set_param(gm, :ignore_accuracy, true)
     sample_and_eval!(gm, n_samples = 500)
     sample_and_eval!(gm, n_samples = 500)
     @info ("Sample feasibilities ", feasibility(gm))

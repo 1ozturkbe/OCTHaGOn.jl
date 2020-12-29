@@ -29,8 +29,8 @@ function find_knn(bbf::BlackBoxFunction; k::Int64 = 10)
     return idxs, dists
 end
 
+""" Classifies KNN domains by feasibility. """
 function classify_patches(bbf::BlackBoxFunction, idxs::Array)
-    """ Classifies KNN domains by feasibility. """
     arr = []
     for idx in idxs
         signs = [bbf.Y[i] for i in idx];

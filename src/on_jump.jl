@@ -1,10 +1,3 @@
-#=
-on_jump:
-- Julia version: 1.5.1
-- Author: Berk
-- Date: 2020-09-25
-=#
-
 # NOTE: We have to circumvent JuMP.NLexpressions to be able to support nonlinear expressions
 #       without breaking everything...
 #       Thus why all operations on JuMP-incompatible functions is on Exprs.
@@ -77,7 +70,7 @@ get_bounds(vars::Array{JuMP.VariableRef}) = Dict(get_bounds(var) for var in vars
 Returns variables with no lower and/or upper bounds.
 """
 function get_unbounds(var::JuMP.VariableRef)
-   if JuMP.has_lower_bound(var)
+   if JuMP.has_lower_bound(var) 
         if !JuMP.has_upper_bound(var)
             return var => [JuMP.lower_bound(var), Inf]
         else

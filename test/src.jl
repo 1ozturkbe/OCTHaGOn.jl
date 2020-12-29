@@ -82,6 +82,18 @@ function test_bounds()
     new_bound = x[4] => [-10,-6]
     @test_throws OCTException OCT.check_infeasible_bound(model, new_bound)
     @test_throws OCTException bound!(model, new_bound)
+
+    # Check unbounds
+    @test all(collect(values(get_unbounds(model)))[i] == [-2., Inf] for i = 1:4)
+
+    # Check that JuMP does not set Inf bounds
+    m = JuMP.Model()
+    @variable(m, x[1:2])
+    @variable(m, y >= 5)
+    bound!(m, Dict(var => [-Inf, Inf] for var in all_variables(m)))
+    @test !JuMP.has_lower_bound(x[1]) && JuMP.has_lower_bound(y) && !JuMP.has_upper_bound(x[2])
+    bound!(m, Dict(var => [-10, 10] for var in all_variables(m)))
+    @test isnothing(get_unbounds(m))
 end
 
 function test_sets()
