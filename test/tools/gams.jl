@@ -1,5 +1,4 @@
 using GAMSFiles
-using Ipopt
 
 """ Turns GAMSFiles.GCall into an Expr. """
 function eq_to_expr(eq::GAMSFiles.GCall, sets::Dict{String, Any})
@@ -170,7 +169,7 @@ function GAMS_to_GlobalModel(GAMS_DIR::String, filename::String)
 end
 
 """ Solver wrapper for GAMS benchmarking. """
-function nonlinear_solve(gm::GlobalModel; solver = Ipopt.Optimizer)
+function nonlinear_solve(gm::GlobalModel; solver = IPOPT_SILENT)
     nonlinearize!(gm)
     set_optimizer(gm, solver)
     optimize!(gm)
@@ -178,7 +177,7 @@ end
 
 function recipe(gm)
     @info "GlobalModel " * gm.name * " in progress..."
-    set_optimizer(gm, Gurobi.Optimizer)
+    set_optimizer(gm, GUROBI_SILENT)
     find_bounds!(gm, all_bounds=true)
     gm.settings[:ignore_feasibility] = true
     gm.settings[:ignore_accuracy] = true

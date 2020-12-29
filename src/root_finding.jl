@@ -52,7 +52,11 @@ function secant_method(X::DataFrame, Y::Array)
     for i = 1:length(feas)
         for j = i+1:length(feas)
             if feas[i] + feas[j] == 1
-                push!(np, Array(X[j,:]) - (Array(X[j,:]) - Array(X[i,:])) ./ (Y[j] - Y[i]) * Y[j]);
+                 if !isinf(Y[j]) && !isinf(Y[i]) # For non-infinite outputs
+                    push!(np, Array(X[j,:]) - (Array(X[j,:]) - Array(X[i,:])) ./ (Y[j] - Y[i]) * Y[j])
+                 else # For Infs, try midpoint.
+                    push!(np, Array(X[j,:]) - (Array(X[j,:]) - Array(X[i,:])) ./ 2.)
+                 end
             end
         end
     end

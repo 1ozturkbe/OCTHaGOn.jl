@@ -272,19 +272,23 @@ end
 Adds outer bounds to JuMP Model from Dict or Pair of data.
 """
 function bound!(model::JuMP.Model, bound::Pair)
-    if !isa(bound.first, JuMP.VariableRef)
+    if isa(bound.first, JuMP.VariableRef)
+        tightest_bound = check_infeasible_bound(model, bound)
+        b_min = minimum(tightest_bound)
+        b_max = maximum(tightest_bound)
+        !isinf(b_min) && JuMP.set_lower_bound(bound.first, minimum(tightest_bound))
+        !isinf(b_max) && JuMP.set_upper_bound(bound.first, maximum(tightest_bound))
+    else
         vars = fetch_variable(model, bound.first)
         if vars isa JuMP.VariableRef
             bound!(model, vars => bound.second)
         elseif vars isa Array
-            bound!(model, Dict(var => bound.second for var in vars))
+            for var in vars
+                bound!(model, var => bound.second)
+            end
         else
             throw(OCTException("Bound with fetch_variable has failed. Try bounding using JuMP.VariableRefs!"))
         end
-    else
-        tightest_bound = check_infeasible_bound(model, bound)
-        JuMP.set_lower_bound(bound.first, minimum(tightest_bound))
-        JuMP.set_upper_bound(bound.first, maximum(tightest_bound))
     end
     return
 end
@@ -358,12 +362,19 @@ end
 
 """
     solution(gm::GlobalModel)
+    solution(m::JuMP.Model)
 
-Returns the optimal solution of the GlobalModel.
+Returns the optimal solution of the GlobalModel/JuMP.Model in a DataFrame.
 """
 function solution(gm::GlobalModel)
     vals = getvalue.(gm.vars)
     return DataFrame(vals', string.(gm.vars))
+end
+
+function solution(m::JuMP.Model)
+    variables = all_variables(m)
+    vals = getvalue.(variables)
+    return DataFrame(vals', string.(variables))
 end
 
 """
@@ -409,6 +420,9 @@ function match_bbfs_to_vars(bbfs::Array,
     bbf_to_var = sort(collect(bbf_to_var), by= x->length(x[2])*length(x[1].vars)^0.5)
     return bbf_to_var
 end
+
+match_bbfs_to_vars(gm::GlobalModel;
+                   vars::Array{JuMP.VariableRef, 1}) = match_bbfs_to_vars(gm.bbfs, vars)
 
 function clear_data!(gm::GlobalModel)
     clear_data!.(gm.bbfs)
