@@ -1,14 +1,4 @@
 """
-Returns default GlobalModel settings for approximation and optimization.
-"""
-function gm_defaults()
-    settings = Dict(:ignore_feasibility => false,
-                  :ignore_accuracy => false,
-                  :linear => true,
-                  :convex => false)
-end
-
-"""
 Contains all required info to be able to generate a global optimization problem.
 NOTE: proper construction is to use add_nonlinear_constraint to add bbfs.
 model must be a mixed integer convex model.
@@ -21,6 +11,8 @@ nonlinear_model can contain JuMP.NonlinearConstraints.
     vars::Array{VariableRef} = JuMP.all_variables(model)         # JuMP variables
     settings::Dict{Symbol, Bool} = gm_defaults()                 # GM settings
 end
+
+set_param(gm::GlobalModel, key::Symbol, val) = set_param(gm.settings, key, val)
 
 """
     (gm::GlobalModel)(name::String)

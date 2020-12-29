@@ -61,7 +61,7 @@ function test_nonlinear_solve(gm::GlobalModel = GAMS_to_GlobalModel(OCT.GAMS_DIR
     @test length(infeas) == 0
 end
 
-function test_find_bounds(gm::GlobalModel = GAMS_to_GlobalModel(OCT.GAMS_DIR, "problem3.13.gms"))
+function test_find_bounds(gm::GlobalModel = minlp(true))
     set_optimizer(gm, GUROBI_SILENT)
     old_bounds = get_bounds(gm.bbfs)
     linear_bounds = find_bounds!(gm)
@@ -75,3 +75,6 @@ test_load_fits()
 test_nonlinear_solve()
 
 test_find_bounds()
+
+# gm = minlp(true)
+# bound!(gm, gm.vars[end] => [-5, 5])

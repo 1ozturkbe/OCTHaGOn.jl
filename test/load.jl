@@ -27,3 +27,7 @@ MOI.Silent() = true;
 include(string(OptimalConstraintTree.PROJECT_ROOT, "/test/tools/gams.jl"));
 
 include(string(OptimalConstraintTree.PROJECT_ROOT, "/test/tools/sagemark.jl"));
+
+include(string(OptimalConstraintTree.PROJECT_ROOT, "/data/baron/gear.jl"));
+
+include(string(OptimalConstraintTree.PROJECT_ROOT, "/data/baron/minlp.jl"));

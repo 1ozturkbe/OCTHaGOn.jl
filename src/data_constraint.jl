@@ -37,5 +37,5 @@ Can be tagged with additional info.
     mi_constraints::Array = []                         # and their corresponding MI constraints,
     leaf_variables::Array = []                         # and their binary leaf variables,
     accuracies::Array{Float64} = []                    # and the tree misclassification scores.
-    settings = dc_defaults()                           # Relevant settings
+    settings::Dict = dc_defaults()                     # Relevant settings
 end

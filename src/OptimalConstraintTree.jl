@@ -25,6 +25,8 @@ module OptimalConstraintTree
 
     include("exceptions.jl")
 
+    include("settings.jl")
+
     include("data_constraint.jl")
 
     include("black_box_function.jl")

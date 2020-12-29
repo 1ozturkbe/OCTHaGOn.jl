@@ -96,13 +96,6 @@ function deconstruct(data::DataFrame, vars::Array, varmap::Array)
     return arrs
 end
 
-""" Returns default BlackBoxFunction settings for approximation."""
-function bbf_defaults()
-    settings = Dict(:threshold_accuracy => 0.95,      # Minimum tree accuracy
-                    :threshold_feasibility => 0.15,   # Minimum feasibility ratio
-                    :reloaded => false)
-end
-
 """
     @with_kw mutable struct BlackBoxFunction
 
@@ -145,8 +138,10 @@ Also contains data w.r.t. samples from the function.
 
     n_samples::Int = Int(ceil(200*sqrt(length(vars)))) # For next set of samples, set and forget.
     knn_tree::Union{KDTree, Nothing} = nothing         # KNN tree
-    settings = bbf_defaults()                          # Relevant settings
+    settings::Dict = bbf_defaults()                    # Relevant settings
 end
+
+set_param(bbf::BlackBoxFunction, key::Symbol, val) = set_param(bbf.settings, key, val)
 
 """
     add_data!(bbf::Union{BlackBoxFunction, DataConstraint}, X::DataFrame, Y::Array)
