@@ -1,10 +1,3 @@
-#=
-on_jump:
-- Julia version: 1.5.1
-- Author: Berk
-- Date: 2020-09-25
-=#
-
 # NOTE: We have to circumvent JuMP.NLexpressions to be able to support nonlinear expressions
 #       without breaking everything...
 #       Thus why all operations on JuMP-incompatible functions is on Exprs.

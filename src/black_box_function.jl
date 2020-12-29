@@ -1,10 +1,3 @@
-#=
-sample_data:
-- Julia version: 
-- Author: Berk
-- Date: 2020-07-26
-=#
-
 """
     get_varmap(expr_vars::Array, vars::Array)
 
@@ -15,7 +8,6 @@ Arguments:
 Returns:
     Dict of ID maps
 """
-
 function get_varmap(expr_vars::Array, vars::Array)
     length(flat(expr_vars)) >= length(vars) || throw(OCTException(string("Insufficiently many input
         variables declared in ", vars, ".")))
@@ -44,10 +36,7 @@ function get_varmap(expr_vars::Array, vars::Array)
     return varmap
 end
 
-function get_varmap(expr_vars::Nothing, vars::Array)
-    return nothing
-end
-
+get_varmap(expr_vars::Nothing, vars::Array) = nothing
 
 """
     infarray(varmap::Array)

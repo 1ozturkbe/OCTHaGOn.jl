@@ -393,7 +393,7 @@ end
 
 """ Matches BBFs to associated variables. """
 function match_bbfs_to_vars(bbfs::Array,
-                            vars::Array{JuMP.VariableRef, 1})
+                            vars::Array = JuMP.all_variables(bbfs))
     # TODO: improve types.
     bbf_to_var = Dict()
     for bbf in bbfs
@@ -414,8 +414,7 @@ function match_bbfs_to_vars(bbfs::Array,
     return bbf_to_var
 end
 
-match_bbfs_to_vars(gm::GlobalModel;
-                   vars::Array{JuMP.VariableRef, 1}) = match_bbfs_to_vars(gm.bbfs, vars)
+match_bbfs_to_vars(gm::GlobalModel, vars::Array = JuMP.all_variables(gm)) = match_bbfs_to_vars(gm.bbfs, vars)
 
 function clear_data!(gm::GlobalModel)
     clear_data!.(gm.bbfs)

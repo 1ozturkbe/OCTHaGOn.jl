@@ -1,12 +1,3 @@
-#=
-sample:
-- Julia version: 1.3.1
-- Author: Berk
-- Date: 2020-12-26
-Sampling functions.
-=#
-
-
 """
     lh_sample(vars::Array{JuMP.VariableRef, 1}; iterations::Int64 = 3,
                    n_samples::Int64 = 1000)

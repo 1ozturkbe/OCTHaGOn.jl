@@ -1,11 +1,3 @@
-#=
-settings:
-- Julia version: 1.3.1
-- Author: Berk
-- Date: 2020-12-29
-Settings for different structs
-=#
-
 """ Returns default BlackBoxFunction settings for approximation."""
 function bbf_defaults()
     Dict(:threshold_accuracy => 0.95,      # Minimum tree accuracy
@@ -28,7 +20,7 @@ function set_param(gm::Dict, key::Symbol, val)
     if haskey(gm, key) && val isa typeof(gm[key])
         gm[key] = val
     else
-        throw(OCTException("Parameter with key " * string(key) *" is invalid.")
+        throw(OCTException("Parameter with key " * string(key) *" is invalid."))
     end
 end
 
@@ -37,6 +29,6 @@ function get_param(gm::Dict, key::Symbol)
     if haskey(gm, key)
         return gm[key]
     else
-        throw(OCTException("Parameter with key " * string(key) *" is invalid.")
+        throw(OCTException("Parameter with key " * string(key) *" is invalid."))
     end
 end

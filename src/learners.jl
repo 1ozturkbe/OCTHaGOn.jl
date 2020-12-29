@@ -1,10 +1,3 @@
-#=
-learners:
-- Julia version: 
-- Author: Berk
-- Date: 2020-07-27
-=#
-
 """ Returns the baseline OptimalTreeRegressor. """
 function base_otr(max_depth::Int64 = 5, minbucket::Float64 = 0.01)
     return IAI.OptimalTreeRegressor(

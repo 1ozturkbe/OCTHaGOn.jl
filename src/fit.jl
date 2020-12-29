@@ -129,7 +129,6 @@ function save_fit(bbf::Union{BlackBoxFunction, DataConstraint}, dir::String = SA
 end
 
 save_fit(bbfs::Array, dir::String = SAVE_DIR) = [save_fit(bbf, dir) for bbf in bbfs]
-
 save_fit(gm::GlobalModel, dir::String = SAVE_DIR) = save_fit(gm.bbfs, dir)
 
 """
@@ -147,5 +146,4 @@ function load_fit(bbf::Union{BlackBoxFunction, DataConstraint}, dir::String = SA
 end
 
 load_fit(bbfs::Array, dir::String = SAVE_DIR) = [load_fit(bbf, dir) for bbf in bbfs]
-
 load_fit(gm::GlobalModel, dir::String = SAVE_DIR) = load_fit(gm.bbfs, dir)

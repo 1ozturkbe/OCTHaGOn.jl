@@ -1,10 +1,3 @@
-#=
-data_constraint:
-- Julia version: 1.5.1
-- Author: Berk
-- Date: 2020-11-12
-=#
-
 """ Returns default DataConstraint settings for approximation."""
 function dc_defaults()
     settings = Dict(:threshold_accuracy => 0.95,      # Minimum tree accuracy
