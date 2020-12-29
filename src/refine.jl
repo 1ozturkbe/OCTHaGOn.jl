@@ -38,11 +38,6 @@ function find_linear_bounds!(gm::GlobalModel; bbfs::Array{BlackBoxFunction} = gm
 end
 
 """
-"""
-# function find_exponential_bounds!(gm::GlobalModel; bbfs::Array{BlackBoxFunction =
-
-
-"""
     find_bounds!(gm::GlobalModel; bbfs::Array{BlackBoxFunction} = [], M = 1e5, all_bounds::Bool=true)
 
 Finds the outer variable bounds of GlobalModel by solving only over the linear constraints
@@ -50,16 +45,12 @@ and listed BBFs.
 TODO: improve! Only find bounds of non-binary variables.
 """
 
-function find_bounds!(gm::GlobalModel; bbfs::Array{BlackBoxFunction} = gm.bbfs, M = 1e5, all_bounds::Bool=true)
+function find_bounds!(gm::GlobalModel; bbfs::Array{BlackBoxFunction} = gm.bbfs, M = 1e5, all_bounds::Bool=false)
     linear_bounds = find_linear_bounds!(gm, bbfs = bbfs, M = M, all_bounds = all_bounds)
     unbounds = get_unbounds(bbfs)
-    if all_bounds
-        unbounds = get_bounds(bbfs)
-    end
-    if !isempty(unbounds)
-        @warn("Unbounded variables in GlobalModel " * gm.name * " in BlackBoxFunctions...")
+    if !isnothing(unbounds)
+        @warn("Unbounded variables remain in BlackBoxFunctions of GlobalModel " * gm.name * "...")
         @warn("Will try to tighten bounds through an exponential search, with M = " * string(M) * ".")
-        unbounds = get_unbounds(gm)
         bbf_to_var = match_bbfs_to_vars(gm.bbfs, flat(keys(unbounds)))
 #         while length(unbounds) > 0 || iterations <= max_iterations
 #         for (bbf, unbounded_vars) in bbf_to_var
