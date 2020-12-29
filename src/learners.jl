@@ -1,5 +1,5 @@
 """ Returns the baseline OptimalTreeRegressor. """
-function base_otr(max_depth::Int64 = 5, minbucket::Float64 = 0.01)
+function base_otr(; max_depth::Int64 = 5, minbucket::Float64 = 0.01)
     return IAI.OptimalTreeRegressor(
         random_seed = 1,
         max_depth = 3,
@@ -19,7 +19,7 @@ end
 Returns the baseline OptimalTreeClassifier, with parameters for different training steps.
 """
 
-function base_otc(localsearch::Bool = false, max_depth::Int64 = 5, minbucket::Float64 = 0.01, )
+function OCT.base_otc(; localsearch::Bool = false, max_depth::Int64 = 5, minbucket::Float64 = 0.01)
     return IAI.OptimalTreeClassifier(
         random_seed = 1,
         max_depth = 5,
