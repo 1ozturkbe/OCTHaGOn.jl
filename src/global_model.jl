@@ -272,19 +272,23 @@ end
 Adds outer bounds to JuMP Model from Dict or Pair of data.
 """
 function bound!(model::JuMP.Model, bound::Pair)
-    if !isa(bound.first, JuMP.VariableRef)
+    if isa(bound.first, JuMP.VariableRef)
+        tightest_bound = check_infeasible_bound(model, bound)
+        b_min = minimum(tightest_bound)
+        b_max = maximum(tightest_bound)
+        !isinf(b_min) && JuMP.set_lower_bound(bound.first, minimum(tightest_bound))
+        !isinf(b_max) && JuMP.set_upper_bound(bound.first, maximum(tightest_bound))
+    else
         vars = fetch_variable(model, bound.first)
         if vars isa JuMP.VariableRef
             bound!(model, vars => bound.second)
         elseif vars isa Array
-            bound!(model, Dict(var => bound.second for var in vars))
+            for var in vars
+                bound!(model, var => bound.second)
+            end
         else
             throw(OCTException("Bound with fetch_variable has failed. Try bounding using JuMP.VariableRefs!"))
         end
-    else
-        tightest_bound = check_infeasible_bound(model, bound)
-        JuMP.set_lower_bound(bound.first, minimum(tightest_bound))
-        JuMP.set_upper_bound(bound.first, maximum(tightest_bound))
     end
     return
 end
