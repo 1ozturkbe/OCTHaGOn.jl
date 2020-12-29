@@ -64,7 +64,7 @@ Returns:
     nothing
 """
 function learn_constraint!(bbf::Union{BlackBoxFunction, DataConstraint};
-                           lnr::IAI.OptimalTreeLearner = base_otc(),
+                           lnr::IAI.OptimalTreeLearner = base_otc(localsearch = get_param(bbf, :localsearch)),
                            weights::Union{Array, Symbol} = :autobalance,
                            validation_criterion=:misclassification,
                            ignore_checks::Bool = false)

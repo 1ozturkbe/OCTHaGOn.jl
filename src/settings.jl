@@ -2,7 +2,8 @@
 function bbf_defaults()
     Dict(:threshold_accuracy => 0.95,      # Minimum tree accuracy
          :threshold_feasibility => 0.15,   # Minimum feasibility ratio
-         :reloaded => false)
+         :reloaded => false,
+         :localsearch => true)
 end
 
 """
