@@ -13,8 +13,8 @@ function test_basic_functions()
     # Actually trying to optimize...
     find_bounds!(gm, all_bounds=true)
     bound!(gm, Dict(gm.vars[end] => [-300, 0]))
-    sample_and_eval!(gm, n_samples = 200)
-    sample_and_eval!(gm, n_samples = 200)
+    sample_and_eval!(gm)
+    sample_and_eval!(gm)
 
     learn_constraint!(gm)
     println("Approximation accuracies: ", accuracy(gm))
@@ -64,14 +64,14 @@ end
 function test_find_bounds(gm::GlobalModel = GAMS_to_GlobalModel(OCT.GAMS_DIR, "problem3.13.gms"))
     set_optimizer(gm, GUROBI_SILENT)
     old_bounds = get_bounds(gm.bbfs)
-    linear_bounds = find_linear_bounds!(gm)
+    linear_bounds = find_bounds!(gm)
     @test true
 end
 
-# test_basic_functions()
-#
-# test_load_fits()
-#
-# test_nonlinear_solve()
-#
-# test_find_bounds()
+test_basic_functions()
+
+test_load_fits()
+
+test_nonlinear_solve()
+
+test_find_bounds()
