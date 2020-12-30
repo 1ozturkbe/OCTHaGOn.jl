@@ -38,7 +38,7 @@ function transonic_mio_model()
     upperDict, lowerDict = OCT.trust_region_data(lnr.lnr, vks);
     # Generate MIO constraints from aerodynamics data
     m = Model()
-    set_optimizer(m, GUROBI_SILENT);
+    set_optimizer(m, CPLEX_SILENT);
     @variable(m, x[1:4])
     @variable(m, y)
     @constraint(m, log(minimum(Re)) <= x[1])

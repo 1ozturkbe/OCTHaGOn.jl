@@ -177,7 +177,7 @@ end
 
 function recipe(gm)
     @info "GlobalModel " * gm.name * " in progress..."
-    set_optimizer(gm, GUROBI_SILENT)
+    set_optimizer(gm, CPLEX_SILENT)
     find_bounds!(gm, all_bounds=true)
     set_param(gm, :ignore_feasibility, true)
     set_param(gm, :ignore_accuracy, true)

@@ -1,7 +1,7 @@
 """ Tests basic functionalities in GMs. """
 function test_basic_functions()
     gm = sagemark_to_GlobalModel(3; lse=false)
-    set_optimizer(gm, GUROBI_SILENT)
+    set_optimizer(gm, CPLEX_SILENT)
 
     # Actually trying to optimize...
     find_bounds!(gm, all_bounds=true)
@@ -43,7 +43,7 @@ end
 """ Tests loading of previously solved GMs.
 NOTE: test_basic_functions MUST be called first. """
 function test_load_fits(gm::GlobalModel = sagemark_to_GlobalModel(3; lse=false))
-    set_optimizer(gm, GUROBI_SILENT);
+    set_optimizer(gm, CPLEX_SILENT);
     load_fit(gm);
     @test all([get_param(bbf, :reloaded) == true for bbf in gm.bbfs])
     globalsolve(gm)
@@ -58,7 +58,7 @@ function test_nonlinear_solve(gm::GlobalModel = GAMS_to_GlobalModel(OCT.GAMS_DIR
 end
 
 function test_find_bounds(gm::GlobalModel = minlp(true))
-    set_optimizer(gm, GUROBI_SILENT)
+    set_optimizer(gm, CPLEX_SILENT)
     old_bounds = get_bounds(gm.bbfs)
     linear_bounds = find_bounds!(gm)
     @test true

@@ -8,7 +8,7 @@ Known optimum is 2999.76.
 =#
 
 function speed_reducer()
-    m = JuMP.Model(GUROBI_SILENT)
+    m = JuMP.Model(CPLEX_SILENT)
     @variable(m, x[1:8])
     @objective(m, Min, x[8])
     gm = GlobalModel(model = m, name = "speed_reducer")
@@ -60,7 +60,7 @@ optimize!(gm)
 #
 # # Initial sampling (boundary and interior)
 # gm = speed_reducer()
-# set_optimizer(gm, GUROBI_SILENT)
+# set_optimizer(gm, CPLEX_SILENT)
 # sample_and_eval!(gm, n_samples=n_samples)
 # println("Constraint feasibilities: ", feasibility(gm))
 #
