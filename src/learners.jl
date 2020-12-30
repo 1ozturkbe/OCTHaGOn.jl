@@ -1,12 +1,5 @@
-#=
-learners:
-- Julia version: 
-- Author: Berk
-- Date: 2020-07-27
-=#
-
 """ Returns the baseline OptimalTreeRegressor. """
-function base_otr(max_depth::Int64 = 5, minbucket::Float64 = 0.01)
+function base_otr(; max_depth::Int64 = 5, minbucket::Float64 = 0.01)
     return IAI.OptimalTreeRegressor(
         random_seed = 1,
         max_depth = 3,
@@ -21,7 +14,7 @@ function base_otr(max_depth::Int64 = 5, minbucket::Float64 = 0.01)
 end
 
 """
-    base_otc(max_depth::Int64 = 5, minbucket::Float64 = 0.01, localsearch::Bool = false)
+    base_otc(localsearch::Bool = false, max_depth::Int64 = 5, minbucket::Float64 = 0.01)
 
 Returns the baseline OptimalTreeClassifier, with parameters for different training steps.
 """

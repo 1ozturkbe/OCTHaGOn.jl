@@ -1,12 +1,3 @@
-#=
-sample:
-- Julia version: 1.3.1
-- Author: Berk
-- Date: 2020-12-26
-Sampling functions.
-=#
-
-
 """
     lh_sample(vars::Array{JuMP.VariableRef, 1}; iterations::Int64 = 3,
                    n_samples::Int64 = 1000)
@@ -89,7 +80,7 @@ end
 Does KNN and interval arithmetic based sampling once there is at least one feasible
     sample to a BlackBoxFunction.
 """
-function knn_sample(bbf::BlackBoxFunction; k::Int64 = Int(floor(size(bbf.X,1)^0.5)))
+function knn_sample(bbf::BlackBoxFunction; k::Int64 = 10)
     if bbf.feas_ratio == 0. || bbf.feas_ratio == 1.0
         throw(OCTException("Constraint " * string(bbf.name) * " must have at least one feasible or
                             infeasible sample to be KNN-sampled!"))

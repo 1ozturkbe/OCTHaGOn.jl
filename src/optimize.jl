@@ -1,11 +1,3 @@
-#=
-optimize:
-- Julia version: 1.3.1
-- Author: Berk
-- Date: 2020-12-26
-Optimizes GlobalModels using all methods.
-=#
-
 """
     globalsolve(gm::GlobalModel)
 

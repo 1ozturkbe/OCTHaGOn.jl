@@ -1,14 +1,4 @@
 """
-Returns default GlobalModel settings for approximation and optimization.
-"""
-function gm_defaults()
-    settings = Dict(:ignore_feasibility => false,
-                  :ignore_accuracy => false,
-                  :linear => true,
-                  :convex => false)
-end
-
-"""
 Contains all required info to be able to generate a global optimization problem.
 NOTE: proper construction is to use add_nonlinear_constraint to add bbfs.
 model must be a mixed integer convex model.
@@ -21,6 +11,9 @@ nonlinear_model can contain JuMP.NonlinearConstraints.
     vars::Array{VariableRef} = JuMP.all_variables(model)         # JuMP variables
     settings::Dict{Symbol, Bool} = gm_defaults()                 # GM settings
 end
+
+set_param(gm::GlobalModel, key::Symbol, val) = set_param(gm.settings, key, val)
+get_param(gm::GlobalModel, key::Symbol) = get_param(gm.settings, key)
 
 """
     (gm::GlobalModel)(name::String)
@@ -276,8 +269,8 @@ function bound!(model::JuMP.Model, bound::Pair)
         tightest_bound = check_infeasible_bound(model, bound)
         b_min = minimum(tightest_bound)
         b_max = maximum(tightest_bound)
-        !isinf(b_min) && JuMP.set_lower_bound(bound.first, minimum(tightest_bound))
-        !isinf(b_max) && JuMP.set_upper_bound(bound.first, maximum(tightest_bound))
+        !isinf(b_min) && JuMP.set_lower_bound(bound.first, b_min)
+        !isinf(b_max) && JuMP.set_upper_bound(bound.first, b_max)
     else
         vars = fetch_variable(model, bound.first)
         if vars isa JuMP.VariableRef
@@ -400,7 +393,7 @@ end
 
 """ Matches BBFs to associated variables. """
 function match_bbfs_to_vars(bbfs::Array,
-                            vars::Array{JuMP.VariableRef, 1})
+                            vars::Array = JuMP.all_variables(bbfs))
     # TODO: improve types.
     bbf_to_var = Dict()
     for bbf in bbfs
@@ -421,8 +414,7 @@ function match_bbfs_to_vars(bbfs::Array,
     return bbf_to_var
 end
 
-match_bbfs_to_vars(gm::GlobalModel;
-                   vars::Array{JuMP.VariableRef, 1}) = match_bbfs_to_vars(gm.bbfs, vars)
+match_bbfs_to_vars(gm::GlobalModel, vars::Array = JuMP.all_variables(gm)) = match_bbfs_to_vars(gm.bbfs, vars)
 
 function clear_data!(gm::GlobalModel)
     clear_data!.(gm.bbfs)

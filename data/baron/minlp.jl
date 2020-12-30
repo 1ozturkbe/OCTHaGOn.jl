@@ -32,6 +32,7 @@ function minlp(gm::Bool = false, eps = 1e-10)
         set_optimizer(m, BARON_SILENT)
     else
         @variable(m, obj)
+        @objective(m, Min, obj)
         gm = GlobalModel(model = m, name = "minlp")
         set_optimizer(gm, GUROBI_SILENT)
         add_nonlinear_constraint(gm, :(x -> 0.8*log(x[2] + 1) + 0.96*log(x[1] - x[2] + 1) - 0.8*x[3]),

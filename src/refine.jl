@@ -1,11 +1,4 @@
-#=
-refine:
-- Julia version: 1.3.1
-- Author: Berk
-- Date: 2020-12-26
-Refining of variable domains and solutions.
-=#
-
+""" Finds the linear min/max bounds of JuMP.VariableRefs."""
 function find_linear_bounds!(gm::GlobalModel; bbfs::Array{BlackBoxFunction} = gm.bbfs, M=1e5, all_bounds::Bool = false)
     unbounds = get_unbounds(bbfs)
     if all_bounds

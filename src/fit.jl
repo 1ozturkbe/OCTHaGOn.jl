@@ -31,7 +31,7 @@ end
 
 """ Checks that a BlackBoxFunction has enough feasible/infeasible samples. """
 function check_feasibility(bbf::Union{BlackBoxFunction, DataConstraint})
-    return bbf.feas_ratio >= bbf.settings[:threshold_feasibility]
+    return bbf.feas_ratio >= get_param(bbf, :threshold_feasibility)
 end
 
 function check_feasibility(gm::GlobalModel)
@@ -40,7 +40,7 @@ end
 
 """ Checks that a BlackBoxFunction.learner has adequate accuracy."""
 function check_accuracy(bbf::Union{BlackBoxFunction, DataConstraint})
-    return bbf.accuracies[end] >= bbf.settings[:threshold_accuracy]
+    return bbf.accuracies[end] >= get_param(bbf, :threshold_accuracy)
 end
 
 function check_accuracy(gm::GlobalModel)
@@ -64,7 +64,7 @@ Returns:
     nothing
 """
 function learn_constraint!(bbf::Union{BlackBoxFunction, DataConstraint};
-                           lnr::IAI.OptimalTreeLearner = base_otc(),
+                           lnr::IAI.OptimalTreeLearner = base_otc(localsearch = get_param(bbf, :localsearch)),
                            weights::Union{Array, Symbol} = :autobalance,
                            validation_criterion=:misclassification,
                            ignore_checks::Bool = false)
@@ -102,8 +102,8 @@ function learn_constraint!(gm::GlobalModel;
                            lnr::IAI.OptimalTreeLearner = base_otc(),
                            weights::Union{Array, Symbol} = :autobalance, dir::String = "-",
                            validation_criterion=:misclassification,
-                           ignore_checks::Bool = gm.settings[:ignore_feasibility])
-   gm.settings[:ignore_feasibility] = ignore_checks # update check settings
+                           ignore_checks::Bool = get_param(gm, :ignore_feasibility))
+   set_param(gm, :ignore_feasibility, ignore_checks) # update check settings
    learn_constraint!(gm.bbfs, lnr=lnr, weights=weights,
                           validation_criterion = validation_criterion, ignore_checks = ignore_checks)
 end
@@ -129,7 +129,6 @@ function save_fit(bbf::Union{BlackBoxFunction, DataConstraint}, dir::String = SA
 end
 
 save_fit(bbfs::Array, dir::String = SAVE_DIR) = [save_fit(bbf, dir) for bbf in bbfs]
-
 save_fit(gm::GlobalModel, dir::String = SAVE_DIR) = save_fit(gm.bbfs, dir)
 
 """
@@ -142,10 +141,9 @@ function load_fit(bbf::Union{BlackBoxFunction, DataConstraint}, dir::String = SA
     loaded_grid = IAI.read_json(dir * bbf.name * ".json");
     size(IAI.variable_importance(loaded_grid.lnr), 1) == length(bbf.vars) || throw(
         OCTException("Object " * bbf.name * " does not match associated learner."))
-    bbf.settings[:reloaded] = true
+    set_param(bbf, :reloaded, true)
     push!(bbf.learners, loaded_grid)
 end
 
 load_fit(bbfs::Array, dir::String = SAVE_DIR) = [load_fit(bbf, dir) for bbf in bbfs]
-
 load_fit(gm::GlobalModel, dir::String = SAVE_DIR) = load_fit(gm.bbfs, dir)
