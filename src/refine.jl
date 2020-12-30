@@ -56,12 +56,12 @@ function find_bounds!(gm::GlobalModel; bbfs::Array{BlackBoxFunction} = gm.bbfs, 
 #                 JuMP.set_upper_bound(var, 1)
 #             end
 #             df = boundary_sample(bbf, fraction = 0.5)
-#             append!(df, lh_sample(bbf, iterations = 1, n_samples = bbf.n_samples - size(df, 1)), cols=:setequal)
+#             append!(df, lh_sample(bbf, iterations = 1, n_samples = get_param(bbf, :n_samples) - size(df, 1)), cols=:setequal)
 #             for (var, bounds) in last_unbounds # Revert bounds
 #                 JuMP.set_lower_bound(var, minimum(bounds))
 #                 JuMP.set_upper_bound(var, maximum(bounds))
 #                 if all(isinf.(bounds)) # Log-scale the samples
-#                     df[!,string(var)] = 2. .* (rand(bbf.n_samples) .- 0.5) .* M.^ df[!,string(var)]
+#                     df[!,string(var)] = 2. .* (rand(get_param(bbf, :n_samples)) .- 0.5) .* M.^ df[!,string(var)]
 #                 elseif isinf(minimum(bounds))
 #                     df[!,string(var)] = maximum(bounds) - M.^ df[!,string(var)]
 #                 elseif isinf(maximum(bounds))

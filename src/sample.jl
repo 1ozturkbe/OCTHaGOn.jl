@@ -71,7 +71,7 @@ function boundary_sample(vars::Array{JuMP.VariableRef, 1}; n_samples::Int64 = 10
 end
 
 function boundary_sample(bbf::BlackBoxFunction; fraction::Float64 = 0.5)
-    return boundary_sample(bbf.vars, n_samples = bbf.n_samples, fraction = fraction,
+    return boundary_sample(bbf.vars, n_samples = get_param(bbf, :n_samples), fraction = fraction,
                            warn_string = bbf.name)
 end
 
@@ -110,7 +110,7 @@ end
 
 Samples and evaluates BlackBoxFunction, with n_samples new samples.
 Arguments:
-    n_samples: number of samples, overwrites bbf.n_samples.
+    n_samples: number of samples, overwrites bbf parameter n_samples.
     boundary_fraction: maximum ratio of boundary samples
     iterations: number of GA populations for LHC sampling (0 is a random LH.)
 """
@@ -132,7 +132,7 @@ function sample_and_eval!(bbf::Union{BlackBoxFunction, GlobalModel, Array{BlackB
         return
     end
     if !isnothing(n_samples)
-        bbf.n_samples = n_samples
+        set_param(bbf, :n_samples, n_samples)
     end
     vks = string.(bbf.vars)
     n_dims = length(vks);
@@ -140,7 +140,7 @@ function sample_and_eval!(bbf::Union{BlackBoxFunction, GlobalModel, Array{BlackB
     if size(bbf.X,1) == 0 # If we don't have data yet, uniform and boundary sample.
        df = boundary_sample(bbf, fraction = boundary_fraction)
        eval!(bbf, df)
-       df = lh_sample(bbf, iterations = iterations, n_samples = bbf.n_samples - size(df, 1))
+       df = lh_sample(bbf, iterations = iterations, n_samples = get_param(bbf, :n_samples) - size(df, 1))
        eval!(bbf, df);
     elseif bbf.feas_ratio == 1.0
         @warn(string(bbf.name) * " was not KNN sampled since it has " * string(bbf.feas_ratio) * " feasibility.")

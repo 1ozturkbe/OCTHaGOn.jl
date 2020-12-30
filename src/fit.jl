@@ -80,7 +80,7 @@ Returns:
     nothing
 """
 function learn_constraint!(bbf::Union{BlackBoxFunction, DataConstraint},
-                           lnr::IAI.OptimalTreeLearner = base_otc(localsearch = get_param(bbf, :localsearch)),
+                           lnr::IAI.OptimalTreeLearner = base_otc(),
                            ignore_checks::Bool = false; kwargs...)
     if isa(bbf.X, Nothing)
         throw(OCTException(string("BlackBoxFn ", bbf.name, " must be sampled first.")))
