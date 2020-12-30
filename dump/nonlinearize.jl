@@ -21,20 +21,3 @@ for i = 1:length(expr_vars)
     end
 end
 fn = :($(lhs) -> $(expr_copy))
-
-
-# Expression registering
-using JuMP
-model = Model()
-@variables(model, begin
-    -5 <= x[1:5] <= 5
-    -4 <= y[1:3] <= 1
-    -30 <= z
-end)
-# Testing expression parsing
-ex = :((x, y, z) -> sum(x[i] for i=1:4) - y[1] * y[2] + z)
-fex = :((x...) -> $(ex)(x[1], x[2], x[3]))
-symb = :feg
-JuMP.register(model, symb, 3, eval(fex); autodiff = true)
-vars = [x,y,z]
-JuMP.add_NL_constraint(model, :($(symb)($(vars)...) == 0))
