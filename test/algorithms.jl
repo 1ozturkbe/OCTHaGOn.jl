@@ -1,7 +1,7 @@
 """ Tests basic functionalities in GMs. """
 function test_basic_functions()
     gm = sagemark_to_GlobalModel(3; lse=false)
-    set_optimizer(gm, GUROBI_SILENT)
+    set_optimizer(gm, CPLEX_SILENT)
 
     # Actually trying to optimize...
     find_bounds!(gm, all_bounds=true)
@@ -34,13 +34,16 @@ function test_basic_functions()
 
     # Saving fit for test_load_fits()
     save_fit(gm)
-    @test true
+
+    # Testing finding bounds of bounded model
+    @test isnothing(get_unbounds(gm.bbfs))
+    @test isnothing(find_bounds!(gm))
 end
 
 """ Tests loading of previously solved GMs.
 NOTE: test_basic_functions MUST be called first. """
 function test_load_fits(gm::GlobalModel = sagemark_to_GlobalModel(3; lse=false))
-    set_optimizer(gm, GUROBI_SILENT);
+    set_optimizer(gm, CPLEX_SILENT);
     load_fit(gm);
     @test all([get_param(bbf, :reloaded) == true for bbf in gm.bbfs])
     globalsolve(gm)
@@ -55,11 +58,32 @@ function test_nonlinear_solve(gm::GlobalModel = GAMS_to_GlobalModel(OCT.GAMS_DIR
 end
 
 function test_find_bounds(gm::GlobalModel = minlp(true))
-    set_optimizer(gm, GUROBI_SILENT)
+    set_optimizer(gm, CPLEX_SILENT)
     old_bounds = get_bounds(gm.bbfs)
     linear_bounds = find_bounds!(gm)
     @test true
 end
+
+# function test_relaxations(gm::GlobalModel = minlp(true),
+#                           solver = CPLEX_SILENT)
+#     gm = minlp(true)
+#     bbf = gm.bbfs[2]
+#     sample_and_eval!(bbf)
+#     sample_and_eval!(bbf)
+#     sensitivities = [1.0, 0.75, 0.5]
+#     lnr = base_otc()
+#     X = bbf.X
+#     Y = bbf.Y
+#     grid = gridify(lnr)
+#     thresholds = [0.6, 0.85, 0.98]
+#     for thres in thresholds
+#         kwargs = Dict(:validation_criterion => :sensitivity, :threshold => thres, :positive_label => 1)
+#         learn_from_data!(X, Y, grid; kwargs...)
+#         IAI.show_in_browser(grid.lnr)
+#     end
+                
+#     return true
+# end
 
 test_basic_functions()
 
@@ -68,6 +92,8 @@ test_load_fits()
 test_nonlinear_solve()
 
 test_find_bounds()
+
+# test_relaxations()
 
 # gm = minlp(true)
 # bounds = get_bounds(gm)
