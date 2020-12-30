@@ -4,6 +4,7 @@ venv
 test_reports
 build
 OptimalConstraintTree.egg-info
+Manifest.toml
 dist
 __pycache__
 *.json
@@ -14,9 +15,13 @@ __pycache__
 *.cbf
 *.cbf.gz
 *.cov
+*.csv
+*.inp
+*.out
 *.log
 *.lst
 *.lxi
+*.tree
 
 
 /dump/
