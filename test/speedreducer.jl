@@ -75,7 +75,7 @@ optimize!(gm)
 # @test old_bounds == new_bounds
 #
 # # Fitting and finding bounds with some bbfs
-# learn_constraint!(gm, ignore_checks=true);
+# learn_constraint!(gm, base_otc(), ignore_checks=true);
 # set_param(gm, :ignore_accuracy, true)
 # globalsolve(gm);
 # soln = solution(gm);
