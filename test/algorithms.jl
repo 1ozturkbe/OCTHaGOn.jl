@@ -64,10 +64,26 @@ function test_find_bounds(gm::GlobalModel = minlp(true))
     @test true
 end
 
-function test_relaxations(gm::GlobalModel = GAMS_to_GlobalModel(OCT.GAMS_DIR, "problem3.13.gms"),
-                          solver = CPLEX_SILENT)
-    return true
-end
+# function test_relaxations(gm::GlobalModel = minlp(true),
+#                           solver = CPLEX_SILENT)
+#     gm = minlp(true)
+#     bbf = gm.bbfs[2]
+#     sample_and_eval!(bbf)
+#     sample_and_eval!(bbf)
+#     sensitivities = [1.0, 0.75, 0.5]
+#     lnr = base_otc()
+#     X = bbf.X
+#     Y = bbf.Y
+#     grid = gridify(lnr)
+#     thresholds = [0.6, 0.85, 0.98]
+#     for thres in thresholds
+#         kwargs = Dict(:validation_criterion => :sensitivity, :threshold => thres, :positive_label => 1)
+#         learn_from_data!(X, Y, grid; kwargs...)
+#         IAI.show_in_browser(grid.lnr)
+#     end
+                
+#     return true
+# end
 
 test_basic_functions()
 
@@ -77,7 +93,7 @@ test_nonlinear_solve()
 
 test_find_bounds()
 
-test_relaxations()
+# test_relaxations()
 
 # gm = minlp(true)
 # bounds = get_bounds(gm)
