@@ -14,12 +14,12 @@ function base_otr(; max_depth::Int64 = 5, minbucket::Float64 = 0.01)
 end
 
 """
-    base_otc(localsearch::Bool = false, max_depth::Int64 = 5, minbucket::Float64 = 0.01)
+    base_otc(localsearch::Bool = true, max_depth::Int64 = 5, minbucket::Float64 = 0.01)
 
 Returns the baseline OptimalTreeClassifier, with parameters for different training steps.
 """
 
-function base_otc(; localsearch::Bool = false, max_depth::Int64 = 5, minbucket::Float64 = 0.01)
+function base_otc(; localsearch::Bool = true, max_depth::Int64 = 5, minbucket::Float64 = 0.01)
     return IAI.OptimalTreeClassifier(
         random_seed = 1,
         max_depth = 5,
