@@ -4,6 +4,16 @@ function default_fit_kwargs()
          :sample_weight => :autobalance)
 end
 
+""" Function that preprocesses merging of fit kwargs, 
+    to avoid errors! """
+function merge_fit_kwargs(kwargs1, kwargs2)
+    nkwargs = merge(kwargs1, kwargs2)
+    if haskey(nkwargs, :validation_criterion) && nkwargs[:validation_criterion] == :sensitivity && haskey(nkwargs, :sample_weight)
+        delete!(nkwargs, :sample_weight)
+    end
+    return nkwargs
+end
+
 function learn_from_data!(X::DataFrame, Y::AbstractArray, grid; idxs::Union{Nothing, Array}=nothing, kwargs...)
     """ Wrapper around IAI.GridSearch for constraint learning.
     Arguments:
@@ -76,13 +86,13 @@ function learn_constraint!(bbf::Union{BlackBoxFunction, DataConstraint};
     if bbf.feas_ratio == 1.0
         return
     elseif check_feasibility(bbf) || ignore_checks
-        kwargs = merge(default_fit_kwargs(), kwargs)
+        nkwargs = merge_fit_kwargs(default_fit_kwargs(), kwargs)
         nl = learn_from_data!(bbf.X, bbf.Y .>= 0,
                               gridify(lnr),
-                              kwargs...);
+                              nkwargs...);
         push!(bbf.learners, nl);
         push!(bbf.accuracies, IAI.score(nl, bbf.X, bbf.Y .>= 0))
-        push!(bbf.learner_kwargs, kwargs)
+        push!(bbf.learner_kwargs, nkwargs)
     else
         @warn("Not enough feasible samples for constraint " * string(bbf.name) * ".")
     end
