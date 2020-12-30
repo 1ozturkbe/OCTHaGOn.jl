@@ -34,7 +34,10 @@ function test_basic_functions()
 
     # Saving fit for test_load_fits()
     save_fit(gm)
-    @test true
+
+    # Testing finding bounds of bounded model
+    @test isnothing(get_unbounds(gm.bbfs))
+    @test isnothing(find_bounds!(gm))
 end
 
 """ Tests loading of previously solved GMs.
@@ -61,6 +64,11 @@ function test_find_bounds(gm::GlobalModel = minlp(true))
     @test true
 end
 
+function test_relaxations(gm::GlobalModel = GAMS_to_GlobalModel(OCT.GAMS_DIR, "problem3.13.gms"),
+                          solver = CPLEX_SILENT)
+    return true
+end
+
 test_basic_functions()
 
 test_load_fits()
@@ -68,6 +76,8 @@ test_load_fits()
 test_nonlinear_solve()
 
 test_find_bounds()
+
+test_relaxations()
 
 # gm = minlp(true)
 # bounds = get_bounds(gm)

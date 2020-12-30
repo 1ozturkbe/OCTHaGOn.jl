@@ -4,6 +4,9 @@ function find_linear_bounds!(gm::GlobalModel; bbfs::Array{BlackBoxFunction} = gm
     if all_bounds
         unbounds = get_bounds(bbfs)
     end
+    if isnothing(unbounds)
+        return
+    end
     clear_tree_constraints!(gm)
     m = gm.model
     orig_objective = JuMP.objective_function(m)
