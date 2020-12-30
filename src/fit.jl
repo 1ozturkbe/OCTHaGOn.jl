@@ -8,8 +8,13 @@ end
     to avoid errors! """
 function merge_fit_kwargs(kwargs1, kwargs2)
     nkwargs = merge(kwargs1, kwargs2)
-    if haskey(nkwargs, :validation_criterion) && nkwargs[:validation_criterion] == :sensitivity && haskey(nkwargs, :sample_weight)
-        delete!(nkwargs, :sample_weight)
+    if haskey(nkwargs, :validation_criterion) && nkwargs[:validation_criterion] == :sensitivity
+        if haskey(nkwargs, :sample_weight)
+            delete!(nkwargs, :sample_weight)
+        end
+        if !haskey(kwargs, :positive_label)
+            nkwargs[:positive_label] = 1
+        end
     end
     return nkwargs
 end
