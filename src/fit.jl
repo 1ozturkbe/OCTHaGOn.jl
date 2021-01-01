@@ -1,5 +1,5 @@
 """ Default fitting kwargs for OCTs. """
-function default_fit_kwargs()
+function fit_kwarg_defaults()
     Dict(:validation_criterion => :misclassification,
          :sample_weight => :autobalance)
 end
@@ -28,7 +28,7 @@ Returns:
     lnr: list of Fitted Grids corresponding to the data
 NOTE: kwargs get unpacked here, all the way from learn_constraint!.
 """
-function learn_from_data!(X::DataFrame, Y::AbstractArray, grid, idxs::Union{Nothing, Array}=nothing; kwargs...)
+function learn_from_data!(X::DataFrame, Y::AbstractArray, grid, idxs::Union{Nothing, Array}=nothing; fit_kwargs...)
     n_samples, n_features = size(X);
     @assert n_samples == length(Y);
     # Making sure that we only consider relevant features.
@@ -43,7 +43,7 @@ function learn_from_data!(X::DataFrame, Y::AbstractArray, grid, idxs::Union{Noth
             IAI.set_params!(grid.lnr, regression_features = All())
         end
     end
-    IAI.fit!(grid, X, Y; kwargs...)
+    IAI.fit!(grid, X, Y; fit_kwargs...)
     return grid
 end
 
@@ -67,32 +67,30 @@ end
 
 """
     learn_constraint!(bbf::Union{GlobalModel, Array{BlackBoxFunction}, BlackBoxFunction},
-                           lnr::IAI.OptimalTreeLearner = base_otc(),
-                           ignore_checks::Bool = false or gm.settings[:ignore_feasibility]; kwargs...)
+                           ignore_checks::Bool = false or gm.settings[:ignore_feasibility]; fit_kwargs...)
 
 Constructs a constraint tree from a BlackBoxFunction and dumps in bbf.learners.
 Arguments:
-    bbf:: OCT structs (GM, BBF, Array{BBF})
-    lnr: Unfit OptimalTreeClassifier or Grid
-    X: new data to add to BlackBoxFunction and evaluate
+    bbf: OCT structs (GM, BBF, Array{BBF})
+    ignore_checks: whether to ignore feasibility checks for training
     kwargs: arguments for learn_from_data!
 Returns:
     nothing
 """
 function learn_constraint!(bbf::Union{BlackBoxFunction, DataConstraint},
-                           lnr::IAI.OptimalTreeLearner = base_otc(),
-                           ignore_checks::Bool = false; kwargs...)
+                           ignore_checks::Bool = false; fit_kwargs...)
     if isa(bbf.X, Nothing)
         throw(OCTException(string("BlackBoxFn ", bbf.name, " must be sampled first.")))
     end
     n_samples, n_features = size(bbf.X)
+    lnr = base_otc(fit_kwargs...)
     if bbf.feas_ratio == 1.0
         return
     elseif check_feasibility(bbf) || ignore_checks
-        nkwargs = merge_fit_kwargs(default_fit_kwargs(), kwargs)
+        nfit_kwargs = merge_fit_kwargs(fit_kwarg_defaults(), fit_kwargs)
         nl = learn_from_data!(bbf.X, bbf.Y .>= 0,
                               gridify(lnr);
-                              nkwargs...)
+                              nfit_kwargs...)
         push!(bbf.learners, nl);
         push!(bbf.accuracies, IAI.score(nl, bbf.X, bbf.Y .>= 0))
         push!(bbf.learner_kwargs, nkwargs)
@@ -103,18 +101,16 @@ function learn_constraint!(bbf::Union{BlackBoxFunction, DataConstraint},
 end
 
 function learn_constraint!(bbf::Array,
-                           lnr::IAI.OptimalTreeLearner = base_otc(),
-                           ignore_checks::Bool = false; kwargs...)
+                           ignore_checks::Bool = false; fit_kwargs...)
    for fn in bbf
-        learn_constraint!(fn, lnr, ignore_checks; kwargs...)
+        learn_constraint!(fn, ignore_checks; fit_kwargs...)
    end
 end
 
 function learn_constraint!(gm::GlobalModel,
-                           lnr::IAI.OptimalTreeLearner = base_otc(),
-                           ignore_checks::Bool = get_param(gm, :ignore_feasibility); kwargs...)
+                           ignore_checks::Bool = get_param(gm, :ignore_feasibility); fit_kwargs...)
    set_param(gm, :ignore_feasibility, ignore_checks) # update check settings
-   learn_constraint!(gm.bbfs, lnr, ignore_checks; kwargs...)
+   learn_constraint!(gm.bbfs, ignore_checks; fit_kwargs...)
 end
 
 """

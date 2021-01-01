@@ -4,7 +4,7 @@ function base_otr(; max_depth::Int64 = 5, minbucket::Float64 = 0.01)
         hyperplane_config = (sparsity = :all,),
         regression_sparsity = :all,
         regression_weighted_betas = true,
-        # Modifiables
+        # Modifiables, with defaults
         random_seed = get(kwargs, :random_seed, 1),
         max_depth = get(kwargs, :max_depth, 5),
         cp = get(kwargs, :cp, 1e-6),
@@ -22,10 +22,10 @@ end
 Returns the baseline OptimalTreeClassifier, with parameters for different training steps.
 """
 
-function ase_otc(; kwargs...)
+function base_otc(; kwargs...)
     lnr = IAI.OptimalTreeClassifier(
         hyperplane_config = (sparsity = :all,),
-        # Modifiables
+        # Modifiables, with defaults
         random_seed = get(kwargs, :random_seed, 1),
         max_depth = get(kwargs, :max_depth, 5),
         cp = get(kwargs, :cp, 1e-6),
