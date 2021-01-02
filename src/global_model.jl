@@ -9,7 +9,24 @@ nonlinear_model can contain JuMP.NonlinearConstraints.
     name::String = "Model"                                       # Example name
     bbfs::Array{BlackBoxFunction} = Array{BlackBoxFunction}[]    # Black box (>/= 0) functions
     vars::Array{VariableRef} = JuMP.all_variables(model)         # JuMP variables
+    solution_history::DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Solution history
     settings::Dict{Symbol, Bool} = gm_defaults()                 # GM settings
+end
+
+function Base.show(io::IO, gm::GlobalModel)
+    println(io, "GlobalModel " * gm.name * " with $(length(gm.vars)) variables: ")
+    println(io, "Has $(length(gm.bbfs)) BlackBoxFunctions.")
+    if get_param(gm, :ignore_feasibility)
+        if get_param(gm, :ignore_accuracy)
+            println(io, "Ignores training accuracy and data_feasibility thresholds.")
+        else
+            println(io, "Ignores data feasibility thresholds.")
+        end
+    else
+        if get_param(gm, :ignore_accuracy)
+            println("Ignores training accuracy thresholds.")
+        end
+    end
 end
 
 set_param(gm::GlobalModel, key::Symbol, val) = set_param(gm.settings, key, val)
@@ -353,6 +370,7 @@ end
 """ Extends JuMP.optimize! to GlobalModels. """
 function JuMP.optimize!(gm::GlobalModel; kwargs...)
     JuMP.optimize!(gm.model, kwargs...)
+    append!(gm.solution_history, solution(gm), cols=:setequal)
 end
 
 """

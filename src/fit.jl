@@ -40,7 +40,7 @@ function learn_from_data!(X::DataFrame, Y::AbstractArray, grid, idxs::Union{Noth
             IAI.set_params!(grid.lnr, regression_features = All())
         end
     end
-    IAI.fit!(grid, X, Y; fit_kwargs(kwargs)...)
+    IAI.fit!(grid, X, Y; fit_kwargs(kwargs...)...)
     return grid
 end
 
