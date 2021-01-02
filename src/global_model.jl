@@ -9,8 +9,8 @@ nonlinear_model can contain JuMP.NonlinearConstraints.
     name::String = "Model"                                       # Example name
     bbfs::Array{BlackBoxFunction} = Array{BlackBoxFunction}[]    # Black box (>/= 0) functions
     vars::Array{VariableRef} = JuMP.all_variables(model)         # JuMP variables
-    solution_history::DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Solution history
-    settings::Dict{Symbol, Bool} = gm_defaults()                 # GM settings
+    solution_history::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Solution history
+    settings::Dict = gm_defaults()                 # GM settings
 end
 
 function Base.show(io::IO, gm::GlobalModel)
@@ -402,13 +402,10 @@ end
 """ Evaluates each constraint at solution to make sure it is feasible. """
 function evaluate_feasibility(gm::GlobalModel)
     soln = solution(gm);
-    feas = [];
     for fn in gm.bbfs
         eval!(fn, soln)
     end
-    infeas_idxs = findall(idx -> gm.bbfs[idx].Y[end] .< 0, collect(1:length(gm.bbfs))) #TODO: optimize
-    feas_idxs = findall(idx -> gm.bbfs[idx].Y[end] .>= 0, collect(1:length(gm.bbfs)))
-    return feas_idxs, infeas_idxs
+    return [gm.bbfs[i].Y[end] >= 0 for i=1:length(gm.bbfs)]
 end
 
 """ Matches BBFs to associated variables. """
