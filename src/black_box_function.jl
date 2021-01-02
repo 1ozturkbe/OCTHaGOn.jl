@@ -212,4 +212,8 @@ end
 function clear_data!(bbf::BlackBoxFunction)
     bbf.X = DataFrame([Float64 for i=1:length(bbf.vars)], string.(bbf.vars))
     bbf.Y = [];
+    bbf.feas_ratio = 0
+    bbf.learners =[];
+    bbf.learner_kwargs = []                            
+    bbf.accuracies = []                    # and the tree misclassification scores.
 end
