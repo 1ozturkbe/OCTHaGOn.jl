@@ -129,6 +129,12 @@ Also contains data w.r.t. samples from the function.
     settings::Dict = bbf_defaults()                    # Relevant settings
 end
 
+function Base.show(io::IO, bbf::BlackBoxFunction)
+    println(io, "BlackBoxFunction " * bbf.name * " with $(length(bbf.vars)) variables: ")
+    println(io, "Sampled $(length(bbf.Y)) times with $(round(bbf.feas_ratio, digits=2)) of samples feasible.")
+    println(io, "Has $(length(bbf.learners)) trained OptimalTreeLearners.")
+end
+
 set_param(bbf::BlackBoxFunction, key::Symbol, val) = set_param(bbf.settings, key, val)
 set_param(bbfs::Array{BlackBoxFunction}, key::Symbol, val) = foreach(bbf -> set_param(bbf.settings, key, val), bbfs)
 get_param(bbf::BlackBoxFunction, key::Symbol) = get_param(bbf.settings, key)
