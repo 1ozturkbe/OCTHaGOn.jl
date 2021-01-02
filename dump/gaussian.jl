@@ -42,3 +42,38 @@ function resample(n_samples, lbs, ubs, prev_X, x_sol; mean_shift=0.75, std_shrin
     end
     return X
 end
+
+# Sampling based on GaussianProcesses
+#         plan = randomLHC(Int(round(get_param(bbf, :n_samples)*ratio)), n_dims);
+#         random_samples = scaleLHC(plan,[(bbf.lbs[i], bbf.ubs[i]) for i in vks]);
+#         μ, σ = predict_f(bbf.gp, random_samples');
+#         cdf_0 = [Distributions.cdf(Distributions.Normal(μ[i], σ[i]),0) for i=1:size(random_samples,1)];
+#          #TODO: add criterion for information as well (something like sortperm(σ))
+#         # Sample places with high probability of being near boundary (0),
+#         # but also balance feasibility ratio.
+#         p = bbf.feas_ratio
+# #         balance_fn = x -> -1*tan(2*atan(-0.5)*(x-0.5)) + 0.5
+#         balance_fn = x -> -1/0.5^2*(x-0.5)^3 + 0.5;
+#         indices = sortperm(abs.(cdf_0 .- balance_fn(p)));
+#         samples = DataFrame(random_samples[indices[1:get_param(bbf, :n_samples)],:], vks);
+#         eval!(bbf, samples);
+
+# function predict(bbf::BlackBoxFunction, X::AbstractArray)
+#     μ, σ = predict_f(bbf.gp, transpose(X))
+#     return μ, σ
+# end
+#
+# function optimize_gp!(bbf::BlackBoxFunction)
+#     """ Optimizes a GaussianProcess over a BlackBoxFunction,
+#     with adaptively changing kernel. """
+# #         bbf.gp = ElasticGPE(length(bbf.idxs), # data
+# #         mean = MeanConst(sum(bbf.Y)/length(bbf.Y)), logNoise = -10)
+#     lbs = [bbf.lbs[key] for key in bbf.vks];
+#     ubs = [bbf.ubs[key] for key in bbf.vks];
+#     bbf.gp = GPE(transpose(Array(bbf.X)), bbf.Y, # data
+#     MeanConst(sum(bbf.Y)/length(bbf.Y)),
+#     SEArd(log.((ubs-lbs)./(2*sqrt(length(bbf.Y)))), -5.))
+#     optimize!(bbf.gp); #TODO: optimize GP
+#                        # Instead of regenerating at every run, figure out
+#                        # how to update.
+# end
