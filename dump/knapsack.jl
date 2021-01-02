@@ -5,7 +5,7 @@ test_knapsack:
 - Date: 2020-07-01
 =#
 
-function knapsack(c, a, b;
+function knapsack(c, a, b);
     """ Creates a knapsack ModelData problem"""
     md = ModelData(c=-c);
     md.lbs = Dict(md.vks .=> 0.);

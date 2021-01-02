@@ -1,7 +1,6 @@
 """ Function that preprocesses merging of kwargs for IAI.fit!, 
     to avoid errors! """
 function fit_kwargs(; kwargs...)
-    # TODO: figure out how to merge this stuff!!!!
     nkwargs = Dict(:validation_criterion => get(kwargs, :validation_criterion, :misclassification),
                    :sample_weight => get(kwargs, :sample_weight, :autobalance),
     ) 
@@ -11,6 +10,21 @@ function fit_kwargs(; kwargs...)
         end
         if !haskey(kwargs, :positive_label)
             nkwargs[:positive_label] = 1
+        end
+    end
+    return nkwargs
+end
+
+""" Function that preprocesses merging of kwargs for IAI.OptimalTreeLearner!, 
+    to avoid errors! """
+function lnr_kwargs(; kwargs...)
+    # TODO: figure out how to merge this stuff!!!!
+    nkwargs = Dict() 
+    valid_keys = [:random_seed, :max_depth, :cp, :minbucket, :fast_num_support_restarts, 
+                  :localsearch, :ls_num_hyper_restarts, :ls_num_tree_restarts]
+    for (key, value) in kwargs
+        if key in valid_keys
+            nkwargs[key] = value
         end
     end
     return nkwargs
