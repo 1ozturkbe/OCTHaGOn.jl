@@ -63,19 +63,16 @@ function check_accuracy(gm::GlobalModel)
 end
 
 """
-    learn_constraint!(bbf::Union{GlobalModel, Array{BlackBoxFunction}, BlackBoxFunction},
-                           ignore_checks::Bool = false or gm.settings[:ignore_feasibility]; kwargs...)
+    learn_constraint!(bbf::Union{GlobalModel, Array{BlackBoxFunction}, BlackBoxFunction}; kwargs...)
 
 Constructs a constraint tree from a BlackBoxFunction and dumps in bbf.learners.
 Arguments:
     bbf: OCT structs (GM, BBF, Array{BBF})
-    ignore_checks: whether to ignore feasibility checks for training
-    kwargs: arguments for learn_from_data!
+    kwargs: arguments for learners and fits.
 Returns:
     nothing
 """
-function learn_constraint!(bbf::Union{BlackBoxFunction, DataConstraint},
-                           ignore_checks::Bool = false; kwargs...)
+function learn_constraint!(bbf::Union{BlackBoxFunction, DataConstraint}; kwargs...)
     if isa(bbf.X, Nothing)
         throw(OCTException(string("BlackBoxFn ", bbf.name, " must be sampled first.")))
     end
@@ -83,7 +80,7 @@ function learn_constraint!(bbf::Union{BlackBoxFunction, DataConstraint},
     lnr = base_otc(kwargs...) # lnr also stores learner related kwargs...
     if bbf.feas_ratio == 1.0
         return
-    elseif check_feasibility(bbf) || ignore_checks
+    elseif check_feasibility(bbf) || get_param(bbf, :ignore_feasibility)
         nl = learn_from_data!(bbf.X, bbf.Y .>= 0,
                               gridify(lnr);
                               kwargs...)
@@ -96,18 +93,13 @@ function learn_constraint!(bbf::Union{BlackBoxFunction, DataConstraint},
     return
 end
 
-function learn_constraint!(bbf::Array,
-                           ignore_checks::Bool = false; kwargs...)
+function learn_constraint!(bbf::Array; kwargs...)
    for fn in bbf
-        learn_constraint!(fn, ignore_checks; kwargs...)
+        learn_constraint!(fn; kwargs...)
    end
 end
 
-function learn_constraint!(gm::GlobalModel,
-                           ignore_checks::Bool = get_param(gm, :ignore_feasibility); kwargs...)
-   set_param(gm, :ignore_feasibility, ignore_checks) # update check settings
-   learn_constraint!(gm.bbfs, ignore_checks; kwargs...)
-end
+learn_constraint!(gm::GlobalModel; kwargs...) = learn_constraint!(gm.bbfs; kwargs...)
 
 """
 Basic regression purely for debugging.
