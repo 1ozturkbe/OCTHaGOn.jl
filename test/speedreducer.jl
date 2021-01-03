@@ -61,7 +61,7 @@ optimize!(gm)
 # # Initial sampling (boundary and interior)
 # gm = speed_reducer()
 # set_optimizer(gm, CPLEX_SILENT)
-# sample_and_eval!(gm, n_samples=n_samples)
+# sample_and_eval!(gm)
 # println("Constraint feasibilities: ", feasibility(gm))
 #
 # # See if KNN sampling makes a difference for feasibility!

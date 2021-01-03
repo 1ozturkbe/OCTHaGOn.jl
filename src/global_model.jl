@@ -186,7 +186,7 @@ function add_nonlinear_constraint(gm::GlobalModel,
         JuMP.delete(gm.model, con)
         new_bbf = BlackBoxFunction(constraint = con, vars = vars, expr_vars = expr_vars,
                                    equality = equality, name = name)
-        set_param(new_bbf, :n_samples, Int(ceil(200*sqrt(length(vars))))) 
+        set_param(new_bbf, :n_samples, Int(ceil(get_param(gm, :sample_coefficient)*sqrt(length(vars))))) 
         push!(gm.bbfs, new_bbf)
         return
     end
@@ -195,7 +195,7 @@ function add_nonlinear_constraint(gm::GlobalModel,
     end
     new_bbf = BlackBoxFunction(constraint = constraint, vars = vars, expr_vars = expr_vars,
                                equality = equality, name = name)
-    set_param(new_bbf, :n_samples, Int(ceil(200*sqrt(length(vars))))) 
+    set_param(new_bbf, :n_samples, Int(ceil(get_param(gm, :sample_coefficient)*sqrt(length(vars))))) 
     push!(gm.bbfs, new_bbf)
     return
 end
