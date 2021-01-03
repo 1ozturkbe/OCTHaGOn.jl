@@ -16,7 +16,7 @@ function compile_lse_constraints(n_samples = 300)
         if !any(isinf.(values(md.lbs))) && !any(isinf.(values(md.ubs)))
             println("Adding constraints from test ", string(idx));
             for i=1:length(md.bbfs)
-                md.bbfs[i].n_samples = n_samples;
+                set_param(md.bbfs[i], :n_samples, n_samples)
                 md.bbfs[i].name = Float64(idx) + i/10.;
                 push!(ineq_constraints, md.bbfs[i]);
             end

@@ -191,15 +191,18 @@ end
 function test_kwargs()
     sample_kwargs = Dict(:validation_criterion => :sensitivity, 
                        :localsearch => false, 
-                       :invalid_kwarg => :hello)
+                       :invalid_kwarg => :hello,
+                       :ls_num_tree_restarts => 20)
 
     dict_fit = fit_kwargs(; sample_kwargs...)
-    dict_fit2 = fit_kwargs(validation_criterion = :sensitivity, localsearch = false, invalid_kwarg = :hello)
-    @test dict_fit == dict_fit2 = Dict(:validation_criterion => :misclassification, :sample_weight => :autobalance)
+    dict_fit2 = fit_kwargs(validation_criterion = :sensitivity, localsearch = false, invalid_kwarg = :hello,
+                           ls_num_tree_restarts = 20)
+    @test dict_fit == dict_fit2 == Dict(:validation_criterion => :sensitivity, :positive_label => 1)
 
-    dict_lnr = fit_kwargs(; sample_kwargs...)
-    dict_lnr2 = fit_kwargs(validation_criterion = :sensitivity, localsearch = false, invalid_kwarg = :hello)
-    @test dict_lnr == dict_lnr2 == Dict(:localsearch => false)
+    dict_lnr = lnr_kwargs(; sample_kwargs...)
+    dict_lnr2 = lnr_kwargs(validation_criterion = :sensitivity, localsearch = false, invalid_kwarg = :hello,
+                           ls_num_tree_restarts = 20)
+    @test dict_lnr == dict_lnr2 == Dict(:localsearch => false, :ls_num_tree_restarts => 20)
 end
 
 test_expressions()
