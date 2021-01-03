@@ -27,7 +27,6 @@ function gear(gm::Bool = false)
         gm = GlobalModel(model = m, name = "gear")
         set_optimizer(gm, CPLEX_SILENT)
         add_nonlinear_constraint(gm, :((i, obj) -> obj - ((6.931 - i[1]*i[2]/(i[3]*i[4]))^2 + 1)))
-        bound!(gm, obj => [0,2]) # Optimal objective is 1.
         return gm
     end
     return m

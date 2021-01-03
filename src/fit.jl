@@ -86,16 +86,16 @@ Arguments:
 Returns:
     nothing
 """
-function learn_constraint!(bbf::Union{BlackBoxFunction, DataConstraint}; kwargs...)
+function learn_constraint!(bbf::Union{BlackBoxFunction, DataConstraint}, ignore_feas::Bool = false; kwargs...)
     if isa(bbf.X, Nothing)
         throw(OCTException(string("BlackBoxFn ", bbf.name, " must be sampled first.")))
     end
     n_samples, n_features = size(bbf.X)
     lnr = base_otc() 
-    IAI.set_params!(lnr, lnr_kwargs(; kwargs...)...)# lnr also stores learner related kwargs...
+    IAI.set_params!(lnr; lnr_kwargs(; kwargs...)...)# lnr also stores learner related kwargs...
     if bbf.feas_ratio == 1.0
         return
-    elseif check_feasibility(bbf) || get_param(bbf, :ignore_feasibility)
+    elseif check_feasibility(bbf) || ignore_feas
         nl = learn_from_data!(bbf.X, bbf.Y .>= 0,
                               gridify(lnr);
                               fit_kwargs(; kwargs...)...)
@@ -108,13 +108,14 @@ function learn_constraint!(bbf::Union{BlackBoxFunction, DataConstraint}; kwargs.
     return
 end
 
-function learn_constraint!(bbf::Array; kwargs...)
+function learn_constraint!(bbf::Array, ignore_feas::Bool = false; kwargs...)
    for fn in bbf
-        learn_constraint!(fn; kwargs...)
+        learn_constraint!(fn, ignore_feas; kwargs...)
    end
 end
 
-learn_constraint!(gm::GlobalModel; kwargs...) = learn_constraint!(gm.bbfs; kwargs...)
+learn_constraint!(gm::GlobalModel, ignore_feas::Bool = get_param(gm, :ignore_feasibility); kwargs...) = 
+    learn_constraint!(gm.bbfs, ignore_feas; kwargs...)
 
 """
 Basic regression purely for debugging.
