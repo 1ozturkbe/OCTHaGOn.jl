@@ -92,16 +92,16 @@ function learn_constraint!(bbf::Union{BlackBoxFunction, DataConstraint}; kwargs.
     end
     n_samples, n_features = size(bbf.X)
     lnr = base_otc() 
-    IAI.set_params!(lnr, lnr_kwargs(kwargs...)...)# lnr also stores learner related kwargs...
+    IAI.set_params!(lnr, lnr_kwargs(; kwargs...)...)# lnr also stores learner related kwargs...
     if bbf.feas_ratio == 1.0
         return
     elseif check_feasibility(bbf) || get_param(bbf, :ignore_feasibility)
         nl = learn_from_data!(bbf.X, bbf.Y .>= 0,
                               gridify(lnr);
-                              fit_kwargs(kwargs...)...)
+                              fit_kwargs(; kwargs...)...)
         push!(bbf.learners, nl);
         push!(bbf.accuracies, IAI.score(nl, bbf.X, bbf.Y .>= 0))
-        push!(bbf.learner_kwargs, kwargs)
+        push!(bbf.learner_kwargs, Dict(kwargs))
     else
         @warn("Not enough feasible samples for constraint " * string(bbf.name) * ".")
     end
