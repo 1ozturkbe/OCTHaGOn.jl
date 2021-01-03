@@ -124,7 +124,7 @@ function test_speed_params(gm::GlobalModel = gear(true), solver = CPLEX_SILENT)
     # end
 end
 
-# test_basic_functions()
+test_basic_functions()
 
 test_load_fits()
 
