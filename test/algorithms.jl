@@ -64,20 +64,20 @@ function test_find_bounds(gm::GlobalModel = minlp(true))
     @test true
 end
 
-# function test_relaxations(gm::GlobalModel = minlp(true),
-#                           solver = CPLEX_SILENT)
-#     gm = minlp(true)
-#     set_optimizer(gm, solver)
-#     bound!(gm, gm.vars[end] => [-10,20])
-#     sample_and_eval!(gm)
-#     sample_and_eval!(gm)
-#     thresholds = [0.6, 0.85, 0.98]
-#     learn_constraint!(gm)
-#     # for thres in thresholds
-#     #     learn_constraint!(gm, validation_criterion = :sensitivity, threshold = thres, positive_label = 1, localsearch=false)
-#     # end    
-#     @test true
-# end
+function test_relaxations(gm::GlobalModel = minlp(true),
+                          solver = CPLEX_SILENT)
+    gm = minlp(true)
+    set_optimizer(gm, solver)
+    bound!(gm, gm.vars[end] => [-10,20])
+    sample_and_eval!(gm)
+    sample_and_eval!(gm)
+    thresholds = [0.25, 0.5, 0.75]
+    bbf = gm.bbfs[1]
+    for i=1:length(thresholds)
+        learn_constraint!(gm, validation_criterion = :sensitivity, threshold = thresholds[i])
+    end
+    @test true
+end
 
 function test_speed_params(gm::GlobalModel = gear(true), solver = CPLEX_SILENT)
     gm = gear(true)

@@ -23,7 +23,7 @@ end
 
 function lh_sample(bbf::BlackBoxFunction; lh_iterations::Int64 = 2,
                    n_samples::Int64 = 1000)
-   return lh_sample(bbf.vars, lh_iterations = lh_iterations, n_samples = n_samples)
+   return lh_sample(bbf.vars; lh_iterations = lh_iterations, n_samples = n_samples)
 end
 
 function choose(large::Int64, small::Int64)
@@ -108,22 +108,17 @@ end
 
 """
     sample_and_eval!(bbf::Union{BlackBoxFunction, GlobalModel, Array{BlackBoxFunction}};
-                              n_samples:: Union{Int64, Nothing} = nothing,
                               boundary_fraction::Float64 = 0.5,
                               lh_iterations::Int64 = 1)
 
-Samples and evaluates BlackBoxFunction, with n_samples new samples.
-Arguments:
-    n_samples: number of samples, overwrites bbf parameter n_samples.
+Samples and evaluates BlackBoxFunction.
+Keyword arguments:
     boundary_fraction: maximum ratio of boundary samples
     lh_iterations: number of GA populations for LHC sampling (0 is a random LH.)
 """
-function sample_and_eval!(bbf::Union{BlackBoxFunction, GlobalModel, Array{BlackBoxFunction}};
+function sample_and_eval!(bbf::BlackBoxFunction;
                           boundary_fraction::Float64 = 0.5,
                           lh_iterations::Int64 = 0)
-    if !isnothing(n_samples)
-        set_param(bbf, :n_samples, n_samples)
-    end
     vks = string.(bbf.vars)
     n_dims = length(vks);
     check_bounds(get_bounds(bbf))

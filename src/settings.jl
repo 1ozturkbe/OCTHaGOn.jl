@@ -16,7 +16,7 @@ function gm_defaults()
          :linear => true,
          :convex => false,
          :lh_iterations => 0,
-         :sample_coefficient = 200)
+         :sample_coefficient => 200)
 end
 
 """ Sets parameters within Dict. """

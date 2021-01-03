@@ -172,8 +172,8 @@ function test_bbf()
     X_lh = lh_sample(bbf);
 
     # Check sample_and_eval
-    sample_and_eval!(bbf, n_samples=100);
-    sample_and_eval!(bbf, n_samples=100);
+    sample_and_eval!(bbf);
+    sample_and_eval!(bbf);
 
     # Sampling, learning and showing...
     learn_constraint!(bbf);

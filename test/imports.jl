@@ -25,7 +25,7 @@ function test_sagemark_to_GlobalModel()
     @test gm_lse.bbfs[1](log_inp)[1] ≈ gm.bbfs[1](inp)[1] ≈ [inp[gm.vars[5]] - inp[gm.vars[3]] ^ 0.8 * inp[gm.vars[4]] ^ 1.2][1]
 
     # Checking OCTException for sampling unbounded model
-    @test_throws OCTException sample_and_eval!(gm.bbfs[1], n_samples=200)
+    @test_throws OCTException sample_and_eval!(gm.bbfs[1])
     return true
 end
 
