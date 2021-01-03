@@ -186,6 +186,22 @@ function test_bbf()
     add_feas_constraints!(model, bbf.vars, bbf.learners[1].lnr, return_data = false);
 end
 
+
+""" Testing some IAI kwarging. """
+function test_kwargs()
+    sample_kwargs = Dict(:validation_criterion => :sensitivity, 
+                       :localsearch => false, 
+                       :invalid_kwarg => :hello)
+
+    dict_fit = fit_kwargs(; sample_kwargs...)
+    dict_fit2 = fit_kwargs(validation_criterion = :sensitivity, localsearch = false, invalid_kwarg = :hello)
+    @test dict_fit == dict_fit2 = Dict(:validation_criterion => :misclassification, :sample_weight => :autobalance)
+
+    dict_lnr = fit_kwargs(; sample_kwargs...)
+    dict_lnr2 = fit_kwargs(validation_criterion = :sensitivity, localsearch = false, invalid_kwarg = :hello)
+    @test dict_lnr == dict_lnr2 == Dict(:localsearch => false)
+end
+
 test_expressions()
 
 test_variables()
@@ -197,3 +213,5 @@ test_sets()
 test_linearize()
 
 test_bbf()
+
+test_kwargs()

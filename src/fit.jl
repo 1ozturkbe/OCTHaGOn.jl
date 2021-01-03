@@ -1,16 +1,16 @@
 """ Function that preprocesses merging of kwargs for IAI.fit!, 
     to avoid errors! """
 function fit_kwargs(; kwargs...)
-    nkwargs = Dict(:validation_criterion => get(kwargs, :validation_criterion, :misclassification),
-                   :sample_weight => get(kwargs, :sample_weight, :autobalance),
-    ) 
-    if haskey(kwargs, :validation_criterion) && kwargs[:validation_criterion] == :sensitivity
-        if haskey(nkwargs, :sample_weight)
-            delete!(nkwargs, :sample_weight)
+    nkwargs = Dict{Symbol, Any}(:validation_criterion => :misclassification,
+                    :sample_weight => :autobalance) # default kwargs
+    for item in kwargs
+        if item.first in keys(nkwargs)
+            nkwargs[item.first] = item.second
         end
-        if !haskey(kwargs, :positive_label)
-            nkwargs[:positive_label] = 1
-        end
+    end
+    if nkwargs[:validation_criterion] == :sensitivity
+        delete!(nkwargs, :sample_weight)
+        nkwargs[:positive_label] = 1
     end
     return nkwargs
 end
@@ -19,12 +19,12 @@ end
     to avoid errors! """
 function lnr_kwargs(; kwargs...)
     # TODO: figure out how to merge this stuff!!!!
-    nkwargs = Dict() 
+    nkwargs = Dict{Symbol, Any}() 
     valid_keys = [:random_seed, :max_depth, :cp, :minbucket, :fast_num_support_restarts, 
                   :localsearch, :ls_num_hyper_restarts, :ls_num_tree_restarts]
-    for (key, value) in kwargs
-        if key in valid_keys
-            nkwargs[key] = value
+    for item in kwargs
+        if item.first in valid_keys
+            nkwargs[item.first] = item.second
         end
     end
     return nkwargs
@@ -54,7 +54,7 @@ function learn_from_data!(X::DataFrame, Y::AbstractArray, grid, idxs::Union{Noth
             IAI.set_params!(grid.lnr, regression_features = All())
         end
     end
-    IAI.fit!(grid, X, Y; fit_kwargs(kwargs...)...)
+    IAI.fit!(grid, X, Y; kwargs...)
     return grid
 end
 
@@ -82,7 +82,7 @@ end
 Constructs a constraint tree from a BlackBoxFunction and dumps in bbf.learners.
 Arguments:
     bbf: OCT structs (GM, BBF, Array{BBF})
-    kwargs: arguments for learners and fits.
+    kwargs: arguments for learners and fits. These get processed here!
 Returns:
     nothing
 """
@@ -91,13 +91,14 @@ function learn_constraint!(bbf::Union{BlackBoxFunction, DataConstraint}; kwargs.
         throw(OCTException(string("BlackBoxFn ", bbf.name, " must be sampled first.")))
     end
     n_samples, n_features = size(bbf.X)
-    lnr = base_otc(kwargs...) # lnr also stores learner related kwargs...
+    lnr = base_otc() 
+    IAI.set_params!(lnr, lnr_kwargs(kwargs...)...)# lnr also stores learner related kwargs...
     if bbf.feas_ratio == 1.0
         return
     elseif check_feasibility(bbf) || get_param(bbf, :ignore_feasibility)
         nl = learn_from_data!(bbf.X, bbf.Y .>= 0,
                               gridify(lnr);
-                              kwargs...)
+                              fit_kwargs(kwargs...)...)
         push!(bbf.learners, nl);
         push!(bbf.accuracies, IAI.score(nl, bbf.X, bbf.Y .>= 0))
         push!(bbf.learner_kwargs, kwargs)
