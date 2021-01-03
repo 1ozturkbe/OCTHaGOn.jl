@@ -14,7 +14,9 @@ function gm_defaults()
     Dict(:ignore_feasibility => false,
          :ignore_accuracy => false,
          :linear => true,
-         :convex => false)
+         :convex => false,
+         :lh_iterations => 0,
+         :sample_coefficient = 200)
 end
 
 """ Sets parameters within Dict. """
