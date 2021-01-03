@@ -1,19 +1,19 @@
 """
-    lh_sample(vars::Array{JuMP.VariableRef, 1}; iterations::Int64 = 2,
+    lh_sample(vars::Array{JuMP.VariableRef, 1}; lh_iterations::Int64 = 2,
                    n_samples::Int64 = 1000)
-    lh_sample(bbf::BlackBoxFunction; iterations::Int64 = 2,
+    lh_sample(bbf::BlackBoxFunction; lh_iterations::Int64 = 2,
                    n_samples::Int64 = 1000)
 
 Uniformly Latin Hypercube samples the variables of GlobalModel, as long as all
 lbs and ubs are defined.
 """
-function lh_sample(vars::Array{JuMP.VariableRef, 1}; iterations::Int64 = 2,
+function lh_sample(vars::Array{JuMP.VariableRef, 1}; lh_iterations::Int64 = 2,
                    n_samples::Int64 = 1000)
     bounds = get_bounds(vars)
     check_bounds(bounds)
     n_dims = length(vars)
-    if iterations > 0
-        plan, _ = LHCoptim(n_samples, n_dims, iterations);
+    if lh_iterations > 0
+        plan, _ = LHCoptim(n_samples, n_dims, lh_iterations);
     else
         plan = rand(n_samples, n_dims)
     end
@@ -21,9 +21,9 @@ function lh_sample(vars::Array{JuMP.VariableRef, 1}; iterations::Int64 = 2,
    return DataFrame(X, string.(vars))
 end
 
-function lh_sample(bbf::BlackBoxFunction; iterations::Int64 = 2,
+function lh_sample(bbf::BlackBoxFunction; lh_iterations::Int64 = 2,
                    n_samples::Int64 = 1000)
-   return lh_sample(bbf.vars, iterations = iterations, n_samples = n_samples)
+   return lh_sample(bbf.vars, lh_iterations = lh_iterations, n_samples = n_samples)
 end
 
 function choose(large::Int64, small::Int64)
@@ -110,31 +110,17 @@ end
     sample_and_eval!(bbf::Union{BlackBoxFunction, GlobalModel, Array{BlackBoxFunction}};
                               n_samples:: Union{Int64, Nothing} = nothing,
                               boundary_fraction::Float64 = 0.5,
-                              iterations::Int64 = 1)
+                              lh_iterations::Int64 = 1)
 
 Samples and evaluates BlackBoxFunction, with n_samples new samples.
 Arguments:
     n_samples: number of samples, overwrites bbf parameter n_samples.
     boundary_fraction: maximum ratio of boundary samples
-    iterations: number of GA populations for LHC sampling (0 is a random LH.)
+    lh_iterations: number of GA populations for LHC sampling (0 is a random LH.)
 """
 function sample_and_eval!(bbf::Union{BlackBoxFunction, GlobalModel, Array{BlackBoxFunction}};
-                          n_samples:: Union{Int64, Nothing} = nothing,
                           boundary_fraction::Float64 = 0.5,
-                          iterations::Int64 = 1)
-    if bbf isa GlobalModel
-        for fn in bbf.bbfs
-            sample_and_eval!(fn, n_samples = n_samples, boundary_fraction = boundary_fraction,
-                             iterations = iterations)
-        end
-        return
-    elseif bbf isa Array{BlackBoxFunction}
-        for fn in bbf
-            sample_and_eval!(fn, n_samples = n_samples, boundary_fraction = boundary_fraction,
-                             iterations = iterations)
-        end
-        return
-    end
+                          lh_iterations::Int64 = 0)
     if !isnothing(n_samples)
         set_param(bbf, :n_samples, n_samples)
     end
@@ -144,7 +130,7 @@ function sample_and_eval!(bbf::Union{BlackBoxFunction, GlobalModel, Array{BlackB
     if size(bbf.X,1) == 0 # If we don't have data yet, uniform and boundary sample.
        df = boundary_sample(bbf, fraction = boundary_fraction)
        eval!(bbf, df)
-       df = lh_sample(bbf, iterations = iterations, n_samples = get_param(bbf, :n_samples) - size(df, 1))
+       df = lh_sample(bbf, lh_iterations = lh_iterations, n_samples = get_param(bbf, :n_samples) - size(df, 1))
        eval!(bbf, df);
     elseif bbf.feas_ratio == 1.0
         @warn(string(bbf.name) * " was not KNN sampled since it has " * string(bbf.feas_ratio) * " feasibility.")
@@ -157,3 +143,12 @@ function sample_and_eval!(bbf::Union{BlackBoxFunction, GlobalModel, Array{BlackB
     end
     return
 end
+
+function sample_and_eval!(bbfs::Array{BlackBoxFunction}; lh_iterations = 0) 
+    for bbf in bbfs 
+        sample_and_eval!(bbf, lh_iterations = lh_iterations)
+    end
+    return
+end
+
+sample_and_eval!(gm::GlobalModel) = sample_and_eval!(gm.bbfs; lh_iterations = get_param(gm, :lh_iterations))
