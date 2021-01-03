@@ -42,7 +42,8 @@ end
 
 """ Tests loading of previously solved GMs.
 NOTE: test_basic_functions MUST be called first. """
-function test_load_fits(gm::GlobalModel = sagemark_to_GlobalModel(3; lse=false))
+function test_load_fits()
+    gm = sagemark_to_GlobalModel(3; lse=false)
     set_optimizer(gm, CPLEX_SILENT);
     load_fit(gm);
     @test all([get_param(bbf, :reloaded) == true for bbf in gm.bbfs])
@@ -50,11 +51,10 @@ function test_load_fits(gm::GlobalModel = sagemark_to_GlobalModel(3; lse=false))
     @test true
 end
 
-function test_nonlinear_solve(gm::GlobalModel = GAMS_to_GlobalModel(OCT.GAMS_DIR, "problem3.13.gms"),
-                              solver = IPOPT_SILENT)
-    nonlinear_solve(gm, solver = solver)
-    feas, infeas = evaluate_feasibility(gm)
-    @test length(infeas) == 0
+function test_baron_solve(gm::JuMP.Model = gear(false))
+    set_optimizer(gm, BARON_SILENT)
+    optimize!(gm)
+    @test true
 end
 
 function test_find_bounds(gm::GlobalModel = minlp(true))
@@ -67,33 +67,74 @@ end
 # function test_relaxations(gm::GlobalModel = minlp(true),
 #                           solver = CPLEX_SILENT)
 #     gm = minlp(true)
-#     bbf = gm.bbfs[2]
-#     sample_and_eval!(bbf)
-#     sample_and_eval!(bbf)
-#     sensitivities = [1.0, 0.75, 0.5]
-#     lnr = base_otc()
-#     X = bbf.X
-#     Y = bbf.Y
-#     grid = gridify(lnr)
+#     set_optimizer(gm, solver)
+#     bound!(gm, gm.vars[end] => [-10,20])
+#     sample_and_eval!(gm)
+#     sample_and_eval!(gm)
 #     thresholds = [0.6, 0.85, 0.98]
-#     for thres in thresholds
-#         kwargs = Dict(:validation_criterion => :sensitivity, :threshold => thres, :positive_label => 1)
-#         learn_from_data!(X, Y, grid; kwargs...)
-#         IAI.show_in_browser(grid.lnr)
-#     end
-                
-#     return true
+#     learn_constraint!(gm)
+#     # for thres in thresholds
+#     #     learn_constraint!(gm, validation_criterion = :sensitivity, threshold = thres, positive_label = 1, localsearch=false)
+#     # end    
+#     @test true
 # end
 
-test_basic_functions()
+function test_speed_params(gm::GlobalModel = gear(true), solver = CPLEX_SILENT)
+    gm = gear(true)
+    solver = CPLEX_SILENT
+    set_optimizer(gm, solver)   
+    bound!(gm, gm.vars[end] => [-10,10]) 
+    bbf = gm.bbfs[1]
+    sample_and_eval!(bbf)
+    sample_and_eval!(bbf)
+    sample_and_eval!(bbf)    
+    
+    # Trying different speed parameters
+    ls_num_hyper_restarts = [1, 3]
+    ls_num_tree_restarts = [5, 10]
+    score_mat = [[], []]
+    tree_mat = [[], []]
+    time_mat = [[], []]
+    for i=1:length(ls_num_hyper_restarts)
+        for j=1:length(ls_num_tree_restarts)
+            t1 = time()
+            params = Dict(:ls_num_hyper_restarts => ls_num_hyper_restarts[i],
+                          :ls_num_tree_restarts => ls_num_tree_restarts[j])
+            learn_constraint!(bbf; params...)
+            push!(time_mat[i], time() - t1)
+            push!(tree_mat[i], bbf.learners[end].lnr)
+            push!(score_mat[i], bbf.accuracies[end])
+        end
+    end
+    @test true
+    # Sensitivity parameters
+    # feas_ratio = feasibility(bbf)
+    # thresholds = [0.6, 0.85, 0.98]
+    # trees = []
+    # scores = []
+    # times = []
+    # sens = []
+    # for i = 1:length(thresholds)
+    #     t1 = time()
+    #     learn_constraint!(bbf, validation_criterion = :sensitivity, threshold = thresholds[i])
+    #     push!(times, time()-t1)
+    #     push!(trees, bbf.learners[end].lnr)
+    #     push!(scores, bbf.accuracies[end])
+    #     push!(sens, )    
+    # end
+end
+
+# test_basic_functions()
 
 test_load_fits()
 
-test_nonlinear_solve()
+test_baron_solve()
 
 test_find_bounds()
 
 # test_relaxations()
+
+test_speed_params()
 
 # gm = minlp(true)
 # bounds = get_bounds(gm)
@@ -111,12 +152,12 @@ test_find_bounds()
 #         JuMP.set_upper_bound(var, 1)
 #     end
 #     df = boundary_sample(bbf, fraction = 0.5)
-#     append!(df, lh_sample(bbf, iterations = 1, n_samples = bbf.n_samples - size(df, 1)), cols=:setequal)
+#     append!(df, lh_sample(bbf, iterations = 1, n_samples = get_param(bbf, :n_samples) - size(df, 1)), cols=:setequal)
 #     for (var, bounds) in unbounds # Revert bounds
 #         !isinf(minimum(bounds)) && JuMP.set_lower_bound(var, minimum(bounds))
 #         !isinf(maximum(bounds)) && JuMP.set_upper_bound(var, maximum(bounds))
 #         if all(isinf.(bounds)) # Log-scale the samples
-#             df[!,string(var)] = 2. .* (rand(bbf.n_samples) .- 0.5) .* M.^ df[!,string(var)]
+#             df[!,string(var)] = 2. .* (rand(get_param(bbf, :n_samples)) .- 0.5) .* M.^ df[!,string(var)]
 #         elseif isinf(minimum(bounds))
 #             df[!,string(var)] = maximum(bounds) - M.^ df[!,string(var)]
 #         elseif isinf(maximum(bounds))
