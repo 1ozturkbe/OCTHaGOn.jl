@@ -1,13 +1,13 @@
 """
-    lh_sample(vars::Array{JuMP.VariableRef, 1}; lh_iterations::Int64 = 2,
+    lh_sample(vars::Array{JuMP.VariableRef, 1}; lh_iterations::Int64 = 0,
                    n_samples::Int64 = 1000)
-    lh_sample(bbf::BlackBoxFunction; lh_iterations::Int64 = 2,
+    lh_sample(bbf::BlackBoxFunction; lh_iterations::Int64 = 0,
                    n_samples::Int64 = 1000)
 
 Uniformly Latin Hypercube samples the variables of GlobalModel, as long as all
 lbs and ubs are defined.
 """
-function lh_sample(vars::Array{JuMP.VariableRef, 1}; lh_iterations::Int64 = 2,
+function lh_sample(vars::Array{JuMP.VariableRef, 1}; lh_iterations::Int64 = 0,
                    n_samples::Int64 = 1000)
     bounds = get_bounds(vars)
     check_bounds(bounds)
@@ -21,7 +21,7 @@ function lh_sample(vars::Array{JuMP.VariableRef, 1}; lh_iterations::Int64 = 2,
    return DataFrame(X, string.(vars))
 end
 
-function lh_sample(bbf::BlackBoxFunction; lh_iterations::Int64 = 2,
+function lh_sample(bbf::BlackBoxFunction; lh_iterations::Int64 = 0,
                    n_samples::Int64 = 1000)
    return lh_sample(bbf.vars; lh_iterations = lh_iterations, n_samples = n_samples)
 end
@@ -109,7 +109,7 @@ end
 """
     sample_and_eval!(bbf::Union{BlackBoxFunction, GlobalModel, Array{BlackBoxFunction}};
                               boundary_fraction::Float64 = 0.5,
-                              lh_iterations::Int64 = 1)
+                              lh_iterations::Int64 = 0)
 
 Samples and evaluates BlackBoxFunction.
 Keyword arguments:
