@@ -1,15 +1,31 @@
-""" Default fitting kwargs for OCTs. """
-function default_fit_kwargs()
-    Dict(:validation_criterion => :misclassification,
-         :sample_weight => :autobalance)
+""" Function that preprocesses merging of kwargs for IAI.fit!, 
+    to avoid errors! """
+function fit_kwargs(; kwargs...)
+    nkwargs = Dict{Symbol, Any}(:validation_criterion => :misclassification,
+                    :sample_weight => :autobalance) # default kwargs
+    for item in kwargs
+        if item.first in keys(nkwargs)
+            nkwargs[item.first] = item.second
+        end
+    end
+    if nkwargs[:validation_criterion] == :sensitivity
+        delete!(nkwargs, :sample_weight)
+        nkwargs[:positive_label] = 1
+    end
+    return nkwargs
 end
 
-""" Function that preprocesses merging of fit kwargs, 
+""" Function that preprocesses merging of kwargs for IAI.OptimalTreeLearner!, 
     to avoid errors! """
-function merge_fit_kwargs(kwargs1, kwargs2)
-    nkwargs = merge(kwargs1, kwargs2)
-    if haskey(nkwargs, :validation_criterion) && nkwargs[:validation_criterion] == :sensitivity && haskey(nkwargs, :sample_weight)
-        delete!(nkwargs, :sample_weight)
+function lnr_kwargs(; kwargs...)
+    # TODO: figure out how to merge this stuff!!!!
+    nkwargs = Dict{Symbol, Any}() 
+    valid_keys = [:random_seed, :max_depth, :cp, :minbucket, :fast_num_support_restarts, 
+                  :localsearch, :ls_num_hyper_restarts, :ls_num_tree_restarts]
+    for item in kwargs
+        if item.first in valid_keys
+            nkwargs[item.first] = item.second
+        end
     end
     return nkwargs
 end
@@ -61,56 +77,45 @@ function check_accuracy(gm::GlobalModel)
 end
 
 """
-    learn_constraint!(bbf::Union{GlobalModel, Array{BlackBoxFunction}, BlackBoxFunction},
-                           lnr::IAI.OptimalTreeLearner = base_otc(),
-                           ignore_checks::Bool = false or gm.settings[:ignore_feasibility]; kwargs...)
+    learn_constraint!(bbf::Union{GlobalModel, Array{BlackBoxFunction}, BlackBoxFunction}; kwargs...)
 
 Constructs a constraint tree from a BlackBoxFunction and dumps in bbf.learners.
 Arguments:
-    bbf:: OCT structs (GM, BBF, Array{BBF})
-    lnr: Unfit OptimalTreeClassifier or Grid
-    X: new data to add to BlackBoxFunction and evaluate
-    kwargs: arguments for learn_from_data!
+    bbf: OCT structs (GM, BBF, Array{BBF})
+    kwargs: arguments for learners and fits. These get processed here!
 Returns:
     nothing
 """
-function learn_constraint!(bbf::Union{BlackBoxFunction, DataConstraint},
-                           lnr::IAI.OptimalTreeLearner = base_otc(localsearch = get_param(bbf, :localsearch)),
-                           ignore_checks::Bool = false; kwargs...)
+function learn_constraint!(bbf::Union{BlackBoxFunction, DataConstraint}, ignore_feas::Bool = false; kwargs...)
     if isa(bbf.X, Nothing)
         throw(OCTException(string("BlackBoxFn ", bbf.name, " must be sampled first.")))
     end
     n_samples, n_features = size(bbf.X)
+    lnr = base_otc() 
+    IAI.set_params!(lnr; lnr_kwargs(; kwargs...)...)# lnr also stores learner related kwargs...
     if bbf.feas_ratio == 1.0
         return
-    elseif check_feasibility(bbf) || ignore_checks
-        nkwargs = merge_fit_kwargs(default_fit_kwargs(), kwargs)
+    elseif check_feasibility(bbf) || ignore_feas
         nl = learn_from_data!(bbf.X, bbf.Y .>= 0,
                               gridify(lnr);
-                              nkwargs...)
+                              fit_kwargs(; kwargs...)...)
         push!(bbf.learners, nl);
         push!(bbf.accuracies, IAI.score(nl, bbf.X, bbf.Y .>= 0))
-        push!(bbf.learner_kwargs, nkwargs)
+        push!(bbf.learner_kwargs, Dict(kwargs))
     else
         @warn("Not enough feasible samples for constraint " * string(bbf.name) * ".")
     end
     return
 end
 
-function learn_constraint!(bbf::Array,
-                           lnr::IAI.OptimalTreeLearner = base_otc(),
-                           ignore_checks::Bool = false; kwargs...)
+function learn_constraint!(bbf::Array, ignore_feas::Bool = false; kwargs...)
    for fn in bbf
-        learn_constraint!(fn, lnr, ignore_checks; kwargs...)
+        learn_constraint!(fn, ignore_feas; kwargs...)
    end
 end
 
-function learn_constraint!(gm::GlobalModel,
-                           lnr::IAI.OptimalTreeLearner = base_otc(),
-                           ignore_checks::Bool = get_param(gm, :ignore_feasibility); kwargs...)
-   set_param(gm, :ignore_feasibility, ignore_checks) # update check settings
-   learn_constraint!(gm.bbfs, lnr, ignore_checks; kwargs...)
-end
+learn_constraint!(gm::GlobalModel, ignore_feas::Bool = get_param(gm, :ignore_feasibility); kwargs...) = 
+    learn_constraint!(gm.bbfs, ignore_feas; kwargs...)
 
 """
 Basic regression purely for debugging.

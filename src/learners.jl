@@ -1,33 +1,36 @@
 """ Returns the baseline OptimalTreeRegressor. """
-function base_otr(; max_depth::Int64 = 5, minbucket::Float64 = 0.01)
+function base_otr()
     return IAI.OptimalTreeRegressor(
-        random_seed = 1,
-        max_depth = 3,
-        cp = 1e-6,
-        minbucket = 0.03,
-        regression_sparsity = :all,
-        fast_num_support_restarts = 5,
         hyperplane_config = (sparsity = :all,),
-        regression_lambda = 0.00001,
+        regression_sparsity = :all,
         regression_weighted_betas = true,
+        # Modifiables, with defaults
+        random_seed = 1,
+        max_depth = 5,
+        cp = 1e-6, 
+        minbucket = 0.01,
+        fast_num_support_restarts = 5, 
+        regression_lambda = 1e-5,
+        ls_num_tree_restarts = 10,
+        ls_num_hyper_restarts =  5, 
     )
 end
 
 """
-    base_otc(localsearch::Bool = true, max_depth::Int64 = 5, minbucket::Float64 = 0.01)
-
-Returns the baseline OptimalTreeClassifier, with parameters for different training steps.
+Returns the baseline OptimalTreeClassifier.
 """
-
-function base_otc(; localsearch::Bool = true, max_depth::Int64 = 5, minbucket::Float64 = 0.01)
-    return IAI.OptimalTreeClassifier(
-        random_seed = 1,
-        max_depth = 5,
-        cp = 1e-6,
-        minbucket = minbucket,
-        fast_num_support_restarts = 5,
+function base_otc()
+    lnr = IAI.OptimalTreeClassifier(
         hyperplane_config = (sparsity = :all,),
-        localsearch = localsearch,
+        # Modifiables, with defaults
+        random_seed = 1,
+        max_depth = 5, 
+        cp = 1e-6,
+        minbucket = 0.01,
+        fast_num_support_restarts = 5,
+        localsearch = true,
+        ls_num_tree_restarts = 10, 
+        ls_num_hyper_restarts =  5, 
     )
 end
 

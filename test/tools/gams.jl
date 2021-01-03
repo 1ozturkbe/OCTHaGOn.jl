@@ -168,12 +168,12 @@ function GAMS_to_GlobalModel(GAMS_DIR::String, filename::String)
     return gm
 end
 
-""" Solver wrapper for GAMS benchmarking. """
-function nonlinear_solve(gm::GlobalModel; solver = IPOPT_SILENT)
-    nonlinearize!(gm)
-    set_optimizer(gm, solver)
-    optimize!(gm)
-end
+# """ Solver wrapper for GAMS benchmarking. """
+# function nonlinear_solve(gm::GlobalModel; solver = IPOPT_SILENT)
+#     nonlinearize!(gm)
+#     set_optimizer(gm, solver)
+#     optimize!(gm)
+# end
 
 function recipe(gm)
     @info "GlobalModel " * gm.name * " in progress..."

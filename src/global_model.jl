@@ -9,7 +9,24 @@ nonlinear_model can contain JuMP.NonlinearConstraints.
     name::String = "Model"                                       # Example name
     bbfs::Array{BlackBoxFunction} = Array{BlackBoxFunction}[]    # Black box (>/= 0) functions
     vars::Array{VariableRef} = JuMP.all_variables(model)         # JuMP variables
-    settings::Dict{Symbol, Bool} = gm_defaults()                 # GM settings
+    solution_history::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Solution history
+    settings::Dict = gm_defaults()                 # GM settings
+end
+
+function Base.show(io::IO, gm::GlobalModel)
+    println(io, "GlobalModel " * gm.name * " with $(length(gm.vars)) variables: ")
+    println(io, "Has $(length(gm.bbfs)) BlackBoxFunctions.")
+    if get_param(gm, :ignore_feasibility)
+        if get_param(gm, :ignore_accuracy)
+            println(io, "Ignores training accuracy and data_feasibility thresholds.")
+        else
+            println(io, "Ignores data feasibility thresholds.")
+        end
+    else
+        if get_param(gm, :ignore_accuracy)
+            println("Ignores training accuracy thresholds.")
+        end
+    end
 end
 
 set_param(gm::GlobalModel, key::Symbol, val) = set_param(gm.settings, key, val)
@@ -169,6 +186,7 @@ function add_nonlinear_constraint(gm::GlobalModel,
         JuMP.delete(gm.model, con)
         new_bbf = BlackBoxFunction(constraint = con, vars = vars, expr_vars = expr_vars,
                                    equality = equality, name = name)
+        set_param(new_bbf, :n_samples, Int(ceil(200*sqrt(length(vars))))) 
         push!(gm.bbfs, new_bbf)
         return
     end
@@ -177,6 +195,7 @@ function add_nonlinear_constraint(gm::GlobalModel,
     end
     new_bbf = BlackBoxFunction(constraint = constraint, vars = vars, expr_vars = expr_vars,
                                equality = equality, name = name)
+    set_param(new_bbf, :n_samples, Int(ceil(200*sqrt(length(vars))))) 
     push!(gm.bbfs, new_bbf)
     return
 end
@@ -351,6 +370,7 @@ end
 """ Extends JuMP.optimize! to GlobalModels. """
 function JuMP.optimize!(gm::GlobalModel; kwargs...)
     JuMP.optimize!(gm.model, kwargs...)
+    append!(gm.solution_history, solution(gm), cols=:setequal)
 end
 
 """
@@ -382,13 +402,10 @@ end
 """ Evaluates each constraint at solution to make sure it is feasible. """
 function evaluate_feasibility(gm::GlobalModel)
     soln = solution(gm);
-    feas = [];
     for fn in gm.bbfs
         eval!(fn, soln)
     end
-    infeas_idxs = findall(idx -> gm.bbfs[idx].Y[end] .< 0, collect(1:length(gm.bbfs))) #TODO: optimize
-    feas_idxs = findall(idx -> gm.bbfs[idx].Y[end] .>= 0, collect(1:length(gm.bbfs)))
-    return feas_idxs, infeas_idxs
+    return [gm.bbfs[i].Y[end] >= 0 for i=1:length(gm.bbfs)]
 end
 
 """ Matches BBFs to associated variables. """

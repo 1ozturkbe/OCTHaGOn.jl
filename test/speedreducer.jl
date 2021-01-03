@@ -75,12 +75,13 @@ optimize!(gm)
 # @test old_bounds == new_bounds
 #
 # # Fitting and finding bounds with some bbfs
-# learn_constraint!(gm, base_otc(), ignore_checks=true);
+# set_param(gm, :ignore_feasibility, true)
+# learn_constraint!(gm);
 # set_param(gm, :ignore_accuracy, true)
 # globalsolve(gm);
 # soln = solution(gm);
 #
-# feasible, infeasible = evaluate_feasibility(gm);
+# feas_bools = evaluate_feasibility(gm);
 
 
 #MWE

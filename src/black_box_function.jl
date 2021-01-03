@@ -125,13 +125,18 @@ Also contains data w.r.t. samples from the function.
     mi_constraints::Array = []                         # and their corresponding MI constraints,
     leaf_variables::Array = []                         # and their binary leaf variables,
     accuracies::Array{Float64} = []                    # and the tree misclassification scores.
-
-    n_samples::Int = Int(ceil(200*sqrt(length(vars)))) # For next set of samples, set and forget.
     knn_tree::Union{KDTree, Nothing} = nothing         # KNN tree
     settings::Dict = bbf_defaults()                    # Relevant settings
 end
 
+function Base.show(io::IO, bbf::BlackBoxFunction)
+    println(io, "BlackBoxFunction " * bbf.name * " with $(length(bbf.vars)) variables: ")
+    println(io, "Sampled $(length(bbf.Y)) times with $(round(bbf.feas_ratio, digits=2)) of samples feasible.")
+    println(io, "Has $(length(bbf.learners)) trained OptimalTreeLearners.")
+end
+
 set_param(bbf::BlackBoxFunction, key::Symbol, val) = set_param(bbf.settings, key, val)
+set_param(bbfs::Array{BlackBoxFunction}, key::Symbol, val) = foreach(bbf -> set_param(bbf.settings, key, val), bbfs)
 get_param(bbf::BlackBoxFunction, key::Symbol) = get_param(bbf.settings, key)
 
 """
@@ -207,4 +212,8 @@ end
 function clear_data!(bbf::BlackBoxFunction)
     bbf.X = DataFrame([Float64 for i=1:length(bbf.vars)], string.(bbf.vars))
     bbf.Y = [];
+    bbf.feas_ratio = 0
+    bbf.learners =[];
+    bbf.learner_kwargs = []                            
+    bbf.accuracies = []                    # and the tree misclassification scores.
 end

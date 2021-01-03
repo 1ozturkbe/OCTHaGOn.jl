@@ -2,8 +2,9 @@
 function bbf_defaults()
     Dict(:threshold_accuracy => 0.95,      # Minimum tree accuracy
          :threshold_feasibility => 0.15,   # Minimum feasibility ratio
-         :reloaded => false,
-         :localsearch => true)
+         :n_samples => 200,                # Maximum number of samples at each step
+         :regression => false,             # Whether trees should be regression trees (not implemented)
+         :reloaded => false)               # Whether learners are reloaded
 end
 
 """
@@ -21,7 +22,7 @@ function set_param(gm::Dict, key::Symbol, val)
     if haskey(gm, key) && val isa typeof(gm[key])
         gm[key] = val
     else
-        throw(OCTException("Parameter with key " * string(key) *" is invalid."))
+        throw(OCTException("Parameter with key " * string(key) * " is invalid."))
     end
 end
 
@@ -30,6 +31,6 @@ function get_param(gm::Dict, key::Symbol)
     if haskey(gm, key)
         return gm[key]
     else
-        throw(OCTException("Parameter with key " * string(key) *" is invalid."))
+        throw(OCTException("Parameter with key " * string(key) * " is invalid."))
     end
 end

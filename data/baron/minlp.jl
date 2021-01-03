@@ -11,7 +11,7 @@
 # // Objective nonlinear
 # // Nonlinear constraints
 
-function minlp(gm::Bool = false, eps = 1e-10)
+function minlp(gm::Bool = false, eps = 1e-5)
     m = JuMP.Model()
     @variable(m, 0 <= y[1:3] <= 1, Int)
     @variable(m, x[1:3] >= eps)
