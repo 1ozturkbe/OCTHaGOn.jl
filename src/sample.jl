@@ -1,23 +1,27 @@
 """
-    lh_sample(vars::Array{JuMP.VariableRef, 1}; iterations::Int64 = 3,
+    lh_sample(vars::Array{JuMP.VariableRef, 1}; iterations::Int64 = 2,
                    n_samples::Int64 = 1000)
-    lh_sample(bbf::BlackBoxFunction; iterations::Int64 = 3,
+    lh_sample(bbf::BlackBoxFunction; iterations::Int64 = 2,
                    n_samples::Int64 = 1000)
 
 Uniformly Latin Hypercube samples the variables of GlobalModel, as long as all
 lbs and ubs are defined.
 """
-function lh_sample(vars::Array{JuMP.VariableRef, 1}; iterations::Int64 = 3,
+function lh_sample(vars::Array{JuMP.VariableRef, 1}; iterations::Int64 = 2,
                    n_samples::Int64 = 1000)
-   bounds = get_bounds(vars)
-   check_bounds(bounds)
-   n_dims = length(vars)
-   plan, _ = LHCoptim(n_samples, n_dims, iterations);
+    bounds = get_bounds(vars)
+    check_bounds(bounds)
+    n_dims = length(vars)
+    if iterations > 0
+        plan, _ = LHCoptim(n_samples, n_dims, iterations);
+    else
+        plan = rand(n_samples, n_dims)
+    end
    X = scaleLHC(plan,[(minimum(bounds[var]), maximum(bounds[var])) for var in vars]);
    return DataFrame(X, string.(vars))
 end
 
-function lh_sample(bbf::BlackBoxFunction; iterations::Int64 = 3,
+function lh_sample(bbf::BlackBoxFunction; iterations::Int64 = 2,
                    n_samples::Int64 = 1000)
    return lh_sample(bbf.vars, iterations = iterations, n_samples = n_samples)
 end
@@ -106,7 +110,7 @@ end
     sample_and_eval!(bbf::Union{BlackBoxFunction, GlobalModel, Array{BlackBoxFunction}};
                               n_samples:: Union{Int64, Nothing} = nothing,
                               boundary_fraction::Float64 = 0.5,
-                              iterations::Int64 = 3)
+                              iterations::Int64 = 1)
 
 Samples and evaluates BlackBoxFunction, with n_samples new samples.
 Arguments:
@@ -117,7 +121,7 @@ Arguments:
 function sample_and_eval!(bbf::Union{BlackBoxFunction, GlobalModel, Array{BlackBoxFunction}};
                           n_samples:: Union{Int64, Nothing} = nothing,
                           boundary_fraction::Float64 = 0.5,
-                          iterations::Int64 = 3)
+                          iterations::Int64 = 1)
     if bbf isa GlobalModel
         for fn in bbf.bbfs
             sample_and_eval!(fn, n_samples = n_samples, boundary_fraction = boundary_fraction,
