@@ -12,8 +12,9 @@ module OptimalConstraintTree
 #     using Plots
     using ProgressMeter
     using Random
+    using StatsBase
 
-    const PROJECT_ROOT = pwd()
+    const PROJECT_ROOT = dirname(dirname(@__FILE__))
     const SAVE_DIR = PROJECT_ROOT * "\\data\\"
     const GAMS_DIR = PROJECT_ROOT * "\\data\\gams\\"
 
