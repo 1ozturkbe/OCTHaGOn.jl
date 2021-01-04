@@ -21,7 +21,7 @@ function lnr_kwargs(; kwargs...)
     # TODO: figure out how to merge this stuff!!!!
     nkwargs = Dict{Symbol, Any}() 
     valid_keys = [:random_seed, :max_depth, :cp, :minbucket, :fast_num_support_restarts, 
-                  :localsearch, :ls_num_hyper_restarts, :ls_num_tree_restarts]
+                  :localsearch, :ls_num_hyper_restarts, :ls_num_tree_restarts, :hyperplane_config]
     for item in kwargs
         if item.first in valid_keys
             nkwargs[item.first] = item.second

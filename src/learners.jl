@@ -17,12 +17,11 @@ function base_otr()
 end
 
 """
-Returns the baseline OptimalTreeClassifier.
+Returns the baseline OptimalTreeClassifier, with all modifyable args. 
 """
 function base_otc()
     lnr = IAI.OptimalTreeClassifier(
         hyperplane_config = (sparsity = :all,),
-        # Modifiables, with defaults
         random_seed = 1,
         max_depth = 5, 
         cp = 1e-6,

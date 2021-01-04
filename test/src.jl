@@ -169,7 +169,7 @@ function test_bbf()
     X_bound = boundary_sample(bbf);
     @test size(X_bound, 1) == 2^(length(bbf.vars)+1)
     @test_throws OCTException knn_sample(bbf, k=3)
-    X_lh = lh_sample(bbf);
+    X_lh = lh_sample(bbf, lh_iterations=3);
 
     # Check sample_and_eval
     sample_and_eval!(bbf);

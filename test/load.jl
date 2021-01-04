@@ -26,10 +26,10 @@ global BARON_SILENT = with_optimizer(BARON.Optimizer, OutputFlag = 0)
 Random.seed!(1);
 MOI.Silent() = true;
 
-include(string(OptimalConstraintTree.PROJECT_ROOT, "/test/tools/gams.jl"));
+include(OCT.PROJECT_ROOT * "/test/tools/gams.jl");
 
-include(string(OptimalConstraintTree.PROJECT_ROOT, "/test/tools/sagemark.jl"));
+include(OCT.PROJECT_ROOT * "/test/tools/sagemark.jl");
 
-include(string(OptimalConstraintTree.PROJECT_ROOT, "/data/baron/gear.jl"));
+include(OCT.PROJECT_ROOT * "/data/baron/gear.jl");
 
-include(string(OptimalConstraintTree.PROJECT_ROOT, "/data/baron/minlp.jl"));
+include(OCT.PROJECT_ROOT * "/data/baron/minlp.jl");
