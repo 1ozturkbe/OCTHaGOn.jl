@@ -367,7 +367,11 @@ function accuracy(bbf::Union{GlobalModel, BlackBoxFunction})
     end
 end
 
-""" Extends JuMP.optimize! to GlobalModels. """
+""" 
+    JuMP.optimize!(gm::GlobalModel; kwargs...)
+
+Applies JuMP.optimize! to GlobalModels, and saves solution history. 
+"""
 function JuMP.optimize!(gm::GlobalModel; kwargs...)
     JuMP.optimize!(gm.model, kwargs...)
     append!(gm.solution_history, solution(gm), cols=:setequal)
@@ -433,6 +437,8 @@ end
 
 match_bbfs_to_vars(gm::GlobalModel, vars::Array = JuMP.all_variables(gm)) = match_bbfs_to_vars(gm.bbfs, vars)
 
+""" Clears all sampling, training and optimization data from GlobalModel."""
 function clear_data!(gm::GlobalModel)
     clear_data!.(gm.bbfs)
+    gm.solution_history = DataFrame([Float64 for i=1:length(gm.vars)], string.(gm.vars))
 end
