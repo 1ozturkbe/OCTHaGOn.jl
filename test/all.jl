@@ -3,9 +3,10 @@ all_tests:
 - Julia version: 
 - Author: Berk
 - Date: 2020-07-01
-Note: All tests should be run from a julia REPR within the julia folder, using:
+Note: All tests should be run from a julia REPR within the OptimalConstraintTree folder, using:
       julia --project=.
       include("test/all.jl")
+      
       To see coverage, run with:
       julia --project=. --code-coverage=tracefile-%p.info --code-coverage=user
       include("test/all.jl")
