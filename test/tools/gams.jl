@@ -174,18 +174,3 @@ end
 #     set_optimizer(gm, solver)
 #     optimize!(gm)
 # end
-
-function recipe(gm)
-    @info "GlobalModel " * gm.name * " in progress..."
-    set_optimizer(gm, CPLEX_SILENT)
-    find_bounds!(gm, all_bounds=true)
-    set_param(gm, :ignore_feasibility, true)
-    set_param(gm, :ignore_accuracy, true)
-    uniform_sample_and_eval!(gm)
-    @info ("Sample feasibilities ", feasibility(gm))
-    learn_constraint!(gm)
-    @info("Approximation accuracies: ", accuracy(gm))
-    save_fit(gm)
-    globalsolve(gm)
-    return
-end
