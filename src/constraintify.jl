@@ -71,7 +71,7 @@ end
         m:: JuMP Model
         x:: JuMPVariables (features in lnr)
 """
-function add_feas_constraints!(m::JuMP.Model, x, lnr::IAI.OptimalTreeLearner;
+function add_feas_constraints!(m::JuMP.Model, x, lnr::IAI.OptimalTreeClassifier;
                                M::Float64 = 1.e5, eq = false,
                                return_data::Bool = false)
     check_if_trained(lnr);
@@ -125,7 +125,7 @@ function add_feas_constraints!(m::JuMP.Model, x, lnr::IAI.OptimalTreeLearner;
     end
 end
 
-function add_regr_constraints!(m::JuMP.Model, x::Array, y, grid::IAI.GridSearch;
+function add_regr_constraints!(m::JuMP.Model, x::Array, y, lnr::IAI.OptimalTreeRegressor;
                                M::Float64 = 1.e5, eq = false,
                                return_data::Bool = false)
     """
@@ -137,7 +137,6 @@ function add_regr_constraints!(m::JuMP.Model, x::Array, y, grid::IAI.GridSearch;
         grid: A fitted Grid
         M:: coefficient in bigM formulation
     """
-    lnr = IAI.get_learner(grid)
     check_if_trained(lnr)
     n_nodes = IAI.get_num_nodes(lnr)
     # Add a binary variable for each leaf
