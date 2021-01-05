@@ -68,7 +68,7 @@ module OptimalConstraintTree
            # Functions on both BlackBoxFunctions and DataConstraints
            show_trees, learn_constraint!,
            # Functions on BlackBoxFunctions only
-           eval!, sample_and_eval!,
+           eval!, uniform_sample_and_eval!,
            secant_method, knn_sample, build_knn_tree,
            find_knn, classify_patches,
            # Functions on BlackBoxFunctions and DataConstraints

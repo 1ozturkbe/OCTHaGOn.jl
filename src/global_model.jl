@@ -167,9 +167,6 @@ function add_nonlinear_constraint(gm::GlobalModel,
     new_bbf = BlackBoxFunction(constraint = constraint, vars = vars, expr_vars = expr_vars,
                                dependent_var = dependent_var, 
                                equality = equality, name = name)
-    if !isnothing(dependent_var)
-        set_param(new_bbf, :regression, true)
-    end
     set_param(new_bbf, :n_samples, Int(ceil(get_param(gm, :sample_coefficient)*sqrt(length(vars))))) 
     push!(gm.bbfs, new_bbf)
     return

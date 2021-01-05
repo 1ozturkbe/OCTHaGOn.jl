@@ -107,23 +107,22 @@ function learn_constraint!(bbf::Union{BlackBoxFunction, DataConstraint}, ignore_
     end
     set_param(bbf, :reloaded, false) # Makes sure that we know trees are retrained. 
     n_samples, n_features = size(bbf.X)
-    regress = get_param(bbf, :regression)
-    lnr = base_lnr(regress)
+    regress_bool = get_param(bbf, :regression)
+    lnr = base_lnr(regress_bool)
     IAI.set_params!(lnr; lnr_kwargs(; kwargs...)...)# lnr also stores learner related kwargs...
-    if bbf.feas_ratio == 1.0
-        return
-    elseif check_feasibility(bbf) || ignore_feas
-        if !regress
+    if check_feasibility(bbf) || ignore_feas || regress_bool
+        if !regress_bool
             nl = learn_from_data!(bbf.X, bbf.Y .>= 0,
                                 gridify(lnr);
-                                fit_kwargs(regress; kwargs...)...)
+                                fit_kwargs(regress_bool; kwargs...)...)
             push!(bbf.learners, nl);
             push!(bbf.accuracies, IAI.score(nl, bbf.X, bbf.Y .>= 0))
             push!(bbf.learner_kwargs, Dict(kwargs))
         else
-            nl = learn_from_data!(bbf.X, bbf.Y,
+            idxs = findall(x -> !isinf(x), bbf.Y) # processing infs and nans
+            nl = learn_from_data!(bbf.X[idxs, :], bbf.Y[idxs],
                                   gridify(lnr);
-                                  fit_kwargs(regress; kwargs...)...) 
+                                  fit_kwargs(regress_bool; kwargs...)...)             
             push!(bbf.learners, nl);
             push!(bbf.accuracies, IAI.score(nl, bbf.X, bbf.Y))
             push!(bbf.learner_kwargs, Dict(kwargs))
@@ -142,17 +141,6 @@ end
 
 learn_constraint!(gm::GlobalModel, ignore_feas::Bool = get_param(gm, :ignore_feasibility); kwargs...) = 
     learn_constraint!(gm.bbfs, ignore_feas; kwargs...)
-
-"""
-Basic regression purely for debugging.
-TODO: refine and/or remove.
-"""
-function regress(points::DataFrame, values::Array; weights::Array = ones(length(values)))
-    lnr= IAI.OptimalFeatureSelectionRegressor(sparsity = :all); # TODO: optimize regression method.
-    IAI.fit!(lnr, points, values, sample_weight=weights)
-    return lnr
-end
-
 
 """
     save_fit(bbf::Union{GlobalModel, BlackBoxFunction, DataConstraint, Array}, dir::String)

@@ -1,9 +1,9 @@
 """
 Makes sure all sage benchmarks import properly.
-For now, just doing first 25, since polynomial examples are not in R+.
+For now, just doing first 5 out of 25, since polynomial examples are not in R+.
 """
 function test_sagemark_to_GlobalModel()
-    idxs = 1:25;
+    idxs = 1:5;
     # max_min = [26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38]
     for idx in idxs
         ex = sagemark_to_GlobalModel(idx);
