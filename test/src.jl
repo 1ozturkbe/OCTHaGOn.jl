@@ -10,20 +10,6 @@ without *many* machine learning components
 # SOURCE TESTS #
 ##########################
 
-""" Test JuMP model with a variety of variable bounds and sizes. """
-function test_model()
-    model = Model()
-    @variables(model, begin
-        -5 <= x[1:5] <= 5
-        -4 <= y[1:3] <= 1
-        -30 <= z
-        -2 <= a[1:2, 1:3]
-    end)
-    JuMP.set_upper_bound(a[2,2], 3)
-    JuMP.set_upper_bound(a[1,1], 3)
-    return model, x, y, z, a
-end
-
 """ Tests expression parsing. """
 function test_expressions()
     model, x, y, z, a = test_model()
@@ -80,7 +66,7 @@ function test_bounds()
 
     # Check infeasible bounds
     new_bound = x[4] => [-10,-6]
-    @test_throws OCTException OCT.check_infeasible_bound(model, new_bound)
+    @test_throws OCTException OCT.check_infeasible_bound(new_bound)
     @test_throws OCTException bound!(model, new_bound)
 
     # Check unbounds
