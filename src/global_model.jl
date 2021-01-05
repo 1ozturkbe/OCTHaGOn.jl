@@ -51,7 +51,6 @@ function (gm::GlobalModel)(name::String)
     end
 end
 
-
 """
     JuMP.all_variables(gm::Union{GlobalModel, BlackBoxFunction})
 
@@ -95,23 +94,6 @@ function get_unbounds(model::Union{JuMP.Model, GlobalModel, BlackBoxFunction, Ar
     return get_unbounds(all_variables(model))
 end
 
-""" Checks outer-boundedness of variables. """
-function check_bounds(bounds::Dict)
-    if any(isinf.(Iterators.flatten(values(bounds))))
-        throw(OCTException("Unbounded variables in model!"))
-    else
-        return
-    end
-end
-
-function get_max(a, b)
-    return maximum([a,b])
-end
-
-function get_min(a,b)
-    return minimum([a,b])
-end
-
 """
     determine_vars(gm::GlobalModel,
                         constraint::Union{JuMP.ScalarConstraint, JuMP.ConstraintRef, Expr};
@@ -145,8 +127,6 @@ function determine_vars(gm::GlobalModel,
         end
     end
 end
-
-
 
 """
     add_nonlinear_constraint(gm::GlobalModel,

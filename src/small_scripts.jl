@@ -36,3 +36,12 @@ end
 
 """ power function from gams """
 power(var, num) = var^num
+
+""" Checks outer-boundedness of values of a Dict. """
+function check_bounds(bounds::Dict)
+    if any(isinf.(Iterators.flatten(values(bounds))))
+        throw(OCTException("Unbounded variables in model!"))
+    else
+        return
+    end
+end
