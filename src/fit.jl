@@ -42,7 +42,7 @@ function lnr_kwargs(regress::Bool = false; kwargs...)
             nkwargs[item.first] = item.second
         end
     end
-    return kwargs
+    return nkwargs
 end
 
 """ Wrapper around IAI.GridSearch for constraint learning.
@@ -110,23 +110,21 @@ function learn_constraint!(bbf::Union{BlackBoxFunction, DataConstraint}, ignore_
     regress_bool = get_param(bbf, :regression)
     lnr = base_lnr(regress_bool)
     IAI.set_params!(lnr; lnr_kwargs(; kwargs...)...)# lnr also stores learner related kwargs...
-    if check_feasibility(bbf) || ignore_feas || regress_bool
-        if !regress_bool
-            nl = learn_from_data!(bbf.X, bbf.Y .>= 0,
-                                gridify(lnr);
-                                fit_kwargs(regress_bool; kwargs...)...)
-            push!(bbf.learners, nl);
-            push!(bbf.accuracies, IAI.score(nl, bbf.X, bbf.Y .>= 0))
-            push!(bbf.learner_kwargs, Dict(kwargs))
-        else
-            idxs = findall(x -> !isinf(x), bbf.Y) # processing infs and nans
-            nl = learn_from_data!(bbf.X[idxs, :], bbf.Y[idxs],
-                                  gridify(lnr);
-                                  fit_kwargs(regress_bool; kwargs...)...)             
-            push!(bbf.learners, nl);
-            push!(bbf.accuracies, IAI.score(nl, bbf.X, bbf.Y))
-            push!(bbf.learner_kwargs, Dict(kwargs))
-        end
+    if !regress_bool && (check_feasibility(bbf) || ignore_feas) 
+        nl = learn_from_data!(bbf.X, bbf.Y .>= 0,
+                            gridify(lnr);
+                            fit_kwargs(regress_bool; kwargs...)...)
+        push!(bbf.learners, nl);
+        push!(bbf.accuracies, IAI.score(nl, bbf.X, bbf.Y .>= 0))
+        push!(bbf.learner_kwargs, Dict(kwargs))
+    elseif regress_bool
+        idxs = findall(x -> !isinf(x), bbf.Y) # processing infs and nans
+        nl = learn_from_data!(bbf.X[idxs, :], bbf.Y[idxs],
+                              gridify(lnr);
+                              fit_kwargs(regress_bool; kwargs...)...)             
+        push!(bbf.learners, nl);
+        push!(bbf.accuracies, IAI.score(nl, bbf.X, bbf.Y))
+        push!(bbf.learner_kwargs, Dict(kwargs))
     else
         @warn("Not enough feasible samples for constraint " * string(bbf.name) * ".")
     end

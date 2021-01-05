@@ -191,7 +191,7 @@ function test_kwargs()
 
     # Regression kwargs next...
     dict_fit = fit_kwargs(true; sample_kwargs)
-    @test true
+    @test dict_fit == Dict(:validation_criterion => :mse)
 end
 
 test_expressions()
