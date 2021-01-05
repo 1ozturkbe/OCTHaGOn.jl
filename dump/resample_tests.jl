@@ -55,7 +55,7 @@ end
 
 @test test_sagemark_to_GlobalModel()
 # fn_model = sagemark_to_GlobalModel(3, lse=true);
-# @test example_fit(fn_model, lnr=base_otc())
+# @test example_fit(fn_model, lnr=base_lnr(false))
 # @test example_solve(fn_model, M=1e5)
 
 # Importing MINLP cases

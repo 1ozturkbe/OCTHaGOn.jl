@@ -90,8 +90,9 @@ function learn_constraint!(bbf::Union{BlackBoxFunction, DataConstraint}, ignore_
     if isa(bbf.X, Nothing)
         throw(OCTException(string("BlackBoxFn ", bbf.name, " must be sampled first.")))
     end
+    set_param(bbf, :reloaded, false) # Makes sure that we know trees are retrained. 
     n_samples, n_features = size(bbf.X)
-    lnr = base_otc() 
+    regress = get_param(bbf, :regression)
     IAI.set_params!(lnr; lnr_kwargs(; kwargs...)...)# lnr also stores learner related kwargs...
     if bbf.feas_ratio == 1.0
         return

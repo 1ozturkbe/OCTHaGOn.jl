@@ -120,7 +120,6 @@ Also contains data w.r.t. samples from the function.
     Y::Array = []                                      # Function values
     feas_ratio::Float64 = 0.                           # Feasible sample proportion
     equality::Bool = false                             # Equality check
-    regression::Bool = false                           # ORT?
     dependent_var::Union{JuMP.VariableRef, Nothing} = nothing
     learners::Array{IAI.GridSearch} = []               # Learners...
     learner_kwargs = []                                # And their kwargs... 

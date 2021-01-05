@@ -83,7 +83,7 @@ module OptimalConstraintTree
            distance_to_set, get_constant,
            add_feas_constraints!, add_regr_constraints!,
            add_tree_constraints!, clear_tree_constraints!,
-           base_otr, base_otc, fit_kwargs, lnr_kwargs,
+           base_lnr, fit_kwargs, lnr_kwargs,
            functionify,
            # Functions to import global optimization problems,
            sagemark_to_GlobalModel,
