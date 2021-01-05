@@ -3,6 +3,7 @@ function bbf_defaults()
     Dict(:threshold_accuracy => 0.95,      # Minimum tree accuracy
          :threshold_feasibility => 0.15,   # Minimum feasibility ratio
          :n_samples => 200,                # Maximum number of samples at each step
+         :regression => false,             # ORT?
          :reloaded => false)               # Whether learners are reloaded
 end
 
