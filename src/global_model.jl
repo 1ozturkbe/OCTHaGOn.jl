@@ -8,7 +8,6 @@ nonlinear_model can contain JuMP.NonlinearConstraints.
     model::JuMP.Model                                            # JuMP model
     name::String = "Model"                                       # Example name
     bbfs::Array{BlackBoxFunction} = Array{BlackBoxFunction}[]    # Black box (>/= 0) functions
-    objective::Union{BlackBoxFunction, Nothing} = nothing        # Potentially regressed nonlinear objective
     vars::Array{VariableRef} = JuMP.all_variables(model)         # JuMP variables
     solution_history::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Solution history
     settings::Dict = gm_defaults()                 # GM settings
