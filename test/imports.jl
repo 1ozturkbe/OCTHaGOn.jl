@@ -3,7 +3,7 @@ Makes sure all sage benchmarks import properly.
 For now, just doing first 5 out of 25, since polynomial examples are not in R+.
 """
 function test_sagemark_to_GlobalModel()
-    idxs = 1:5;
+    idxs = 1:5; # 25
     # max_min = [26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38]
     for idx in idxs
         ex = sagemark_to_GlobalModel(idx);
@@ -31,7 +31,7 @@ end
 
 """ Testing that problems are correctly imported, with some random checking. """
 function test_gams_to_GlobalModel()
-    filenums = [2.15, 2.16, 2.17, 2.18, 3.2, "3.10", 3.13, 3.15, 3.16, 3.18, 3.25]
+    filenums = [2.15, 2.16, 2.17, 2.18] # [3.2, "3.10", 3.13, 3.15, 3.16, 3.18, 3.25]
     filenames = ["problem" * string(filenum) * ".gms" for filenum in filenums]
     gms = Dict()
     for filename in filenames
