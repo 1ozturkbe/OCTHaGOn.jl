@@ -107,43 +107,45 @@ function knn_sample(bbf::BlackBoxFunction; k::Int64 = 10)
 end
 
 """
-    sample_and_eval!(bbf::Union{BlackBoxFunction, GlobalModel, Array{BlackBoxFunction}};
+    uniform_sample_and_eval!(bbf::Union{BlackBoxFunction, GlobalModel, Array{BlackBoxFunction}};
                               boundary_fraction::Float64 = 0.5,
                               lh_iterations::Int64 = 0)
 
-Samples and evaluates BlackBoxFunction.
+Uniform samples and evaluates BlackBoxFunction.
 Keyword arguments:
     boundary_fraction: maximum ratio of boundary samples
     lh_iterations: number of GA populations for LHC sampling (0 is a random LH.)
 """
-function sample_and_eval!(bbf::BlackBoxFunction;
+function uniform_sample_and_eval!(bbf::BlackBoxFunction;
                           boundary_fraction::Float64 = 0.5,
                           lh_iterations::Int64 = 0)
+    @assert size(bbf.X, 1) == 0 
     vks = string.(bbf.vars)
     n_dims = length(vks);
     check_bounds(get_bounds(bbf))
-    if size(bbf.X,1) == 0 # If we don't have data yet, uniform and boundary sample.
-       df = boundary_sample(bbf, fraction = boundary_fraction)
-       eval!(bbf, df)
-       df = lh_sample(bbf, lh_iterations = lh_iterations, n_samples = get_param(bbf, :n_samples) - size(df, 1))
-       eval!(bbf, df);
-    elseif bbf.feas_ratio == 1.0
-        @warn(string(bbf.name) * " was not KNN sampled since it has " * string(bbf.feas_ratio) * " feasibility.")
-    elseif bbf.feas_ratio == 0.0
-        throw(OCTException(string(bbf.name) * " was not KNN sampled since it has " * string(bbf.feas_ratio) * " feasibility.
-                            Please find at least one feasible sample and try again. "))
-    else                  # otherwise, KNN sample!
-        df = knn_sample(bbf)
-        eval!(bbf, df)
+    df = boundary_sample(bbf, fraction = boundary_fraction)
+    eval!(bbf, df)
+    df = lh_sample(bbf, lh_iterations = lh_iterations, n_samples = get_param(bbf, :n_samples) - size(df, 1))
+    eval!(bbf, df);
+    if !get_param(bbf, :regression)
+        if bbf.feas_ratio == 1.0
+            @warn(string(bbf.name) * " was not KNN sampled since it has no infeasible samples.")
+        elseif bbf.feas_ratio == 0.0
+            throw(OCTException(string(bbf.name) * " has zero infeasible samples. " *
+                               "Please find at least one feasible sample, seed the data and KNN sample."))
+        else
+            df = knn_sample(bbf)
+            eval!(bbf, df)
+        end
     end
     return
 end
 
-function sample_and_eval!(bbfs::Array{BlackBoxFunction}; lh_iterations = 0) 
+function uniform_sample_and_eval!(bbfs::Array{BlackBoxFunction}; lh_iterations = 0) 
     for bbf in bbfs 
-        sample_and_eval!(bbf, lh_iterations = lh_iterations)
+        uniform_sample_and_eval!(bbf, lh_iterations = lh_iterations)
     end
     return
 end
 
-sample_and_eval!(gm::GlobalModel) = sample_and_eval!(gm.bbfs; lh_iterations = get_param(gm, :lh_iterations))
+uniform_sample_and_eval!(gm::GlobalModel) = uniform_sample_and_eval!(gm.bbfs; lh_iterations = get_param(gm, :lh_iterations))

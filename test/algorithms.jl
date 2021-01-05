@@ -6,8 +6,7 @@ function test_basic_functions()
     # Actually trying to optimize...
     find_bounds!(gm, all_bounds=true)
     bound!(gm, Dict(gm.vars[end] => [-300, 0]))
-    sample_and_eval!(gm)
-    sample_and_eval!(gm)
+    uniform_sample_and_eval!(gm)
 
     learn_constraint!(gm)
     println("Approximation accuracies: ", accuracy(gm))
@@ -70,9 +69,7 @@ function test_speed_params(gm::GlobalModel = gear(true), solver = CPLEX_SILENT)
     set_optimizer(gm, solver)   
     bound!(gm, gm.vars[end] => [-10,10]) 
     bbf = gm.bbfs[1]
-    sample_and_eval!(bbf)
-    sample_and_eval!(bbf)
-    sample_and_eval!(bbf)    
+    uniform_sample_and_eval!(bbf)    
     
     # Trying different speed parameters
     ls_num_hyper_restarts = [1, 3]

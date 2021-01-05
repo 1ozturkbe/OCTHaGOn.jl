@@ -92,6 +92,15 @@ constrs, leaf_vars = add_feas_constraints!(m, inputs, lnr, M=1e3, return_data = 
 # simulation.mi_constraints = constrs; # Note: this is needed to monitor the presence of tree
 # simulation.leaf_variables = leaf_vars; #  constraints and variables in gm.model
 
+"""
+Basic regression purely for debugging.
+"""
+function regress(points::DataFrame, values::Array; weights::Array = ones(length(values)))
+    lnr= IAI.OptimalFeatureSelectionRegressor(sparsity = :all); # TODO: optimize regression method.
+    IAI.fit!(lnr, points, values, sample_weight=weights)
+    return lnr
+end
+
 # Only one feasible leaf (4), so can just use regression equations
 # Regressions over leaves
 P_shaft, Torque, Rotational_Speed, Efficiency, Mass, Mass_Specific_Power = [outputs[idx] for idx in idxs]

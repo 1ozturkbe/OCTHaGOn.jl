@@ -30,14 +30,9 @@ X = lh_sample(bbf, n_samples=n_samples);
 Y = md.bbfs[1](X);
 
 # Testing sample_and_eval for combined LH and boundary sampling.
-sample_and_eval!(md);
+uniform_sample_and_eval!(md);
 @test size(bbf.X) == (500,length(bbf.vks))
 @test all(feasibility(md) .>= 0)
-
-# Testing use KNN sampling and building trees
-while any(feasibility(md) .<= 0.15)
-    sample_and_eval!(md);
-end
 
 learn_constraint!(md);
 
