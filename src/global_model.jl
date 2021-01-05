@@ -214,23 +214,30 @@ function add_nonlinear_or_compatible(gm::GlobalModel,
                      dependent_var::Union{Nothing, JuMP.VariableRef} = nothing,
                      name::String = gm.name * "_" * string(length(gm.bbfs) + 1),
                      equality::Bool = false)
-     vars, expr_vars = determine_vars(gm, constraint, vars = vars, expr_vars = expr_vars)
-     try
-        fn = functionify(constraint)
-        constr_expr = Base.invokelatest(fn, expr_vars...)
-        if equality && !isnothing(dependent_var)
-            @constraint(gm.model, constr_expr == dependent_var)
-        elseif equality
-            @constraint(gm.model, constr_expr == 0)
-        elseif !isnothing(dependent_var)
-            @constraint(gm.model, constr_expr >= dependent_var)
-        else 
-            @constraint(gm.model, constr_expr >= 0)
+    vars, expr_vars = determine_vars(gm, constraint, vars = vars, expr_vars = expr_vars)
+    fn = functionify(constraint)
+    if fn isa Function
+        try
+            constr_expr = Base.invokelatest(fn, expr_vars...)
+            if equality && !isnothing(dependent_var)
+                @constraint(gm.model, constr_expr == dependent_var)
+            elseif equality
+                @constraint(gm.model, constr_expr == 0)
+            elseif !isnothing(dependent_var)
+                @constraint(gm.model, constr_expr >= dependent_var)
+            else 
+                @constraint(gm.model, constr_expr >= 0)
+            end
+        catch
+            add_nonlinear_constraint(gm, constraint, vars = vars, expr_vars = expr_vars, 
+                                     dependent_var = dependent_var,
+                                     name = name, equality = equality)
         end
-     catch
-        add_nonlinear_constraint(gm, constraint, vars = vars, expr_vars = expr_vars, dependent_var = dependent_var,
-                                 name = name, equality = equality)
-     end
+    else
+        add_nonlinear_constraint(gm, constraint, vars = vars, expr_vars = expr_vars, 
+                                    dependent_var = dependent_var,
+                                    name = name, equality = equality)
+    end
 end
 
 """
