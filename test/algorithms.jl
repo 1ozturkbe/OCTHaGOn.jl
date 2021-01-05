@@ -81,7 +81,8 @@ function test_speed_params(gm::GlobalModel = gear(true), solver = CPLEX_SILENT)
         for j=1:length(ls_num_tree_restarts)
             t1 = time()
             params = Dict(:ls_num_hyper_restarts => ls_num_hyper_restarts[i],
-                          :ls_num_tree_restarts => ls_num_tree_restarts[j])
+                          :ls_num_tree_restarts => ls_num_tree_restarts[j],
+                          :max_depth => 2)
             learn_constraint!(bbf; params...)
             push!(time_mat[i], time() - t1)
             push!(tree_mat[i], bbf.learners[end].lnr)
@@ -89,21 +90,6 @@ function test_speed_params(gm::GlobalModel = gear(true), solver = CPLEX_SILENT)
         end
     end
     @test true
-    # Sensitivity parameters
-    # feas_ratio = feasibility(bbf)
-    # thresholds = [0.6, 0.85, 0.98]
-    # trees = []
-    # scores = []
-    # times = []
-    # sens = []
-    # for i = 1:length(thresholds)
-    #     t1 = time()
-    #     learn_constraint!(bbf, validation_criterion = :sensitivity, threshold = thresholds[i])
-    #     push!(times, time()-t1)
-    #     push!(trees, bbf.learners[end].lnr)
-    #     push!(scores, bbf.accuracies[end])
-    #     push!(sens, )    
-    # end
 end
 
 function recipe(gm::GlobalModel)
@@ -121,7 +107,7 @@ function recipe(gm::GlobalModel)
     return
 end
 
-function test_recipe(gm::GlobalModel = gear(true))
+function test_recipe(gm::GlobalModel = minlp(true))
     recipe(gm)
     print(gm.solution_history)
     @test true
