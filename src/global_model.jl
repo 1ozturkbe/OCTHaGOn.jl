@@ -118,9 +118,8 @@ end
                         vars::Union{Nothing, Array{JuMP.VariableRef, 1}} = nothing,
                         expr_vars::Union{Nothing, Array} = nothing)
 
-Takes on parsing and allocation of variables depending on user input.
-Note: This can be tricky, vars should in general be equal to flat(expr_vars).
-vars is shorter than expr_vars iff a subset of a vector variable is included. """
+Takes on parsing and allocation of variables depending on user input. 
+"""
 function determine_vars(gm::GlobalModel,
                         constraint::Union{JuMP.ScalarConstraint, JuMP.ConstraintRef, Expr};
                         vars::Union{Nothing, Array{JuMP.VariableRef, 1}} = nothing,
@@ -148,11 +147,13 @@ function determine_vars(gm::GlobalModel,
 end
 
 
+
 """
     add_nonlinear_constraint(gm::GlobalModel,
                      constraint::Union{JuMP.ScalarConstraint, JuMP.ConstraintRef, Expr};
                      vars::Union{Nothing, Array{JuMP.VariableRef, 1}} = nothing,
                      expr_vars::Union{Nothing, Array} = nothing,
+                     dependent_var::Union{Nothing, JuMP.VariableRef} = nothing,
                      name::String = gm.name * " " * string(length(gm.bbfs) + 1),
                      equality::Bool = false)
 
@@ -162,23 +163,33 @@ function add_nonlinear_constraint(gm::GlobalModel,
                      constraint::Union{JuMP.ScalarConstraint, JuMP.ConstraintRef, Expr};
                      vars::Union{Nothing, Array{JuMP.VariableRef, 1}} = nothing,
                      expr_vars::Union{Nothing, Array} = nothing,
+                     dependent_var::Union{Nothing, JuMP.VariableRef} = nothing,
                      name::String = gm.name * "_" * string(length(gm.bbfs) + 1),
                      equality::Bool = false)
     vars, expr_vars = determine_vars(gm, constraint, vars = vars, expr_vars = expr_vars)
-    if constraint isa JuMP.ScalarConstraint #TODO: clean up.
+    if constraint isa JuMP.ScalarConstraint 
+        !isnothing(dependent_var) && throw(OCTException("Constraint " * name * " is of type JuMP.ScalarConstraint, " *
+                                                        "and cannot have a dependent variable " * string(dependent_var) * "."))
         con = JuMP.add_constraint(gm.model, constraint)
         JuMP.delete(gm.model, con)
         new_bbf = BlackBoxFunction(constraint = con, vars = vars, expr_vars = expr_vars,
+                                   dependent_var = dependent_var,
                                    equality = equality, name = name)
         set_param(new_bbf, :n_samples, Int(ceil(get_param(gm, :sample_coefficient)*sqrt(length(vars))))) 
         push!(gm.bbfs, new_bbf)
         return
     end
     if constraint isa JuMP.ConstraintRef
+        !isnothing(dependent_var) && throw(OCTException("Constraint " * name * " is of type JuMP.ConstraintRef, " *
+        "and cannot have a dependent variable " * string(dependent_var) * "."))
         JuMP.delete(gm.model, constraint)
     end
     new_bbf = BlackBoxFunction(constraint = constraint, vars = vars, expr_vars = expr_vars,
+                               dependent_var = dependent_var, 
                                equality = equality, name = name)
+    if !isnothing(dependent_var)
+        set_param(new_bbf, :regression, true)
+    end
     set_param(new_bbf, :n_samples, Int(ceil(get_param(gm, :sample_coefficient)*sqrt(length(vars))))) 
     push!(gm.bbfs, new_bbf)
     return
@@ -189,6 +200,7 @@ end
                          constraint::Union{JuMP.ScalarConstraint, JuMP.ConstraintRef, Expr};
                          vars::Union{Nothing, Array{JuMP.VariableRef, 1}} = nothing,
                          expr_vars::Union{Nothing, Array} = nothing,
+                         dependent_var::Union{Nothing, JuMP.VariableRef} = nothing,
                          name::String = gm.name * "_" * string(length(gm.bbfs) + 1),
                          equality::Bool = false)
 
@@ -199,20 +211,25 @@ function add_nonlinear_or_compatible(gm::GlobalModel,
                      constraint::Union{JuMP.ScalarConstraint, JuMP.ConstraintRef, Expr};
                      vars::Union{Nothing, Array{JuMP.VariableRef, 1}} = nothing,
                      expr_vars::Union{Nothing, Array} = nothing,
+                     dependent_var::Union{Nothing, JuMP.VariableRef} = nothing,
                      name::String = gm.name * "_" * string(length(gm.bbfs) + 1),
                      equality::Bool = false)
      vars, expr_vars = determine_vars(gm, constraint, vars = vars, expr_vars = expr_vars)
      try
         fn = functionify(constraint)
         constr_expr = Base.invokelatest(fn, expr_vars...)
-        if equality
+        if equality && !isnothing(dependent_var)
+            @constraint(gm.model, constr_expr == dependent_var)
+        elseif equality
             @constraint(gm.model, constr_expr == 0)
-        else
+        elseif !isnothing(dependent_var)
+            @constraint(gm.model, constr_expr >= dependent_var)
+        else 
             @constraint(gm.model, constr_expr >= 0)
         end
      catch
-        add_nonlinear_constraint(gm, constraint, vars = vars, expr_vars = expr_vars,
-                                  equality = equality, name = name)
+        add_nonlinear_constraint(gm, constraint, vars = vars, expr_vars = expr_vars, dependent_var = dependent_var,
+                                 name = name, equality = equality)
      end
 end
 
