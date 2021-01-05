@@ -1,33 +1,48 @@
 """ Function that preprocesses merging of kwargs for IAI.fit!, 
     to avoid errors! """
-function fit_kwargs(; kwargs...)
-    nkwargs = Dict{Symbol, Any}(:validation_criterion => :misclassification,
-                    :sample_weight => :autobalance) # default kwargs
-    for item in kwargs
-        if item.first in keys(nkwargs)
-            nkwargs[item.first] = item.second
+function fit_kwargs(regress::Bool = false; kwargs...)
+    if !regress
+        nkwargs = Dict{Symbol, Any}(:validation_criterion => :misclassification,
+                        :sample_weight => :autobalance) # default kwargs
+        for item in kwargs
+            if item.first in keys(nkwargs)
+                nkwargs[item.first] = item.second
+            end
         end
+        if nkwargs[:validation_criterion] == :sensitivity
+            delete!(nkwargs, :sample_weight)
+            nkwargs[:positive_label] = 1
+        end
+        return nkwargs
+    else
+        nkwargs = Dict{Symbol, Any}(:validation_criterion => :mse)
+        for item in kwargs
+            if item.first in keys(nkwargs)
+                nkwargs[item.first] = item.second
+            end
+        end
+        return nkwargs
     end
-    if nkwargs[:validation_criterion] == :sensitivity
-        delete!(nkwargs, :sample_weight)
-        nkwargs[:positive_label] = 1
-    end
-    return nkwargs
 end
 
 """ Function that preprocesses merging of kwargs for IAI.OptimalTreeLearner!, 
     to avoid errors! """
-function lnr_kwargs(; kwargs...)
-    # TODO: figure out how to merge this stuff!!!!
+function lnr_kwargs(regress::Bool = false; kwargs...)
     nkwargs = Dict{Symbol, Any}() 
-    valid_keys = [:random_seed, :max_depth, :cp, :minbucket, :fast_num_support_restarts, 
-                  :localsearch, :ls_num_hyper_restarts, :ls_num_tree_restarts, :hyperplane_config]
+    valid_keys = [:random_seed, :max_depth, :cp, :minbucket, 
+                  :fast_num_support_restarts, :localsearch, 
+                  :ls_num_hyper_restarts, :ls_num_tree_restarts, 
+                  :hyperplane_config]
+    if regress
+        append!(valid_keys, [:regression_sparsity, :regression_weighted_betas,
+                             :regression_lambda])   
+    end    
     for item in kwargs
         if item.first in valid_keys
             nkwargs[item.first] = item.second
         end
     end
-    return nkwargs
+    return kwargs
 end
 
 """ Wrapper around IAI.GridSearch for constraint learning.
@@ -93,16 +108,26 @@ function learn_constraint!(bbf::Union{BlackBoxFunction, DataConstraint}, ignore_
     set_param(bbf, :reloaded, false) # Makes sure that we know trees are retrained. 
     n_samples, n_features = size(bbf.X)
     regress = get_param(bbf, :regression)
+    lnr = base_lnr(regress)
     IAI.set_params!(lnr; lnr_kwargs(; kwargs...)...)# lnr also stores learner related kwargs...
     if bbf.feas_ratio == 1.0
         return
     elseif check_feasibility(bbf) || ignore_feas
-        nl = learn_from_data!(bbf.X, bbf.Y .>= 0,
-                              gridify(lnr);
-                              fit_kwargs(; kwargs...)...)
-        push!(bbf.learners, nl);
-        push!(bbf.accuracies, IAI.score(nl, bbf.X, bbf.Y .>= 0))
-        push!(bbf.learner_kwargs, Dict(kwargs))
+        if !regress
+            nl = learn_from_data!(bbf.X, bbf.Y .>= 0,
+                                gridify(lnr);
+                                fit_kwargs(regress; kwargs...)...)
+            push!(bbf.learners, nl);
+            push!(bbf.accuracies, IAI.score(nl, bbf.X, bbf.Y .>= 0))
+            push!(bbf.learner_kwargs, Dict(kwargs))
+        else
+            nl = learn_from_data!(bbf.X, bbf.Y,
+                                  gridify(lnr);
+                                  fit_kwargs(regress; kwargs...)...) 
+            push!(bbf.learners, nl);
+            push!(bbf.accuracies, IAI.score(nl, bbf.X, bbf.Y))
+            push!(bbf.learner_kwargs, Dict(kwargs))
+        end
     else
         @warn("Not enough feasible samples for constraint " * string(bbf.name) * ".")
     end
