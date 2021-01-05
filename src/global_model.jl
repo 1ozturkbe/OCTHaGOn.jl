@@ -8,6 +8,7 @@ nonlinear_model can contain JuMP.NonlinearConstraints.
     model::JuMP.Model                                            # JuMP model
     name::String = "Model"                                       # Example name
     bbfs::Array{BlackBoxFunction} = Array{BlackBoxFunction}[]    # Black box (>/= 0) functions
+    objective::Union{BlackBoxFunction, Nothing} = nothing        # Potentially regressed nonlinear objective
     vars::Array{VariableRef} = JuMP.all_variables(model)         # JuMP variables
     solution_history::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Solution history
     settings::Dict = gm_defaults()                 # GM settings
@@ -110,22 +111,6 @@ end
 
 function get_min(a,b)
     return minimum([a,b])
-end
-
-""" Checks whether any defined bounds are infeasible by given Model. """
-function check_infeasible_bound(model::Union{GlobalModel, JuMP.Model},
-                                bound::Pair)
-    key = bound.first
-    val = bound.second
-    @assert key isa JuMP.VariableRef
-    @assert val isa Array
-    model_bounds = get_bound(key)
-    if minimum(model_bounds) >= maximum(val) || maximum(model_bounds) <= minimum(val)
-        throw(OCTException("Infeasible bounds."))
-    else
-        return [maximum([minimum(model_bounds), minimum(val)]),
-                    minimum([maximum(model_bounds), maximum(val)])]
-    end
 end
 
 """
@@ -274,41 +259,6 @@ end
 
 function nonlinearize!(gm::GlobalModel)
     nonlinearize!(gm, gm.bbfs)
-end
-
-"""
-    bound!(model::JuMP.Model, bound::Pair)
-    bound!(model::JuMP.Model, bounds::Dict)
-    bound!(model::GlobalModel, bounds::Union{Pair,Dict})
-
-Adds outer bounds to JuMP Model from Dict or Pair of data.
-"""
-function bound!(model::JuMP.Model, bound::Pair)
-    if isa(bound.first, JuMP.VariableRef)
-        tightest_bound = check_infeasible_bound(model, bound)
-        b_min = minimum(tightest_bound)
-        b_max = maximum(tightest_bound)
-        !isinf(b_min) && JuMP.set_lower_bound(bound.first, b_min)
-        !isinf(b_max) && JuMP.set_upper_bound(bound.first, b_max)
-    else
-        vars = fetch_variable(model, bound.first)
-        if vars isa JuMP.VariableRef
-            bound!(model, vars => bound.second)
-        elseif vars isa Array
-            for var in vars
-                bound!(model, var => bound.second)
-            end
-        else
-            throw(OCTException("Bound with fetch_variable has failed. Try bounding using JuMP.VariableRefs!"))
-        end
-    end
-    return
-end
-
-function bound!(model::JuMP.Model, bounds::Dict)
-    for bd in collect(bounds)
-        bound!(model, bd)
-    end
 end
 
 function bound!(model::GlobalModel, bounds::Union{Pair,Dict})

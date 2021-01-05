@@ -66,7 +66,7 @@ function test_bounds()
 
     # Check infeasible bounds
     new_bound = x[4] => [-10,-6]
-    @test_throws OCTException OCT.check_infeasible_bound(model, new_bound)
+    @test_throws OCTException OCT.check_infeasible_bound(new_bound)
     @test_throws OCTException bound!(model, new_bound)
 
     # Check unbounds

@@ -30,6 +30,8 @@ include(OCT.PROJECT_ROOT * "/test/tools/gams.jl");
 
 include(OCT.PROJECT_ROOT * "/test/tools/sagemark.jl");
 
+include(OCT.PROJECT_ROOT * "/test/tools/models.jl")
+
 include(OCT.PROJECT_ROOT * "/data/baron/gear.jl");
 
 include(OCT.PROJECT_ROOT * "/data/baron/minlp.jl");
