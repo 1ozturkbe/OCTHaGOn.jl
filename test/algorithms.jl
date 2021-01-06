@@ -123,7 +123,6 @@ function test_loaded_recipe(gm::GlobalModel = minlp(true))
     set_optimizer(gm, CPLEX_SILENT)
     load_fit(gm)
     globalsolve(gm)
-    save_solution(gm)
     @test true
 end
 
