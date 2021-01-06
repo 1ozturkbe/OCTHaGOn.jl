@@ -1,7 +1,7 @@
 """
     @with_kw mutable struct BlackBoxFunction
 
-Contains all required info to be able to generate a global optimization constraint from a function.
+Abstract type that contains required info to be able to generate a global optimization constraint from a function.
 To be added to GlobalModel.bbfs using functions:
     add_nonlinear_constraints
     add_nonlinear_or_compatible
@@ -31,6 +31,49 @@ Also contains data w.r.t. samples from the function.
     X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars))
                                                        # Function samples
     Y::Array = []                                      # Function values
+    equality::Bool = false                             # Equality check
+    learners::Array{IAI.GridSearch} = []               # Learners...
+    learner_kwargs = []                                # And their kwargs... 
+    mi_constraints::Array = []                         # and their corresponding MI constraints,
+    leaf_variables::Array = []                         # and their binary leaf variables,
+    accuracies::Array{Float64} = []                    # and the tree misclassification scores.
+    knn_tree::Union{KDTree, Nothing} = nothing         # KNN tree
+    settings::Dict = Dict() # Relevant settings
+end
+
+@with_kw mutable struct BlackBoxRegressor <: BlackBoxFunction
+    constraint::Union{JuMP.ConstraintRef, Expr}        # The "raw" constraint
+    vars::Array{JuMP.VariableRef,1}                    # JuMP variables (flat)
+    dependent_var::JuMP.VariableRef                    # Dependent variable
+    name::String = ""                                  # Function name
+    expr_vars:: Union{Array, Nothing} = nothing        # Function inputs (nonflat JuMP variables)
+    varmap::Union{Nothing,Array} = get_varmap(expr_vars, vars)     # ... with the required varmapping.
+    fn::Union{Nothing, Function} = functionify(constraint)         # ... and actually evaluated f'n
+    X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Function samples
+    Y::Array = []                                      # Function values
+    feas_ratio::Float64 = 0.                           # Feasible sample proportion
+    equality::Bool = false                             # Equality check
+    learners::Array{IAI.GridSearch} = []               # Learners...
+    learner_kwargs = []                                # and their kwargs... 
+    feas_learners::Array{IAI.GridSearch} = []          # Classification learners...
+    feas_learner_kwargs = []                           # and their kwargs...
+    mi_constraints::Array = []                         # and their corresponding MI constraints,
+    leaf_variables::Array = []                         # and their binary leaf variables,
+    accuracies::Array{Float64} = []                    # and the tree misclassification scores.
+    knn_tree::Union{KDTree, Nothing} = nothing         # KNN tree
+    settings::Dict = bbf_defaults(!isnothing(dependent_var)) # Relevant settings
+end
+
+@with_kw mutable struct BlackBoxClassifier <: BlackBoxFunction
+    constraint::Union{JuMP.ConstraintRef, Expr}        # The "raw" constraint
+    vars::Array{JuMP.VariableRef,1}                    # JuMP variables (flat)
+    name::String = ""                                  # Function name
+    expr_vars:: Union{Array, Nothing} = nothing        # Function inputs (nonflat JuMP variables)
+    varmap::Union{Nothing,Array} = get_varmap(expr_vars, vars)     # ... with the required varmapping.
+    fn::Union{Nothing, Function} = functionify(constraint)         # ... and actually evaluated f'n
+    X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars))
+                                                       # Function samples
+    Y::Array = []                                      # Function values
     feas_ratio::Float64 = 0.                           # Feasible sample proportion
     equality::Bool = false                             # Equality check
     dependent_var::Union{JuMP.VariableRef, Nothing} = nothing
@@ -44,9 +87,8 @@ Also contains data w.r.t. samples from the function.
 end
 
 function Base.show(io::IO, bbf::BlackBoxFunction)
-    println(io, "BlackBoxFunction " * bbf.name * " with $(length(bbf.vars)) variables: ")
-    println(io, "Sampled $(length(bbf.Y)) times with $(round(bbf.feas_ratio, digits=2)) of samples feasible.")
-    println(io, "Has $(length(bbf.learners)) trained OptimalTreeLearners.")
+    println(io, "$string(typeof(bbf)) " * bbf.name * " with $(length(bbf.vars)) variables: ")
+    println(io, "Sampled $(length(bbf.Y)) times, and das $(length(bbf.learners)) trained learners.")
 end
 
 set_param(bbf::BlackBoxFunction, key::Symbol, val) = set_param(bbf.settings, key, val)
