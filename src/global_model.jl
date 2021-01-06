@@ -344,15 +344,6 @@ function solution(m::JuMP.Model)
     return DataFrame(vals', string.(variables))
 end
 
-"""
-    save_solution(gm::GlobalModel; dir::String = SAVE_DIR)
-
-Saves the optimal solution of GlobalModel as a CSV.
-"""
-function save_solution(gm::GlobalModel; name::String = gm.name, dir::String = SAVE_DIR)
-    CSV.write(dir * name * ".csv", solution(gm))
-end
-
 """ Evaluates each constraint at solution to make sure it is feasible. """
 function evaluate_feasibility(gm::GlobalModel)
     soln = solution(gm);
