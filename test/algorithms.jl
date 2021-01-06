@@ -53,6 +53,7 @@ end
 function test_baron_solve(gm::JuMP.Model = gear(false))
     set_optimizer(gm, BARON_SILENT)
     optimize!(gm)
+    sol = solution(gm)
     @test true
 end
 
@@ -118,6 +119,7 @@ function test_loaded_recipe(gm::GlobalModel = minlp(true))
     set_optimizer(gm, CPLEX_SILENT)
     load_fit(gm)
     globalsolve(gm)
+    save_solution(gm)
     @test true
 end
 

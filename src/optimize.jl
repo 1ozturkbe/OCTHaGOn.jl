@@ -7,6 +7,6 @@ and approximated nonlinear constraints from inside its BlackBoxFunctions.
 function globalsolve(gm::GlobalModel)
     clear_tree_constraints!(gm)   # remove trees from previous solve (if any).
     add_tree_constraints!(gm)     # refresh latest tree constraints.
-    status = optimize!(gm.model)
+    status = JuMP.optimize!(gm.model)
     return status
 end
