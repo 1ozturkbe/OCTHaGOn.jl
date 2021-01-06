@@ -28,40 +28,30 @@ Generates MI constraints from gm.learners, and adds them to gm.model.
 function add_tree_constraints!(gm::GlobalModel, bbfs::Array{BlackBoxFunction}; M=1e5)
     for bbf in bbfs
         # Battery of checks
-        if !get_param(bbf, :reloaded)
-            if bbf.feas_ratio == 1.0 || get_param(bbf, :regression)
+        if !get_param(bbf, :regression)
+            if bbf.feas_ratio == 1.0
                 continue
-            elseif size(bbf.X, 1) == 0
+            elseif size(bbf.X, 1) == 0 && !get_param(bbf, :reloaded)
                 throw(OCTException("Constraint " * string(bbf.name) * " has not been sampled yet, and is thus untrained."))
             elseif length(bbf.learners) == 0
                 throw(OCTException("Constraint " * string(bbf.name) * " has not been learned yet"))
-            elseif bbf.feas_ratio == 0.0 || get_param(bbf, :regression)
+            elseif bbf.feas_ratio == 0.0 && !get_param(bbf, :reloaded)
                 throw(OCTException("Constraint " * string(bbf.name) * " is INFEASIBLE but you tried to include it in
                     your global problem. Find at least one feasible solution, train and try again."))
             elseif isempty(bbf.learners)
                 throw(OCTException("Constraint " * string(bbf.name) * " must be learned before tree constraints
                                     can be generated."))
-            elseif !get_param(gm, :ignore_accuracy) && !check_accuracy(bbf) && !get_param(bbf, :regression)
+            elseif !get_param(gm, :ignore_accuracy) && !check_accuracy(bbf)
                 throw(OCTException("Constraint " * string(bbf.name) * " is inaccurately approximated. "))
             else
-                if !get_param(bbf, :regression)
-                    bbf.mi_constraints, bbf.leaf_variables = add_feas_constraints!(gm.model, bbf.vars, bbf.learners[end].lnr;
-                                                        M=M, equality = bbf.equality);
-                else
-                    bbf.mi_constraints, bbf.leaf_variables = add_regr_constraints!(gm.model, bbf.vars, bbf.dependent_var, 
-                                                                                   bbf.learners[end].lnr;
-                                                                                   M = M, equality = bbf.equality)
-                end
-            end
-        else 
-            if !get_param(bbf, :regression)
                 bbf.mi_constraints, bbf.leaf_variables = add_feas_constraints!(gm.model, bbf.vars, bbf.learners[end].lnr;
                                                     M=M, equality = bbf.equality);
-            else
-                bbf.mi_constraints, bbf.leaf_variables = add_regr_constraints!(gm.model, bbf.vars, bbf.dependent_var, 
-                                                                               bbf.learners[end].lnr;
-                                                                               M = M, equality = bbf.equality)
             end
+        else
+            # TODO: check regressions much better
+            bbf.mi_constraints, bbf.leaf_variables = add_regr_constraints!(gm.model, bbf.vars, bbf.dependent_var, 
+                                                                            bbf.learners[end].lnr;
+                                                                            M = M, equality = bbf.equality)
         end 
     end
     return
@@ -130,7 +120,7 @@ function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::I
 end
 
 function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuMP.VariableRef, lnr::IAI.OptimalTreeRegressor;
-                               M::Float64 = 1.e5, eq::Bool = false)
+                               M::Float64 = 1.e5, equality::Bool = false)
     """
     Creates a set of MIO constraints from a OptimalTreeRegressor
     Arguments:

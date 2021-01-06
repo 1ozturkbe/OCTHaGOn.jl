@@ -96,7 +96,7 @@ constrs, leaf_vars = add_feas_constraints!(m, inputs, lnr, M=1e3)
 Basic regression purely for debugging.
 """
 function regress(points::DataFrame, values::Array; weights::Array = ones(length(values)))
-    lnr= IAI.OptimalFeatureSelectionRegressor(sparsity = :all); # TODO: optimize regression method.
+    lnr= IAI.OptimalFeatureSelectionRegressor(sparsity = :all);
     IAI.fit!(lnr, points, values, sample_weight=weights)
     return lnr
 end

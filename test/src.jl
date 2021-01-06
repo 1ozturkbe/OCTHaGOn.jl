@@ -148,8 +148,6 @@ function test_bbf()
     vals = bbf(samples);
     @test vals ≈ -1*samples[!, "x[4]"].^2 - samples[!, "x[5]"].^2 + samples[!, "z"]
 
-    # TODO: TRY BlackBoxFunction(constraint = expr)!
-
     # Checks different kinds of sampling
     bound!(model, Dict(z => [-Inf, 10]))
     X_bound = boundary_sample(bbf);
