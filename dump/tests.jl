@@ -3,8 +3,7 @@ function test_relaxations(gm::GlobalModel = minlp(true),
     gm = minlp(true)
     set_optimizer(gm, solver)
     bound!(gm, gm.vars[end] => [-10,20])
-    sample_and_eval!(gm)
-    sample_and_eval!(gm)
+    uniform_sample_and_eval!(gm)
     # Separate by percentiles of infeasible
     percentiles = [0.75, 0.9, 0.98, 1.0]
     bbf = gm.bbfs[1]

@@ -27,10 +27,7 @@ function compile_lse_constraints(n_samples = 300)
 end
 
 ineqs = compile_lse_constraints();
-
-sample_and_eval!(ineqs);
-ineqs = ineqs[findall(x -> x.feas_ratio > 0, ineqs)];
-sample_and_eval!(ineqs);
+uniform_sample_and_eval!(ineqs);
 
 learn_constraint!(ineqs)
 

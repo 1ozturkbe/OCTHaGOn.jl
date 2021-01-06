@@ -6,8 +6,7 @@ function test_basic_functions()
     # Actually trying to optimize...
     find_bounds!(gm, all_bounds=true)
     bound!(gm, Dict(gm.vars[end] => [-300, 0]))
-    sample_and_eval!(gm)
-    sample_and_eval!(gm)
+    uniform_sample_and_eval!(gm)
 
     learn_constraint!(gm)
     println("Approximation accuracies: ", accuracy(gm))
@@ -38,6 +37,10 @@ function test_basic_functions()
     # Testing finding bounds of bounded model
     @test isnothing(get_unbounds(gm.bbfs))
     @test isnothing(find_bounds!(gm))
+
+    # Testing clearing all data
+    clear_data!(gm)
+    @test all([size(bbf.X, 1) == 0 for bbf in gm.bbfs])
 end
 
 """ Tests loading of previously solved GMs.
@@ -54,6 +57,7 @@ end
 function test_baron_solve(gm::JuMP.Model = gear(false))
     set_optimizer(gm, BARON_SILENT)
     optimize!(gm)
+    sol = solution(gm)
     @test true
 end
 
@@ -70,9 +74,7 @@ function test_speed_params(gm::GlobalModel = gear(true), solver = CPLEX_SILENT)
     set_optimizer(gm, solver)   
     bound!(gm, gm.vars[end] => [-10,10]) 
     bbf = gm.bbfs[1]
-    sample_and_eval!(bbf)
-    sample_and_eval!(bbf)
-    sample_and_eval!(bbf)    
+    uniform_sample_and_eval!(bbf)    
     
     # Trying different speed parameters
     ls_num_hyper_restarts = [1, 3]
@@ -84,7 +86,8 @@ function test_speed_params(gm::GlobalModel = gear(true), solver = CPLEX_SILENT)
         for j=1:length(ls_num_tree_restarts)
             t1 = time()
             params = Dict(:ls_num_hyper_restarts => ls_num_hyper_restarts[i],
-                          :ls_num_tree_restarts => ls_num_tree_restarts[j])
+                          :ls_num_tree_restarts => ls_num_tree_restarts[j],
+                          :max_depth => 2)
             learn_constraint!(bbf; params...)
             push!(time_mat[i], time() - t1)
             push!(tree_mat[i], bbf.learners[end].lnr)
@@ -92,21 +95,35 @@ function test_speed_params(gm::GlobalModel = gear(true), solver = CPLEX_SILENT)
         end
     end
     @test true
-    # Sensitivity parameters
-    # feas_ratio = feasibility(bbf)
-    # thresholds = [0.6, 0.85, 0.98]
-    # trees = []
-    # scores = []
-    # times = []
-    # sens = []
-    # for i = 1:length(thresholds)
-    #     t1 = time()
-    #     learn_constraint!(bbf, validation_criterion = :sensitivity, threshold = thresholds[i])
-    #     push!(times, time()-t1)
-    #     push!(trees, bbf.learners[end].lnr)
-    #     push!(scores, bbf.accuracies[end])
-    #     push!(sens, )    
-    # end
+end
+
+function recipe(gm::GlobalModel)
+    @info "GlobalModel " * gm.name * " in progress..."
+    set_optimizer(gm, CPLEX_SILENT)
+    find_bounds!(gm, all_bounds=true)
+    set_param(gm, :ignore_feasibility, true)
+    set_param(gm, :ignore_accuracy, true)
+    uniform_sample_and_eval!(gm)
+    @info ("Sample feasibilities ", feasibility(gm))
+    learn_constraint!(gm)
+    @info("Approximation accuracies: ", accuracy(gm))
+    save_fit(gm)
+    globalsolve(gm)
+    return
+end
+
+function test_recipe(gm::GlobalModel = minlp(true))
+    recipe(gm)
+    print(gm.solution_history)
+    @test true
+end
+
+function test_loaded_recipe(gm::GlobalModel = minlp(true))
+    @info "GlobalModel " * gm.name * " reloaded..."
+    set_optimizer(gm, CPLEX_SILENT)
+    load_fit(gm)
+    globalsolve(gm)
+    @test true
 end
 
 test_basic_functions()
@@ -118,3 +135,7 @@ test_baron_solve()
 test_find_bounds()
 
 test_speed_params()
+
+test_recipe()
+
+test_loaded_recipe()

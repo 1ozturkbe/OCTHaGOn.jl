@@ -24,9 +24,10 @@ function gear(gm::Bool = false)
         set_optimizer(m, BARON_SILENT)
     else
         @variable(m, obj)
+        @objective(m, Min, obj)
         gm = GlobalModel(model = m, name = "gear")
         set_optimizer(gm, CPLEX_SILENT)
-        add_nonlinear_constraint(gm, :((i, obj) -> obj - ((6.931 - i[1]*i[2]/(i[3]*i[4]))^2 + 1)))
+        add_nonlinear_constraint(gm, :((i) -> (6.931 - i[1]*i[2]/(i[3]*i[4]))^2 + 1), dependent_var = obj)
         return gm
     end
     return m

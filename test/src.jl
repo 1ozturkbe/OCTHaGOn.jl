@@ -158,8 +158,7 @@ function test_bbf()
     X_lh = lh_sample(bbf, lh_iterations=3);
 
     # Check sample_and_eval
-    sample_and_eval!(bbf);
-    sample_and_eval!(bbf);
+    uniform_sample_and_eval!(bbf);
 
     # Sampling, learning and showing...
     learn_constraint!(bbf);
@@ -172,9 +171,9 @@ function test_bbf()
     add_feas_constraints!(model, bbf.vars, bbf.learners[1].lnr, return_data = false);
 end
 
-
 """ Testing some IAI kwarging. """
 function test_kwargs()
+    # Classification kwargs first...
     sample_kwargs = Dict(:validation_criterion => :sensitivity, 
                        :localsearch => false, 
                        :invalid_kwarg => :hello,
@@ -189,6 +188,10 @@ function test_kwargs()
     dict_lnr2 = lnr_kwargs(validation_criterion = :sensitivity, localsearch = false, invalid_kwarg = :hello,
                            ls_num_tree_restarts = 20)
     @test dict_lnr == dict_lnr2 == Dict(:localsearch => false, :ls_num_tree_restarts => 20)
+
+    # Regression kwargs next...
+    dict_fit = fit_kwargs(true; sample_kwargs)
+    @test dict_fit == Dict(:validation_criterion => :mse)
 end
 
 test_expressions()

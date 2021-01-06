@@ -167,9 +167,6 @@ function add_nonlinear_constraint(gm::GlobalModel,
     new_bbf = BlackBoxFunction(constraint = constraint, vars = vars, expr_vars = expr_vars,
                                dependent_var = dependent_var, 
                                equality = equality, name = name)
-    if !isnothing(dependent_var)
-        set_param(new_bbf, :regression, true)
-    end
     set_param(new_bbf, :n_samples, Int(ceil(get_param(gm, :sample_coefficient)*sqrt(length(vars))))) 
     push!(gm.bbfs, new_bbf)
     return
@@ -345,15 +342,6 @@ function solution(m::JuMP.Model)
     variables = all_variables(m)
     vals = getvalue.(variables)
     return DataFrame(vals', string.(variables))
-end
-
-"""
-    save_solution(gm::GlobalModel; dir::String = SAVE_DIR)
-
-Saves the optimal solution of GlobalModel as a CSV.
-"""
-function save_solution(gm::GlobalModel; name::String = gm.name, dir::String = SAVE_DIR)
-    CSV.write(dir * name * ".csv", solution(gm))
 end
 
 """ Evaluates each constraint at solution to make sure it is feasible. """

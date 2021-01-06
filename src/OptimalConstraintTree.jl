@@ -60,21 +60,21 @@ module OptimalConstraintTree
            gridify, learn_from_data!, find_bounds!, find_linear_bounds!,
            add_nonlinear_constraint, add_nonlinear_or_compatible, determine_vars,
            lh_sample, boundary_sample,
-           accuracy, feasibility, check_accuracy, check_feasibility, check_bounds,
-           solution, save_solution,
+           accuracy, feasibility, check_accuracy, check_feasibility, 
+           check_bounds, solution, 
            evaluate_feasibility,
            nonlinearize!,
            save_fit, load_fit, set_param, get_param, 
            # Functions on both BlackBoxFunctions and DataConstraints
            show_trees, learn_constraint!,
            # Functions on BlackBoxFunctions only
-           eval!, sample_and_eval!,
+           eval!, uniform_sample_and_eval!,
            secant_method, knn_sample, build_knn_tree,
            find_knn, classify_patches,
            # Functions on BlackBoxFunctions and DataConstraints
            add_data!, match_bbfs_to_vars,
            # Functions on IAI structs
-           bin_to_leaves, regress,
+           bin_to_leaves, regress, check_if_trained,
            # Functions on JuMP objects
            evaluate, fetch_variable, get_bounds, get_unbounds,
            linearize_objective!, classify_constraints,
@@ -83,7 +83,7 @@ module OptimalConstraintTree
            distance_to_set, get_constant,
            add_feas_constraints!, add_regr_constraints!,
            add_tree_constraints!, clear_tree_constraints!,
-           base_otr, base_otc, fit_kwargs, lnr_kwargs,
+           base_lnr, fit_kwargs, lnr_kwargs,
            functionify,
            # Functions to import global optimization problems,
            sagemark_to_GlobalModel,

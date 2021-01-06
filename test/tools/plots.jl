@@ -1,9 +1,5 @@
-#=
-plot:
-- Julia version: 1.5.1
-- Author: Berk
-- Date: 2020-12-10
-=#
+# Plotting data along two X-axes, in original space
+using Plots
 
 """ Plots the feasible and infeasible samples of BBF in two axes. """
 function plot_2d(bbf::Union{BlackBoxFunction, DataConstraint}; axis1 = 1, axis2 = 2)
@@ -26,4 +22,15 @@ function plot_2d_predictions(bbf::Union{BlackBoxFunction, DataConstraint}; axis1
     scatter!(Matrix(bbf.X)[falses, axis1], Matrix(bbf.X)[falses, axis2], legend = false,
              title = "Correct vs. incorrect predictions",
              color = :yellow,  fmt = :png)
+end
+
+function plot_3d_surface(bbf::Union{BlackBoxFunction, DataConstraint}; axes = [1,2])
+    feas_idxs = findall(x -> x .>= 0, bbf.Y)
+    infeas_idxs = findall(x -> x .< 0, bbf.Y)
+    plt3d = Plots.plot(bbf.X[:, axes[1]], bbf.X[:, axes[2]], bbf.Y,
+                       seriestype=:surface, markersize = 2, camera=(20,30))
+    xlabel!(string(bbf.vars[axes[1]]))                   
+    ylabel!(string(bbf.vars[axes[2]]))                   
+    title!("Feasible vs. infeasible samples")
+    display(plt3d)                   
 end
