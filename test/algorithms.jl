@@ -37,6 +37,10 @@ function test_basic_functions()
     # Testing finding bounds of bounded model
     @test isnothing(get_unbounds(gm.bbfs))
     @test isnothing(find_bounds!(gm))
+
+    # Testing clearing all data
+    clear_data!(gm)
+    @test all([size(bbf.X, 1) == 0 for bbf in gm.bbfs])
 end
 
 """ Tests loading of previously solved GMs.
