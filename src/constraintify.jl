@@ -92,11 +92,11 @@ function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::I
     constraints = []; leaf_variables = [];
     z_feas = @variable(m, [1:size(feas_leaves, 1)], Bin)
     append!(leaf_variables, z_feas)
-    push!(constraints, @build_constraint(sum(z_feas) == 1))
+    push!(constraints, @constraint(m, sum(z_feas) == 1))
     if equality
         z_infeas = @variable(m, [1:length(infeas_leaves)], Bin)
         append!(leaf_variables, z_infeas)
-        push!(constraints, @build_constraint(sum(z_infeas) == 1))
+        push!(constraints, @constraint(m, sum(z_infeas) == 1))
     end
     # Getting lnr data
     upperDict, lowerDict = trust_region_data(lnr, Symbol.(x))
@@ -105,11 +105,11 @@ function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::I
         # ADDING TRUST REGIONS
         for region in upperDict[leaf]
             threshold, α = region
-            push!(constraints, @build_constraint(threshold <= sum(α .* x) + M * (1 - z_feas[i])))
+            push!(constraints, @constraint(m, threshold <= sum(α .* x) + M * (1 - z_feas[i])))
         end
         for region in lowerDict[leaf]
             threshold, α = region
-            push!(constraints, @build_constraint(threshold + M * (1 - z_feas[i]) >= sum(α .* x)))
+            push!(constraints, @constraint(m, threshold + M * (1 - z_feas[i]) >= sum(α .* x)))
         end
     end
     if equality
@@ -118,11 +118,11 @@ function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::I
             # ADDING TRUST REGIONS
             for region in upperDict[leaf]
                 threshold, α = region
-                push!(constraints, @build_constraint(threshold <= sum(α .* x) + M * (1 - z_infeas[i])))
+                push!(constraints, @constraint(m, threshold <= sum(α .* x) + M * (1 - z_infeas[i])))
             end
             for region in lowerDict[leaf]
                 threshold, α = region
-                push!(constraints, @build_constraint(threshold + M * (1 - z_infeas[i]) >= sum(α .* x)))
+                push!(constraints, @constraint(m, threshold + M * (1 - z_infeas[i]) >= sum(α .* x)))
             end
         end
     end
@@ -147,7 +147,7 @@ function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuM
     constraints = []; leaf_variables = [];
     z = @variable(m, [1:size(all_leaves, 1)], Bin)
     append!(leaf_variables, z)
-    push!(constraints, @build_constraint(sum(z) == 1))
+    push!(constraints, @constraint(m, sum(z) == 1))
     # Getting lnr data
     pwlDict = pwl_constraint_data(lnr, Symbol.(x))
     upperDict, lowerDict = trust_region_data(lnr, Symbol.(x))
@@ -155,18 +155,18 @@ function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuM
         # ADDING CONSTRAINTS
         leaf = all_leaves[i]
         β0, β = pwlDict[leaf]
-        push!(constraints, @build_constraint(sum(β .* x) + β0 <= y + M * (1 .- z[i])))
+        push!(constraints, @constraint(m, sum(β .* x) + β0 <= y + M * (1 .- z[i])))
         if equality
-            push!(constraints, @build_constraint(sum(β .* x) + β0 + M * (1 .- z[i]) >= y))
+            push!(constraints, @constraint(m, sum(β .* x) + β0 + M * (1 .- z[i]) >= y))
         end
         # ADDING TRUST REGIONS
         for region in upperDict[leaf]
             threshold, α = region
-            push!(constraints, @build_constraint(threshold <= sum(α .* x) + M * (1 - z[i])))
+            push!(constraints, @constraint(m, threshold <= sum(α .* x) + M * (1 - z[i])))
         end
         for region in lowerDict[leaf]
             threshold, α = region
-            push!(constraints, @build_constraint(threshold + M * (1 - z[i]) >= sum(α .* x)))
+            push!(constraints, @constraint(m, threshold + M * (1 - z[i]) >= sum(α .* x)))
         end
     end
     return constraints, leaf_variables
