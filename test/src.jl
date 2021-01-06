@@ -168,7 +168,8 @@ function test_bbf()
     @test 0 <= accuracy(bbf) <= 1
 
     # Training a model
-    generate_feas_constraints(model, bbf.vars, bbf.learners[1].lnr, return_data = false);
+    mi_constraints, leaf_variables = add_feas_constraints!(model, bbf.vars, bbf.learners[1].lnr);
+    @test true
 end
 
 """ Testing some IAI kwarging. """

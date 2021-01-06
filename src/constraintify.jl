@@ -45,20 +45,20 @@ function add_tree_constraints!(gm::GlobalModel, bbfs::Array{BlackBoxFunction}; M
                 throw(OCTException("Constraint " * string(bbf.name) * " is inaccurately approximated. "))
             else
                 if !get_param(bbf, :regression)
-                    bbf.mi_constraints, bbf.leaf_variables = generate_feas_constraints(bbf.vars, bbf.learners[end].lnr;
+                    bbf.mi_constraints, bbf.leaf_variables = add_feas_constraints!(gm.model, bbf.vars, bbf.learners[end].lnr;
                                                         M=M, equality = bbf.equality);
                 else
-                    bbf.mi_constraints, bbf.leaf_variables = generate_regr_constraints(bbf.vars, bbf.dependent_var, 
+                    bbf.mi_constraints, bbf.leaf_variables = add_regr_constraints!(gm.model, bbf.vars, bbf.dependent_var, 
                                                                                    bbf.learners[end].lnr;
                                                                                    M = M, equality = bbf.equality)
                 end
             end
         else 
             if !get_param(bbf, :regression)
-                bbf.mi_constraints, bbf.leaf_variables = generate_feas_constraints(bbf.vars, bbf.learners[end].lnr;
+                bbf.mi_constraints, bbf.leaf_variables = add_feas_constraints!(gm.model, bbf.vars, bbf.learners[end].lnr;
                                                     M=M, equality = bbf.equality);
             else
-                bbf.mi_constraints, bbf.leaf_variables = generate_regr_constraints(bbf.vars, bbf.dependent_var, 
+                bbf.mi_constraints, bbf.leaf_variables = add_regr_constraints!(gm.model, bbf.vars, bbf.dependent_var, 
                                                                                bbf.learners[end].lnr;
                                                                                M = M, equality = bbf.equality)
             end
@@ -80,7 +80,7 @@ end
         m:: JuMP Model
         x:: JuMPVariables (features in lnr)
 """
-function generate_feas_constraints(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::IAI.OptimalTreeClassifier;
+function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::IAI.OptimalTreeClassifier;
                                M::Float64 = 1.e5, equality::Bool = false)
     check_if_trained(lnr);
     n_nodes = IAI.get_num_nodes(lnr);
@@ -129,7 +129,7 @@ function generate_feas_constraints(m::JuMP.Model, x::Array{JuMP.VariableRef}, ln
     return constraints, leaf_variables
 end
 
-function generate_regr_constraints(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuMP.VariableRef, lnr::IAI.OptimalTreeRegressor;
+function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuMP.VariableRef, lnr::IAI.OptimalTreeRegressor;
                                M::Float64 = 1.e5, eq::Bool = false)
     """
     Creates a set of MIO constraints from a OptimalTreeRegressor
