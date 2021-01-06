@@ -148,8 +148,6 @@ function test_bbf()
     vals = bbf(samples);
     @test vals ≈ -1*samples[!, "x[4]"].^2 - samples[!, "x[5]"].^2 + samples[!, "z"]
 
-    # TODO: TRY BlackBoxFunction(constraint = expr)!
-
     # Checks different kinds of sampling
     bound!(model, Dict(z => [-Inf, 10]))
     X_bound = boundary_sample(bbf);
@@ -168,7 +166,8 @@ function test_bbf()
     @test 0 <= accuracy(bbf) <= 1
 
     # Training a model
-    add_feas_constraints!(model, bbf.vars, bbf.learners[1].lnr, return_data = false);
+    mi_constraints, leaf_variables = add_feas_constraints!(model, bbf.vars, bbf.learners[1].lnr);
+    @test true
 end
 
 """ Testing some IAI kwarging. """
