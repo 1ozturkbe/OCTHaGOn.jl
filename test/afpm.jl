@@ -85,7 +85,7 @@ feasmap = zeros(size(Y, 1)); feasmap[feas_idxs] .= 1;
 # simulation.Y = feasmap
 # add_data!(simulation, log.(X), feasmap)
 # learn_constraint!(simulation)
-# lnr = IAI.fit!(base_lnr(false), log.(X), feasmap)
+# lnr = IAI.fit!(base_classifier, log.(X), feasmap)
 # IAI.write_json("power_closure.json", lnr)
 lnr = IAI.read_json("power_closure.json")
 constrs, leaf_vars = add_feas_constraints!(m, inputs, lnr, M=1e3)

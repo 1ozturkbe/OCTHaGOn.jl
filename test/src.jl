@@ -178,18 +178,18 @@ function test_kwargs()
                        :invalid_kwarg => :hello,
                        :ls_num_tree_restarts => 20)
 
-    dict_fit = fit_kwargs(; sample_kwargs...)
-    dict_fit2 = fit_kwargs(validation_criterion = :sensitivity, localsearch = false, invalid_kwarg = :hello,
+    dict_fit = fit_classifier_kwargs(; sample_kwargs...)
+    dict_fit2 = fit_classifier_kwargs(validation_criterion = :sensitivity, localsearch = false, invalid_kwarg = :hello,
                            ls_num_tree_restarts = 20)
     @test dict_fit == dict_fit2 == Dict(:validation_criterion => :sensitivity, :positive_label => 1)
 
-    dict_lnr = lnr_kwargs(; sample_kwargs...)
-    dict_lnr2 = lnr_kwargs(validation_criterion = :sensitivity, localsearch = false, invalid_kwarg = :hello,
+    dict_lnr = classifier_kwargs(; sample_kwargs...)
+    dict_lnr2 = classifier_kwargs(validation_criterion = :sensitivity, localsearch = false, invalid_kwarg = :hello,
                            ls_num_tree_restarts = 20)
     @test dict_lnr == dict_lnr2 == Dict(:localsearch => false, :ls_num_tree_restarts => 20)
 
     # Regression kwargs next...
-    dict_fit = fit_kwargs(true; sample_kwargs)
+    dict_fit = fit_regressor_kwargs(true; sample_kwargs)
     @test dict_fit == Dict(:validation_criterion => :mse)
 end
 
