@@ -113,6 +113,14 @@ function test_recipe(gm::GlobalModel = minlp(true))
     @test true
 end
 
+function test_loaded_recipe(gm::GlobalModel = minlp(true))
+    @info "GlobalModel " * gm.name * " reloaded..."
+    set_optimizer(gm, CPLEX_SILENT)
+    load_fit(gm)
+    globalsolve(gm)
+    @test true
+end
+
 test_basic_functions()
 
 test_load_fits()
@@ -122,3 +130,7 @@ test_baron_solve()
 test_find_bounds()
 
 test_speed_params()
+
+test_recipe()
+
+test_loaded_recipe()
