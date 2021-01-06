@@ -1,7 +1,7 @@
 """
-    @with_kw mutable struct BlackBoxFunction
+    @with_kw mutable struct BlackBoxRegressor
 
-Abstract type that contains required info to be able to generate a global optimization constraint from a function.
+Allows for approximation of constraints using OCTs.
 To be added to GlobalModel.bbfs using functions:
     add_nonlinear_constraints
     add_nonlinear_or_compatible
@@ -9,7 +9,8 @@ To be added to GlobalModel.bbfs using functions:
 Mandatory arguments:
     constraint::Union{JuMP.ConstraintRef, Expr}
         A function
-    vars::Array{JuMP.VariableRef,1}
+    vars::Array{JuMP.VariableRef,1}, 
+    dependent_var::JuMP.VariableRef
 
 Optional arguments:
     expr_vars::Union{Array, Nothing}
@@ -18,30 +19,8 @@ Optional arguments:
     name::String
     equality::Bool
         Specifies whether function should be satisfied to an equality
-
-Also contains data w.r.t. samples from the function.
 """
-@with_kw mutable struct BlackBoxFunction
-    constraint::Union{JuMP.ConstraintRef, Expr}        # The "raw" constraint
-    vars::Array{JuMP.VariableRef,1}                    # JuMP variables (flat)
-    name::String = ""                                  # Function name
-    expr_vars:: Union{Array, Nothing} = nothing        # Function inputs (nonflat JuMP variables)
-    varmap::Union{Nothing,Array} = get_varmap(expr_vars, vars)     # ... with the required varmapping.
-    fn::Union{Nothing, Function} = functionify(constraint)         # ... and actually evaluated f'n
-    X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars))
-                                                       # Function samples
-    Y::Array = []                                      # Function values
-    equality::Bool = false                             # Equality check
-    learners::Array{IAI.GridSearch} = []               # Learners...
-    learner_kwargs = []                                # And their kwargs... 
-    mi_constraints::Array = []                         # and their corresponding MI constraints,
-    leaf_variables::Array = []                         # and their binary leaf variables,
-    accuracies::Array{Float64} = []                    # and the tree misclassification scores.
-    knn_tree::Union{KDTree, Nothing} = nothing         # KNN tree
-    params::Dict = Dict()                              # Relevant settings
-end
-
-@with_kw mutable struct BlackBoxRegressor <: BlackBoxFunction
+@with_kw mutable struct BlackBoxRegressor
     constraint::Union{JuMP.ConstraintRef, Expr}        # The "raw" constraint
     vars::Array{JuMP.VariableRef,1}                    # JuMP variables (flat)
     dependent_var::JuMP.VariableRef                    # Dependent variable
@@ -64,7 +43,33 @@ end
     params::Dict = bbr_defaults()                      # Relevant settings
 end
 
-@with_kw mutable struct BlackBoxClassifier <: BlackBoxFunction
+function Base.show(io::IO, bbc::BlackBoxRegressor)
+    println(io, "BlackBoxClassifier " * bbc.name * " with $(length(bbc.vars)) dependent variables: ")
+    println(io, "Sampled $(length(bbc.Y)) times, and has $(length(bbc.learners)) trained ORTs.")
+end
+
+"""
+    @with_kw mutable struct BlackBoxClassifier
+
+Allows for approximation of constraints using OCTs.
+To be added to GlobalModel.bbfs using functions:
+    add_nonlinear_constraints
+    add_nonlinear_or_compatible
+
+Mandatory arguments:
+    constraint::Union{JuMP.ConstraintRef, Expr}
+        A function
+    vars::Array{JuMP.VariableRef,1}
+
+Optional arguments:
+    expr_vars::Union{Array, Nothing}
+        JuMP variables as function arguments (i.e. vars rolled up into vector forms).
+        vars ⋐ flat(expr_vars)
+    name::String
+    equality::Bool
+        Specifies whether function should be satisfied to an equality
+"""
+@with_kw mutable struct BlackBoxClassifier
     constraint::Union{JuMP.ConstraintRef, Expr}        # The "raw" constraint
     vars::Array{JuMP.VariableRef,1}                    # JuMP variables (flat)
     name::String = ""                                  # Function name
@@ -87,10 +92,13 @@ end
     params::Dict = bbc_defaults()                      # Relevant settings
 end
 
-function Base.show(io::IO, bbf::BlackBoxFunction)
-    println(io, "$string(typeof(bbf)) " * bbf.name * " with $(length(bbf.vars)) variables: ")
-    println(io, "Sampled $(length(bbf.Y)) times, and das $(length(bbf.learners)) trained learners.")
+function Base.show(io::IO, bbc::BlackBoxClassifier)
+    println(io, "BlackBoxClassifier " * bbc.name * " with $(length(bbc.vars)) variables: ")
+    println(io, "Sampled $(length(bbc.Y)) times, and has $(length(bbc.learners)) trained OCTs.")
 end
+
+""" BlackBoxFunction isa a supertype."""
+BlackBoxFunction = Union{BlackBoxClassifier, BlackBoxRegressor}
 
 set_param(bbf::BlackBoxFunction, key::Symbol, val) = set_param(bbf.params, key, val)
 set_param(bbfs::Array{BlackBoxFunction}, key::Symbol, val) = foreach(bbf -> set_param(bbf.params, key, val), bbfs)

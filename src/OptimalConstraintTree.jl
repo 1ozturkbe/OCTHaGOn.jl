@@ -51,7 +51,8 @@ module OptimalConstraintTree
     include("plot.jl")
 
            # Structs
-    export GlobalModel, BlackBoxFunction, DataConstraint,
+    export GlobalModel, DataConstraint,
+           BlackBoxClassifier, BlackBoxRegressor, 
            # GlobalModel Functions
            globalsolve,
            # JuMP.Model extensions to GlobalModel

@@ -117,8 +117,8 @@ function test_bbf()
     # Test BBF creation
     @test isnothing(functionify(nl_constr))
     @test functionify(expr) isa Function
-    bbfs = [BlackBoxFunction(constraint = nl_constr, vars = [x[4], x[5], z]),
-        BlackBoxFunction(constraint = expr, vars = flat([x[1:4], y[1:2], z]),
+    bbfs = [BlackBoxClassifier(constraint = nl_constr, vars = [x[4], x[5], z]),
+        BlackBoxClassifier(constraint = expr, vars = flat([x[1:4], y[1:2], z]),
                          expr_vars = [x,y,z])]
 
     # Evaluation (scalar)
