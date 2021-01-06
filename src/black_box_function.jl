@@ -38,7 +38,7 @@ Also contains data w.r.t. samples from the function.
     leaf_variables::Array = []                         # and their binary leaf variables,
     accuracies::Array{Float64} = []                    # and the tree misclassification scores.
     knn_tree::Union{KDTree, Nothing} = nothing         # KNN tree
-    settings::Dict = Dict() # Relevant settings
+    params::Dict = Dict()                              # Relevant settings
 end
 
 @with_kw mutable struct BlackBoxRegressor <: BlackBoxFunction
@@ -51,7 +51,7 @@ end
     fn::Union{Nothing, Function} = functionify(constraint)         # ... and actually evaluated f'n
     X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Function samples
     Y::Array = []                                      # Function values
-    feas_ratio::Float64 = 0.                           # Feasible sample proportion
+    feas_idxs::Array = []                              # Feasible sample proportion
     equality::Bool = false                             # Equality check
     learners::Array{IAI.GridSearch} = []               # Learners...
     learner_kwargs = []                                # and their kwargs... 
@@ -61,7 +61,7 @@ end
     leaf_variables::Array = []                         # and their binary leaf variables,
     accuracies::Array{Float64} = []                    # and the tree misclassification scores.
     knn_tree::Union{KDTree, Nothing} = nothing         # KNN tree
-    settings::Dict = bbf_defaults(!isnothing(dependent_var)) # Relevant settings
+    params::Dict = bbr_defaults()                      # Relevant settings
 end
 
 @with_kw mutable struct BlackBoxClassifier <: BlackBoxFunction
@@ -84,7 +84,7 @@ end
     leaf_variables::Array = []                         # and their binary leaf variables,
     accuracies::Array{Float64} = []                    # and the tree misclassification scores.
     knn_tree::Union{KDTree, Nothing} = nothing         # KNN tree
-    settings::Dict = bbf_defaults(!isnothing(dependent_var)) # Relevant settings
+    params::Dict = bbc_defaults()                      # Relevant settings
 end
 
 function Base.show(io::IO, bbf::BlackBoxFunction)
@@ -92,9 +92,9 @@ function Base.show(io::IO, bbf::BlackBoxFunction)
     println(io, "Sampled $(length(bbf.Y)) times, and das $(length(bbf.learners)) trained learners.")
 end
 
-set_param(bbf::BlackBoxFunction, key::Symbol, val) = set_param(bbf.settings, key, val)
-set_param(bbfs::Array{BlackBoxFunction}, key::Symbol, val) = foreach(bbf -> set_param(bbf.settings, key, val), bbfs)
-get_param(bbf::BlackBoxFunction, key::Symbol) = get_param(bbf.settings, key)
+set_param(bbf::BlackBoxFunction, key::Symbol, val) = set_param(bbf.params, key, val)
+set_param(bbfs::Array{BlackBoxFunction}, key::Symbol, val) = foreach(bbf -> set_param(bbf.params, key, val), bbfs)
+get_param(bbf::BlackBoxFunction, key::Symbol) = get_param(bbf.params, key)
 
 """
     add_data!(bbf::Union{BlackBoxFunction, DataConstraint}, X::DataFrame, Y::Array)

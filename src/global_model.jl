@@ -10,7 +10,7 @@ nonlinear_model can contain JuMP.NonlinearConstraints.
     bbfs::Array{BlackBoxFunction} = Array{BlackBoxFunction}[]    # Black box (>/= 0) functions
     vars::Array{VariableRef} = JuMP.all_variables(model)         # JuMP variables
     solution_history::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Solution history
-    settings::Dict = gm_defaults()                 # GM settings
+    params::Dict = gm_defaults()                 # GM settings
 end
 
 function Base.show(io::IO, gm::GlobalModel)
@@ -29,8 +29,8 @@ function Base.show(io::IO, gm::GlobalModel)
     end
 end
 
-set_param(gm::GlobalModel, key::Symbol, val) = set_param(gm.settings, key, val)
-get_param(gm::GlobalModel, key::Symbol) = get_param(gm.settings, key)
+set_param(gm::GlobalModel, key::Symbol, val) = set_param(gm.params, key, val)
+get_param(gm::GlobalModel, key::Symbol) = get_param(gm.params, key)
 
 """
     (gm::GlobalModel)(name::String)

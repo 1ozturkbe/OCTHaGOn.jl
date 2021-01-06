@@ -1,17 +1,15 @@
-""" Returns default BlackBoxFunction settings for approximation."""
-function bbf_defaults(regression::Bool = false)
-    if !regression
-        return Dict(:threshold_accuracy => 0.95,      # Minimum tree accuracy
-                    :threshold_feasibility => 0.15,   # Minimum feasibility ratio
-                    :n_samples => 200,                # Maximum number of samples at each step
-                    :regression => false,             # ORT?
-                    :reloaded => false)               # Whether learners are reloaded
-    else
-        return Dict(:threshold_mse => 1,              # Maximum MSE
-                    :n_samples => 100,                # Maximum number of samples at each step
-                    :regression => true,             # ORT?
-                    :reloaded => false)     
-    end
+""" Returns default BlackBoxRegressor settings for approximation."""
+function bbr_defaults()
+    Dict(:n_samples => 100,      # Maximum number of samples at each step
+                :reloaded => false)   
+end
+
+""" Returns default BlackBoxClassifier settings for approximation."""
+function bbc_defaults()
+    Dict(:threshold_accuracy => 0.95,      # Minimum tree accuracy
+                :threshold_feasibility => 0.15,   # Minimum feasibility ratio
+                :n_samples => 200,                # Maximum number of samples at each step
+                :reloaded => false)               # Whether learners are reloaded  
 end
 
 """
