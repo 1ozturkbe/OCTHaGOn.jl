@@ -53,6 +53,15 @@ function add_tree_constraints!(gm::GlobalModel, bbfs::Array{BlackBoxFunction}; M
                                                                                    M = M, eq = bbf.equality, return_data = true)
                 end
             end
+        else 
+            if !get_param(bbf, :regression)
+                bbf.mi_constraints, bbf.leaf_variables = add_feas_constraints!(gm.model, bbf.vars, bbf.learners[end].lnr;
+                                                    M=M, eq=bbf.equality, return_data = true);
+            else
+                bbf.mi_constraints, bbf.leaf_variables = add_regr_constraints!(gm.model, bbf.vars, bbf.dependent_var, 
+                                                                               bbf.learners[end].lnr;
+                                                                               M = M, eq = bbf.equality, return_data = true)
+            end
         end 
     end
     return
