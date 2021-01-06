@@ -30,7 +30,7 @@ Optional arguments:
     fn::Union{Nothing, Function} = functionify(constraint)         # ... and actually evaluated f'n
     X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Function samples
     Y::Array = []                                      # Function values
-    feas_idxs::Array = []                              # Feasible sample proportion
+    infeas_idxs::Array = []                            # Infeasible samples
     equality::Bool = false                             # Equality check
     learners::Array{IAI.GridSearch} = []               # Learners...
     learner_kwargs = []                                # and their kwargs... 
@@ -97,33 +97,47 @@ function Base.show(io::IO, bbc::BlackBoxClassifier)
     println(io, "Sampled $(length(bbc.Y)) times, and has $(length(bbc.learners)) trained OCTs.")
 end
 
-""" BlackBoxFunction isa a supertype."""
-BlackBoxFunction = Union{BlackBoxClassifier, BlackBoxRegressor}
-
-set_param(bbf::BlackBoxFunction, key::Symbol, val) = set_param(bbf.params, key, val)
-set_param(bbfs::Array{BlackBoxFunction}, key::Symbol, val) = foreach(bbf -> set_param(bbf.params, key, val), bbfs)
-get_param(bbf::BlackBoxFunction, key::Symbol) = get_param(bbf.params, key)
+set_param(bbf::Union{BlackBoxClassifier, BlackBoxRegressor}, key::Symbol, val) = set_param(bbf.params, key, val)
+set_param(bbfs::Union{BlackBoxClassifier, BlackBoxRegressor}, key::Symbol, val) = foreach(bbf -> set_param(bbf.params, key, val), bbfs)
+get_param(bbf::Union{BlackBoxClassifier, BlackBoxRegressor}, key::Symbol) = get_param(bbf.params, key)
 
 """
-    add_data!(bbf::Union{BlackBoxFunction, DataConstraint}, X::DataFrame, Y::Array)
+    add_data!(bbc::BlackBoxClassifier, X::DataFrame, Y::Array)
 
-Adds data to a BlackBoxFunction or DataConstraint.
+Adds data to BlackBoxClassifier.
 """
-function add_data!(bbf::Union{BlackBoxFunction, DataConstraint}, X::DataFrame, Y::Array)
+function add_data!(bbc::BlackBoxClassifier, X::DataFrame, Y::Array)
     @assert length(Y) == size(X, 1)
-    append!(bbf.X, X[:,string.(bbf.vars)], cols=:setequal)
-    append!(bbf.Y, Y)
-    bbf.feas_ratio = sum(bbf.Y .>= 0)/length(bbf.Y); #TODO: optimize.
+    if size(bbc.X,1) == 0
+        bbc.feas_ratio = sum(Y .>= 0)/length(Y)
+    else
+        bbc.feas_ratio = (bbc.feas_ratio*size(bbc.X,1) + sum(Y .>= 0))/(size(bbc.X, 1) + length(Y))
+    end    
+    append!(bbc.X, X[:,string.(bbc.vars)], cols=:setequal)
+    append!(bbc.Y, Y)
     return
 end
 
 """
-    evaluate(constraint::JuMP.ConstraintRef, data::Union{Dict, DataFrame})
+    add_data!(bbr::BlackBoxRegressor, X::DataFrame, Y::Array)
+
+Adds data to BlackBoxRegressor
+"""
+function add_data!(bbr::BlackBoxRegressor, X::DataFrame, Y::Array)
+    @assert length(Y) == size(X, 1)
+    append!(bbr.infeas_idxs, size(bbr.X, 1) .+ findall(x -> isinf(x), Y)) 
+    append!(bbr.X, X[:,string.(bbr.vars)], cols=:setequal)
+    append!(bbr.Y, Y)
+    return
+end
+
+"""
+    evaluate(bbf::Union{BlackBoxClassifier, BlackBoxRegressor}, data::Union{Dict, DataFrame})
 
 Evaluates constraint violation on data in the variables, and returns distance from set.
         Note that the keys of the Dict have to be uniform.
 """
-function evaluate(bbf::BlackBoxFunction, data::Union{Dict, DataFrame})
+function evaluate(bbf::Union{BlackBoxClassifier, BlackBoxRegressor}, data::Union{Dict, DataFrame})
     clean_data = data_to_DataFrame(data);
     if isnothing(bbf.fn)
         constr_obj = constraint_object(bbf.constraint)
@@ -159,26 +173,35 @@ function evaluate(bbf::BlackBoxFunction, data::Union{Dict, DataFrame})
 end
 
 """
-    function (bbf::BlackBoxFunction)(x::Union{DataFrame,Dict,DataFrameRow})
+    function (bbf::Union{BlackBoxClassifier, BlackBoxRegressor})(x::Union{DataFrame,Dict,DataFrameRow})
 
-Makes the BlackBoxFunction callable as a function.
+Makes the BBC or BBR callable as a function.
 """
-function (bbf::BlackBoxFunction)(X::Union{DataFrame,Dict,DataFrameRow})
+function (bbf::Union{BlackBoxRegressor, BlackBoxClassifier})(X::Union{DataFrame,Dict,DataFrameRow})
     return evaluate(bbf, X)
 end
 
-""" Evaluates BlackBoxFunction at all X and stores the resulting data. """
-function eval!(bbf::BlackBoxFunction, X::DataFrame)
+""" Evaluates BlackBoxObject at all X and stores the resulting data. """
+function eval!(bbf::Union{BlackBoxClassifier, BlackBoxRegressor}, X::DataFrame)
     Y = bbf(X);
     add_data!(bbf, X, Y)
 end
 
-""" Deletes all data associated with a BlackBoxFunction or GlobalModel. """
-function clear_data!(bbf::BlackBoxFunction)
-    bbf.X = DataFrame([Float64 for i=1:length(bbf.vars)], string.(bbf.vars))
-    bbf.Y = [];
-    bbf.feas_ratio = 0
-    bbf.learners =[];
-    bbf.learner_kwargs = []                            
-    bbf.accuracies = []                    # and the tree misclassification scores.
+""" Deletes all data associated with object. """
+function clear_data!(bbc::BlackBoxClassifier)
+    bbc.X = DataFrame([Float64 for i=1:length(bbc.vars)], string.(bbc.vars))
+    bbc.Y = [];
+    bbc.feas_ratio = 0
+    bbc.learners =[];
+    bbc.learner_kwargs = []                            
+    bbc.accuracies = []                    # and the tree misclassification scores.
+end
+
+function clear_data!(bbr::BlackBoxRegressor)
+    bbr.X = DataFrame([Float64 for i=1:length(bbr.vars)], string.(bbr.vars))
+    bbr.Y = [];
+    bbr.infeas_idxs = [];
+    bbr.learners =[];
+    bbr.learner_kwargs = []                            
+    bbr.accuracies = []                    # and the tree misclassification scores.
 end
