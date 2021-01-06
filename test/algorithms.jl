@@ -29,7 +29,7 @@ function test_basic_functions()
     @test !any(is_valid(gm.model, constraint) for constraint in gm.bbfs[1].mi_constraints)
     clear_tree_constraints!(gm) # Finds and clears the one remaining BBF constraint.
     @test all([!is_valid(gm.model, constraint) for constraint in gm.bbfs[1].mi_constraints])
-    @test all([!is_valid(gm.model, var) for var in gm.bbfs[1].leaf_variables])
+    @test all([!is_valid(gm.model, var) for var in values(gm.bbfs[1].leaf_variables)])
 
     # Saving fit for test_load_fits()
     save_fit(gm)

@@ -34,7 +34,7 @@ Also contains data w.r.t. samples from the function.
     feas_ratio::Float64 = 0.                           # Feasible sample proportion
     equality::Bool = false                             # Equality check
     dependent_var::Union{JuMP.VariableRef, Nothing} = nothing
-    learners::Array{IAI.GridSearch} = []               # Learners...
+    # learner_data::Array{LearnerData} = []              # Constraints training data
     learner_kwargs = []                                # And their kwargs... 
     mi_constraints::Array = []                         # and their corresponding MI constraints,
     leaf_variables::Array = []                         # and their binary leaf variables,

@@ -81,7 +81,7 @@ module OptimalConstraintTree
            bound!,
            data_to_DataFrame, data_to_Dict,
            distance_to_set, get_constant,
-           add_feas_constraints!, add_regr_constraints!,
+           generate_feas_constraints, generate_regr_constraints,
            add_tree_constraints!, clear_tree_constraints!,
            base_lnr, fit_kwargs, lnr_kwargs,
            functionify,
