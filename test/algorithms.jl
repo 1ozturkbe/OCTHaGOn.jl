@@ -5,7 +5,6 @@ function test_basic_functions()
 
     # Actually trying to optimize...
     find_bounds!(gm, all_bounds=true)
-    bound!(gm, Dict(gm.vars[end] => [-300, 0]))
     uniform_sample_and_eval!(gm)
 
     learn_constraint!(gm)

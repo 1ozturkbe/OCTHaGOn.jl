@@ -80,7 +80,7 @@ end
         m:: JuMP Model
         x:: JuMPVariables (features in lnr)
 """
-function generate_feas_constraints(x::Array{JuMP.VariableRef}, lnr::IAI.OptimalTreeClassifier;
+function generate_feas_constraints(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::IAI.OptimalTreeClassifier;
                                M::Float64 = 1.e5, equality::Bool = false)
     check_if_trained(lnr);
     n_nodes = IAI.get_num_nodes(lnr);
@@ -129,7 +129,7 @@ function generate_feas_constraints(x::Array{JuMP.VariableRef}, lnr::IAI.OptimalT
     return constraints, leaf_variables
 end
 
-function generate_regr_constraints(x::Array{JuMP.VariableRef}, y::JuMP.VariableRef, lnr::IAI.OptimalTreeRegressor;
+function generate_regr_constraints(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuMP.VariableRef, lnr::IAI.OptimalTreeRegressor;
                                M::Float64 = 1.e5, eq::Bool = false)
     """
     Creates a set of MIO constraints from a OptimalTreeRegressor
