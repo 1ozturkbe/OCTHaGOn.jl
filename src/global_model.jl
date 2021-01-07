@@ -52,7 +52,8 @@ function (gm::GlobalModel)(name::String)
 end
 
 """
-    JuMP.all_variables(gm::Union{GlobalModel, BlackBoxFunction})
+    JuMP.all_variables(bbo::Union{GlobalModel, BlackBoxClassifier, BlackBoxRegressor})
+    JuMP.all_variables(bbfs::Array{BlackBoxClassifier, BlackBoxRegressor})
 
 Extends JuMP.all_variables to GlobalModels and BlackBoxLearners. 
 TODO: add ability to add variables to GlobalModels. 
@@ -143,29 +144,35 @@ function add_nonlinear_constraint(gm::GlobalModel,
                      name::String = gm.name * "_" * string(length(gm.bbfs) + 1),
                      equality::Bool = false)
     vars, expr_vars = determine_vars(gm, constraint, vars = vars, expr_vars = expr_vars)
-    if constraint isa JuMP.ScalarConstraint 
+    if constraint isa Expr
+        if isnothing(dependent_var)
+            new_bbf = BlackBoxClassifier(constraint = constraint, vars = vars, expr_vars = expr_vars,
+                                         equality = equality, name = name)
+            push!(gm.bbfs, new_bbf)
+            return
+        else
+            new_bbf = BlackBoxRegressor(constraint = constraint, vars = vars, expr_vars = expr_vars,
+                                        dependent_var = dependent_var, equality = equality, name = name)
+            push!(gm.bbfs, new_bbf)
+            return
+        end
+    elseif constraint isa Union{JuMP.ScalarConstraint, JuMP.ConstraintRef}
         !isnothing(dependent_var) && throw(OCTException("Constraint " * name * " is of type JuMP.ScalarConstraint, " *
                                                         "and cannot have a dependent variable " * string(dependent_var) * "."))
-        con = JuMP.add_constraint(gm.model, constraint)
-        JuMP.delete(gm.model, con)
-        new_bbf = BlackBoxFunction(constraint = con, vars = vars, expr_vars = expr_vars,
-                                   dependent_var = dependent_var,
-                                   equality = equality, name = name)
-        set_param(new_bbf, :n_samples, Int(ceil(get_param(gm, :sample_coefficient)*sqrt(length(vars))))) 
-        push!(gm.bbfs, new_bbf)
-        return
-    end
-    if constraint isa JuMP.ConstraintRef
-        !isnothing(dependent_var) && throw(OCTException("Constraint " * name * " is of type JuMP.ConstraintRef, " *
-        "and cannot have a dependent variable " * string(dependent_var) * "."))
-        JuMP.delete(gm.model, constraint)
-    end
-    new_bbf = BlackBoxFunction(constraint = constraint, vars = vars, expr_vars = expr_vars,
-                               dependent_var = dependent_var, 
-                               equality = equality, name = name)
-    set_param(new_bbf, :n_samples, Int(ceil(get_param(gm, :sample_coefficient)*sqrt(length(vars))))) 
-    push!(gm.bbfs, new_bbf)
-    return
+        if constraint isa JuMP.ScalarConstraint
+            con = JuMP.add_constraint(gm.model, constraint)
+            JuMP.delete(gm.model, con)
+            new_bbf = BlackBoxClassifier(constraint = con, vars = vars, expr_vars = expr_vars,
+                                         equality = equality, name = name)
+            push!(gm.bbfs, new_bbf)
+            return
+        else
+            JuMP.delete(gm.model, constraint)   
+            new_bbf = BlackBoxClassifier(constraint = constraint, vars = vars, expr_vars = expr_vars,
+                                         equality = equality, name = name)
+            push!(gm.bbfs, new_bbf)
+            return     
+        end
 end
 
 """
@@ -214,7 +221,7 @@ function add_nonlinear_or_compatible(gm::GlobalModel,
 end
 
 """
-    nonlinearize!(gm::GlobalModel, bbfs::Array{BlackBoxFunction})
+    nonlinearize!(gm::GlobalModel, bbfs::Array{BlackBoxClassifier, BlackBoxRegressor})
     nonlinearize!(gm::GlobalModel)
 
 Turns gm.model into the nonlinear representation.

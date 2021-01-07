@@ -41,7 +41,7 @@ Optional arguments:
     leaf_variables::Array = []                         # and their binary leaf variables,
     accuracies::Array{Float64} = []                    # and the tree misclassification scores.
     knn_tree::Union{KDTree, Nothing} = nothing         # KNN tree
-    params::Dict = bbr_defaults()                      # Relevant settings
+    params::Dict = bbr_defaults(length(vars))          # Relevant settings
 end
 
 function Base.show(io::IO, bbc::BlackBoxRegressor)
@@ -91,7 +91,7 @@ Optional arguments:
     leaf_variables::Array = []                         # and their binary leaf variables,
     accuracies::Array{Float64} = []                    # and the tree misclassification scores.
     knn_tree::Union{KDTree, Nothing} = nothing         # KNN tree
-    params::Dict = bbc_defaults()                      # Relevant settings
+    params::Dict = bbc_defaults(length(vars))          # Relevant settings
 end
 
 function Base.show(io::IO, bbc::BlackBoxClassifier)
