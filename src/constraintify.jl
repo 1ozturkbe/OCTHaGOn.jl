@@ -1,24 +1,26 @@
 """ Clears the constraints in GM of bbf.mi_constraints. """
-function clear_tree_constraints!(gm::GlobalModel, bbfs::Array{BlackBoxFunction})
-    for bbf in bbfs
-        for constraint in bbf.mi_constraints
-            if is_valid(gm.model, constraint)
-                delete(gm.model, constraint)
-            end
+function clear_tree_constraints!(gm::GlobalModel, bbf::{BlackBoxClassifier, BlackBoxRegressor})
+    for constraint in bbf.mi_constraints
+        if is_valid(gm.model, constraint)
+            delete(gm.model, constraint)
         end
-        for variable in bbf.leaf_variables
-            if is_valid(gm.model, variable)
-                delete(gm.model, variable)
-            end
+    end
+    for variable in bbf.leaf_variables
+        if is_valid(gm.model, variable)
+            delete(gm.model, variable)
         end
     end
     return
 end
 
-function clear_tree_constraints!(gm::GlobalModel)
-    clear_tree_constraints!(gm, gm.bbfs)
+function clear_tree_constraints!(gm::GlobalModel, bbfs::Array{BlackBoxClassifier, BlackBoxRegressor})
+    for bbf in bbfs
+        clear_tree_constraints!(gm, bbf)
+    end
     return
 end
+
+clear_tree_constraints!(gm::GlobalModel) = clear_tree_constraints!(gm, gm.bbfs)
 
 """
     add_tree_constraints!(gm::GlobalModel, bbfs::Array{BlackBoxFunction}; M=1e5)
