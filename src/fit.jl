@@ -1,42 +1,33 @@
-""" Function that preprocesses merging of kwargs for IAI.fit!, 
-    to avoid errors! """
-function fit_kwargs(regress::Bool = false; kwargs...)
-    if !regress
-        nkwargs = Dict{Symbol, Any}(:validation_criterion => :misclassification,
-                        :sample_weight => :autobalance) # default kwargs
-        for item in kwargs
-            if item.first in keys(nkwargs)
-                nkwargs[item.first] = item.second
-            end
+""" Preprocesses merging of kwargs for IAI.fit!, to avoid errors! """
+function fit_regressor_kwargs(; kwargs...)
+    nkwargs = Dict{Symbol, Any}(:validation_criterion => :mse)
+    for item in kwargs
+        if item.first in keys(nkwargs)
+            nkwargs[item.first] = item.second
         end
-        if nkwargs[:validation_criterion] == :sensitivity
-            delete!(nkwargs, :sample_weight)
-            nkwargs[:positive_label] = 1
-        end
-        return nkwargs
-    else
-        nkwargs = Dict{Symbol, Any}(:validation_criterion => :mse)
-        for item in kwargs
-            if item.first in keys(nkwargs)
-                nkwargs[item.first] = item.second
-            end
-        end
-        return nkwargs
     end
+    return nkwargs
 end
 
-""" Function that preprocesses merging of kwargs for IAI.OptimalTreeLearner!, 
-    to avoid errors! """
-function lnr_kwargs(regress::Bool = false; kwargs...)
+""" Preprocesses merging of kwargs for IAI.fit!, to avoid errors! """
+function fit_classifier_kwargs(; kwargs...)
+    nkwargs = Dict{Symbol, Any}(:validation_criterion => :misclassification,
+                    :sample_weight => :autobalance) # default kwargs
+    for item in kwargs
+        if item.first in keys(nkwargs)
+            nkwargs[item.first] = item.second
+        end
+    end
+    if nkwargs[:validation_criterion] == :sensitivity
+        delete!(nkwargs, :sample_weight)
+        nkwargs[:positive_label] = 1
+    end
+    return nkwargs
+end
+
+""" Helper function for merging learner arguments. """
+function merge_kwargs(valid_keys; kwargs...)
     nkwargs = Dict{Symbol, Any}() 
-    valid_keys = [:random_seed, :max_depth, :cp, :minbucket, 
-                  :fast_num_support_restarts, :localsearch, 
-                  :ls_num_hyper_restarts, :ls_num_tree_restarts, 
-                  :hyperplane_config]
-    if regress
-        append!(valid_keys, [:regression_sparsity, :regression_weighted_betas,
-                             :regression_lambda])   
-    end    
     for item in kwargs
         if item.first in valid_keys
             nkwargs[item.first] = item.second
@@ -45,16 +36,38 @@ function lnr_kwargs(regress::Bool = false; kwargs...)
     return nkwargs
 end
 
+""" Function that preprocesses merging of kwargs for IAI.OptimalTreeClassifier, to avoid errors! """
+function classifier_kwargs(; kwargs...)
+    valid_keys = [:random_seed, :max_depth, :cp, :minbucket, 
+                  :fast_num_support_restarts, :localsearch, 
+                  :ls_num_hyper_restarts, :ls_num_tree_restarts, 
+                  :hyperplane_config]
+    merge_kwargs(valid_keys; kwargs...)
+end
+
+""" Function that preprocesses merging of kwargs for IAI.OptimalTreeRegressor, to avoid errors! """
+function regressor_kwargs(; kwargs...)
+    valid_keys = [:random_seed, :max_depth, :cp, :minbucket, 
+                  :fast_num_support_restarts, :localsearch, 
+                  :ls_num_hyper_restarts, :ls_num_tree_restarts, 
+                  :hyperplane_config,
+                  :regression_sparsity, :regression_weighted_betas,
+                  :regression_lambda]
+    return merge_kwargs(valid_keys; kwargs...)
+end
+
 """ Wrapper around IAI.GridSearch for constraint learning.
 Arguments:
-    lnr: Unfit OptimalTreeClassifier or Grid
+    lnr: Unfit OptimalTreeClassifier, OptimalTreeRegressor or Grid
     X: matrix of feature data
     Y: matrix of constraint data.
 Returns:
     lnr: list of Fitted Grids corresponding to the data
 NOTE: kwargs get unpacked here, all the way from learn_constraint!.
 """
-function learn_from_data!(X::DataFrame, Y::AbstractArray, grid, idxs::Union{Nothing, Array}=nothing; kwargs...)
+function learn_from_data!(X::DataFrame, Y::AbstractArray, grid::Union{IAI.OptimalTreeLearner, IAI.GridSearch}, 
+                          idxs::Union{Nothing, Array}=nothing; kwargs...)
+    # TODO: fix grid vs. solo learner issues. 
     n_samples, n_features = size(X);
     @assert n_samples == length(Y);
     # Making sure that we only consider relevant features.
@@ -73,98 +86,104 @@ function learn_from_data!(X::DataFrame, Y::AbstractArray, grid, idxs::Union{Noth
     return grid
 end
 
-""" Checks that a BlackBoxFunction has enough feasible/infeasible samples. """
-function check_feasibility(bbf::Union{BlackBoxFunction, DataConstraint})
-    return bbf.feas_ratio >= get_param(bbf, :threshold_feasibility)
+""" Checks that a BlackBoxClassifier has enough feasible/infeasible samples. """
+function check_feasibility(bbc::BlackBoxClassifier)
+    return bbc.feas_ratio >= get_param(bbc, :threshold_feasibility)
 end
+
+check_feasibility(bbr::BlackBoxRegressor) = true
 
 function check_feasibility(gm::GlobalModel)
-    return [check_feasibility(bbf) for bbf in gm.bbfs]
+    return [check_feasibility(bbl) for bbl in gm.bbls]
 end
 
-""" Checks that a BlackBoxFunction.learner has adequate accuracy."""
-function check_accuracy(bbf::Union{BlackBoxFunction, DataConstraint})
-    return bbf.accuracies[end] >= get_param(bbf, :threshold_accuracy)
+""" Checks that a BlackBoxLearner.learner has adequate accuracy."""
+function check_accuracy(bbc::BlackBoxClassifier)
+    return bbc.accuracies[end] >= get_param(bbc, :threshold_accuracy)
 end
 
-function check_accuracy(gm::GlobalModel)
-    return [check_accuracy(bbf) for bbf in gm.bbfs]
+check_accuracy(bbr::BlackBoxRegressor) = true # TODO: use MSE
+
+function check_sampled(bbl::BlackBoxLearner)
+    size(bbl.X, 1) == 0 && throw(OCTException(string("BlackBoxLearner ", bbl.name, " must be sampled first.")))
 end
 
 """
-    learn_constraint!(bbf::Union{GlobalModel, Array{BlackBoxFunction}, BlackBoxFunction}; kwargs...)
+    learn_constraint!(bbl::Union{GlobalModel, BlackBoxLearner, Array}; kwargs...)
 
-Constructs a constraint tree from a BlackBoxFunction and dumps in bbf.learners.
+Constructs a constraint tree from a BlackBoxLearner and dumps in bbo.learners.
 Arguments:
-    bbf: OCT structs (GM, BBF, Array{BBF})
-    kwargs: arguments for learners and fits. These get processed here!
-Returns:
-    nothing
+    bbl: OCT structs (GM, bbl, Array{bbl})
+    ignore_feas::Bool: Whether to ignore feasibility thresholds for BlackBoxClassifiers.
+    kwargs: arguments for learners and fits.
 """
-function learn_constraint!(bbf::Union{BlackBoxFunction, DataConstraint}, ignore_feas::Bool = false; kwargs...)
-    if isa(bbf.X, Nothing)
-        throw(OCTException(string("BlackBoxFn ", bbf.name, " must be sampled first.")))
-    end
-    set_param(bbf, :reloaded, false) # Makes sure that we know trees are retrained. 
-    n_samples, n_features = size(bbf.X)
-    regress_bool = get_param(bbf, :regression)
-    lnr = base_lnr(regress_bool)
-    IAI.set_params!(lnr; lnr_kwargs(; kwargs...)...)# lnr also stores learner related kwargs...
-    if !regress_bool && (check_feasibility(bbf) || ignore_feas) 
-        nl = learn_from_data!(bbf.X, bbf.Y .>= 0,
-                            gridify(lnr);
-                            fit_kwargs(regress_bool; kwargs...)...)
-        push!(bbf.learners, nl);
-        push!(bbf.accuracies, IAI.score(nl, bbf.X, bbf.Y .>= 0))
-        push!(bbf.learner_kwargs, Dict(kwargs))
-    elseif regress_bool
-        idxs = findall(x -> !isinf(x), bbf.Y) # processing infs and nans
-        nl = learn_from_data!(bbf.X[idxs, :], bbf.Y[idxs],
-                              gridify(lnr);
-                              fit_kwargs(regress_bool; kwargs...)...)             
-        push!(bbf.learners, nl);
-        push!(bbf.accuracies, IAI.score(nl, bbf.X, bbf.Y))
-        push!(bbf.learner_kwargs, Dict(kwargs))
+function learn_constraint!(bbc::BlackBoxClassifier, ignore_feas::Bool = false; kwargs...)
+    check_sampled(bbc)
+    set_param(bbc, :reloaded, false) # Makes sure that we know trees are retrained. 
+    lnr = base_classifier()
+    IAI.set_params!(lnr; classifier_kwargs(; kwargs...)...)
+    if check_feasibility(bbc) || ignore_feas
+        nl = learn_from_data!(bbc.X, bbc.Y .>= 0, gridify(lnr); fit_classifier_kwargs(; kwargs...)...)
+        push!(bbc.learners, nl)
+        bbc.predictions = IAI.predict(nl, bbc.X)
+        push!(bbc.accuracies, IAI.score(nl, bbc.X, bbc.Y .>= 0)) # TODO: add ability to specify criterion. 
+        push!(bbc.learner_kwargs, Dict(kwargs))
     else
-        @warn("Not enough feasible samples for constraint " * string(bbf.name) * ".")
+        throw(OCTException("Not enough feasible samples for BlackBoxClassifier " * string(bbc.name) * "."))
     end
     return
 end
 
-function learn_constraint!(bbf::Array, ignore_feas::Bool = false; kwargs...)
-   for fn in bbf
+function learn_constraint!(bbr::BlackBoxRegressor, ignore_feas::Bool = false; kwargs...)
+    check_sampled(bbr)
+    set_param(bbr, :reloaded, false) # Makes sure that we know trees are retrained. 
+    lnr = base_regressor()
+    IAI.set_params!(lnr; regressor_kwargs(; kwargs...)...)
+    nl = learn_from_data!(bbr.X, bbr.Y, gridify(lnr); fit_regressor_kwargs(; kwargs...)...)             
+    push!(bbr.learners, nl);
+    bbr.predictions = IAI.predict(nl, bbr.X)
+    push!(bbr.accuracies, IAI.score(nl, bbr.X, bbr.Y)) # TODO: add ability to specify criterion. 
+    push!(bbr.learner_kwargs, Dict(kwargs))
+    return
+end
+
+function learn_constraint!(bbl::Array, ignore_feas::Bool = false; kwargs...)
+   for fn in bbl
         learn_constraint!(fn, ignore_feas; kwargs...)
    end
 end
 
 learn_constraint!(gm::GlobalModel, ignore_feas::Bool = get_param(gm, :ignore_feasibility); kwargs...) = 
-    learn_constraint!(gm.bbfs, ignore_feas; kwargs...)
+    learn_constraint!(gm.bbls, ignore_feas; kwargs...)
 
 """
-    save_fit(bbf::Union{GlobalModel, BlackBoxFunction, DataConstraint, Array}, dir::String)
+    save_fit(bbl::Union{GlobalModel, BlackBoxLearner, Array}, dir::String)
 
 Saves IAI fits associated with different OptimalConstraintTree objects.
 """
-function save_fit(bbf::Union{BlackBoxFunction, DataConstraint}, dir::String = SAVE_DIR)
-    IAI.write_json(dir * bbf.name * ".json", bbf.learners[end])
+function save_fit(bbl::BlackBoxLearner, dir::String = SAVE_DIR)
+    IAI.write_json(dir * bbl.name * ".json", bbl.learners[end])
 end
 
-save_fit(bbfs::Array, dir::String = SAVE_DIR) = [save_fit(bbf, dir) for bbf in bbfs]
-save_fit(gm::GlobalModel, dir::String = SAVE_DIR) = save_fit(gm.bbfs, dir)
+save_fit(bbls::Array, dir::String = SAVE_DIR) = [save_fit(bbl, dir) for bbl in bbls]
+save_fit(gm::GlobalModel, dir::String = SAVE_DIR) = save_fit(gm.bbls, dir)
 
 """
-    load_fit(bbf::Union{BlackBoxFunction}, DataConstraint, dir::String = SAVE_DIR)
+    load_fit(BlackBoxLearner, dir::String = SAVE_DIR)
 
 Loads IAI fits associated with OptimalConstraintTree objects.
 Checks that there is correspondence between loaded trees and the associated constraints.
 """
-function load_fit(bbf::Union{BlackBoxFunction, DataConstraint}, dir::String = SAVE_DIR)
-    loaded_grid = IAI.read_json(dir * bbf.name * ".json");
-    size(IAI.variable_importance(loaded_grid.lnr), 1) == length(bbf.vars) || throw(
-        OCTException("Object " * bbf.name * " does not match associated learner."))
-    set_param(bbf, :reloaded, true)
-    push!(bbf.learners, loaded_grid)
+
+function load_fit(bbl::BlackBoxLearner, dir::String = SAVE_DIR)
+    loaded_grid = IAI.read_json(dir * bbl.name * ".json");
+    size(IAI.variable_importance(loaded_grid.lnr), 1) == length(bbl.vars) || throw(
+        OCTException("Object " * bbl.name * " does not match associated learner."))
+    set_param(bbl, :reloaded, true)
+    push!(bbl.learners, loaded_grid)
 end
 
-load_fit(bbfs::Array, dir::String = SAVE_DIR) = [load_fit(bbf, dir) for bbf in bbfs]
-load_fit(gm::GlobalModel, dir::String = SAVE_DIR) = load_fit(gm.bbfs, dir)
+load_fit(bbls::Array{BlackBoxLearner}, 
+        dir::String = SAVE_DIR) = [load_fit(bbl, dir) for bbl in bbls]
+
+load_fit(gm::GlobalModel, dir::String = SAVE_DIR) = load_fit(gm.bbls, dir)

@@ -22,10 +22,10 @@ function test_sagemark_to_GlobalModel()
     inp = Dict(all_variables(gm) .=> [1,1.9,3,3.9, 10.]);
     log_inp = Dict(vk => log(val) for (vk, val) in inp);
 
-    @test gm_lse.bbfs[1](log_inp)[1] ≈ gm.bbfs[1](inp)[1] ≈ [inp[gm.vars[5]] - inp[gm.vars[3]] ^ 0.8 * inp[gm.vars[4]] ^ 1.2][1]
+    @test gm_lse.bbls[1](log_inp)[1] ≈ gm.bbls[1](inp)[1] ≈ [inp[gm.vars[3]] ^ 0.8 * inp[gm.vars[4]] ^ 1.2][1]
 
     # Checking OCTException for sampling unbounded model
-    @test_throws OCTException uniform_sample_and_eval!(gm.bbfs[1])
+    uniform_sample_and_eval!(gm)
     return true
 end
 
@@ -37,7 +37,7 @@ function test_gams_to_GlobalModel()
     for filename in filenames
         try
             gm = GAMS_to_GlobalModel(OCT.GAMS_DIR, filename)
-#             println("    Problem NL constraints: " * string(length(gm.bbfs)))
+#             println("    Problem NL constraints: " * string(length(gm.bbls)))
             types = JuMP.list_of_constraint_types(gm.model)
             if !isempty(types)
                 total_constraints = sum(length(all_constraints(gm.model, type[1], type[2])) for type in types)
@@ -54,7 +54,7 @@ function test_gams_to_GlobalModel()
     x = gm.model[:x]
     @test length(gm.vars) == 8
     @test all(bound == [0,100] for bound in values(get_bounds(flat(gm.model[:x]))))
-    @test length(gm.bbfs) == 1
+    @test length(gm.bbls) == 1
     return true
 end
 

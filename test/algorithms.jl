@@ -19,27 +19,27 @@ function test_basic_functions()
     println("Optimal X: ", vcat(exp.([5.01063529, 3.40119660, -0.48450710]), [-147-2/3]))
 
     # Testing constraint addition and removal
-    clear_tree_constraints!(gm) # Clears all BBF constraints
-    @test all([!is_valid(gm.model, constraint) for constraint in gm.bbfs[2].mi_constraints])
-    add_tree_constraints!(gm, [gm.bbfs[2]])
-    @test all([is_valid(gm.model, constraint) for constraint in gm.bbfs[2].mi_constraints])
+    clear_tree_constraints!(gm) # Clears all bbl constraints
+    @test all([!is_valid(gm.model, constraint) for constraint in gm.bbls[2].mi_constraints])
+    add_tree_constraints!(gm, gm.bbls[2])
+    @test all([is_valid(gm.model, constraint) for constraint in gm.bbls[2].mi_constraints])
     add_tree_constraints!(gm);
-    clear_tree_constraints!(gm, [gm.bbfs[1]])
-    @test !any(is_valid(gm.model, constraint) for constraint in gm.bbfs[1].mi_constraints)
-    clear_tree_constraints!(gm) # Finds and clears the one remaining BBF constraint.
-    @test all([!is_valid(gm.model, constraint) for constraint in gm.bbfs[1].mi_constraints])
-    @test all([!is_valid(gm.model, var) for var in values(gm.bbfs[1].leaf_variables)])
+    clear_tree_constraints!(gm, gm.bbls[1])
+    @test !any(is_valid(gm.model, constraint) for constraint in gm.bbls[1].mi_constraints)
+    clear_tree_constraints!(gm) # Finds and clears the one remaining bbl constraint.
+    @test all([!is_valid(gm.model, constraint) for constraint in gm.bbls[1].mi_constraints])
+    @test all([!is_valid(gm.model, var) for var in values(gm.bbls[1].leaf_variables)])
 
     # Saving fit for test_load_fits()
     save_fit(gm)
 
     # Testing finding bounds of bounded model
-    @test isnothing(get_unbounds(gm.bbfs))
+    @test isnothing(get_unbounds(gm.bbls))
     @test isnothing(find_bounds!(gm))
 
     # Testing clearing all data
     clear_data!(gm)
-    @test all([size(bbf.X, 1) == 0 for bbf in gm.bbfs])
+    @test all([size(bbl.X, 1) == 0 for bbl in gm.bbls])
 end
 
 """ Tests loading of previously solved GMs.
@@ -48,7 +48,7 @@ function test_load_fits()
     gm = sagemark_to_GlobalModel(3; lse=false)
     set_optimizer(gm, CPLEX_SILENT);
     load_fit(gm);
-    @test all([get_param(bbf, :reloaded) == true for bbf in gm.bbfs])
+    @test all([get_param(bbl, :reloaded) == true for bbl in gm.bbls])
     globalsolve(gm)
     @test true
 end
@@ -62,7 +62,7 @@ end
 
 function test_find_bounds(gm::GlobalModel = minlp(true))
     set_optimizer(gm, CPLEX_SILENT)
-    old_bounds = get_bounds(gm.bbfs)
+    old_bounds = get_bounds(gm.bbls)
     linear_bounds = find_bounds!(gm)
     @test true
 end
@@ -72,8 +72,8 @@ function test_speed_params(gm::GlobalModel = gear(true), solver = CPLEX_SILENT)
     solver = CPLEX_SILENT
     set_optimizer(gm, solver)   
     bound!(gm, gm.vars[end] => [-10,10]) 
-    bbf = gm.bbfs[1]
-    uniform_sample_and_eval!(bbf)    
+    bbl = gm.bbls[1]
+    uniform_sample_and_eval!(bbl)    
     
     # Trying different speed parameters
     ls_num_hyper_restarts = [1, 3]
@@ -87,10 +87,10 @@ function test_speed_params(gm::GlobalModel = gear(true), solver = CPLEX_SILENT)
             params = Dict(:ls_num_hyper_restarts => ls_num_hyper_restarts[i],
                           :ls_num_tree_restarts => ls_num_tree_restarts[j],
                           :max_depth => 2)
-            learn_constraint!(bbf; params...)
+            learn_constraint!(bbl; params...)
             push!(time_mat[i], time() - t1)
-            push!(tree_mat[i], bbf.learners[end].lnr)
-            push!(score_mat[i], bbf.accuracies[end])
+            push!(tree_mat[i], bbl.learners[end].lnr)
+            push!(score_mat[i], bbl.accuracies[end])
         end
     end
     @test true

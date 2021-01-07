@@ -12,7 +12,7 @@ function evaluate(constraint::JuMP.ConstraintRef, data::Union{Dict, DataFrame})
     vals = [JuMP.value(constr_obj.func, i -> get(clean_data, string(i), Inf)[j]) for j=1:size(clean_data,1)]
     if any(isinf.(vals))
         throw(OCTException(string("Constraint ", constraint, " returned an infinite value.
-                                   Make sure you have declared all bbf.vars!")))
+                                   Make sure you have declared all bbl.vars!")))
     end
     if isnothing(rhs_const)
         vals = [-1*distance_to_set(vals[i], constr_obj.set) for i=1:length(vals)]
@@ -45,7 +45,6 @@ function evaluate(constraint::Function, data::Union{Dict, DataFrame}, vars::Arra
     clean_data = data_to_DataFrame(data)
     arrays = [[j=1:length()] for i=1:size(clean_data,1)]
     for var_element in vars
-
     n_vals, n_vars = size(clean_data)
     for (outer, vars) in outer_var_mapping
         if vars isa JuMP.VariableRef

@@ -10,7 +10,7 @@ using JuMP
 using BARON
 using CPLEX
 # using Gurobi
-using Ipopt
+# using Ipopt
 using MathOptInterface
 using Test
 using Random
