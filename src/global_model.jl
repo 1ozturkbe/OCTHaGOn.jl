@@ -5,12 +5,12 @@ model must be a mixed integer convex model.
 nonlinear_model can contain JuMP.NonlinearConstraints.
 """
 @with_kw mutable struct GlobalModel
-    model::JuMP.Model                                            # JuMP model
-    name::String = "Model"                                       # Example name
-    bbls::Array = []                                             # Black box (>/= 0) learners
+    model::JuMP.Model                                            # Associated JuMP.Model
+    name::String = "Model"                                       # Name
+    bbls::Array{BlackBoxLearner} = BlackBoxLearner[]             # Constraints to be learned
     vars::Array{JuMP.VariableRef} = JuMP.all_variables(model)    # JuMP variables
     solution_history::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Solution history
-    params::Dict = gm_defaults()                 # GM settings
+    params::Dict = gm_defaults()                                 # GM settings
 end
 
 function Base.show(io::IO, gm::GlobalModel)
@@ -52,15 +52,15 @@ function (gm::GlobalModel)(name::String)
 end
 
 """
-    JuMP.all_variables(bbo::Union{GlobalModel, BlackBoxClassifier, BlackBoxRegressor})
-    JuMP.all_variables(bbls::Array{BlackBoxClassifier, BlackBoxRegressor})
+    JuMP.all_variables(bbo::Union{GlobalModel, BlackBoxLearner})
+    JuMP.all_variables(bbls::Array{BlackBoxLearner})
 
 Extends JuMP.all_variables to GlobalModels and BlackBoxLearners. 
 TODO: add ability to add variables to GlobalModels. 
 """
-JuMP.all_variables(bbo::Union{GlobalModel, BlackBoxClassifier, BlackBoxRegressor}) = bbo.vars
+JuMP.all_variables(bbo::Union{GlobalModel, BlackBoxLearner}) = bbo.vars
 
-function JuMP.all_variables(bbls::Array{BlackBoxClassifier, BlackBoxRegressor})
+function JuMP.all_variables(bbls::Array{BlackBoxLearner})
     return unique(Iterators.flatten(([JuMP.all_variables(bbl) for bbl in bbls])))
 end
 
@@ -70,24 +70,23 @@ function JuMP.set_optimizer(gm::GlobalModel, optimizer_factory)
 end
 
 """
-    get_bounds(model::Union{JuMP.Model, BlackBoxClassifier, BlackBoxRegressor, 
-                            Array{BlackBoxClassifier, BlackBoxRegressor})
+    get_bounds(model::Union{JuMP.Model, BlackBoxLearner, Array{BlackBoxLearner})
 
 Returns bounds of all variables.
 """
-function get_bounds(model::Union{GlobalModel, JuMP.Model, BlackBoxClassifier, BlackBoxRegressor, 
-                                 Array{BlackBoxClassifier, BlackBoxRegressor}})
+function get_bounds(model::Union{GlobalModel, JuMP.Model, BlackBoxLearner, 
+                                 Array{BlackBoxLearner}})
     return get_bounds(JuMP.all_variables(model))
 end
 
 """
-    get_unbounds(model::Union{GlobalModel, JuMP.Model, BlackBoxClassifier, BlackBoxRegressor, 
-                 Array{BlackBoxClassifier, BlackBoxRegressor}})
+    get_unbounds(model::Union{GlobalModel, JuMP.Model, BlackBoxLearner, 
+                 Array{BlackBoxLearner}})
 
 Returns only unbounded variables. 
 """
-function get_unbounds(model::Union{GlobalModel, JuMP.Model, BlackBoxClassifier, BlackBoxRegressor, 
-                      Array{BlackBoxClassifier, BlackBoxRegressor}})
+function get_unbounds(model::Union{GlobalModel, JuMP.Model, BlackBoxLearner, 
+                      Array{BlackBoxLearner}})
     return get_unbounds(JuMP.all_variables(model))
 end
 
@@ -222,7 +221,7 @@ function add_nonlinear_or_compatible(gm::GlobalModel,
 end
 
 """
-    nonlinearize!(gm::GlobalModel, bbls::Array{BlackBoxClassifier, BlackBoxRegressor})
+    nonlinearize!(gm::GlobalModel, bbls::Array{BlackBoxLearner})
     nonlinearize!(gm::GlobalModel)
 
 Turns gm.model into the nonlinear representation.
@@ -299,9 +298,9 @@ function classify_constraints(model::Union{GlobalModel, JuMP.Model})
 end
 
 """ Returns the feasibility of data points in a bbl or GM. """
-feasibility(bbc::BlackBoxClassifier) = bbl.feas_ratio
-feasibility(bbr::BlackBoxClassifier) = size(bbr.X, 1) / (size(bbr.X,1) + size(bbr.infeas_X, 1))
-feasibility(bbls::Union{BlackBoxClassifier, BlackBoxRegressor}) = feasibility.(bbls)
+feasibility(bbc::BlackBoxClassifier) = bbc.feas_ratio
+feasibility(bbr::BlackBoxRegressor) = size(bbr.X, 1) / (size(bbr.X, 1) + size(bbr.infeas_X, 1))
+feasibility(bbls::BlackBoxLearner) = feasibility.(bbls)
 feasibility(gm::GlobalModel) = feasibility.(gm.bbls)
 
 """ Returns the accuracy of learners in a bbl or GM. """
@@ -324,7 +323,7 @@ function accuracy(bbr::BlackBoxRegressor)
     end
 end
 
-accuracy(bbls::Array{BlackBoxClassifier, BlackBoxRegressor}) = accuracy.(bbls)
+accuracy(bbls::Array{BlackBoxLearner}) = accuracy.(bbls)
 accuracy(gm::GlobalModel) = accuracy.(gm.bbls)
 
 """ 

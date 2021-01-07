@@ -50,7 +50,7 @@ module OptimalConstraintTree
 
            # Structs
     export GlobalModel,
-           BlackBoxClassifier, BlackBoxRegressor, 
+           BlackBoxLearner, BlackBoxClassifier, BlackBoxRegressor,
            # GlobalModel Functions
            globalsolve,
            # JuMP.Model extensions to GlobalModel

@@ -1,7 +1,7 @@
 """
     lh_sample(vars::Array{JuMP.VariableRef, 1}; lh_iterations::Int64 = 0,
                    n_samples::Int64 = 1000)
-    lh_sample(bbl::Union{BlackBoxClassifier, BlackBoxRegressor}; lh_iterations::Int64 = 0,
+    lh_sample(bbl::BlackBoxLearner; lh_iterations::Int64 = 0,
                    n_samples::Int64 = 1000)
 
 Uniformly Latin Hypercube samples the variables of GlobalModel, as long as all
@@ -21,7 +21,7 @@ function lh_sample(vars::Array{JuMP.VariableRef, 1}; lh_iterations::Int64 = 0,
    return DataFrame(X, string.(vars))
 end
 
-function lh_sample(bbl::Union{BlackBoxClassifier, BlackBoxRegressor}; lh_iterations::Int64 = 0,
+function lh_sample(bbl::BlackBoxLearner; lh_iterations::Int64 = 0,
                    n_samples::Int64 = 1000)
    return lh_sample(bbl.vars; lh_iterations = lh_iterations, n_samples = n_samples)
 end
@@ -31,7 +31,7 @@ function choose(large::Int64, small::Int64)
 end
 
 """
-    boundary_sample(bbl::Union{BlackBoxClassifier, BlackBoxRegressor}; fraction::Float64 = 0.5)
+    boundary_sample(bbl::BlackBoxLearner; fraction::Float64 = 0.5)
     boundary_sample(vars::Array{JuMP.VariableRef, 1}; n_samples = 100, fraction::Float64 = 0.5,
                          warn_string::String = "")
 
@@ -74,7 +74,7 @@ function boundary_sample(vars::Array{JuMP.VariableRef, 1}; n_samples::Int64 = 10
     return nX
 end
 
-function boundary_sample(bbl::Union{BlackBoxClassifier, BlackBoxRegressor}; fraction::Float64 = 0.5)
+function boundary_sample(bbl::BlackBoxLearner; fraction::Float64 = 0.5)
     return boundary_sample(bbl.vars, n_samples = get_param(bbl, :n_samples), fraction = fraction,
                            warn_string = bbl.name)
 end
@@ -84,7 +84,7 @@ end
 Does KNN and interval arithmetic based sampling once there is at least one feasible
     sample to a BlackBoxLearner.
 """
-function knn_sample(bbl::Union{BlackBoxClassifier, BlackBoxRegressor}; k::Int64 = 10)
+function knn_sample(bbl::BlackBoxLearner; k::Int64 = 10)
     if bbl.feas_ratio == 0. || bbl.feas_ratio == 1.0
         throw(OCTException("Constraint " * string(bbl.name) * " must have at least one feasible or
                             infeasible sample to be KNN-sampled!"))
@@ -107,7 +107,7 @@ function knn_sample(bbl::Union{BlackBoxClassifier, BlackBoxRegressor}; k::Int64 
 end
 
 """
-    uniform_sample_and_eval!(bbl::Union{BlackBoxClassifier, BlackBoxRegressor, GlobalModel, Array{BlackBoxClassifier, BlackBoxRegressor}};
+    uniform_sample_and_eval!(bbl::Union{BlackBoxLearner, GlobalModel, Array{BlackBoxLearner}};
                               boundary_fraction::Float64 = 0.5,
                               lh_iterations::Int64 = 0)
 
@@ -116,7 +116,7 @@ Keyword arguments:
     boundary_fraction: maximum ratio of boundary samples
     lh_iterations: number of GA populations for LHC sampling (0 is a random LH.)
 """
-function uniform_sample_and_eval!(bbl::Union{BlackBoxClassifier, BlackBoxRegressor};
+function uniform_sample_and_eval!(bbl::BlackBoxLearner;
                           boundary_fraction::Float64 = 0.5,
                           lh_iterations::Int64 = 0)
     @assert size(bbl.X, 1) == 0 
@@ -141,7 +141,7 @@ function uniform_sample_and_eval!(bbl::Union{BlackBoxClassifier, BlackBoxRegress
     return
 end
 
-function uniform_sample_and_eval!(bbls::Array{BlackBoxClassifier, BlackBoxRegressor}; lh_iterations = 0) 
+function uniform_sample_and_eval!(bbls::Array{BlackBoxLearner}; lh_iterations = 0) 
     for bbl in bbls 
         uniform_sample_and_eval!(bbl, lh_iterations = lh_iterations)
     end

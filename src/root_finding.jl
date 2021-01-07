@@ -5,7 +5,7 @@ root_finding:
 Root-finding methods sampling nonlinear functions
 =#
 
-function normalized_data(bbl::Union{BlackBoxClassifier, BlackBoxRegressor})
+function normalized_data(bbl::BlackBoxLearner)
     """ Normalizes and returns data (0-1) by lower and upper bounds."""
     bounds = get_bounds(bbl.vars)
     vks = string.(bbl.vars)
@@ -15,7 +15,7 @@ function normalized_data(bbl::Union{BlackBoxClassifier, BlackBoxRegressor})
     return normalized_X
 end
 
-function build_knn_tree(bbl::Union{BlackBoxClassifier, BlackBoxRegressor})
+function build_knn_tree(bbl::BlackBoxLearner)
     """ Builds an efficient KNN tree over existing data."""
     X = normalized_data(bbl); #TODO: optimize calls to normalize data.
     kdtree = KDTree(X', reorder = false);
@@ -23,7 +23,7 @@ function build_knn_tree(bbl::Union{BlackBoxClassifier, BlackBoxRegressor})
     return
 end
 
-function find_knn(bbl::Union{BlackBoxClassifier, BlackBoxRegressor}; k::Int64 = 10)
+function find_knn(bbl::BlackBoxLearner; k::Int64 = 10)
     """ Returns idxs and Euclidian distances of KNNs of each data point. """
     idxs, dists = knn(bbl.knn_tree, bbl.knn_tree.data, k+1);
     return idxs, dists

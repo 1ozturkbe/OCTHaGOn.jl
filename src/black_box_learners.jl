@@ -99,10 +99,13 @@ function Base.show(io::IO, bbc::BlackBoxClassifier)
     println(io, "Sampled $(length(bbc.Y)) times, and has $(length(bbc.learners)) trained OCTs.")
 end
 
-set_param(bbl::Union{BlackBoxClassifier, BlackBoxRegressor}, key::Symbol, val) = set_param(bbl.params, key, val)
-set_param(bbls::Array{BlackBoxClassifier, BlackBoxRegressor}, key::Symbol, val) = foreach(bbl -> set_param(bbl, key, val), bbls)
-get_param(bbl::Union{BlackBoxClassifier, BlackBoxRegressor}, key::Symbol) = get_param(bbl.params, key)
-get_param(bbls::Array{BlackBoxClassifier, BlackBoxRegressor}, key::Symbol) = [get_param(bbl, key) for bbl in bbls]
+""" BBL type is for function definitions! """
+BlackBoxLearner = Union{BlackBoxClassifier, BlackBoxRegressor}
+
+set_param(bbl::BlackBoxLearner, key::Symbol, val) = set_param(bbl.params, key, val)
+set_param(bbls::Array{BlackBoxLearner}, key::Symbol, val) = foreach(bbl -> set_param(bbl, key, val), bbls)
+get_param(bbl::BlackBoxLearner, key::Symbol) = get_param(bbl.params, key)
+get_param(bbls::Array{BlackBoxLearner}, key::Symbol) = [get_param(bbl, key) for bbl in bbls]
 
 """
     add_data!(bbc::BlackBoxClassifier, X::DataFrame, Y::Array)
@@ -124,24 +127,29 @@ end
 """
     add_data!(bbr::BlackBoxRegressor, X::DataFrame, Y::Array)
 
-Adds data to BlackBoxRegressor
+Adds data to BlackBoxRegressor.
 """
 function add_data!(bbr::BlackBoxRegressor, X::DataFrame, Y::Array)
     @assert length(Y) == size(X, 1)
     infeas_idxs = findall(x -> isinf(x), Y)
-    append!(bbr.infeas_X, X[infeas_idxs, string.(bbr.vars)], cols=:setequal)
-    append!(bbr.X, delete!.(X[:,string.(bbr.vars)], infeas_idxs), cols=:setequal)
-    append!(bbr.Y, delete!.(Y, infeas_idxs))
+    if !isempty(infeas_idxs)
+        append!(bbr.infeas_X, X[infeas_idxs, string.(bbr.vars)], cols=:setequal)
+        append!(bbr.X, delete!(X[:,string.(bbr.vars)], infeas_idxs), cols=:setequal)
+        append!(bbr.Y, delete!(Y, infeas_idxs))
+    else
+        append!(bbr.X, X, cols=:setequal)
+        append!(bbr.Y, Y)
+    end
     return
 end
 
 """
-    evaluate(bbl::Union{BlackBoxClassifier, BlackBoxRegressor}, data::Union{Dict, DataFrame})
+    evaluate(bbl::BlackBoxLearner, data::Union{Dict, DataFrame})
 
 Evaluates constraint violation on data in the variables, and returns distance from set.
         Note that the keys of the Dict have to be uniform.
 """
-function evaluate(bbl::Union{BlackBoxClassifier, BlackBoxRegressor}, data::Union{Dict, DataFrame})
+function evaluate(bbl::BlackBoxLearner, data::Union{Dict, DataFrame})
     clean_data = data_to_DataFrame(data);
     if isnothing(bbl.fn)
         constr_obj = constraint_object(bbl.constraint)
@@ -177,16 +185,16 @@ function evaluate(bbl::Union{BlackBoxClassifier, BlackBoxRegressor}, data::Union
 end
 
 """
-    function (bbl::Union{BlackBoxClassifier, BlackBoxRegressor})(x::Union{DataFrame,Dict,DataFrameRow})
+    function (bbl::BlackBoxLearner)(x::Union{DataFrame,Dict,DataFrameRow})
 
 Makes the BBC or BBR callable as a function.
 """
-function (bbl::Union{BlackBoxClassifier, BlackBoxRegressor})(X::Union{DataFrame,Dict,DataFrameRow})
+function (bbl::BlackBoxLearner)(X::Union{DataFrame,Dict,DataFrameRow})
     return evaluate(bbl, X)
 end
 
 """ Evaluates BlackBoxLearner at all X and stores the resulting data. """
-function eval!(bbl::Union{BlackBoxClassifier, BlackBoxRegressor}, X::DataFrame)
+function eval!(bbl::BlackBoxLearner, X::DataFrame)
     Y = bbl(X);
     add_data!(bbl, X, Y)
 end

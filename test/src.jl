@@ -189,7 +189,7 @@ function test_kwargs()
     @test dict_lnr == dict_lnr2 == Dict(:localsearch => false, :ls_num_tree_restarts => 20)
 
     # Regression kwargs next...
-    dict_fit = fit_regressor_kwargs(true; sample_kwargs)
+    dict_fit = fit_regressor_kwargs(; sample_kwargs)
     @test dict_fit == Dict(:validation_criterion => :mse)
 end
 

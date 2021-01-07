@@ -22,10 +22,10 @@ function test_sagemark_to_GlobalModel()
     inp = Dict(all_variables(gm) .=> [1,1.9,3,3.9, 10.]);
     log_inp = Dict(vk => log(val) for (vk, val) in inp);
 
-    @test gm_lse.bbls[1](log_inp)[1] ≈ gm.bbls[1](inp)[1] ≈ [inp[gm.vars[5]] - inp[gm.vars[3]] ^ 0.8 * inp[gm.vars[4]] ^ 1.2][1]
+    @test gm_lse.bbls[1](log_inp)[1] ≈ gm.bbls[1](inp)[1] ≈ [inp[gm.vars[3]] ^ 0.8 * inp[gm.vars[4]] ^ 1.2][1]
 
     # Checking OCTException for sampling unbounded model
-    @test_throws OCTException uniform_sample_and_eval!(gm.bbls[1])
+    uniform_sample_and_eval!(gm)
     return true
 end
 

@@ -104,7 +104,7 @@ end
 
 check_accuracy(bbr::BlackBoxRegressor) = true # TODO: use MSE
 
-function check_sampled(bbl::Union{BlackBoxClassifier, BlackBoxRegressor})
+function check_sampled(bbl::BlackBoxLearner)
     size(bbl.X, 1) == 0 && throw(OCTException(string("BlackBoxLearner ", bbl.name, " must be sampled first.")))
 end
 
@@ -128,7 +128,7 @@ function learn_constraint!(bbc::BlackBoxClassifier, ignore_feas::Bool = false; k
                             fit_classifier_kwargs(; kwargs...)...)
         push!(bbc.learners, nl)
         bbc.predictions = IAI.predict(nl, bbc.X)
-        push!(bbc.accuracies, IAI.score(nl, bbc.X, bbc.Y .>= 0, criterion = nl.criterion))
+        push!(bbc.accuracies, IAI.score(nl, bbc.X, bbc.Y .>= 0)) # TODO: add ability to specify criterion. 
         push!(bbc.learner_kwargs, Dict(kwargs))
     else
         throw(OCTException("Not enough feasible samples for BlackBoxClassifier " * string(bbc.name) * "."))
@@ -146,7 +146,7 @@ function learn_constraint!(bbr::BlackBoxRegressor, ignore_feas::Bool = false; kw
                             fit_regressor_kwargs(; kwargs...)...)             
     push!(bbr.learners, nl);
     bbc.predictions = IAI.predict(nl, bbc.X)
-    push!(bbr.accuracies, IAI.score(nl, bbr.X, bbr.Y, criterion = nl.criterion))
+    push!(bbr.accuracies, IAI.score(nl, bbr.X, bbr.Y)) # TODO: add ability to specify criterion. 
     push!(bbr.learner_kwargs, Dict(kwargs))
     return
 end
@@ -161,11 +161,11 @@ learn_constraint!(gm::GlobalModel, ignore_feas::Bool = get_param(gm, :ignore_fea
     learn_constraint!(gm.bbls, ignore_feas; kwargs...)
 
 """
-    save_fit(bbl::Union{GlobalModel, BlackBoxClassifier, BlackBoxRegressor, Array}, dir::String)
+    save_fit(bbl::Union{GlobalModel, BlackBoxLearner, Array}, dir::String)
 
 Saves IAI fits associated with different OptimalConstraintTree objects.
 """
-function save_fit(bbl::Union{BlackBoxClassifier, BlackBoxRegressor}, dir::String = SAVE_DIR)
+function save_fit(bbl::BlackBoxLearner, dir::String = SAVE_DIR)
     IAI.write_json(dir * bbl.name * ".json", bbl.learners[end])
 end
 
@@ -179,7 +179,7 @@ Loads IAI fits associated with OptimalConstraintTree objects.
 Checks that there is correspondence between loaded trees and the associated constraints.
 """
 
-function load_fit(bbl::Union{BlackBoxClassifier, BlackBoxRegressor}, dir::String = SAVE_DIR)
+function load_fit(bbl::BlackBoxLearner, dir::String = SAVE_DIR)
     loaded_grid = IAI.read_json(dir * bbl.name * ".json");
     size(IAI.variable_importance(loaded_grid.lnr), 1) == length(bbl.vars) || throw(
         OCTException("Object " * bbl.name * " does not match associated learner."))
@@ -187,7 +187,7 @@ function load_fit(bbl::Union{BlackBoxClassifier, BlackBoxRegressor}, dir::String
     push!(bbl.learners, loaded_grid)
 end
 
-load_fit(bbls::Array{Union{BlackBoxClassifier, BlackBoxRegressor}}, 
+load_fit(bbls::Array{BlackBoxLearner}, 
         dir::String = SAVE_DIR) = [load_fit(bbl, dir) for bbl in bbls]
 
 load_fit(gm::GlobalModel, dir::String = SAVE_DIR) = load_fit(gm.bbls, dir)
