@@ -127,9 +127,10 @@ Adds data to BlackBoxRegressor
 """
 function add_data!(bbr::BlackBoxRegressor, X::DataFrame, Y::Array)
     @assert length(Y) == size(X, 1)
-    append!(bbr.infeas_idxs, size(bbr.X, 1) .+ findall(x -> isinf(x), Y)) 
-    append!(bbr.X, X[:,string.(bbr.vars)], cols=:setequal)
-    append!(bbr.Y, Y)
+    infeas_idxs = findall(x -> isinf(x), Y)
+    append!(bbr.infeas_X, X[infeas_idxs, string.(bbr.vars)], cols=:setequal)
+    append!(bbr.X, delete!.(X[:,string.(bbr.vars)], infeas_idxs), cols=:setequal)
+    append!(bbr.Y, delete!.(Y, infeas_idxs))
     return
 end
 
