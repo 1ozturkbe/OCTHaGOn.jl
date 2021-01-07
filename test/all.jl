@@ -17,11 +17,11 @@ include("load.jl");
 @testset "OptimalConstraintTree" begin
     include(string(OptimalConstraintTree.PROJECT_ROOT, "/test/src.jl"))
 
-    include(string(OptimalConstraintTree.PROJECT_ROOT, "/test/imports.jl"))
+    # include(string(OptimalConstraintTree.PROJECT_ROOT, "/test/imports.jl"))
 
 #     include(string(OptimalConstraintTree.PROJECT_ROOT, "/test/cbf.jl"))
 
-    include(string(OptimalConstraintTree.PROJECT_ROOT, "/test/algorithms.jl"))
+    # include(string(OptimalConstraintTree.PROJECT_ROOT, "/test/algorithms.jl"))
 
 #     include(string(OptimalConstraintTree.PROJECT_ROOT, "/test/speedreducer.jl"))
 

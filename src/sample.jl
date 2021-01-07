@@ -1,7 +1,7 @@
 """
     lh_sample(vars::Array{JuMP.VariableRef, 1}; lh_iterations::Int64 = 0,
                    n_samples::Int64 = 1000)
-    lh_sample(bbf::Union{BlackBoxClassifier, BlackBoxRegressor}; lh_iterations::Int64 = 0,
+    lh_sample(bbl::Union{BlackBoxClassifier, BlackBoxRegressor}; lh_iterations::Int64 = 0,
                    n_samples::Int64 = 1000)
 
 Uniformly Latin Hypercube samples the variables of GlobalModel, as long as all
@@ -21,9 +21,9 @@ function lh_sample(vars::Array{JuMP.VariableRef, 1}; lh_iterations::Int64 = 0,
    return DataFrame(X, string.(vars))
 end
 
-function lh_sample(bbf::Union{BlackBoxClassifier, BlackBoxRegressor}; lh_iterations::Int64 = 0,
+function lh_sample(bbl::Union{BlackBoxClassifier, BlackBoxRegressor}; lh_iterations::Int64 = 0,
                    n_samples::Int64 = 1000)
-   return lh_sample(bbf.vars; lh_iterations = lh_iterations, n_samples = n_samples)
+   return lh_sample(bbl.vars; lh_iterations = lh_iterations, n_samples = n_samples)
 end
 
 function choose(large::Int64, small::Int64)
@@ -31,7 +31,7 @@ function choose(large::Int64, small::Int64)
 end
 
 """
-    boundary_sample(bbf::Union{BlackBoxClassifier, BlackBoxRegressor}; fraction::Float64 = 0.5)
+    boundary_sample(bbl::Union{BlackBoxClassifier, BlackBoxRegressor}; fraction::Float64 = 0.5)
     boundary_sample(vars::Array{JuMP.VariableRef, 1}; n_samples = 100, fraction::Float64 = 0.5,
                          warn_string::String = "")
 
@@ -74,9 +74,9 @@ function boundary_sample(vars::Array{JuMP.VariableRef, 1}; n_samples::Int64 = 10
     return nX
 end
 
-function boundary_sample(bbf::Union{BlackBoxClassifier, BlackBoxRegressor}; fraction::Float64 = 0.5)
-    return boundary_sample(bbf.vars, n_samples = get_param(bbf, :n_samples), fraction = fraction,
-                           warn_string = bbf.name)
+function boundary_sample(bbl::Union{BlackBoxClassifier, BlackBoxRegressor}; fraction::Float64 = 0.5)
+    return boundary_sample(bbl.vars, n_samples = get_param(bbl, :n_samples), fraction = fraction,
+                           warn_string = bbl.name)
 end
 
 
@@ -84,22 +84,22 @@ end
 Does KNN and interval arithmetic based sampling once there is at least one feasible
     sample to a BlackBoxLearner.
 """
-function knn_sample(bbf::Union{BlackBoxClassifier, BlackBoxRegressor}; k::Int64 = 10)
-    if bbf.feas_ratio == 0. || bbf.feas_ratio == 1.0
-        throw(OCTException("Constraint " * string(bbf.name) * " must have at least one feasible or
+function knn_sample(bbl::Union{BlackBoxClassifier, BlackBoxRegressor}; k::Int64 = 10)
+    if bbl.feas_ratio == 0. || bbl.feas_ratio == 1.0
+        throw(OCTException("Constraint " * string(bbl.name) * " must have at least one feasible or
                             infeasible sample to be KNN-sampled!"))
     end
-    vks = string.(bbf.vars)
+    vks = string.(bbl.vars)
     df = DataFrame([Float64 for i in vks], vks)
-    build_knn_tree(bbf);
-    idxs, dists = find_knn(bbf, k=k);
-    positives = findall(x -> x .>= 0 , bbf.Y);
-    feas_class = classify_patches(bbf, idxs);
+    build_knn_tree(bbl);
+    idxs, dists = find_knn(bbl, k=k);
+    positives = findall(x -> x .>= 0 , bbl.Y);
+    feas_class = classify_patches(bbl, idxs);
     for center_node in positives # This loop is for making sure that every possible root is sampled only once.
         if feas_class[center_node] == "mixed"
-            nodes = [idx for idx in idxs[center_node] if bbf.Y[idx] < 0];
+            nodes = [idx for idx in idxs[center_node] if bbl.Y[idx] < 0];
             push!(nodes, center_node)
-            np = secant_method(bbf.X[nodes, :], bbf.Y[nodes, :])
+            np = secant_method(bbl.X[nodes, :], bbl.Y[nodes, :])
             append!(df, np);
         end
     end
@@ -107,7 +107,7 @@ function knn_sample(bbf::Union{BlackBoxClassifier, BlackBoxRegressor}; k::Int64 
 end
 
 """
-    uniform_sample_and_eval!(bbf::Union{BlackBoxClassifier, BlackBoxRegressor, GlobalModel, Array{BlackBoxClassifier, BlackBoxRegressor}};
+    uniform_sample_and_eval!(bbl::Union{BlackBoxClassifier, BlackBoxRegressor, GlobalModel, Array{BlackBoxClassifier, BlackBoxRegressor}};
                               boundary_fraction::Float64 = 0.5,
                               lh_iterations::Int64 = 0)
 
@@ -116,36 +116,36 @@ Keyword arguments:
     boundary_fraction: maximum ratio of boundary samples
     lh_iterations: number of GA populations for LHC sampling (0 is a random LH.)
 """
-function uniform_sample_and_eval!(bbf::Union{BlackBoxClassifier, BlackBoxRegressor};
+function uniform_sample_and_eval!(bbl::Union{BlackBoxClassifier, BlackBoxRegressor};
                           boundary_fraction::Float64 = 0.5,
                           lh_iterations::Int64 = 0)
-    @assert size(bbf.X, 1) == 0 
-    vks = string.(bbf.vars)
+    @assert size(bbl.X, 1) == 0 
+    vks = string.(bbl.vars)
     n_dims = length(vks);
-    check_bounds(get_bounds(bbf))
-    df = boundary_sample(bbf, fraction = boundary_fraction)
-    eval!(bbf, df)
-    df = lh_sample(bbf, lh_iterations = lh_iterations, n_samples = get_param(bbf, :n_samples) - size(df, 1))
-    eval!(bbf, df);
-    if bbf isa BlackBoxClassifier
-        if bbf.feas_ratio == 1.0
-            @warn(string(bbf.name) * " was not KNN sampled since it has no infeasible samples.")
-        elseif bbf.feas_ratio == 0.0
-            throw(OCTException(string(bbf.name) * " has zero infeasible samples. " *
+    check_bounds(get_bounds(bbl))
+    df = boundary_sample(bbl, fraction = boundary_fraction)
+    eval!(bbl, df)
+    df = lh_sample(bbl, lh_iterations = lh_iterations, n_samples = get_param(bbl, :n_samples) - size(df, 1))
+    eval!(bbl, df);
+    if bbl isa BlackBoxClassifier
+        if bbl.feas_ratio == 1.0
+            @warn(string(bbl.name) * " was not KNN sampled since it has no infeasible samples.")
+        elseif bbl.feas_ratio == 0.0
+            throw(OCTException(string(bbl.name) * " has zero infeasible samples. " *
                                "Please find at least one feasible sample, seed the data and KNN sample."))
         else
-            df = knn_sample(bbf)
-            eval!(bbf, df)
+            df = knn_sample(bbl)
+            eval!(bbl, df)
         end
     end
     return
 end
 
-function uniform_sample_and_eval!(bbfs::Array{BlackBoxClassifier, BlackBoxRegressor}; lh_iterations = 0) 
-    for bbf in bbfs 
-        uniform_sample_and_eval!(bbf, lh_iterations = lh_iterations)
+function uniform_sample_and_eval!(bbls::Array{BlackBoxClassifier, BlackBoxRegressor}; lh_iterations = 0) 
+    for bbl in bbls 
+        uniform_sample_and_eval!(bbl, lh_iterations = lh_iterations)
     end
     return
 end
 
-uniform_sample_and_eval!(gm::GlobalModel) = uniform_sample_and_eval!(gm.bbfs; lh_iterations = get_param(gm, :lh_iterations))
+uniform_sample_and_eval!(gm::GlobalModel) = uniform_sample_and_eval!(gm.bbls; lh_iterations = get_param(gm, :lh_iterations))

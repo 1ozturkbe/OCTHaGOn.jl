@@ -1,18 +1,18 @@
 """ 
-    clear_tree_constraints!(gm::GlobalModel, bbf::{BlackBoxClassifier, BlackBoxRegressor})
-    clear_tree_constraints!(gm::GlobalModel, bbfs::Array{BlackBoxClassifier, BlackBoxRegressor})
+    clear_tree_constraints!(gm::GlobalModel, bbl::{BlackBoxClassifier, BlackBoxRegressor})
+    clear_tree_constraints!(gm::GlobalModel, bbls::Array{BlackBoxClassifier, BlackBoxRegressor})
     clear_tree_constraints!(gm::GlobalModel)
 
-Clears the constraints bbf.mi_constraints 
-    as well as bbf.leaf_variables in GlobalModel. 
+Clears the constraints bbl.mi_constraints 
+    as well as bbl.leaf_variables in GlobalModel. 
 """
-function clear_tree_constraints!(gm::GlobalModel, bbf::Union{BlackBoxClassifier, BlackBoxRegressor})
-    for constraint in bbf.mi_constraints
+function clear_tree_constraints!(gm::GlobalModel, bbl::Union{BlackBoxClassifier, BlackBoxRegressor})
+    for constraint in bbl.mi_constraints
         if is_valid(gm.model, constraint)
             delete(gm.model, constraint)
         end
     end
-    for variable in bbf.leaf_variables
+    for variable in bbl.leaf_variables
         if is_valid(gm.model, variable)
             delete(gm.model, variable)
         end
@@ -20,19 +20,19 @@ function clear_tree_constraints!(gm::GlobalModel, bbf::Union{BlackBoxClassifier,
     return
 end
 
-function clear_tree_constraints!(gm::GlobalModel, bbfs::Array{BlackBoxClassifier, BlackBoxRegressor})
-    for bbf in bbfs
-        clear_tree_constraints!(gm, bbf)
+function clear_tree_constraints!(gm::GlobalModel, bbls::Array{BlackBoxClassifier, BlackBoxRegressor})
+    for bbl in bbls
+        clear_tree_constraints!(gm, bbl)
     end
     return
 end
 
-clear_tree_constraints!(gm::GlobalModel) = clear_tree_constraints!(gm, gm.bbfs)
+clear_tree_constraints!(gm::GlobalModel) = clear_tree_constraints!(gm, gm.bbls)
 
 """
     add_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier; M=1e5)
     add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor; M=1e5)
-    add_tree_constraints!(gm::GlobalModel, bbfs::Array; M=1e5)
+    add_tree_constraints!(gm::GlobalModel, bbls::Array; M=1e5)
     add_tree_constraints!(gm::GlobalModel)
 
 Generates MI constraints from gm.learners, and adds them to gm.model.
@@ -67,14 +67,14 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor; M = 1e5)
     return
 end
 
-function add_tree_constraints!(gm::GlobalModel, bbfs::Array{BlackBoxClassifier, BlackBoxRegressor}; M = 1e5)
-    for bbf in bbfs
-        add_tree_constraints!(gm, bbf; M = M)
+function add_tree_constraints!(gm::GlobalModel, bbls::Array{BlackBoxClassifier, BlackBoxRegressor}; M = 1e5)
+    for bbl in bbls
+        add_tree_constraints!(gm, bbl; M = M)
     end
     return
 end
 
-add_tree_constraints!(gm::GlobalModel; M = 1e5) = add_tree_constraints!(gm, gm.bbfs; M = M)
+add_tree_constraints!(gm::GlobalModel; M = 1e5) = add_tree_constraints!(gm, gm.bbls; M = M)
 
 """
     Creates a set of binary feasibility constraints from

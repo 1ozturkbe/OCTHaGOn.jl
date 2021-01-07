@@ -25,24 +25,35 @@ function fit_classifier_kwargs(; kwargs...)
     return nkwargs
 end
 
-""" Function that preprocesses merging of kwargs for IAI.OptimalTreeLearner!, 
-    to avoid errors! """
-function lnr_kwargs(regress::Bool = false; kwargs...)
+""" Helper function for merging learner arguments. """
+function merge_kwargs(valid_keys; kwargs...)
     nkwargs = Dict{Symbol, Any}() 
-    valid_keys = [:random_seed, :max_depth, :cp, :minbucket, 
-                  :fast_num_support_restarts, :localsearch, 
-                  :ls_num_hyper_restarts, :ls_num_tree_restarts, 
-                  :hyperplane_config]
-    if regress
-        append!(valid_keys, [:regression_sparsity, :regression_weighted_betas,
-                             :regression_lambda])   
-    end    
     for item in kwargs
         if item.first in valid_keys
             nkwargs[item.first] = item.second
         end
     end
     return nkwargs
+end
+
+""" Function that preprocesses merging of kwargs for IAI.OptimalTreeClassifier, to avoid errors! """
+function classifier_kwargs(; kwargs...)
+    valid_keys = [:random_seed, :max_depth, :cp, :minbucket, 
+                  :fast_num_support_restarts, :localsearch, 
+                  :ls_num_hyper_restarts, :ls_num_tree_restarts, 
+                  :hyperplane_config]
+    merge_kwargs(valid_keys; kwargs...)
+end
+
+""" Function that preprocesses merging of kwargs for IAI.OptimalTreeRegressor, to avoid errors! """
+function regressor_kwargs(; kwargs...)
+    valid_keys = [:random_seed, :max_depth, :cp, :minbucket, 
+                  :fast_num_support_restarts, :localsearch, 
+                  :ls_num_hyper_restarts, :ls_num_tree_restarts, 
+                  :hyperplane_config,
+                  :regression_sparsity, :regression_weighted_betas,
+                  :regression_lambda]
+    return merge_kwargs(valid_keys; kwargs...)
 end
 
 """ Wrapper around IAI.GridSearch for constraint learning.
@@ -83,7 +94,7 @@ end
 check_feasibility(bbr::BlackBoxRegressor) = true
 
 function check_feasibility(gm::GlobalModel)
-    return [check_feasibility(bbf) for bbf in gm.bbfs]
+    return [check_feasibility(bbl) for bbl in gm.bbls]
 end
 
 """ Checks that a BlackBoxLearner.learner has adequate accuracy."""
@@ -93,16 +104,16 @@ end
 
 check_accuracy(bbr::BlackBoxRegressor) = true # TODO: use MSE
 
-function check_sampled(bbf::Union{BlackBoxClassifier, BlackBoxRegressor})
-    size(bbf.X, 1) == 0 && throw(OCTException(string("BlackBoxLearner ", bbf.name, " must be sampled first.")))
+function check_sampled(bbl::Union{BlackBoxClassifier, BlackBoxRegressor})
+    size(bbl.X, 1) == 0 && throw(OCTException(string("BlackBoxLearner ", bbl.name, " must be sampled first.")))
 end
 
 """
-    learn_constraint!(bbf::Union{GlobalModel, BlackBoxLearner, Array}; kwargs...)
+    learn_constraint!(bbl::Union{GlobalModel, BlackBoxLearner, Array}; kwargs...)
 
 Constructs a constraint tree from a BlackBoxLearner and dumps in bbo.learners.
 Arguments:
-    bbf: OCT structs (GM, BBF, Array{BBF})
+    bbl: OCT structs (GM, bbl, Array{bbl})
     ignore_feas::Bool: Whether to ignore feasibility thresholds for BlackBoxClassifiers.
     kwargs: arguments for learners and fits.
 """
@@ -140,26 +151,26 @@ function learn_constraint!(bbr::BlackBoxRegressor, ignore_feas::Bool = false; kw
     return
 end
 
-function learn_constraint!(bbf::Array, ignore_feas::Bool = false; kwargs...)
-   for fn in bbf
+function learn_constraint!(bbl::Array, ignore_feas::Bool = false; kwargs...)
+   for fn in bbl
         learn_constraint!(fn, ignore_feas; kwargs...)
    end
 end
 
 learn_constraint!(gm::GlobalModel, ignore_feas::Bool = get_param(gm, :ignore_feasibility); kwargs...) = 
-    learn_constraint!(gm.bbfs, ignore_feas; kwargs...)
+    learn_constraint!(gm.bbls, ignore_feas; kwargs...)
 
 """
-    save_fit(bbf::Union{GlobalModel, BlackBoxClassifier, BlackBoxRegressor, Array}, dir::String)
+    save_fit(bbl::Union{GlobalModel, BlackBoxClassifier, BlackBoxRegressor, Array}, dir::String)
 
 Saves IAI fits associated with different OptimalConstraintTree objects.
 """
-function save_fit(bbf::Union{BlackBoxClassifier, BlackBoxRegressor}, dir::String = SAVE_DIR)
-    IAI.write_json(dir * bbf.name * ".json", bbf.learners[end])
+function save_fit(bbl::Union{BlackBoxClassifier, BlackBoxRegressor}, dir::String = SAVE_DIR)
+    IAI.write_json(dir * bbl.name * ".json", bbl.learners[end])
 end
 
-save_fit(bbfs::Array, dir::String = SAVE_DIR) = [save_fit(bbf, dir) for bbf in bbfs]
-save_fit(gm::GlobalModel, dir::String = SAVE_DIR) = save_fit(gm.bbfs, dir)
+save_fit(bbls::Array, dir::String = SAVE_DIR) = [save_fit(bbl, dir) for bbl in bbls]
+save_fit(gm::GlobalModel, dir::String = SAVE_DIR) = save_fit(gm.bbls, dir)
 
 """
     load_fit(BlackBoxLearner, dir::String = SAVE_DIR)
@@ -168,15 +179,15 @@ Loads IAI fits associated with OptimalConstraintTree objects.
 Checks that there is correspondence between loaded trees and the associated constraints.
 """
 
-function load_fit(bbf::Union{BlackBoxClassifier, BlackBoxRegressor}, dir::String = SAVE_DIR)
-    loaded_grid = IAI.read_json(dir * bbf.name * ".json");
-    size(IAI.variable_importance(loaded_grid.lnr), 1) == length(bbf.vars) || throw(
-        OCTException("Object " * bbf.name * " does not match associated learner."))
-    set_param(bbf, :reloaded, true)
-    push!(bbf.learners, loaded_grid)
+function load_fit(bbl::Union{BlackBoxClassifier, BlackBoxRegressor}, dir::String = SAVE_DIR)
+    loaded_grid = IAI.read_json(dir * bbl.name * ".json");
+    size(IAI.variable_importance(loaded_grid.lnr), 1) == length(bbl.vars) || throw(
+        OCTException("Object " * bbl.name * " does not match associated learner."))
+    set_param(bbl, :reloaded, true)
+    push!(bbl.learners, loaded_grid)
 end
 
-load_fit(bbfs::Array{Union{BlackBoxClassifier, BlackBoxRegressor}}, 
-        dir::String = SAVE_DIR) = [load_fit(bbf, dir) for bbf in bbfs]
+load_fit(bbls::Array{Union{BlackBoxClassifier, BlackBoxRegressor}}, 
+        dir::String = SAVE_DIR) = [load_fit(bbl, dir) for bbl in bbls]
 
-load_fit(gm::GlobalModel, dir::String = SAVE_DIR) = load_fit(gm.bbfs, dir)
+load_fit(gm::GlobalModel, dir::String = SAVE_DIR) = load_fit(gm.bbls, dir)

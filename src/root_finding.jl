@@ -5,27 +5,27 @@ root_finding:
 Root-finding methods sampling nonlinear functions
 =#
 
-function normalized_data(bbf::Union{BlackBoxClassifier, BlackBoxRegressor})
+function normalized_data(bbl::Union{BlackBoxClassifier, BlackBoxRegressor})
     """ Normalizes and returns data (0-1) by lower and upper bounds."""
-    bounds = get_bounds(bbf.vars)
-    vks = string.(bbf.vars)
+    bounds = get_bounds(bbl.vars)
+    vks = string.(bbl.vars)
     lbs = [minimum(val) for (key, val) in bounds]
     ubs = [maximum(val) for (key, val) in bounds]
-    normalized_X = reduce(hcat,[(bbf.X[:, i] .- lbs[i]) ./(ubs[i] - lbs[i]) for i=1:length(vks)]);
+    normalized_X = reduce(hcat,[(bbl.X[:, i] .- lbs[i]) ./(ubs[i] - lbs[i]) for i=1:length(vks)]);
     return normalized_X
 end
 
-function build_knn_tree(bbf::Union{BlackBoxClassifier, BlackBoxRegressor})
+function build_knn_tree(bbl::Union{BlackBoxClassifier, BlackBoxRegressor})
     """ Builds an efficient KNN tree over existing data."""
-    X = normalized_data(bbf); #TODO: optimize calls to normalize data.
+    X = normalized_data(bbl); #TODO: optimize calls to normalize data.
     kdtree = KDTree(X', reorder = false);
-    bbf.knn_tree = kdtree;
+    bbl.knn_tree = kdtree;
     return
 end
 
-function find_knn(bbf::Union{BlackBoxClassifier, BlackBoxRegressor}; k::Int64 = 10)
+function find_knn(bbl::Union{BlackBoxClassifier, BlackBoxRegressor}; k::Int64 = 10)
     """ Returns idxs and Euclidian distances of KNNs of each data point. """
-    idxs, dists = knn(bbf.knn_tree, bbf.knn_tree.data, k+1);
+    idxs, dists = knn(bbl.knn_tree, bbl.knn_tree.data, k+1);
     return idxs, dists
 end
 

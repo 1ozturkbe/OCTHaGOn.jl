@@ -28,7 +28,7 @@ module OptimalConstraintTree
 
     include("settings.jl")
     
-    include("black_box_function.jl")
+    include("black_box_learners.jl")
 
     include("root_finding.jl")
 
@@ -71,7 +71,7 @@ module OptimalConstraintTree
            secant_method, knn_sample, build_knn_tree,
            find_knn, classify_patches,
            # Functions on BlackBoxLearners
-           add_data!, match_bbfs_to_vars,
+           add_data!, match_bbls_to_vars,
            # Functions on IAI structs
            bin_to_leaves, regress, check_if_trained,
            # Functions on JuMP objects

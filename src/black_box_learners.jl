@@ -2,7 +2,7 @@
     @with_kw mutable struct BlackBoxRegressor
 
 Allows for approximation of constraints using OCTs.
-To be added to GlobalModel.bbfs using functions:
+To be added to GlobalModel.bbls using functions:
     add_nonlinear_constraints
     add_nonlinear_or_compatible
 
@@ -53,7 +53,7 @@ end
     @with_kw mutable struct BlackBoxClassifier
 
 Allows for approximation of constraints using OCTs.
-To be added to GlobalModel.bbfs using functions:
+To be added to GlobalModel.bbls using functions:
     add_nonlinear_constraints
     add_nonlinear_or_compatible
 
@@ -99,9 +99,10 @@ function Base.show(io::IO, bbc::BlackBoxClassifier)
     println(io, "Sampled $(length(bbc.Y)) times, and has $(length(bbc.learners)) trained OCTs.")
 end
 
-set_param(bbf::Union{BlackBoxClassifier, BlackBoxRegressor}, key::Symbol, val) = set_param(bbf.params, key, val)
-set_param(bbfs::Union{BlackBoxClassifier, BlackBoxRegressor}, key::Symbol, val) = foreach(bbf -> set_param(bbf.params, key, val), bbfs)
-get_param(bbf::Union{BlackBoxClassifier, BlackBoxRegressor}, key::Symbol) = get_param(bbf.params, key)
+set_param(bbl::Union{BlackBoxClassifier, BlackBoxRegressor}, key::Symbol, val) = set_param(bbl.params, key, val)
+set_param(bbls::Array{BlackBoxClassifier, BlackBoxRegressor}, key::Symbol, val) = foreach(bbl -> set_param(bbl, key, val), bbls)
+get_param(bbl::Union{BlackBoxClassifier, BlackBoxRegressor}, key::Symbol) = get_param(bbl.params, key)
+get_param(bbls::Array{BlackBoxClassifier, BlackBoxRegressor}, key::Symbol) = [get_param(bbl, key) for bbl in bbls]
 
 """
     add_data!(bbc::BlackBoxClassifier, X::DataFrame, Y::Array)
@@ -135,20 +136,20 @@ function add_data!(bbr::BlackBoxRegressor, X::DataFrame, Y::Array)
 end
 
 """
-    evaluate(bbf::Union{BlackBoxClassifier, BlackBoxRegressor}, data::Union{Dict, DataFrame})
+    evaluate(bbl::Union{BlackBoxClassifier, BlackBoxRegressor}, data::Union{Dict, DataFrame})
 
 Evaluates constraint violation on data in the variables, and returns distance from set.
         Note that the keys of the Dict have to be uniform.
 """
-function evaluate(bbf::Union{BlackBoxClassifier, BlackBoxRegressor}, data::Union{Dict, DataFrame})
+function evaluate(bbl::Union{BlackBoxClassifier, BlackBoxRegressor}, data::Union{Dict, DataFrame})
     clean_data = data_to_DataFrame(data);
-    if isnothing(bbf.fn)
-        constr_obj = constraint_object(bbf.constraint)
+    if isnothing(bbl.fn)
+        constr_obj = constraint_object(bbl.constraint)
         rhs_const = get_constant(constr_obj.set)
         vals = [JuMP.value(constr_obj.func, i -> clean_data[!,string(i)][j]) for j=1:size(clean_data,1)]
         if any(isinf.(vals)) || any(isnan.(vals))
-            throw(OCTException(string("Constraint ", bbf.constraint, " returned an infinite or NaN value.",
-                                      "Please check your variable definitions in BBF ", bbf, " . ")))
+            throw(OCTException(string("Constraint ", bbl.constraint, " returned an infinite or NaN value.",
+                                      "Please check your variable definitions in bbl ", bbl, " . ")))
         end
         if isnothing(rhs_const)
             vals = [-1*distance_to_set(vals[i], constr_obj.set) for i=1:length(vals)]
@@ -162,11 +163,11 @@ function evaluate(bbf::Union{BlackBoxClassifier, BlackBoxRegressor}, data::Union
         length(vals) == 1 && return vals[1]
         return vals
     else
-        arrs = deconstruct(clean_data, bbf.vars, bbf.varmap)
+        arrs = deconstruct(clean_data, bbl.vars, bbl.varmap)
         vals = []
         for arr in arrs
             try
-                push!(vals, Base.invokelatest(bbf.fn, (arr...)))
+                push!(vals, Base.invokelatest(bbl.fn, (arr...)))
             catch DomainError
                 push!(vals, -Inf)
             end
@@ -176,18 +177,18 @@ function evaluate(bbf::Union{BlackBoxClassifier, BlackBoxRegressor}, data::Union
 end
 
 """
-    function (bbf::Union{BlackBoxClassifier, BlackBoxRegressor})(x::Union{DataFrame,Dict,DataFrameRow})
+    function (bbl::Union{BlackBoxClassifier, BlackBoxRegressor})(x::Union{DataFrame,Dict,DataFrameRow})
 
 Makes the BBC or BBR callable as a function.
 """
-function (bbf::Union{BlackBoxClassifier, BlackBoxRegressor})(X::Union{DataFrame,Dict,DataFrameRow})
-    return evaluate(bbf, X)
+function (bbl::Union{BlackBoxClassifier, BlackBoxRegressor})(X::Union{DataFrame,Dict,DataFrameRow})
+    return evaluate(bbl, X)
 end
 
 """ Evaluates BlackBoxLearner at all X and stores the resulting data. """
-function eval!(bbf::Union{BlackBoxClassifier, BlackBoxRegressor}, X::DataFrame)
-    Y = bbf(X);
-    add_data!(bbf, X, Y)
+function eval!(bbl::Union{BlackBoxClassifier, BlackBoxRegressor}, X::DataFrame)
+    Y = bbl(X);
+    add_data!(bbl, X, Y)
 end
 
 """ Deletes all data associated with object. """

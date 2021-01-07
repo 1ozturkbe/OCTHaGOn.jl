@@ -15,10 +15,10 @@ function compile_lse_constraints(n_samples = 300)
         update_bounds!(md, lbs = Dict(md.vks[end] => -200), ubs= Dict(md.vks[end] => 200))
         if !any(isinf.(values(md.lbs))) && !any(isinf.(values(md.ubs)))
             println("Adding constraints from test ", string(idx));
-            for i=1:length(md.bbfs)
-                set_param(md.bbfs[i], :n_samples, n_samples)
-                md.bbfs[i].name = Float64(idx) + i/10.;
-                push!(ineq_constraints, md.bbfs[i]);
+            for i=1:length(md.bbls)
+                set_param(md.bbls[i], :n_samples, n_samples)
+                md.bbls[i].name = Float64(idx) + i/10.;
+                push!(ineq_constraints, md.bbls[i]);
             end
         end
     end
