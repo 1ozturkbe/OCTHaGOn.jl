@@ -6,7 +6,7 @@
 Clears the constraints bbf.mi_constraints 
     as well as bbf.leaf_variables in GlobalModel. 
 """
-function clear_tree_constraints!(gm::GlobalModel, bbf::{BlackBoxClassifier, BlackBoxRegressor})
+function clear_tree_constraints!(gm::GlobalModel, bbf::Union{BlackBoxClassifier, BlackBoxRegressor})
     for constraint in bbf.mi_constraints
         if is_valid(gm.model, constraint)
             delete(gm.model, constraint)
@@ -39,7 +39,7 @@ Generates MI constraints from gm.learners, and adds them to gm.model.
 """
 function add_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier; M = 1e5)
     if bbc.feas_ratio == 1.0
-        continue
+        return
     elseif size(bbc.X, 1) == 0 && !get_param(bbc, :reloaded)
         throw(OCTException("Constraint " * string(bbc.name) * " has not been sampled yet, and is thus untrained."))
     elseif length(bbc.learners) == 0

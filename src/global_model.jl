@@ -173,6 +173,7 @@ function add_nonlinear_constraint(gm::GlobalModel,
             push!(gm.bbfs, new_bbf)
             return     
         end
+    end
 end
 
 """
