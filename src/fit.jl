@@ -123,9 +123,7 @@ function learn_constraint!(bbc::BlackBoxClassifier, ignore_feas::Bool = false; k
     lnr = base_classifier()
     IAI.set_params!(lnr; classifier_kwargs(; kwargs...)...)
     if check_feasibility(bbc) || ignore_feas
-        nl = learn_from_data!(bbc.X, bbc.Y .>= 0,
-                            gridify(lnr);
-                            fit_classifier_kwargs(; kwargs...)...)
+        nl = learn_from_data!(bbc.X, bbc.Y .>= 0, gridify(lnr); fit_classifier_kwargs(; kwargs...)...)
         push!(bbc.learners, nl)
         bbc.predictions = IAI.predict(nl, bbc.X)
         push!(bbc.accuracies, IAI.score(nl, bbc.X, bbc.Y .>= 0)) # TODO: add ability to specify criterion. 
@@ -141,11 +139,9 @@ function learn_constraint!(bbr::BlackBoxRegressor, ignore_feas::Bool = false; kw
     set_param(bbr, :reloaded, false) # Makes sure that we know trees are retrained. 
     lnr = base_regressor()
     IAI.set_params!(lnr; regressor_kwargs(; kwargs...)...)
-    nl = learn_from_data!(bbr.X[idxs, :], bbr.Y[idxs],
-                            gridify(lnr);
-                            fit_regressor_kwargs(; kwargs...)...)             
+    nl = learn_from_data!(bbr.X, bbr.Y, gridify(lnr); fit_regressor_kwargs(; kwargs...)...)             
     push!(bbr.learners, nl);
-    bbc.predictions = IAI.predict(nl, bbc.X)
+    bbr.predictions = IAI.predict(nl, bbr.X)
     push!(bbr.accuracies, IAI.score(nl, bbr.X, bbr.Y)) # TODO: add ability to specify criterion. 
     push!(bbr.learner_kwargs, Dict(kwargs))
     return

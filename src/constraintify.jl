@@ -30,9 +30,8 @@ end
 clear_tree_constraints!(gm::GlobalModel) = clear_tree_constraints!(gm, gm.bbls)
 
 """
-    add_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier; M=1e5)
-    add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor; M=1e5)
-    add_tree_constraints!(gm::GlobalModel, bbls::Array; M=1e5)
+    add_tree_constraints!(gm::GlobalModel, bbl::BlackBoxLearner, M=1e5)
+    add_tree_constraints!(gm::GlobalModel, bbls::Vector{BlackBoxLearner}; M=1e5)
     add_tree_constraints!(gm::GlobalModel)
 
 Generates MI constraints from gm.learners, and adds them to gm.model.
@@ -67,7 +66,7 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor; M = 1e5)
     return
 end
 
-function add_tree_constraints!(gm::GlobalModel, bbls::Array{BlackBoxLearner}; M = 1e5)
+function add_tree_constraints!(gm::GlobalModel, bbls::Vector{BlackBoxLearner}; M = 1e5)
     for bbl in bbls
         add_tree_constraints!(gm, bbl; M = M)
     end
