@@ -30,7 +30,8 @@ Optional arguments:
     fn::Union{Nothing, Function} = functionify(constraint)         # ... and actually evaluated f'n
     X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Function samples
     Y::Array = []                                      # Function values
-    infeas_idxs::Array = []                            # Infeasible samples
+    predictions::Array = []                            # Function predictions
+    infeas_X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Infeasible samples, if any
     equality::Bool = false                             # Equality check
     learners::Array{IAI.GridSearch} = []               # Learners...
     learner_kwargs = []                                # and their kwargs... 
@@ -79,6 +80,7 @@ Optional arguments:
     X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars))
                                                        # Function samples
     Y::Array = []                                      # Function values
+    predictions::Array = []                            # Function predictions
     feas_ratio::Float64 = 0.                           # Feasible sample proportion
     equality::Bool = false                             # Equality check
     dependent_var::Union{JuMP.VariableRef, Nothing} = nothing
