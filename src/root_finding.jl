@@ -5,7 +5,7 @@ root_finding:
 Root-finding methods sampling nonlinear functions
 =#
 
-function normalized_data(bbf::Union{BlackBoxFunction, DataConstraint})
+function normalized_data(bbf::Union{BlackBoxClassifier, BlackBoxRegressor})
     """ Normalizes and returns data (0-1) by lower and upper bounds."""
     bounds = get_bounds(bbf.vars)
     vks = string.(bbf.vars)
@@ -15,7 +15,7 @@ function normalized_data(bbf::Union{BlackBoxFunction, DataConstraint})
     return normalized_X
 end
 
-function build_knn_tree(bbf::BlackBoxFunction)
+function build_knn_tree(bbf::Union{BlackBoxClassifier, BlackBoxRegressor})
     """ Builds an efficient KNN tree over existing data."""
     X = normalized_data(bbf); #TODO: optimize calls to normalize data.
     kdtree = KDTree(X', reorder = false);
@@ -23,17 +23,17 @@ function build_knn_tree(bbf::BlackBoxFunction)
     return
 end
 
-function find_knn(bbf::BlackBoxFunction; k::Int64 = 10)
+function find_knn(bbf::Union{BlackBoxClassifier, BlackBoxRegressor}; k::Int64 = 10)
     """ Returns idxs and Euclidian distances of KNNs of each data point. """
     idxs, dists = knn(bbf.knn_tree, bbf.knn_tree.data, k+1);
     return idxs, dists
 end
 
 """ Classifies KNN domains by feasibility. """
-function classify_patches(bbf::BlackBoxFunction, idxs::Array)
+function classify_patches(bbc::BlackBoxClassifier, idxs::Array)
     arr = []
     for idx in idxs
-        signs = [bbf.Y[i] for i in idx];
+        signs = [bbc.Y[i] for i in idx];
         if all(signs .>= 0)
             push!(arr, "feas")
         elseif all(signs .< 0)

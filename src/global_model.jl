@@ -291,10 +291,10 @@ function classify_constraints(model::Union{GlobalModel, JuMP.Model})
 end
 
 """ Returns the feasibility of data points in a BBF or GM. """
-function feasibility(bbf::Union{GlobalModel, Array{BlackBoxFunction, DataConstraint}, DataConstraint, BlackBoxFunction})
-    if isa(bbf, Union{BlackBoxFunction, DataConstraint})
+function feasibility(bbf::Union{GlobalModel, Array{BlackBoxClassifier, BlackBoxRegressor}, BlackBoxClassifier, BlackBoxRegressor})
+    if isa(bbf, Union{BlackBoxFunction})
         return bbf.feas_ratio
-    elseif isa(bbf, Array{BlackBoxFunction, DataConstraint})
+    elseif isa(bbf, Array{BlackBoxFunction})
         return [feasibility(fn) for fn in bbf]
     else
         return [feasibility(fn) for fn in bbf.bbfs]
