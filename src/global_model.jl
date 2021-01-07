@@ -7,7 +7,7 @@ nonlinear_model can contain JuMP.NonlinearConstraints.
 @with_kw mutable struct GlobalModel
     model::JuMP.Model                                            # JuMP model
     name::String = "Model"                                       # Example name
-    bbfs::Array{BlackBoxFunction} = Array{BlackBoxFunction}[]    # Black box (>/= 0) functions
+    bbfs::Array{BlackBoxClassifier, BlackBoxRegressor} = []      # Black box (>/= 0) functions
     vars::Array{VariableRef} = JuMP.all_variables(model)         # JuMP variables
     solution_history::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Solution history
     params::Dict = gm_defaults()                 # GM settings
@@ -15,7 +15,7 @@ end
 
 function Base.show(io::IO, gm::GlobalModel)
     println(io, "GlobalModel " * gm.name * " with $(length(gm.vars)) variables: ")
-    println(io, "Has $(length(gm.bbfs)) BlackBoxFunctions.")
+    println(io, "Has $(length(gm.bbfs)) BlackBoxObjects.")
     if get_param(gm, :ignore_feasibility)
         if get_param(gm, :ignore_accuracy)
             println(io, "Ignores training accuracy and data_feasibility thresholds.")
@@ -35,7 +35,7 @@ get_param(gm::GlobalModel, key::Symbol) = get_param(gm.params, key)
 """
     (gm::GlobalModel)(name::String)
 
-Finds BlackBoxFunction in GlobalModel by name.
+Finds BlackBoxObject in GlobalModel by name.
 """
 function (gm::GlobalModel)(name::String)
     fn_names = getfield.(gm.bbfs, :name)
@@ -54,20 +54,14 @@ end
 """
     JuMP.all_variables(gm::Union{GlobalModel, BlackBoxFunction})
 
-Extends JuMP.all_variables to GMs and BBFs
-and makes sure that the variables are updated.
+Extends JuMP.all_variables to GlobalModels and BlackBoxObjects. 
+TODO: add ability to add variables to GlobalModels. 
 """
-function JuMP.all_variables(gm::Union{GlobalModel, BlackBoxFunction})
-    if gm isa GlobalModel
-        gm.vars = JuMP.all_variables(gm.model)
-    end
-    return gm.vars
-end
+JuMP.all_variables(bbo::Union{GlobalModel, BlackBoxClassifier, BlackBoxRegressor}) = bbo.vars
 
-function JuMP.all_variables(bbfs::Array{BlackBoxFunction})
-    return unique(Iterators.flatten(([all_variables(bbf) for bbf in bbfs])))
+function JuMP.all_variables(bbfs::Array{BlackBoxClassifier, BlackBoxRegressor})
+    return unique(Iterators.flatten(([JuMP.all_variables(bbf) for bbf in bbfs])))
 end
-
 
 """ Extends JuMP.set_optimizer to GlobalModels. """
 function JuMP.set_optimizer(gm::GlobalModel, optimizer_factory)
@@ -75,23 +69,25 @@ function JuMP.set_optimizer(gm::GlobalModel, optimizer_factory)
 end
 
 """
-    get_bounds(model::Union{GlobalModel, JuMP.Model, BlackBoxFunction})
-    get_bounds(bbfs::Array{BlackBoxFunction})
+    get_bounds(model::Union{JuMP.Model, BlackBoxClassifier, BlackBoxRegressor, 
+                            Array{BlackBoxClassifier, BlackBoxRegressor})
 
 Returns bounds of all variables.
 """
-function get_bounds(model::Union{GlobalModel, JuMP.Model, BlackBoxFunction, Array{BlackBoxFunction, 1}})
-    return get_bounds(all_variables(model))
+function get_bounds(model::Union{GlobalModel, JuMP.Model, BlackBoxClassifier, BlackBoxRegressor, 
+                                 Array{BlackBoxClassifier, BlackBoxRegressor}})
+    return get_bounds(JuMP.all_variables(model))
 end
 
 """
-    get_unbounds(model::Union{GlobalModel, JuMP.Model, BlackBoxFunction})
-    get_unbounds(bbfs::Array{BlackBoxFunction})
+    get_unbounds(model::Union{GlobalModel, JuMP.Model, BlackBoxClassifier, BlackBoxRegressor, 
+                 Array{BlackBoxClassifier, BlackBoxRegressor}})
 
-Returns bounds of all unbounded variables.
+Returns only unbounded variables. 
 """
-function get_unbounds(model::Union{JuMP.Model, GlobalModel, BlackBoxFunction, Array{BlackBoxFunction}})
-    return get_unbounds(all_variables(model))
+function get_unbounds(model::Union{GlobalModel, JuMP.Model, BlackBoxClassifier, BlackBoxRegressor, 
+                      Array{BlackBoxClassifier, BlackBoxRegressor}})
+    return get_unbounds(JuMP.all_variables(model))
 end
 
 """
@@ -339,7 +335,7 @@ function solution(gm::GlobalModel)
 end
 
 function solution(m::JuMP.Model)
-    variables = all_variables(m)
+    variables = JuMP.all_variables(m)
     vals = getvalue.(variables)
     return DataFrame(vals', string.(variables))
 end
