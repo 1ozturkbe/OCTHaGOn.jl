@@ -157,7 +157,7 @@ function add_nonlinear_constraint(gm::GlobalModel,
             return
         end
     elseif constraint isa Union{JuMP.ScalarConstraint, JuMP.ConstraintRef}
-        !isnothing(dependent_var) && throw(OCTException("Constraint " * name * " is of type JuMP.ScalarConstraint, " *
+        !isnothing(dependent_var) && throw(OCTException("Constraint " * name * " is of type $(string(typeof(constraint))) " *
                                                         "and cannot have a dependent variable " * string(dependent_var) * "."))
         if constraint isa JuMP.ScalarConstraint
             con = JuMP.add_constraint(gm.model, constraint)
@@ -227,7 +227,7 @@ end
 Turns gm.model into the nonlinear representation.
 NOTE: to get back to MI-compatible forms, must rebuild model from scratch.
 """
-function nonlinearize!(gm::GlobalModel, bbfs::Array{BlackBoxFunction})
+function nonlinearize!(gm::GlobalModel, bbfs::Array{BlackBoxClassifier,BlackBoxRegressor})
     for (i, bbf) in enumerate(bbfs)
         if bbf.constraint isa JuMP.ConstraintRef
             JuMP.add_constraint(gm.model, bbf.constraint)
@@ -250,8 +250,12 @@ function nonlinearize!(gm::GlobalModel, bbfs::Array{BlackBoxFunction})
             fn = eval(flat_expr)
             JuMP.register(gm.model, symb, length(vars), fn; autodiff = true)
             expr = Expr(:call, symb, vars...)
-            if bbf.equality
+            if bbf.equality && bbf isa BlackBoxRegressor
+                JuMP.add_NL_constraint(gm.model, :($(expr) == $(bbf.dependent_var)))
+            elseif bbf.equality
                 JuMP.add_NL_constraint(gm.model, :($(expr) == 0))
+            elseif bbf isa BlackBoxRegressor
+                JuMP.add_NL_constraint(gm.model, :($(expr) <= $(bbf.dependent_var)))
             else
                 JuMP.add_NL_constraint(gm.model, :($(expr) >= 0))
             end
@@ -294,31 +298,33 @@ function classify_constraints(model::Union{GlobalModel, JuMP.Model})
 end
 
 """ Returns the feasibility of data points in a BBF or GM. """
-function feasibility(bbf::Union{GlobalModel, Array{BlackBoxClassifier, BlackBoxRegressor}, BlackBoxClassifier, BlackBoxRegressor})
-    if isa(bbf, Union{BlackBoxFunction})
-        return bbf.feas_ratio
-    elseif isa(bbf, Array{BlackBoxFunction})
-        return [feasibility(fn) for fn in bbf]
+feasibility(bbc::BlackBoxClassifier) = bbf.feas_ratio
+feasibility(bbr::BlackBoxClassifier) = size(bbr.X, 1) / (size(bbr.X,1) + size(bbr.infeas_X, 1))
+feasibility(bbls::Union{BlackBoxClassifier, BlackBoxRegressor}) = feasibility.(bbls)
+feasibility(gm::GlobalModel) = feasibility.(gm.bbfs)
+
+""" Returns the accuracy of learners in a BBF or GM. """
+function accuracy(bbc::BlackBoxClassifier)
+    if bbc.feas_ratio in [1., 0]
+        @warn(string("Accuracy of BlackBoxClassifier ", bbc.name, " is tautological."))
+        return 1.
+    elseif isempty(bbc.learners)
+        throw(OCTException(string("BlackBoxClassifier ", bbc.name, " has not been trained yet.")))
     else
-        return [feasibility(fn) for fn in bbf.bbfs]
+        return bbc.accuracies[end]
     end
 end
 
-""" Returns the accuracy of learners in a BBF or GM. """
-function accuracy(bbf::Union{GlobalModel, BlackBoxFunction})
-    if isa(bbf, BlackBoxFunction)
-        if bbf.feas_ratio in [1., 0]
-            @warn(string("Accuracy of BlackBoxFunction ", bbf.name, " is tautological."))
-            return 1.
-        elseif isempty(bbf.learners)
-            throw(OCTException(string("BlackBoxFunction ", bbf.name, " has not been trained yet.")))
-        else
-            return bbf.accuracies[end]
-        end
+function accuracy(bbr::BlackBoxRegressor)
+    if isempty(bbr.learners)
+        throw(OCTException(string("BlackBoxRegressor ", bbr.name, " has not been trained yet.")))
     else
-        return [accuracy(fn) for fn in bbf.bbfs]
+        return bbr.accuracies[end]
     end
 end
+
+accuracy(bbfs::Array{BlackBoxClassifier, BlackBoxRegressor}) = accuracy.(bbfs)
+accuracy(gm::GlobalModel) = accuracy.(gm.bbfs)
 
 """ 
     JuMP.optimize!(gm::GlobalModel; kwargs...)
@@ -356,7 +362,7 @@ function evaluate_feasibility(gm::GlobalModel)
     return [gm.bbfs[i].Y[end] >= 0 for i=1:length(gm.bbfs)]
 end
 
-""" Matches BBFs to associated variables. """
+""" Matches BBFs to associated variables (except for dependent variables in Regressors). """
 function match_bbfs_to_vars(bbfs::Array,
                             vars::Array = JuMP.all_variables(bbfs))
     # TODO: improve types.

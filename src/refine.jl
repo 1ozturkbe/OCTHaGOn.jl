@@ -1,5 +1,5 @@
 """ Finds the linear min/max bounds of JuMP.VariableRefs."""
-function find_linear_bounds!(gm::GlobalModel; bbfs::Array{BlackBoxFunction} = gm.bbfs, M=1e5, all_bounds::Bool = false)
+function find_linear_bounds!(gm::GlobalModel; bbfs::Array{BlackBoxClassifier, BlackBoxRegressor} = gm.bbfs, M=1e5, all_bounds::Bool = false)
     unbounds = get_unbounds(bbfs)
     if all_bounds
         unbounds = get_bounds(bbfs)
@@ -34,14 +34,14 @@ function find_linear_bounds!(gm::GlobalModel; bbfs::Array{BlackBoxFunction} = gm
 end
 
 """
-    find_bounds!(gm::GlobalModel; bbfs::Array{BlackBoxFunction} = [], M = 1e5, all_bounds::Bool=true)
+    find_bounds!(gm::GlobalModel; bbfs::Array{BlackBoxClassifier, BlackBoxRegressor} = [], M = 1e5, all_bounds::Bool=true)
 
 Finds the outer variable bounds of GlobalModel by solving only over the linear constraints
 and listed BBFs.
 TODO: improve! Only find bounds of non-binary variables.
 """
 
-function find_bounds!(gm::GlobalModel; bbfs::Array{BlackBoxFunction} = gm.bbfs, M = 1e5, all_bounds::Bool=false)
+function find_bounds!(gm::GlobalModel; bbfs::Array{BlackBoxClassifier, BlackBoxRegressor} = gm.bbfs, M = 1e5, all_bounds::Bool=false)
     linear_bounds = find_linear_bounds!(gm, bbfs = bbfs, M = M, all_bounds = all_bounds)
     return linear_bounds
 end

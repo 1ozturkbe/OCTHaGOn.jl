@@ -9,7 +9,7 @@ using PyCall
 
 function compile_lse_constraints(n_samples = 300)
     sagemarks = pyimport("sagebenchmarks.literature.solved");
-    ineq_constraints = BlackBoxFunction[];
+    ineq_constraints = Union{BlackBoxClassifier, BlackBoxRegressor}[]
     for idx=1:25
         md = OCT.sagemark_to_GlobalModel(idx, lse = false);
         update_bounds!(md, lbs = Dict(md.vks[end] => -200), ubs= Dict(md.vks[end] => 200))

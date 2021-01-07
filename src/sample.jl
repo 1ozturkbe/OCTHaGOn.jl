@@ -1,7 +1,7 @@
 """
     lh_sample(vars::Array{JuMP.VariableRef, 1}; lh_iterations::Int64 = 0,
                    n_samples::Int64 = 1000)
-    lh_sample(bbf::BlackBoxFunction; lh_iterations::Int64 = 0,
+    lh_sample(bbf::Union{BlackBoxClassifier, BlackBoxRegressor}; lh_iterations::Int64 = 0,
                    n_samples::Int64 = 1000)
 
 Uniformly Latin Hypercube samples the variables of GlobalModel, as long as all
@@ -21,7 +21,7 @@ function lh_sample(vars::Array{JuMP.VariableRef, 1}; lh_iterations::Int64 = 0,
    return DataFrame(X, string.(vars))
 end
 
-function lh_sample(bbf::BlackBoxFunction; lh_iterations::Int64 = 0,
+function lh_sample(bbf::Union{BlackBoxClassifier, BlackBoxRegressor}; lh_iterations::Int64 = 0,
                    n_samples::Int64 = 1000)
    return lh_sample(bbf.vars; lh_iterations = lh_iterations, n_samples = n_samples)
 end
@@ -31,7 +31,7 @@ function choose(large::Int64, small::Int64)
 end
 
 """
-    boundary_sample(bbf::BlackBoxFunction; fraction::Float64 = 0.5)
+    boundary_sample(bbf::Union{BlackBoxClassifier, BlackBoxRegressor}; fraction::Float64 = 0.5)
     boundary_sample(vars::Array{JuMP.VariableRef, 1}; n_samples = 100, fraction::Float64 = 0.5,
                          warn_string::String = "")
 
@@ -74,7 +74,7 @@ function boundary_sample(vars::Array{JuMP.VariableRef, 1}; n_samples::Int64 = 10
     return nX
 end
 
-function boundary_sample(bbf::BlackBoxFunction; fraction::Float64 = 0.5)
+function boundary_sample(bbf::Union{BlackBoxClassifier, BlackBoxRegressor}; fraction::Float64 = 0.5)
     return boundary_sample(bbf.vars, n_samples = get_param(bbf, :n_samples), fraction = fraction,
                            warn_string = bbf.name)
 end
@@ -82,9 +82,9 @@ end
 
 """
 Does KNN and interval arithmetic based sampling once there is at least one feasible
-    sample to a BlackBoxFunction.
+    sample to a BlackBoxLearner.
 """
-function knn_sample(bbf::BlackBoxFunction; k::Int64 = 10)
+function knn_sample(bbf::Union{BlackBoxClassifier, BlackBoxRegressor}; k::Int64 = 10)
     if bbf.feas_ratio == 0. || bbf.feas_ratio == 1.0
         throw(OCTException("Constraint " * string(bbf.name) * " must have at least one feasible or
                             infeasible sample to be KNN-sampled!"))
@@ -107,16 +107,16 @@ function knn_sample(bbf::BlackBoxFunction; k::Int64 = 10)
 end
 
 """
-    uniform_sample_and_eval!(bbf::Union{BlackBoxFunction, GlobalModel, Array{BlackBoxFunction}};
+    uniform_sample_and_eval!(bbf::Union{BlackBoxClassifier, BlackBoxRegressor, GlobalModel, Array{BlackBoxClassifier, BlackBoxRegressor}};
                               boundary_fraction::Float64 = 0.5,
                               lh_iterations::Int64 = 0)
 
-Uniform samples and evaluates BlackBoxFunction.
+Uniform samples and evaluates a BlackBoxLearner.
 Keyword arguments:
     boundary_fraction: maximum ratio of boundary samples
     lh_iterations: number of GA populations for LHC sampling (0 is a random LH.)
 """
-function uniform_sample_and_eval!(bbf::BlackBoxFunction;
+function uniform_sample_and_eval!(bbf::Union{BlackBoxClassifier, BlackBoxRegressor};
                           boundary_fraction::Float64 = 0.5,
                           lh_iterations::Int64 = 0)
     @assert size(bbf.X, 1) == 0 
@@ -127,7 +127,7 @@ function uniform_sample_and_eval!(bbf::BlackBoxFunction;
     eval!(bbf, df)
     df = lh_sample(bbf, lh_iterations = lh_iterations, n_samples = get_param(bbf, :n_samples) - size(df, 1))
     eval!(bbf, df);
-    if !get_param(bbf, :regression)
+    if bbf isa BlackBoxClassifier
         if bbf.feas_ratio == 1.0
             @warn(string(bbf.name) * " was not KNN sampled since it has no infeasible samples.")
         elseif bbf.feas_ratio == 0.0
@@ -141,7 +141,7 @@ function uniform_sample_and_eval!(bbf::BlackBoxFunction;
     return
 end
 
-function uniform_sample_and_eval!(bbfs::Array{BlackBoxFunction}; lh_iterations = 0) 
+function uniform_sample_and_eval!(bbfs::Array{BlackBoxClassifier, BlackBoxRegressor}; lh_iterations = 0) 
     for bbf in bbfs 
         uniform_sample_and_eval!(bbf, lh_iterations = lh_iterations)
     end
