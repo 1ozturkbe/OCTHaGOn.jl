@@ -64,10 +64,10 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor; M = 1e5)
         bbr.mi_constraints, bbr.leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
                                                                    bbr.learners[end].lnr;
                                                                    M = M, equality = bbr.equality)
-    elseif size(bbc.X, 1) == 0
-        throw(OCTException("Constraint " * string(bbc.name) * " has not been sampled yet, and is thus untrained."))
-    elseif isempty(bbc.learners)
-        throw(OCTException("Constraint " * string(bbc.name) * " must be learned before tree constraints
+    elseif size(bbr.X, 1) == 0
+        throw(OCTException("Constraint " * string(bbr.name) * " has not been sampled yet, and is thus untrained."))
+    elseif isempty(bbr.learners)
+        throw(OCTException("Constraint " * string(bbr.name) * " must be learned before tree constraints
                             can be generated."))
     else
         bbr.mi_constraints, bbr.leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
