@@ -180,7 +180,7 @@ end
 
 Makes the BBC or BBR callable as a function.
 """
-function (bbf::Union{BlackBoxRegressor, BlackBoxClassifier})(X::Union{DataFrame,Dict,DataFrameRow})
+function (bbf::Union{BlackBoxClassifier, BlackBoxRegressor})(X::Union{DataFrame,Dict,DataFrameRow})
     return evaluate(bbf, X)
 end
 
