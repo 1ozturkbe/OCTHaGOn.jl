@@ -203,8 +203,9 @@ end
 function clear_data!(bbc::BlackBoxClassifier)
     bbc.X = DataFrame([Float64 for i=1:length(bbc.vars)], string.(bbc.vars))
     bbc.Y = [];
+    bbc.predictions = [];
     bbc.feas_ratio = 0
-    bbc.learners =[];
+    bbc.learners = [];
     bbc.learner_kwargs = []                            
     bbc.accuracies = []                    # and the tree misclassification scores.
 end
@@ -212,8 +213,9 @@ end
 function clear_data!(bbr::BlackBoxRegressor)
     bbr.X = DataFrame([Float64 for i=1:length(bbr.vars)], string.(bbr.vars))
     bbr.Y = [];
-    bbr.infeas_idxs = [];
-    bbr.learners =[];
+    bbr.predictions = [];
+    bbr.infeas_X = DataFrame([Float64 for i=1:length(bbr.vars)], string.(bbr.vars));
+    bbr.learners = [];
     bbr.learner_kwargs = []                            
     bbr.accuracies = []                    # and the tree misclassification scores.
 end

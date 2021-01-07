@@ -39,16 +39,17 @@ Generates MI constraints from gm.learners, and adds them to gm.model.
 function add_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier; M = 1e5)
     if bbc.feas_ratio == 1.0
         return
-    elseif size(bbc.X, 1) == 0 && !get_param(bbc, :reloaded)
+    elseif get_param(bbc, :reloaded)
+        bbc.mi_constraints, bbc.leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[end].lnr;
+                                            M=M, equality = bbc.equality)
+    elseif size(bbc.X, 1) == 0
         throw(OCTException("Constraint " * string(bbc.name) * " has not been sampled yet, and is thus untrained."))
-    elseif length(bbc.learners) == 0
-        throw(OCTException("Constraint " * string(bbc.name) * " has not been learned yet"))
-    elseif bbc.feas_ratio == 0.0 && !get_param(bbc, :reloaded)
-        throw(OCTException("Constraint " * string(bbc.name) * " is INFEASIBLE but you tried to include it in
-            your global problem. Find at least one feasible solution, train and try again."))
     elseif isempty(bbc.learners)
         throw(OCTException("Constraint " * string(bbc.name) * " must be learned before tree constraints
                             can be generated."))
+    elseif bbc.feas_ratio == 0.0
+        throw(OCTException("Constraint " * string(bbc.name) * " is INFEASIBLE but you tried to include it in
+            your global problem. Find at least one feasible solution, train and try again."))
     elseif !get_param(gm, :ignore_accuracy) && !check_accuracy(bbc)
         throw(OCTException("Constraint " * string(bbc.name) * " is inaccurately approximated. "))
     else
@@ -59,10 +60,20 @@ function add_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier; M = 1e5
 end
 
 function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor; M = 1e5)
-    # TODO: check regressions much better
-    bbr.mi_constraints, bbr.leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
+    if get_param(bbr, :reloaded)
+        bbr.mi_constraints, bbr.leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
                                                                    bbr.learners[end].lnr;
                                                                    M = M, equality = bbr.equality)
+    elseif size(bbc.X, 1) == 0
+        throw(OCTException("Constraint " * string(bbc.name) * " has not been sampled yet, and is thus untrained."))
+    elseif isempty(bbc.learners)
+        throw(OCTException("Constraint " * string(bbc.name) * " must be learned before tree constraints
+                            can be generated."))
+    else
+        bbr.mi_constraints, bbr.leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
+                                                                   bbr.learners[end].lnr;
+                                                                   M = M, equality = bbr.equality)
+    end
     return
 end
 

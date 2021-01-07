@@ -34,14 +34,13 @@ function find_linear_bounds!(gm::GlobalModel; bbls::Array{BlackBoxLearner} = gm.
 end
 
 """
-    find_bounds!(gm::GlobalModel; bbls::Array{BlackBoxLearner} = [], M = 1e5, all_bounds::Bool=true)
+    find_bounds!(gm::GlobalModel; bbls::Array{BlackBoxLearner} = [], M = 1e5, all_bounds::Bool = false)
 
 Finds the outer variable bounds of GlobalModel by solving only over the linear constraints
 and listed bbls.
 TODO: improve! Only find bounds of non-binary variables.
 """
-
-function find_bounds!(gm::GlobalModel; bbls::Array{BlackBoxLearner} = gm.bbls, M = 1e5, all_bounds::Bool=false)
+function find_bounds!(gm::GlobalModel; bbls::Array{BlackBoxLearner} = gm.bbls, M = 1e5, all_bounds::Bool = false)
     linear_bounds = find_linear_bounds!(gm, bbls = bbls, M = M, all_bounds = all_bounds)
     return linear_bounds
 end
