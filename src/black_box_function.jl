@@ -184,7 +184,7 @@ function (bbf::Union{BlackBoxClassifier, BlackBoxRegressor})(X::Union{DataFrame,
     return evaluate(bbf, X)
 end
 
-""" Evaluates BlackBoxObject at all X and stores the resulting data. """
+""" Evaluates BlackBoxLearner at all X and stores the resulting data. """
 function eval!(bbf::Union{BlackBoxClassifier, BlackBoxRegressor}, X::DataFrame)
     Y = bbf(X);
     add_data!(bbf, X, Y)

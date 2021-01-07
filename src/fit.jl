@@ -86,7 +86,7 @@ function check_feasibility(gm::GlobalModel)
     return [check_feasibility(bbf) for bbf in gm.bbfs]
 end
 
-""" Checks that a BlackBoxObject.learner has adequate accuracy."""
+""" Checks that a BlackBoxLearner.learner has adequate accuracy."""
 function check_accuracy(bbc::BlackBoxClassifier)
     return bbc.accuracies[end] >= get_param(bbc, :threshold_accuracy)
 end
@@ -94,13 +94,13 @@ end
 check_accuracy(bbr::BlackBoxRegressor) = true # TODO: use MSE
 
 function check_sampled(bbf::Union{BlackBoxClassifier, BlackBoxRegressor})
-    size(bbf.X, 1) == 0 && throw(OCTException(string("BlackBoxObject ", bbf.name, " must be sampled first.")))
+    size(bbf.X, 1) == 0 && throw(OCTException(string("BlackBoxLearner ", bbf.name, " must be sampled first.")))
 end
 
 """
-    learn_constraint!(bbf::Union{GlobalModel, BlackBoxObject, Array}; kwargs...)
+    learn_constraint!(bbf::Union{GlobalModel, BlackBoxLearner, Array}; kwargs...)
 
-Constructs a constraint tree from a BlackBoxObject and dumps in bbo.learners.
+Constructs a constraint tree from a BlackBoxLearner and dumps in bbo.learners.
 Arguments:
     bbf: OCT structs (GM, BBF, Array{BBF})
     ignore_feas::Bool: Whether to ignore feasibility thresholds for BlackBoxClassifiers.
@@ -162,7 +162,7 @@ save_fit(bbfs::Array, dir::String = SAVE_DIR) = [save_fit(bbf, dir) for bbf in b
 save_fit(gm::GlobalModel, dir::String = SAVE_DIR) = save_fit(gm.bbfs, dir)
 
 """
-    load_fit(BlackBoxObject, dir::String = SAVE_DIR)
+    load_fit(BlackBoxLearner, dir::String = SAVE_DIR)
 
 Loads IAI fits associated with OptimalConstraintTree objects.
 Checks that there is correspondence between loaded trees and the associated constraints.

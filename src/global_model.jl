@@ -15,7 +15,7 @@ end
 
 function Base.show(io::IO, gm::GlobalModel)
     println(io, "GlobalModel " * gm.name * " with $(length(gm.vars)) variables: ")
-    println(io, "Has $(length(gm.bbfs)) BlackBoxObjects.")
+    println(io, "Has $(length(gm.bbfs)) BlackBoxLearners.")
     if get_param(gm, :ignore_feasibility)
         if get_param(gm, :ignore_accuracy)
             println(io, "Ignores training accuracy and data_feasibility thresholds.")
@@ -35,7 +35,7 @@ get_param(gm::GlobalModel, key::Symbol) = get_param(gm.params, key)
 """
     (gm::GlobalModel)(name::String)
 
-Finds BlackBoxObject in GlobalModel by name.
+Finds BlackBoxLearner in GlobalModel by name.
 """
 function (gm::GlobalModel)(name::String)
     fn_names = getfield.(gm.bbfs, :name)
@@ -54,7 +54,7 @@ end
 """
     JuMP.all_variables(gm::Union{GlobalModel, BlackBoxFunction})
 
-Extends JuMP.all_variables to GlobalModels and BlackBoxObjects. 
+Extends JuMP.all_variables to GlobalModels and BlackBoxLearners. 
 TODO: add ability to add variables to GlobalModels. 
 """
 JuMP.all_variables(bbo::Union{GlobalModel, BlackBoxClassifier, BlackBoxRegressor}) = bbo.vars
