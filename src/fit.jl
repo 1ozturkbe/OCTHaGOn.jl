@@ -166,7 +166,7 @@ function save_fit(bbl::BlackBoxLearner, dir::String = SAVE_DIR)
 end
 
 save_fit(bbls::Array, dir::String = SAVE_DIR) = [save_fit(bbl, dir) for bbl in bbls]
-save_fit(gm::GlobalModel, dir::String = SAVE_DIR) = save_fit(gm.bbls, dir)
+save_fit(gm::GlobalModel, dir::String = SAVE_DIR) = save_fit(gm.bbls, dir * "$(gm.name)_")
 
 """
     load_fit(BlackBoxLearner, dir::String = SAVE_DIR)
@@ -186,4 +186,4 @@ end
 load_fit(bbls::Array{BlackBoxLearner}, 
         dir::String = SAVE_DIR) = [load_fit(bbl, dir) for bbl in bbls]
 
-load_fit(gm::GlobalModel, dir::String = SAVE_DIR) = load_fit(gm.bbls, dir)
+load_fit(gm::GlobalModel, dir::String = SAVE_DIR) = load_fit(gm.bbls, dir * "$(gm.name)_")

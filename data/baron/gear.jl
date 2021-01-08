@@ -17,8 +17,8 @@ function gear(gm::Bool = false)
     for j = 1:4
         JuMP.set_start_value(i[j], 24)
     end
-    @constraint(m, - i[3] + i[4] >= 0)
-    @constraint(m, i[1] - i[2] >= 0)
+    @constraint(m, e2, - i[3] + i[4] >= 0)
+    @constraint(m, e3, i[1] - i[2] >= 0)
     if !gm
         @NLobjective(m, Min, (6.931 - i[1]*i[2]/(i[3]*i[4]))^2 + 1)
         set_optimizer(m, BARON_SILENT)

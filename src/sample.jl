@@ -148,4 +148,5 @@ function uniform_sample_and_eval!(bbls::Array{BlackBoxLearner}; lh_iterations = 
     return
 end
 
-uniform_sample_and_eval!(gm::GlobalModel) = uniform_sample_and_eval!(gm.bbls; lh_iterations = get_param(gm, :lh_iterations))
+uniform_sample_and_eval!(gm::GlobalModel; lh_iterations::Int64 = get_param(gm, :lh_iterations)) = 
+        uniform_sample_and_eval!(gm.bbls; lh_iterations = lh_iterations)

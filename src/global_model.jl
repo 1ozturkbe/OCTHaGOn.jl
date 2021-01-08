@@ -140,7 +140,7 @@ function add_nonlinear_constraint(gm::GlobalModel,
                      vars::Union{Nothing, Array{JuMP.VariableRef, 1}} = nothing,
                      expr_vars::Union{Nothing, Array} = nothing,
                      dependent_var::Union{Nothing, JuMP.VariableRef} = nothing,
-                     name::String = gm.name * "_" * string(length(gm.bbls) + 1),
+                     name::String = "bbl" * string(length(gm.bbls) + 1),
                      equality::Bool = false)
     vars, expr_vars = determine_vars(gm, constraint, vars = vars, expr_vars = expr_vars)
     if constraint isa Expr
