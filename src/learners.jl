@@ -26,13 +26,3 @@ function base_regressor()
         ls_num_tree_restarts = 10,
         ls_num_hyper_restarts =  5)
 end
-
-""" Turns IAI.Learners into single element IAI.GridSearches. """
-function gridify(lnr::IAI.Learner)
-    if !hasproperty(lnr, :lnr)
-        grid = IAI.GridSearch(lnr);
-    else
-        grid = lnr;
-    end
-    return grid
-end

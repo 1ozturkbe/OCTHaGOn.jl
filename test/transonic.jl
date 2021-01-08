@@ -20,7 +20,6 @@ function train_transonic_tree()
     # Training tree
     lnr = OCT.base_otr()
     IAI.set_params!(lnr, hyperplane_config=(sparsity=1,))
-    lnr = OCT.gridify(lnr);
     IAI.fit!(lnr, train_X, train_y)
     IAI.write_json(string(PROJECT_ROOT, "/data/transonic_tree.json"), lnr)
     return true
@@ -34,8 +33,8 @@ function transonic_mio_model()
     M = [0.4, 0.5, 0.6, 0.7, 0.8, 0.9];
     cl = Array(range(0.35, stop=0.70, step=0.05));
     vks = [Symbol("x",i) for i=1:4];
-    pwlDict = OCT.pwl_constraint_data(lnr.lnr, vks);
-    upperDict, lowerDict = OCT.trust_region_data(lnr.lnr, vks);
+    pwlDict = OCT.pwl_constraint_data(lnr, vks);
+    upperDict, lowerDict = OCT.trust_region_data(lnr, vks);
     # Generate MIO constraints from aerodynamics data
     m = Model()
     set_optimizer(m, CPLEX_SILENT);

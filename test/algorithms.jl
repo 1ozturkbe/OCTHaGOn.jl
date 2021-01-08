@@ -89,7 +89,7 @@ function test_speed_params(gm::GlobalModel = gear(true), solver = CPLEX_SILENT)
                           :max_depth => 2)
             learn_constraint!(bbl; params...)
             push!(time_mat[i], time() - t1)
-            push!(tree_mat[i], bbl.learners[end].lnr)
+            push!(tree_mat[i], bbl.learners[end])
             push!(score_mat[i], bbl.accuracies[end])
         end
     end
