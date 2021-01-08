@@ -161,21 +161,21 @@ learn_constraint!(gm::GlobalModel, ignore_feas::Bool = get_param(gm, :ignore_fea
 
 Saves IAI fits associated with different OptimalConstraintTree objects.
 """
-function save_fit(bbl::BlackBoxLearner, dir::String = SAVE_DIR)
+function save_fit(bbl::BlackBoxLearner, dir::String = TREE_DIR)
     IAI.write_json(dir * bbl.name * ".json", bbl.learners[end])
 end
 
-save_fit(bbls::Array, dir::String = SAVE_DIR) = [save_fit(bbl, dir) for bbl in bbls]
-save_fit(gm::GlobalModel, dir::String = SAVE_DIR) = save_fit(gm.bbls, dir * "$(gm.name)_")
+save_fit(bbls::Array, dir::String = TREE_DIR) = [save_fit(bbl, dir) for bbl in bbls]
+save_fit(gm::GlobalModel, dir::String = TREE_DIR) = save_fit(gm.bbls, dir * "$(gm.name)_")
 
 """
-    load_fit(BlackBoxLearner, dir::String = SAVE_DIR)
+    load_fit(BlackBoxLearner, dir::String = TREE_DIR)
 
 Loads IAI fits associated with OptimalConstraintTree objects.
 Checks that there is correspondence between loaded trees and the associated constraints.
 """
 
-function load_fit(bbl::BlackBoxLearner, dir::String = SAVE_DIR)
+function load_fit(bbl::BlackBoxLearner, dir::String = TREE_DIR)
     loaded_grid = IAI.read_json(dir * bbl.name * ".json");
     size(IAI.variable_importance(loaded_grid.lnr), 1) == length(bbl.vars) || throw(
         OCTException("Object " * bbl.name * " does not match associated learner."))
@@ -184,6 +184,6 @@ function load_fit(bbl::BlackBoxLearner, dir::String = SAVE_DIR)
 end
 
 load_fit(bbls::Array{BlackBoxLearner}, 
-        dir::String = SAVE_DIR) = [load_fit(bbl, dir) for bbl in bbls]
+        dir::String = TREE_DIR) = [load_fit(bbl, dir) for bbl in bbls]
 
-load_fit(gm::GlobalModel, dir::String = SAVE_DIR) = load_fit(gm.bbls, dir * "$(gm.name)_")
+load_fit(gm::GlobalModel, dir::String = TREE_DIR) = load_fit(gm.bbls, dir * "$(gm.name)_")

@@ -15,9 +15,12 @@ module OptimalConstraintTree
     using StatsBase
 
     const PROJECT_ROOT = dirname(dirname(@__FILE__))
-    const SAVE_DIR = PROJECT_ROOT * "\\data\\"
-    const GAMS_DIR = PROJECT_ROOT * "\\data\\gams\\"
+    const DATA_DIR = PROJECT_ROOT * "\\data\\"
     const BARON_DIR = PROJECT_ROOT * "\\data\\baron\\"
+    const GAMS_DIR = PROJECT_ROOT * "\\data\\gams\\"  
+    const SOL_DIR = PROJECT_ROOT * "\\data\\solutions\\"
+    const TREE_DIR = PROJECT_ROOT * "\\data\\trees\\"
+
 
     include("small_scripts.jl")
 
