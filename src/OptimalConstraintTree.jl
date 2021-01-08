@@ -27,10 +27,8 @@ module OptimalConstraintTree
     include("exceptions.jl")
 
     include("settings.jl")
-
-    include("data_constraint.jl")
-
-    include("black_box_function.jl")
+    
+    include("black_box_learners.jl")
 
     include("root_finding.jl")
 
@@ -51,12 +49,13 @@ module OptimalConstraintTree
     include("plot.jl")
 
            # Structs
-    export GlobalModel, BlackBoxFunction, DataConstraint,
+    export GlobalModel,
+           BlackBoxLearner, BlackBoxClassifier, BlackBoxRegressor,
            # GlobalModel Functions
            globalsolve,
            # JuMP.Model extensions to GlobalModel
            set_optimizer, optimize!,
-           # Functions on GlobalModel and BlackBoxFunctions and DataConstraints
+           # Functions on GlobalModel and BlackBoxLearners
            gridify, learn_from_data!, find_bounds!, find_linear_bounds!,
            add_nonlinear_constraint, add_nonlinear_or_compatible, determine_vars,
            lh_sample, boundary_sample,
@@ -65,14 +64,14 @@ module OptimalConstraintTree
            evaluate_feasibility,
            nonlinearize!,
            save_fit, load_fit, set_param, get_param, 
-           # Functions on both BlackBoxFunctions and DataConstraints
+           # Functions on BlackBoxLearners
            show_trees, learn_constraint!,
-           # Functions on BlackBoxFunctions only
+           # Functions on BlackBoxLearners only
            eval!, uniform_sample_and_eval!,
            secant_method, knn_sample, build_knn_tree,
            find_knn, classify_patches,
-           # Functions on BlackBoxFunctions and DataConstraints
-           add_data!, match_bbfs_to_vars,
+           # Functions on BlackBoxLearners
+           add_data!, match_bbls_to_vars,
            # Functions on IAI structs
            bin_to_leaves, regress, check_if_trained,
            # Functions on JuMP objects
@@ -83,7 +82,9 @@ module OptimalConstraintTree
            distance_to_set, get_constant,
            add_feas_constraints!, add_regr_constraints!,
            add_tree_constraints!, clear_tree_constraints!,
-           base_lnr, fit_kwargs, lnr_kwargs,
+           base_regressor, base_classifier,
+           fit_regressor_kwargs, fit_classifier_kwargs, 
+           regressor_kwargs, classifier_kwargs,
            functionify,
            # Functions to import global optimization problems,
            sagemark_to_GlobalModel,

@@ -102,7 +102,7 @@ function test_linearize()
     @test length(l_constrs) == 27 && length(nl_constrs) == 1
 end
 
-function test_bbf()
+function test_bbl()
     model, x, y, z, a = test_model()
     nl_constr = @constraint(model, sum(x[4]^2 + x[5]^2) <= z)
     expr = :((x, y, z) -> sum(x[i] for i=1:4) - y[1] * y[2] + z)
@@ -114,59 +114,59 @@ function test_bbf()
     @test data_to_DataFrame(inp) == data_to_DataFrame(inp_dict) == data_to_DataFrame(inp_df) == inp_df
     @test data_to_Dict(inp_df, model) == data_to_Dict(inp, model) == data_to_Dict(inp_dict, model) == inp
 
-    # Test BBF creation
+    # Test bbl creation
     @test isnothing(functionify(nl_constr))
     @test functionify(expr) isa Function
-    bbfs = [BlackBoxFunction(constraint = nl_constr, vars = [x[4], x[5], z]),
-        BlackBoxFunction(constraint = expr, vars = flat([x[1:4], y[1:2], z]),
+    bbls = [BlackBoxClassifier(constraint = nl_constr, vars = [x[4], x[5], z]),
+        BlackBoxClassifier(constraint = expr, vars = flat([x[1:4], y[1:2], z]),
                          expr_vars = [x,y,z])]
 
     # Evaluation (scalar)
     # Quadratic (JuMP compatible) constraint
-    @test evaluate(bbfs[1], inp) == evaluate(bbfs[1], inp_dict) == evaluate(bbfs[1], inp_df) == -10.
+    @test evaluate(bbls[1], inp) == evaluate(bbls[1], inp_dict) == evaluate(bbls[1], inp_df) == -10.
     # Nonlinear expression
-    @test evaluate(bbfs[2], inp) == evaluate(bbfs[2], inp_dict) == evaluate(bbfs[2], inp_df)
+    @test evaluate(bbls[2], inp) == evaluate(bbls[2], inp_dict) == evaluate(bbls[2], inp_df)
 
     # Evaluation (vector)
     inp_df = DataFrame(-5 .+ 10 .*rand(3, size(inp_df,2)), string.(keys(inp)))
     inp_dict = data_to_Dict(inp_df, model)
-    @test evaluate(bbfs[1], inp_dict) == evaluate(bbfs[1], inp_df) == inp_df[!, "z"] -
+    @test evaluate(bbls[1], inp_dict) == evaluate(bbls[1], inp_df) == inp_df[!, "z"] -
                                                     inp_df[!, "x[4]"].^2 - inp_df[!, "x[5]"].^2
-    @test evaluate(bbfs[2], inp_dict) == evaluate(bbfs[2], inp_df)
+    @test evaluate(bbls[2], inp_dict) == evaluate(bbls[2], inp_df)
 
-    # BBF CHECKS
-    bbf = bbfs[1]
+    # bbl CHECKS
+    bbl = bbls[1]
 
     # Check unbounded sampling
-    @test_throws OCTException X = lh_sample(bbf, n_samples=100);
+    @test_throws OCTException X = lh_sample(bbl, n_samples=100);
 
     # Check knn_sampling without previous samples
-    @test_throws OCTException knn_sample(bbf, k=3)
+    @test_throws OCTException knn_sample(bbl, k=3)
 
     # Check evaluation of samples
-    samples = DataFrame(randn(10, length(bbf.vars)),string.(bbf.vars))
-    vals = bbf(samples);
+    samples = DataFrame(randn(10, length(bbl.vars)),string.(bbl.vars))
+    vals = bbl(samples);
     @test vals ≈ -1*samples[!, "x[4]"].^2 - samples[!, "x[5]"].^2 + samples[!, "z"]
 
     # Checks different kinds of sampling
     bound!(model, Dict(z => [-Inf, 10]))
-    X_bound = boundary_sample(bbf);
-    @test size(X_bound, 1) == 2^(length(bbf.vars)+1)
-    @test_throws OCTException knn_sample(bbf, k=3)
-    X_lh = lh_sample(bbf, lh_iterations=3);
+    X_bound = boundary_sample(bbl);
+    @test size(X_bound, 1) == 2^(length(bbl.vars)+1)
+    @test_throws OCTException knn_sample(bbl, k=3)
+    X_lh = lh_sample(bbl, lh_iterations=3);
 
     # Check sample_and_eval
-    uniform_sample_and_eval!(bbf);
+    uniform_sample_and_eval!(bbl);
 
     # Sampling, learning and showing...
-    learn_constraint!(bbf);
+    learn_constraint!(bbl);
 
     # Check feasibility and accuracy
-    @test 0 <= feasibility(bbf) <= 1
-    @test 0 <= accuracy(bbf) <= 1
+    @test 0 <= feasibility(bbl) <= 1
+    @test 0 <= accuracy(bbl) <= 1
 
     # Training a model
-    mi_constraints, leaf_variables = add_feas_constraints!(model, bbf.vars, bbf.learners[1].lnr);
+    mi_constraints, leaf_variables = add_feas_constraints!(model, bbl.vars, bbl.learners[1].lnr);
     @test true
 end
 
@@ -178,18 +178,18 @@ function test_kwargs()
                        :invalid_kwarg => :hello,
                        :ls_num_tree_restarts => 20)
 
-    dict_fit = fit_kwargs(; sample_kwargs...)
-    dict_fit2 = fit_kwargs(validation_criterion = :sensitivity, localsearch = false, invalid_kwarg = :hello,
+    dict_fit = fit_classifier_kwargs(; sample_kwargs...)
+    dict_fit2 = fit_classifier_kwargs(validation_criterion = :sensitivity, localsearch = false, invalid_kwarg = :hello,
                            ls_num_tree_restarts = 20)
     @test dict_fit == dict_fit2 == Dict(:validation_criterion => :sensitivity, :positive_label => 1)
 
-    dict_lnr = lnr_kwargs(; sample_kwargs...)
-    dict_lnr2 = lnr_kwargs(validation_criterion = :sensitivity, localsearch = false, invalid_kwarg = :hello,
+    dict_lnr = classifier_kwargs(; sample_kwargs...)
+    dict_lnr2 = classifier_kwargs(validation_criterion = :sensitivity, localsearch = false, invalid_kwarg = :hello,
                            ls_num_tree_restarts = 20)
     @test dict_lnr == dict_lnr2 == Dict(:localsearch => false, :ls_num_tree_restarts => 20)
 
     # Regression kwargs next...
-    dict_fit = fit_kwargs(true; sample_kwargs)
+    dict_fit = fit_regressor_kwargs(; sample_kwargs)
     @test dict_fit == Dict(:validation_criterion => :mse)
 end
 
@@ -203,6 +203,6 @@ test_sets()
 
 test_linearize()
 
-test_bbf()
+test_bbl()
 
 test_kwargs()

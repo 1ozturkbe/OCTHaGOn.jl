@@ -1,17 +1,15 @@
-""" Returns default BlackBoxFunction settings for approximation."""
-function bbf_defaults(regression::Bool = false)
-    if !regression
-        return Dict(:threshold_accuracy => 0.95,      # Minimum tree accuracy
-                    :threshold_feasibility => 0.15,   # Minimum feasibility ratio
-                    :n_samples => 200,                # Maximum number of samples at each step
-                    :regression => false,             # ORT?
-                    :reloaded => false)               # Whether learners are reloaded
-    else
-        return Dict(:threshold_mse => 1,              # Maximum MSE
-                    :n_samples => 100,                # Maximum number of samples at each step
-                    :regression => true,             # ORT?
-                    :reloaded => false)     
-    end
+""" Returns default BlackBoxRegressor settings for approximation."""
+function bbr_defaults(n_vars::Int64 = 10; sample_coeff = 200)
+    Dict(:n_samples => Int(ceil(sample_coeff*sqrt(n_vars))), # (0 if no sampling fn)
+         :reloaded => false)                                 # Whether learners are reloaded
+end
+
+""" Returns default BlackBoxClassifier settings for approximation."""
+function bbc_defaults(n_vars::Int64 = 10; sample_coeff = 200)
+    Dict(:threshold_accuracy => 0.95,                       # Minimum tree accuracy
+        :threshold_feasibility => 0.15,                     # Minimum feasibility ratio
+        :n_samples => Int(ceil(sample_coeff*sqrt(n_vars))), # (0 if no sampling fn)
+        :reloaded => false)                                 # Whether learners are reloaded  
 end
 
 """
@@ -23,7 +21,7 @@ function gm_defaults()
          :linear => true,
          :convex => false,
          :lh_iterations => 0,
-         :sample_coefficient => 200)
+         :sample_coeff => 200)
 end
 
 """ Sets parameters within Dict. """

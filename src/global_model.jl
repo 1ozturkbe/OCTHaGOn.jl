@@ -1,21 +1,21 @@
 """
 Contains all required info to be able to generate a global optimization problem.
-NOTE: proper construction is to use add_nonlinear_constraint to add bbfs.
+NOTE: proper construction is to use add_nonlinear_constraint to add bbls.
 model must be a mixed integer convex model.
 nonlinear_model can contain JuMP.NonlinearConstraints.
 """
 @with_kw mutable struct GlobalModel
-    model::JuMP.Model                                            # JuMP model
-    name::String = "Model"                                       # Example name
-    bbfs::Array{BlackBoxFunction} = Array{BlackBoxFunction}[]    # Black box (>/= 0) functions
-    vars::Array{VariableRef} = JuMP.all_variables(model)         # JuMP variables
+    model::JuMP.Model                                            # Associated JuMP.Model
+    name::String = "Model"                                       # Name
+    bbls::Array{BlackBoxLearner} = BlackBoxLearner[]             # Constraints to be learned
+    vars::Array{JuMP.VariableRef} = JuMP.all_variables(model)    # JuMP variables
     solution_history::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Solution history
-    settings::Dict = gm_defaults()                 # GM settings
+    params::Dict = gm_defaults()                                 # GM settings
 end
 
 function Base.show(io::IO, gm::GlobalModel)
     println(io, "GlobalModel " * gm.name * " with $(length(gm.vars)) variables: ")
-    println(io, "Has $(length(gm.bbfs)) BlackBoxFunctions.")
+    println(io, "Has $(length(gm.bbls)) BlackBoxLearners.")
     if get_param(gm, :ignore_feasibility)
         if get_param(gm, :ignore_accuracy)
             println(io, "Ignores training accuracy and data_feasibility thresholds.")
@@ -29,17 +29,17 @@ function Base.show(io::IO, gm::GlobalModel)
     end
 end
 
-set_param(gm::GlobalModel, key::Symbol, val) = set_param(gm.settings, key, val)
-get_param(gm::GlobalModel, key::Symbol) = get_param(gm.settings, key)
+set_param(gm::GlobalModel, key::Symbol, val) = set_param(gm.params, key, val)
+get_param(gm::GlobalModel, key::Symbol) = get_param(gm.params, key)
 
 """
     (gm::GlobalModel)(name::String)
 
-Finds BlackBoxFunction in GlobalModel by name.
+Finds BlackBoxLearner in GlobalModel by name.
 """
 function (gm::GlobalModel)(name::String)
-    fn_names = getfield.(gm.bbfs, :name)
-    fns = gm.bbfs[findall(x -> x == name, fn_names)]
+    fn_names = getfield.(gm.bbls, :name)
+    fns = gm.bbls[findall(x -> x == name, fn_names)]
     if length(fns) == 1
         return fns[1]
     elseif length(fns) == 0
@@ -52,22 +52,17 @@ function (gm::GlobalModel)(name::String)
 end
 
 """
-    JuMP.all_variables(gm::Union{GlobalModel, BlackBoxFunction})
+    JuMP.all_variables(bbo::Union{GlobalModel, BlackBoxLearner})
+    JuMP.all_variables(bbls::Array{BlackBoxLearner})
 
-Extends JuMP.all_variables to GMs and BBFs
-and makes sure that the variables are updated.
+Extends JuMP.all_variables to GlobalModels and BlackBoxLearners. 
+TODO: add ability to add variables to GlobalModels. 
 """
-function JuMP.all_variables(gm::Union{GlobalModel, BlackBoxFunction})
-    if gm isa GlobalModel
-        gm.vars = JuMP.all_variables(gm.model)
-    end
-    return gm.vars
-end
+JuMP.all_variables(bbo::Union{GlobalModel, BlackBoxLearner}) = bbo.vars
 
-function JuMP.all_variables(bbfs::Array{BlackBoxFunction})
-    return unique(Iterators.flatten(([all_variables(bbf) for bbf in bbfs])))
+function JuMP.all_variables(bbls::Array{BlackBoxLearner})
+    return unique(Iterators.flatten(([JuMP.all_variables(bbl) for bbl in bbls])))
 end
-
 
 """ Extends JuMP.set_optimizer to GlobalModels. """
 function JuMP.set_optimizer(gm::GlobalModel, optimizer_factory)
@@ -75,23 +70,24 @@ function JuMP.set_optimizer(gm::GlobalModel, optimizer_factory)
 end
 
 """
-    get_bounds(model::Union{GlobalModel, JuMP.Model, BlackBoxFunction})
-    get_bounds(bbfs::Array{BlackBoxFunction})
+    get_bounds(model::Union{JuMP.Model, BlackBoxLearner, Array{BlackBoxLearner})
 
 Returns bounds of all variables.
 """
-function get_bounds(model::Union{GlobalModel, JuMP.Model, BlackBoxFunction, Array{BlackBoxFunction, 1}})
-    return get_bounds(all_variables(model))
+function get_bounds(model::Union{GlobalModel, JuMP.Model, BlackBoxLearner, 
+                                 Array{BlackBoxLearner}})
+    return get_bounds(JuMP.all_variables(model))
 end
 
 """
-    get_unbounds(model::Union{GlobalModel, JuMP.Model, BlackBoxFunction})
-    get_unbounds(bbfs::Array{BlackBoxFunction})
+    get_unbounds(model::Union{GlobalModel, JuMP.Model, BlackBoxLearner, 
+                 Array{BlackBoxLearner}})
 
-Returns bounds of all unbounded variables.
+Returns only unbounded variables. 
 """
-function get_unbounds(model::Union{JuMP.Model, GlobalModel, BlackBoxFunction, Array{BlackBoxFunction}})
-    return get_unbounds(all_variables(model))
+function get_unbounds(model::Union{GlobalModel, JuMP.Model, BlackBoxLearner, 
+                      Array{BlackBoxLearner}})
+    return get_unbounds(JuMP.all_variables(model))
 end
 
 """
@@ -134,42 +130,49 @@ end
                      vars::Union{Nothing, Array{JuMP.VariableRef, 1}} = nothing,
                      expr_vars::Union{Nothing, Array} = nothing,
                      dependent_var::Union{Nothing, JuMP.VariableRef} = nothing,
-                     name::String = gm.name * " " * string(length(gm.bbfs) + 1),
+                     name::String = gm.name * " " * string(length(gm.bbls) + 1),
                      equality::Bool = false)
 
- Adds a new nonlinear constraint to Global Model. Standard method for adding BBFs.
+ Adds a new nonlinear constraint to Global Model. Standard method for adding bbls.
 """
 function add_nonlinear_constraint(gm::GlobalModel,
                      constraint::Union{JuMP.ScalarConstraint, JuMP.ConstraintRef, Expr};
                      vars::Union{Nothing, Array{JuMP.VariableRef, 1}} = nothing,
                      expr_vars::Union{Nothing, Array} = nothing,
                      dependent_var::Union{Nothing, JuMP.VariableRef} = nothing,
-                     name::String = gm.name * "_" * string(length(gm.bbfs) + 1),
+                     name::String = gm.name * "_" * string(length(gm.bbls) + 1),
                      equality::Bool = false)
     vars, expr_vars = determine_vars(gm, constraint, vars = vars, expr_vars = expr_vars)
-    if constraint isa JuMP.ScalarConstraint 
-        !isnothing(dependent_var) && throw(OCTException("Constraint " * name * " is of type JuMP.ScalarConstraint, " *
+    if constraint isa Expr
+        if isnothing(dependent_var)
+            new_bbl = BlackBoxClassifier(constraint = constraint, vars = vars, expr_vars = expr_vars,
+                                         equality = equality, name = name)
+            push!(gm.bbls, new_bbl)
+            return
+        else
+            new_bbl = BlackBoxRegressor(constraint = constraint, vars = vars, expr_vars = expr_vars,
+                                        dependent_var = dependent_var, equality = equality, name = name)
+            push!(gm.bbls, new_bbl)
+            return
+        end
+    elseif constraint isa Union{JuMP.ScalarConstraint, JuMP.ConstraintRef}
+        !isnothing(dependent_var) && throw(OCTException("Constraint " * name * " is of type $(string(typeof(constraint))) " *
                                                         "and cannot have a dependent variable " * string(dependent_var) * "."))
-        con = JuMP.add_constraint(gm.model, constraint)
-        JuMP.delete(gm.model, con)
-        new_bbf = BlackBoxFunction(constraint = con, vars = vars, expr_vars = expr_vars,
-                                   dependent_var = dependent_var,
-                                   equality = equality, name = name)
-        set_param(new_bbf, :n_samples, Int(ceil(get_param(gm, :sample_coefficient)*sqrt(length(vars))))) 
-        push!(gm.bbfs, new_bbf)
-        return
+        if constraint isa JuMP.ScalarConstraint
+            con = JuMP.add_constraint(gm.model, constraint)
+            JuMP.delete(gm.model, con)
+            new_bbl = BlackBoxClassifier(constraint = con, vars = vars, expr_vars = expr_vars,
+                                         equality = equality, name = name)
+            push!(gm.bbls, new_bbl)
+            return
+        else
+            JuMP.delete(gm.model, constraint)   
+            new_bbl = BlackBoxClassifier(constraint = constraint, vars = vars, expr_vars = expr_vars,
+                                         equality = equality, name = name)
+            push!(gm.bbls, new_bbl)
+            return     
+        end
     end
-    if constraint isa JuMP.ConstraintRef
-        !isnothing(dependent_var) && throw(OCTException("Constraint " * name * " is of type JuMP.ConstraintRef, " *
-        "and cannot have a dependent variable " * string(dependent_var) * "."))
-        JuMP.delete(gm.model, constraint)
-    end
-    new_bbf = BlackBoxFunction(constraint = constraint, vars = vars, expr_vars = expr_vars,
-                               dependent_var = dependent_var, 
-                               equality = equality, name = name)
-    set_param(new_bbf, :n_samples, Int(ceil(get_param(gm, :sample_coefficient)*sqrt(length(vars))))) 
-    push!(gm.bbfs, new_bbf)
-    return
 end
 
 """
@@ -178,7 +181,7 @@ end
                          vars::Union{Nothing, Array{JuMP.VariableRef, 1}} = nothing,
                          expr_vars::Union{Nothing, Array} = nothing,
                          dependent_var::Union{Nothing, JuMP.VariableRef} = nothing,
-                         name::String = gm.name * "_" * string(length(gm.bbfs) + 1),
+                         name::String = gm.name * "_" * string(length(gm.bbls) + 1),
                          equality::Bool = false)
 
 Extents add_nonlinear_constraint to recognize JuMP compatible constraints and add them
@@ -189,7 +192,7 @@ function add_nonlinear_or_compatible(gm::GlobalModel,
                      vars::Union{Nothing, Array{JuMP.VariableRef, 1}} = nothing,
                      expr_vars::Union{Nothing, Array} = nothing,
                      dependent_var::Union{Nothing, JuMP.VariableRef} = nothing,
-                     name::String = gm.name * "_" * string(length(gm.bbfs) + 1),
+                     name::String = gm.name * "_" * string(length(gm.bbls) + 1),
                      equality::Bool = false)
     vars, expr_vars = determine_vars(gm, constraint, vars = vars, expr_vars = expr_vars)
     fn = functionify(constraint)
@@ -218,22 +221,22 @@ function add_nonlinear_or_compatible(gm::GlobalModel,
 end
 
 """
-    nonlinearize!(gm::GlobalModel, bbfs::Array{BlackBoxFunction})
+    nonlinearize!(gm::GlobalModel, bbls::Array{BlackBoxLearner})
     nonlinearize!(gm::GlobalModel)
 
 Turns gm.model into the nonlinear representation.
 NOTE: to get back to MI-compatible forms, must rebuild model from scratch.
 """
-function nonlinearize!(gm::GlobalModel, bbfs::Array{BlackBoxFunction})
-    for (i, bbf) in enumerate(bbfs)
-        if bbf.constraint isa JuMP.ConstraintRef
-            JuMP.add_constraint(gm.model, bbf.constraint)
-        elseif bbf.constraint isa Expr
-            symb = Symbol(bbf.name)
-            vars = flat(bbf.expr_vars) # We want flattening of dense vars.
+function nonlinearize!(gm::GlobalModel, bbls::Array{BlackBoxClassifier,BlackBoxRegressor})
+    for (i, bbl) in enumerate(bbls)
+        if bbl.constraint isa JuMP.ConstraintRef
+            JuMP.add_constraint(gm.model, bbl.constraint)
+        elseif bbl.constraint isa Expr
+            symb = Symbol(bbl.name)
+            vars = flat(bbl.expr_vars) # We want flattening of dense vars.
             var_ranges = []
             count = 0
-            for varlist in bbf.expr_vars
+            for varlist in bbl.expr_vars
                 if varlist isa VariableRef
                     count += 1
                     push!(var_ranges, count)
@@ -242,13 +245,17 @@ function nonlinearize!(gm::GlobalModel, bbfs::Array{BlackBoxFunction})
                     count += length(varlist)
                 end
             end
-            expr = bbf.constraint
+            expr = bbl.constraint
             flat_expr = :((x...) -> $(expr)([x[i] for i in $(var_ranges)]...))
             fn = eval(flat_expr)
             JuMP.register(gm.model, symb, length(vars), fn; autodiff = true)
             expr = Expr(:call, symb, vars...)
-            if bbf.equality
+            if bbl.equality && bbl isa BlackBoxRegressor
+                JuMP.add_NL_constraint(gm.model, :($(expr) == $(bbl.dependent_var)))
+            elseif bbl.equality
                 JuMP.add_NL_constraint(gm.model, :($(expr) == 0))
+            elseif bbl isa BlackBoxRegressor
+                JuMP.add_NL_constraint(gm.model, :($(expr) <= $(bbl.dependent_var)))
             else
                 JuMP.add_NL_constraint(gm.model, :($(expr) >= 0))
             end
@@ -258,7 +265,7 @@ function nonlinearize!(gm::GlobalModel, bbfs::Array{BlackBoxFunction})
 end
 
 function nonlinearize!(gm::GlobalModel)
-    nonlinearize!(gm, gm.bbfs)
+    nonlinearize!(gm, gm.bbls)
 end
 
 function bound!(model::GlobalModel, bounds::Union{Pair,Dict})
@@ -290,32 +297,34 @@ function classify_constraints(model::Union{GlobalModel, JuMP.Model})
     return l_constrs, nl_constrs
 end
 
-""" Returns the feasibility of data points in a BBF or GM. """
-function feasibility(bbf::Union{GlobalModel, Array{BlackBoxFunction, DataConstraint}, DataConstraint, BlackBoxFunction})
-    if isa(bbf, Union{BlackBoxFunction, DataConstraint})
-        return bbf.feas_ratio
-    elseif isa(bbf, Array{BlackBoxFunction, DataConstraint})
-        return [feasibility(fn) for fn in bbf]
+""" Returns the feasibility of data points in a bbl or GM. """
+feasibility(bbc::BlackBoxClassifier) = bbc.feas_ratio
+feasibility(bbr::BlackBoxRegressor) = size(bbr.X, 1) / (size(bbr.X, 1) + size(bbr.infeas_X, 1))
+feasibility(bbls::BlackBoxLearner) = feasibility.(bbls)
+feasibility(gm::GlobalModel) = feasibility.(gm.bbls)
+
+""" Returns the accuracy of learners in a bbl or GM. """
+function accuracy(bbc::BlackBoxClassifier)
+    if bbc.feas_ratio in [1., 0]
+        @warn(string("Accuracy of BlackBoxClassifier ", bbc.name, " is tautological."))
+        return 1.
+    elseif isempty(bbc.learners)
+        throw(OCTException(string("BlackBoxClassifier ", bbc.name, " has not been trained yet.")))
     else
-        return [feasibility(fn) for fn in bbf.bbfs]
+        return bbc.accuracies[end]
     end
 end
 
-""" Returns the accuracy of learners in a BBF or GM. """
-function accuracy(bbf::Union{GlobalModel, BlackBoxFunction})
-    if isa(bbf, BlackBoxFunction)
-        if bbf.feas_ratio in [1., 0]
-            @warn(string("Accuracy of BlackBoxFunction ", bbf.name, " is tautological."))
-            return 1.
-        elseif isempty(bbf.learners)
-            throw(OCTException(string("BlackBoxFunction ", bbf.name, " has not been trained yet.")))
-        else
-            return bbf.accuracies[end]
-        end
+function accuracy(bbr::BlackBoxRegressor)
+    if isempty(bbr.learners)
+        throw(OCTException(string("BlackBoxRegressor ", bbr.name, " has not been trained yet.")))
     else
-        return [accuracy(fn) for fn in bbf.bbfs]
+        return bbr.accuracies[end]
     end
 end
+
+accuracy(bbls::Array{BlackBoxLearner}) = accuracy.(bbls)
+accuracy(gm::GlobalModel) = accuracy.(gm.bbls)
 
 """ 
     JuMP.optimize!(gm::GlobalModel; kwargs...)
@@ -339,7 +348,7 @@ function solution(gm::GlobalModel)
 end
 
 function solution(m::JuMP.Model)
-    variables = all_variables(m)
+    variables = JuMP.all_variables(m)
     vals = getvalue.(variables)
     return DataFrame(vals', string.(variables))
 end
@@ -347,39 +356,39 @@ end
 """ Evaluates each constraint at solution to make sure it is feasible. """
 function evaluate_feasibility(gm::GlobalModel)
     soln = solution(gm);
-    for fn in gm.bbfs
+    for fn in gm.bbls
         eval!(fn, soln)
     end
-    return [gm.bbfs[i].Y[end] >= 0 for i=1:length(gm.bbfs)]
+    return [gm.bbls[i].Y[end] >= 0 for i=1:length(gm.bbls)]
 end
 
-""" Matches BBFs to associated variables. """
-function match_bbfs_to_vars(bbfs::Array,
-                            vars::Array = JuMP.all_variables(bbfs))
+""" Matches bbls to associated variables (except for dependent variables in Regressors). """
+function match_bbls_to_vars(bbls::Array,
+                            vars::Array = JuMP.all_variables(bbls))
     # TODO: improve types.
-    bbf_to_var = Dict()
-    for bbf in bbfs
+    bbl_to_var = Dict()
+    for bbl in bbls
         unb = false
         for var in vars
-            if var in bbf.vars
+            if var in bbl.vars
                 if unb
-                    push!(bbf_to_var[bbf], var)
+                    push!(bbl_to_var[bbl], var)
                 else
-                    bbf_to_var[bbf] = [var]
+                    bbl_to_var[bbl] = [var]
                     unb = true
                 end
             end
         end
     end
     # Sorting so that we penalize both in the number of unbounded and total variables.
-    bbf_to_var = sort(collect(bbf_to_var), by= x->length(x[2])*length(x[1].vars)^0.5)
-    return bbf_to_var
+    bbl_to_var = sort(collect(bbl_to_var), by= x->length(x[2])*length(x[1].vars)^0.5)
+    return bbl_to_var
 end
 
-match_bbfs_to_vars(gm::GlobalModel, vars::Array = JuMP.all_variables(gm)) = match_bbfs_to_vars(gm.bbfs, vars)
+match_bbls_to_vars(gm::GlobalModel, vars::Array = JuMP.all_variables(gm)) = match_bbls_to_vars(gm.bbls, vars)
 
 """ Clears all sampling, training and optimization data from GlobalModel."""
 function clear_data!(gm::GlobalModel)
-    clear_data!.(gm.bbfs)
+    clear_data!.(gm.bbls)
     gm.solution_history = DataFrame([Float64 for i=1:length(gm.vars)], string.(gm.vars))
 end

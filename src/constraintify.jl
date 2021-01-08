@@ -1,66 +1,90 @@
-""" Clears the constraints in GM of bbf.mi_constraints. """
-function clear_tree_constraints!(gm::GlobalModel, bbfs::Array{BlackBoxFunction})
-    for bbf in bbfs
-        for constraint in bbf.mi_constraints
-            if is_valid(gm.model, constraint)
-                delete(gm.model, constraint)
-            end
+""" 
+    clear_tree_constraints!(gm::GlobalModel, bbl::BlackBoxLearner)
+    clear_tree_constraints!(gm::GlobalModel, bbls::Array{BlackBoxLearner})
+    clear_tree_constraints!(gm::GlobalModel)
+
+Clears the constraints bbl.mi_constraints 
+    as well as bbl.leaf_variables in GlobalModel. 
+"""
+function clear_tree_constraints!(gm::GlobalModel, bbl::BlackBoxLearner)
+    for constraint in bbl.mi_constraints
+        if is_valid(gm.model, constraint)
+            delete(gm.model, constraint)
         end
-        for variable in bbf.leaf_variables
-            if is_valid(gm.model, variable)
-                delete(gm.model, variable)
-            end
+    end
+    for variable in bbl.leaf_variables
+        if is_valid(gm.model, variable)
+            delete(gm.model, variable)
         end
     end
     return
 end
 
-function clear_tree_constraints!(gm::GlobalModel)
-    clear_tree_constraints!(gm, gm.bbfs)
+function clear_tree_constraints!(gm::GlobalModel, bbls::Array{BlackBoxLearner})
+    for bbl in bbls
+        clear_tree_constraints!(gm, bbl)
+    end
     return
 end
 
+clear_tree_constraints!(gm::GlobalModel) = clear_tree_constraints!(gm, gm.bbls)
+
 """
-    add_tree_constraints!(gm::GlobalModel, bbfs::Array{BlackBoxFunction}; M=1e5)
+    add_tree_constraints!(gm::GlobalModel, bbl::BlackBoxLearner, M=1e5)
+    add_tree_constraints!(gm::GlobalModel, bbls::Vector{BlackBoxLearner}; M=1e5)
+    add_tree_constraints!(gm::GlobalModel)
 
 Generates MI constraints from gm.learners, and adds them to gm.model.
 """
-function add_tree_constraints!(gm::GlobalModel, bbfs::Array{BlackBoxFunction}; M=1e5)
-    for bbf in bbfs
-        # Battery of checks
-        if !get_param(bbf, :regression)
-            if bbf.feas_ratio == 1.0
-                continue
-            elseif size(bbf.X, 1) == 0 && !get_param(bbf, :reloaded)
-                throw(OCTException("Constraint " * string(bbf.name) * " has not been sampled yet, and is thus untrained."))
-            elseif length(bbf.learners) == 0
-                throw(OCTException("Constraint " * string(bbf.name) * " has not been learned yet"))
-            elseif bbf.feas_ratio == 0.0 && !get_param(bbf, :reloaded)
-                throw(OCTException("Constraint " * string(bbf.name) * " is INFEASIBLE but you tried to include it in
-                    your global problem. Find at least one feasible solution, train and try again."))
-            elseif isempty(bbf.learners)
-                throw(OCTException("Constraint " * string(bbf.name) * " must be learned before tree constraints
-                                    can be generated."))
-            elseif !get_param(gm, :ignore_accuracy) && !check_accuracy(bbf)
-                throw(OCTException("Constraint " * string(bbf.name) * " is inaccurately approximated. "))
-            else
-                bbf.mi_constraints, bbf.leaf_variables = add_feas_constraints!(gm.model, bbf.vars, bbf.learners[end].lnr;
-                                                    M=M, equality = bbf.equality);
-            end
-        else
-            # TODO: check regressions much better
-            bbf.mi_constraints, bbf.leaf_variables = add_regr_constraints!(gm.model, bbf.vars, bbf.dependent_var, 
-                                                                            bbf.learners[end].lnr;
-                                                                            M = M, equality = bbf.equality)
-        end 
+function add_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier; M = 1e5)
+    if bbc.feas_ratio == 1.0
+        return
+    elseif get_param(bbc, :reloaded)
+        bbc.mi_constraints, bbc.leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[end].lnr;
+                                            M=M, equality = bbc.equality)
+    elseif size(bbc.X, 1) == 0
+        throw(OCTException("Constraint " * string(bbc.name) * " has not been sampled yet, and is thus untrained."))
+    elseif isempty(bbc.learners)
+        throw(OCTException("Constraint " * string(bbc.name) * " must be learned before tree constraints
+                            can be generated."))
+    elseif bbc.feas_ratio == 0.0
+        throw(OCTException("Constraint " * string(bbc.name) * " is INFEASIBLE but you tried to include it in
+            your global problem. Find at least one feasible solution, train and try again."))
+    elseif !get_param(gm, :ignore_accuracy) && !check_accuracy(bbc)
+        throw(OCTException("Constraint " * string(bbc.name) * " is inaccurately approximated. "))
+    else
+        bbc.mi_constraints, bbc.leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[end].lnr;
+                                            M=M, equality = bbc.equality);
     end
     return
 end
 
-function add_tree_constraints!(gm::GlobalModel; M=1e5)
-    add_tree_constraints!(gm, gm.bbfs, M=M)
+function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor; M = 1e5)
+    if get_param(bbr, :reloaded)
+        bbr.mi_constraints, bbr.leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
+                                                                   bbr.learners[end].lnr;
+                                                                   M = M, equality = bbr.equality)
+    elseif size(bbr.X, 1) == 0
+        throw(OCTException("Constraint " * string(bbr.name) * " has not been sampled yet, and is thus untrained."))
+    elseif isempty(bbr.learners)
+        throw(OCTException("Constraint " * string(bbr.name) * " must be learned before tree constraints
+                            can be generated."))
+    else
+        bbr.mi_constraints, bbr.leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
+                                                                   bbr.learners[end].lnr;
+                                                                   M = M, equality = bbr.equality)
+    end
     return
 end
+
+function add_tree_constraints!(gm::GlobalModel, bbls::Vector{BlackBoxLearner}; M = 1e5)
+    for bbl in bbls
+        add_tree_constraints!(gm, bbl; M = M)
+    end
+    return
+end
+
+add_tree_constraints!(gm::GlobalModel; M = 1e5) = add_tree_constraints!(gm, gm.bbls; M = M)
 
 """
     Creates a set of binary feasibility constraints from

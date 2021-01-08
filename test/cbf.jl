@@ -25,13 +25,13 @@ update_bounds!(md, ubs = Dict(md.vks .=> 1.));
 
 # Testing constraint import.
 n_samples = 200;
-bbf = md.bbfs[1];
-X = lh_sample(bbf, n_samples=n_samples);
-Y = md.bbfs[1](X);
+bbl = md.bbls[1];
+X = lh_sample(bbl, n_samples=n_samples);
+Y = md.bbls[1](X);
 
 # Testing sample_and_eval for combined LH and boundary sampling.
 uniform_sample_and_eval!(md);
-@test size(bbf.X) == (500,length(bbf.vks))
+@test size(bbl.X) == (500,length(bbl.vks))
 @test all(feasibility(md) .>= 0)
 
 learn_constraint!(md);

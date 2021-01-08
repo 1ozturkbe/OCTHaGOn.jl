@@ -50,7 +50,7 @@ function speed_reducer()
 end
 
 gm = speed_reducer()
-@test (length(gm.bbfs)) == 9
+@test (length(gm.bbls)) == 9
 n_samples = 100;
 
 # First solve nonlinearly
@@ -70,7 +70,7 @@ optimize!(gm)
 # new_bounds = get_bounds(gm);
 # @test old_bounds == new_bounds
 #
-# # Fitting and finding bounds with some bbfs
+# # Fitting and finding bounds with some bbls
 # set_param(gm, :ignore_feasibility, true)
 # learn_constraint!(gm);
 # set_param(gm, :ignore_accuracy, true)
