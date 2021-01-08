@@ -173,24 +173,22 @@ end
 """ Testing some IAI kwarging. """
 function test_kwargs()
     # Classification kwargs first...
-    sample_kwargs = Dict(:validation_criterion => :sensitivity, 
-                       :localsearch => false, 
+    sample_kwargs = Dict(:localsearch => false, 
                        :invalid_kwarg => :hello,
                        :ls_num_tree_restarts => 20)
 
     dict_fit = fit_classifier_kwargs(; sample_kwargs...)
-    dict_fit2 = fit_classifier_kwargs(validation_criterion = :sensitivity, localsearch = false, invalid_kwarg = :hello,
+    dict_fit2 = fit_classifier_kwargs(localsearch = false, invalid_kwarg = :hello,
                            ls_num_tree_restarts = 20)
-    @test dict_fit == dict_fit2 == Dict(:validation_criterion => :sensitivity, :positive_label => 1)
+    @test dict_fit == dict_fit2 == Dict()
 
     dict_lnr = classifier_kwargs(; sample_kwargs...)
-    dict_lnr2 = classifier_kwargs(validation_criterion = :sensitivity, localsearch = false, invalid_kwarg = :hello,
-                           ls_num_tree_restarts = 20)
+    dict_lnr2 = classifier_kwargs(localsearch = false, invalid_kwarg = :hello, ls_num_tree_restarts = 20)
     @test dict_lnr == dict_lnr2 == Dict(:localsearch => false, :ls_num_tree_restarts => 20)
 
     # Regression kwargs next...
     dict_fit = fit_regressor_kwargs(; sample_kwargs)
-    @test dict_fit == Dict(:validation_criterion => :mse)
+    @test dict_fit == Dict(:criterion => :mse)
 end
 
 test_expressions()

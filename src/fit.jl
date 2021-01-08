@@ -1,30 +1,3 @@
-""" Preprocesses merging of kwargs for IAI.fit!, to avoid errors! """
-function fit_regressor_kwargs(; kwargs...)
-    nkwargs = Dict{Symbol, Any}(:validation_criterion => :mse)
-    for item in kwargs
-        if item.first in keys(nkwargs)
-            nkwargs[item.first] = item.second
-        end
-    end
-    return nkwargs
-end
-
-""" Preprocesses merging of kwargs for IAI.fit!, to avoid errors! """
-function fit_classifier_kwargs(; kwargs...)
-    nkwargs = Dict{Symbol, Any}(:validation_criterion => :misclassification,
-                    :sample_weight => :autobalance) # default kwargs
-    for item in kwargs
-        if item.first in keys(nkwargs)
-            nkwargs[item.first] = item.second
-        end
-    end
-    if nkwargs[:validation_criterion] == :sensitivity
-        delete!(nkwargs, :sample_weight)
-        nkwargs[:positive_label] = 1
-    end
-    return nkwargs
-end
-
 """ Helper function for merging learner arguments. """
 function merge_kwargs(valid_keys; kwargs...)
     nkwargs = Dict{Symbol, Any}() 
@@ -36,12 +9,34 @@ function merge_kwargs(valid_keys; kwargs...)
     return nkwargs
 end
 
+""" Preprocesses merging of kwargs for IAI.fit!, to avoid errors! """
+function fit_regressor_kwargs(; kwargs...)
+    nkwargs = Dict{Symbol, Any}(:sample_weight => :autobalance)
+    for item in kwargs
+        if item.first in keys(nkwargs)
+            nkwargs[item.first] = item.second
+        end
+    end
+    return nkwargs
+end
+
+""" Preprocesses merging of kwargs for IAI.fit!, to avoid errors! """
+function fit_classifier_kwargs(; kwargs...)
+    nkwargs = Dict{Symbol, Any}(:sample_weight => :autobalance) # default kwargs
+    for item in kwargs
+        if item.first in keys(nkwargs)
+            nkwargs[item.first] = item.second
+        end
+    end
+    return nkwargs
+end
+
 """ Function that preprocesses merging of kwargs for IAI.OptimalTreeClassifier, to avoid errors! """
 function classifier_kwargs(; kwargs...)
     valid_keys = [:random_seed, :max_depth, :cp, :minbucket, 
                   :fast_num_support_restarts, :localsearch, 
                   :ls_num_hyper_restarts, :ls_num_tree_restarts, 
-                  :hyperplane_config]
+                  :hyperplane_config, :criterion]
     merge_kwargs(valid_keys; kwargs...)
 end
 
@@ -52,7 +47,7 @@ function regressor_kwargs(; kwargs...)
                   :ls_num_hyper_restarts, :ls_num_tree_restarts, 
                   :hyperplane_config,
                   :regression_sparsity, :regression_weighted_betas,
-                  :regression_lambda]
+                  :regression_lambda, :criterion]
     return merge_kwargs(valid_keys; kwargs...)
 end
 
