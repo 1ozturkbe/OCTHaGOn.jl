@@ -151,7 +151,7 @@ function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuM
         m:: JuMP Model
         x:: independent JuMPVariable (features in lnr)
         y:: dependent JuMPVariable (output of lnr)
-        grid: A fitted Grid
+        lnr:: A fitted OptimalTreeRegressor
         M:: coefficient in bigM formulation
     """
     check_if_trained(lnr)

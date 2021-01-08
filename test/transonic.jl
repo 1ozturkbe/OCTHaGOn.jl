@@ -20,7 +20,6 @@ function train_transonic_tree()
     # Training tree
     lnr = OCT.base_otr()
     IAI.set_params!(lnr, hyperplane_config=(sparsity=1,))
-    lnr = OCT.gridify(lnr);
     IAI.fit!(lnr, train_X, train_y)
     IAI.write_json(string(PROJECT_ROOT, "/data/transonic_tree.json"), lnr)
     return true

@@ -56,34 +56,33 @@ function regressor_kwargs(; kwargs...)
     return merge_kwargs(valid_keys; kwargs...)
 end
 
-""" Wrapper around IAI.GridSearch for constraint learning.
+""" Wrapper around IAI.fit! for constraint learning.
 Arguments:
-    lnr: Unfit OptimalTreeClassifier, OptimalTreeRegressor or Grid
+    lnr: OptimalTreeClassifier or OptimalTreeRegressor
     X: matrix of feature data
     Y: matrix of constraint data.
 Returns:
-    lnr: list of Fitted Grids corresponding to the data
+    lnr: Fitted Learner corresponding to the data
 NOTE: kwargs get unpacked here, all the way from learn_constraint!.
 """
-function learn_from_data!(X::DataFrame, Y::AbstractArray, grid::Union{IAI.OptimalTreeLearner, IAI.GridSearch}, 
+function learn_from_data!(X::DataFrame, Y::AbstractArray, lnr::IAI.OptimalTreeLearner, 
                           idxs::Union{Nothing, Array}=nothing; kwargs...)
-    # TODO: fix grid vs. solo learner issues. 
     n_samples, n_features = size(X);
     @assert n_samples == length(Y);
     # Making sure that we only consider relevant features.
     if !isnothing(idxs)
-        IAI.set_params!(grid.lnr, split_features = idxs)
-        if typeof(grid.lnr) == IAI.OptimalTreeRegressor
-            IAI.set_params!(grid.lnr, regression_features = idxs)
+        IAI.set_params!(lnr, split_features = idxs)
+        if typeof(lnr) == IAI.OptimalTreeRegressor
+            IAI.set_params!(lnr, regression_features = idxs)
         end
     else
-        IAI.set_params!(grid.lnr, split_features = All())
-        if typeof(grid.lnr) == IAI.OptimalTreeRegressor
-            IAI.set_params!(grid.lnr, regression_features = All())
+        IAI.set_params!(lnr, split_features = All())
+        if typeof(lnr) == IAI.OptimalTreeRegressor
+            IAI.set_params!(lnr, regression_features = All())
         end
     end
-    IAI.fit!(grid, X, Y; kwargs...)
-    return grid
+    IAI.fit!(lnr, X, Y; kwargs...)
+    return lnr
 end
 
 """ Checks that a BlackBoxClassifier has enough feasible/infeasible samples. """
@@ -123,7 +122,7 @@ function learn_constraint!(bbc::BlackBoxClassifier, ignore_feas::Bool = false; k
     lnr = base_classifier()
     IAI.set_params!(lnr; classifier_kwargs(; kwargs...)...)
     if check_feasibility(bbc) || ignore_feas
-        nl = learn_from_data!(bbc.X, bbc.Y .>= 0, gridify(lnr); fit_classifier_kwargs(; kwargs...)...)
+        nl = learn_from_data!(bbc.X, bbc.Y .>= 0, lnr; fit_classifier_kwargs(; kwargs...)...)
         push!(bbc.learners, nl)
         bbc.predictions = IAI.predict(nl, bbc.X)
         push!(bbc.accuracies, IAI.score(nl, bbc.X, bbc.Y .>= 0)) # TODO: add ability to specify criterion. 
@@ -139,7 +138,7 @@ function learn_constraint!(bbr::BlackBoxRegressor, ignore_feas::Bool = false; kw
     set_param(bbr, :reloaded, false) # Makes sure that we know trees are retrained. 
     lnr = base_regressor()
     IAI.set_params!(lnr; regressor_kwargs(; kwargs...)...)
-    nl = learn_from_data!(bbr.X, bbr.Y, gridify(lnr); fit_regressor_kwargs(; kwargs...)...)             
+    nl = learn_from_data!(bbr.X, bbr.Y, lnr; fit_regressor_kwargs(; kwargs...)...)             
     push!(bbr.learners, nl);
     bbr.predictions = IAI.predict(nl, bbr.X)
     push!(bbr.accuracies, IAI.score(nl, bbr.X, bbr.Y)) # TODO: add ability to specify criterion. 
@@ -176,11 +175,11 @@ Checks that there is correspondence between loaded trees and the associated cons
 """
 
 function load_fit(bbl::BlackBoxLearner, dir::String = SAVE_DIR)
-    loaded_grid = IAI.read_json(dir * bbl.name * ".json");
-    size(IAI.variable_importance(loaded_grid.lnr), 1) == length(bbl.vars) || throw(
+    loaded_lnr = IAI.read_json(dir * bbl.name * ".json");
+    size(IAI.variable_importance(loaded_lnr), 1) == length(bbl.vars) || throw(
         OCTException("Object " * bbl.name * " does not match associated learner."))
     set_param(bbl, :reloaded, true)
-    push!(bbl.learners, loaded_grid)
+    push!(bbl.learners, loaded_lnr)
 end
 
 load_fit(bbls::Array{BlackBoxLearner}, 

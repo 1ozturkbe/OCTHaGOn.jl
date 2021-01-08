@@ -1,6 +1,6 @@
 function show_trees(bbl::BlackBoxLearner)
-    for grid in bbl.learners
-        IAI.show_in_browser(grid.lnr)
+    for lnr in bbl.learners
+        IAI.show_in_browser(lnr)
     end
     return
 end
