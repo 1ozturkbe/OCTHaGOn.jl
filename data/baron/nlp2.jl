@@ -14,12 +14,13 @@ function nlp2(gm::Bool = false)
         @NLconstraint(m, e2, 300 + 20*x[2] - 12*x[2]^2 - x[3] == 0)
         @NLconstraint(m, e3, 150 + 0.5*(x[1]+x[2])^2 - x[3] == 0)
         set_optimizer(m, BARON_SILENT)
+        return m
     else
         gm = GlobalModel(model = m, name = "nlp2")
         set_optimizer(gm, CPLEX_SILENT)
         add_nonlinear_constraint(gm, :(x -> 250 + 30*x[1] - 6*x[1]^2 - x[3]), name = "e1", equality = true)
         add_nonlinear_constraint(gm, :(x -> 300 + 20*x[2] - 12*x[2]^2 - x[3]), name = "e2", equality = true)
         add_nonlinear_constraint(gm, :(x ->  150 + 0.5*(x[1]+x[2])^2 - x[3]), name = "e3", equality = true)
+        return gm
     end
-    return m
 end

@@ -20,7 +20,7 @@ function gm_defaults()
          :ignore_accuracy => false,
          :linear => true,
          :convex => false,
-         :lh_iterations => 0,
+         :lh_iterations => 5,
          :sample_coeff => 200)
 end
 
