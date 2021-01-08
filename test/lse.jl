@@ -80,7 +80,7 @@ plot_accuracies(ineqs[nonconvex_idxs])
 #     score_list = [];
 #     for j in n_samples
 #         nlnr = IAI.read_json(string("data/constraint",idx,"_",j,"samples",".tree"));
-#         append!(score_list, IAI.score(nlnr.lnr, X, Y))
+#         append!(score_list, IAI.score(nlnr, X, Y))
 #     end
 #     append!(scores, score_list)
 # end

@@ -166,7 +166,7 @@ function test_bbl()
     @test 0 <= accuracy(bbl) <= 1
 
     # Training a model
-    mi_constraints, leaf_variables = add_feas_constraints!(model, bbl.vars, bbl.learners[1].lnr);
+    mi_constraints, leaf_variables = add_feas_constraints!(model, bbl.vars, bbl.learners[1]);
     @test true
 end
 
@@ -180,7 +180,7 @@ function test_kwargs()
     dict_fit = fit_classifier_kwargs(; sample_kwargs...)
     dict_fit2 = fit_classifier_kwargs(localsearch = false, invalid_kwarg = :hello,
                            ls_num_tree_restarts = 20)
-    @test dict_fit == dict_fit2 == Dict()
+    @test dict_fit == dict_fit2 == Dict(:sample_weight => :autobalance)
 
     dict_lnr = classifier_kwargs(; sample_kwargs...)
     dict_lnr2 = classifier_kwargs(localsearch = false, invalid_kwarg = :hello, ls_num_tree_restarts = 20)
@@ -188,7 +188,11 @@ function test_kwargs()
 
     # Regression kwargs next...
     dict_fit = fit_regressor_kwargs(; sample_kwargs)
-    @test dict_fit == Dict(:criterion => :mse)
+    @test dict_fit == Dict()
+
+    dict_lnr = regressor_kwargs(; sample_kwargs...)
+    dict_lnr2 = regressor_kwargs(localsearch = false, invalid_kwarg = :hello, ls_num_tree_restarts = 20)
+    @test dict_lnr == dict_lnr2 == Dict(:localsearch => false, :ls_num_tree_restarts => 20)
 end
 
 test_expressions()

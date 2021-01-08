@@ -40,7 +40,7 @@ function add_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier; M = 1e5
     if bbc.feas_ratio == 1.0
         return
     elseif get_param(bbc, :reloaded)
-        bbc.mi_constraints, bbc.leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[end].lnr;
+        bbc.mi_constraints, bbc.leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[end];
                                             M=M, equality = bbc.equality)
     elseif size(bbc.X, 1) == 0
         throw(OCTException("Constraint " * string(bbc.name) * " has not been sampled yet, and is thus untrained."))
@@ -53,7 +53,7 @@ function add_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier; M = 1e5
     elseif !get_param(gm, :ignore_accuracy) && !check_accuracy(bbc)
         throw(OCTException("Constraint " * string(bbc.name) * " is inaccurately approximated. "))
     else
-        bbc.mi_constraints, bbc.leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[end].lnr;
+        bbc.mi_constraints, bbc.leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[end];
                                             M=M, equality = bbc.equality);
     end
     return
@@ -62,7 +62,7 @@ end
 function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor; M = 1e5)
     if get_param(bbr, :reloaded)
         bbr.mi_constraints, bbr.leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
-                                                                   bbr.learners[end].lnr;
+                                                                   bbr.learners[end];
                                                                    M = M, equality = bbr.equality)
     elseif size(bbr.X, 1) == 0
         throw(OCTException("Constraint " * string(bbr.name) * " has not been sampled yet, and is thus untrained."))
@@ -71,7 +71,7 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor; M = 1e5)
                             can be generated."))
     else
         bbr.mi_constraints, bbr.leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
-                                                                   bbr.learners[end].lnr;
+                                                                   bbr.learners[end];
                                                                    M = M, equality = bbr.equality)
     end
     return
