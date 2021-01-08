@@ -22,6 +22,7 @@ function gear(gm::Bool = false)
     if !gm
         @NLobjective(m, Min, (6.931 - i[1]*i[2]/(i[3]*i[4]))^2 + 1)
         set_optimizer(m, BARON_SILENT)
+        return m
     else
         @variable(m, obj)
         @objective(m, Min, obj)
@@ -30,5 +31,4 @@ function gear(gm::Bool = false)
         add_nonlinear_constraint(gm, :((i) -> (6.931 - i[1]*i[2]/(i[3]*i[4]))^2 + 1), dependent_var = obj)
         return gm
     end
-    return m
 end

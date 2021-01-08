@@ -30,6 +30,7 @@ function minlp(gm::Bool = false, eps = 1e-8)
         @NLobjective(m, Min, 5*y[1] + 6*y[2] + 8*y[3] + 10*x[1] - 7*x[3] - 18*log(x[2] + 1) -
                              19.2*log(x[1] - x[2] + 1) + 10)
         set_optimizer(m, BARON_SILENT)
+        return m
     else
         @variable(m, obj)
         @objective(m, Min, obj)
@@ -44,5 +45,4 @@ function minlp(gm::Bool = false, eps = 1e-8)
                                  name = "objective", dependent_var = obj)
         return gm
     end
-    return m
 end
