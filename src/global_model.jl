@@ -333,7 +333,7 @@ Applies JuMP.optimize! to GlobalModels, and saves solution history.
 """
 function JuMP.optimize!(gm::GlobalModel; kwargs...)
     JuMP.optimize!(gm.model, kwargs...)
-    append!(gm.solution_history, solution(gm), cols=:setequal)
+    append!(gm.solution_history, solution(gm), cols=:intersect)
 end
 
 """
