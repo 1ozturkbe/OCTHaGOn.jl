@@ -54,6 +54,26 @@ end
 bms = [p(false) for p in BARON_PROBLEMS]
 optimize_and_time!.(bms)
 
-
 gms = [p(true) for p in BARON_PROBLEMS]
 optimize_and_time!.(gms)
+
+# save_fit.(gms)
+# load_fit.(gms)
+
+# function regress_within_leaves(bbr::BlackBoxRegressor,  ignore_feas::Bool = false, interval::Float64 = 0.95; kwargs...)
+#     check_sampled(bbr)
+#     set_param(bbr, :reloaded, false) # Makes sure that we know trees are retrained. 
+#     lnr = base_classifier()
+#     IAI.set_params!(lnr; classifier_kwargs(; kwargs...)...)
+#     threshold = quantile(bbr.Y, 1-interval)
+#     nl = learn_from_data!(bbr.X, bbr.Y .<= threshold, lnr; fit_classifier_kwargs(; kwargs...)...) 
+#     # SAMPLINGGGGG
+#     # KNN SAMPLE OUTWARD
+#     # IF SAMPLES FEASIBLE
+#     # ALSO SAMPLE WITHIN LEAVES            
+#     push!(bbr.learners, nl);
+#     bbr.predictions = IAI.predict(nl, bbr.X)
+#     push!(bbr.accuracies, IAI.score(nl, bbr.X, bbr.Y)) # TODO: add ability to specify criterion. 
+#     push!(bbr.learner_kwargs, Dict(kwargs))
+#     return
+# end
