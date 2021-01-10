@@ -6,7 +6,7 @@ function nlp2(gm::Bool = false)
     m = JuMP.Model()
     @variable(m, 0 <= x[1:3])
     for i = 1:3
-        JuMP.set_lower_bound(x[i], [9.422, 5.9023, 267.417085245][i])
+        JuMP.set_upper_bound(x[i], [9.422, 5.9023, 267.417085245][i])
     end
     @objective(m, Min, x[3])
     if !gm
