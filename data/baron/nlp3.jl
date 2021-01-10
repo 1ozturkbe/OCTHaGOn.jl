@@ -14,11 +14,11 @@ function nlp3(gm::Bool = false)
                                     94.2274481766, 10.432474977,
                                     2.59051951438, 149.682344530][i])
     end
+    @constraint(m, e1, x[1] - 1.22*x[4] + x[5] == 0)
+    @constraint(m, e2, x[9] + 0.222*x[10] == 35.82)    
+    @constraint(m, e3, 3*x[7] - x[10] == 133)    
     if !gm
         set_optimizer(m, BARON_SILENT)
-        @NLconstraint(m, e1, x[1] - 1.22*x[4] + x[5] == 0)
-        @NLconstraint(m, e2, x[9] + 0.222*x[10] == 35.82)    
-        @NLconstraint(m, e3, 3*x[7] - x[10] == 133)    
         @NLconstraint(m, e4, x[7] - 1.098*x[8] + 0.038*(x[8]^2) - 0.325*(x[6] - 89) == 86.35)    
         @NLconstraint(m, e5, x[4]*x[9]*x[6] + 1000*x[3]*x[6] - 98000*x[3] == 0)    
         @NLconstraint(m, e6, x[2] + x[5] - x[1]*x[8] == 0)    
@@ -30,14 +30,8 @@ function nlp3(gm::Bool = false)
         @objective(m, Min, obj)
         gm = GlobalModel(model = m, name = "nlp3")
         set_optimizer(gm, CPLEX_SILENT)
-        add_nonlinear_constraint(gm, :(x -> x[1] - 1.22*x[4] + x[5]), 
-                                vars = [x[1], x[4], x[5]], name = "e1", equality = true)
-        add_nonlinear_constraint(gm, :(x -> x[9] + 0.222*x[10] - 35.82), 
-                                vars = [x[9], x[10]], name = "e2", equality = true)
-        add_nonlinear_constraint(gm, :(x -> 3*x[7] - x[10] - 133), 
-                                vars = [x[7], x[10]], name = "e3", equality = true)
-        add_nonlinear_constraint(gm, :(x -> x[7] - 1.098*x[8] + 0.038*(x[8]^2) - 0.325*(x[6] - 89) - 86.35), 
-                                vars = [x[6], x[7], x[8]], name = "e4", equality = true)
+        add_nonlinear_constraint(gm, :(x -> x[7] - 1.098*x[8] + 0.038*(x[8]^2) - 0.325*(x[6] - 89) - 86.35),
+                                vars = [x[6], x[7], x[8]], name = "e4", equality=true)
         add_nonlinear_constraint(gm, :(x -> x[4]*x[9]*x[6] + 1000*x[3]*x[6] - 98000*x[3]), 
                                 vars = [x[3], x[4], x[6], x[9]], name = "e5", equality = true)
         add_nonlinear_constraint(gm, :(x -> x[2] + x[5] - x[1]*x[8]), 
