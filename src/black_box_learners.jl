@@ -119,7 +119,7 @@ function add_data!(bbc::BlackBoxClassifier, X::DataFrame, Y::Array)
     else
         bbc.feas_ratio = (bbc.feas_ratio*size(bbc.X,1) + sum(Y .>= 0))/(size(bbc.X, 1) + length(Y))
     end    
-    append!(bbc.X, X[:,string.(bbc.vars)], cols=:setequal)
+    append!(bbc.X, X, cols=:intersect)
     append!(bbc.Y, Y)
     return
 end
@@ -137,7 +137,7 @@ function add_data!(bbr::BlackBoxRegressor, X::DataFrame, Y::Array)
         append!(bbr.X, delete!(X, infeas_idxs), cols=:intersect)
         append!(bbr.Y, deleteat!(Y, infeas_idxs))
     else
-        append!(bbr.X, X, cols=:setequal)
+        append!(bbr.X, X, cols=:intersect)
         append!(bbr.Y, Y)
     end
     return
