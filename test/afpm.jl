@@ -105,7 +105,7 @@ end
 # Regressions over leaves
 P_shaft, Torque, Rotational_Speed, Efficiency, Mass, Mass_Specific_Power = [outputs[idx] for idx in idxs]
 FOMs = [P_shaft, Rotational_Speed, Mass, Efficiency]
-leaf_index, all_leaves = bin_to_leaves(lnr, log.(X_feas))
+leaf_index = IAI.apply(lnr, log.(X_feas))
 for FOM in FOMs
     regressor = regress(log.(X_feas), log.(Y_feas[!,string(FOM)]))
     constant = IAI.get_prediction_constant(regressor)
