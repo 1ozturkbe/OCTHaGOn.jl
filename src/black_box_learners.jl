@@ -44,9 +44,9 @@ Optional arguments:
     params::Dict = bbr_defaults(length(vars))          # Relevant settings
 end
 
-function Base.show(io::IO, bbc::BlackBoxRegressor)
-    println(io, "BlackBoxClassifier " * bbc.name * " with $(length(bbc.vars)) dependent variables: ")
-    println(io, "Sampled $(length(bbc.Y)) times, and has $(length(bbc.learners)) trained ORTs.")
+function Base.show(io::IO, bbr::BlackBoxRegressor)
+    println(io, "BlackBoxRegressor " * bbr.name * " with $(length(bbr.vars)) dependent variables: ")
+    println(io, "Sampled $(length(bbr.Y)) times, and has $(length(bbr.learners)) trained ORTs.")
 end
 
 """
