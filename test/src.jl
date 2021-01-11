@@ -195,6 +195,50 @@ function test_kwargs()
     @test dict_lnr == dict_lnr2 == Dict(:localsearch => false, :ls_num_tree_restarts => 20)
 end
 
+""" Tests basic functionalities in GMs. """
+function test_basic_gm()
+    gm = sagemark_to_GlobalModel(3; lse=false)
+    set_optimizer(gm, CPLEX_SILENT)
+
+    # Actually trying to optimize...
+    find_bounds!(gm, all_bounds=true)
+    uniform_sample_and_eval!(gm)
+
+    learn_constraint!(gm)
+    println("Approximation accuracies: ", accuracy(gm))
+
+    # Solving of model
+    @test_throws OCTException globalsolve(gm) # inaccuracy check in globalsolve.
+    set_param(gm, :ignore_accuracy, true)
+    globalsolve(gm);
+    vals = solution(gm);
+    println("X values: ", vals)
+    println("Optimal X: ", vcat(exp.([5.01063529, 3.40119660, -0.48450710]), [-147-2/3]))
+
+    # Testing constraint addition and removal
+    clear_tree_constraints!(gm) # Clears all bbl constraints
+    @test all([!is_valid(gm.model, constraint) for constraint in gm.bbls[2].mi_constraints])
+    add_tree_constraints!(gm, gm.bbls[2])
+    @test all([is_valid(gm.model, constraint) for constraint in gm.bbls[2].mi_constraints])
+    add_tree_constraints!(gm);
+    clear_tree_constraints!(gm, gm.bbls[1])
+    @test !any(is_valid(gm.model, constraint) for constraint in gm.bbls[1].mi_constraints)
+    clear_tree_constraints!(gm) # Finds and clears the one remaining bbl constraint.
+    @test all([!is_valid(gm.model, constraint) for constraint in gm.bbls[1].mi_constraints])
+    @test all([!is_valid(gm.model, var) for var in values(gm.bbls[1].leaf_variables)])
+
+    # Saving fit for test_load_fits()
+    save_fit(gm)
+
+    # Testing finding bounds of bounded model
+    @test isnothing(get_unbounds(gm.bbls))
+    @test isnothing(find_bounds!(gm))
+
+    # Testing clearing all data
+    clear_data!(gm)
+    @test all([size(bbl.X, 1) == 0 for bbl in gm.bbls])
+end
+
 test_expressions()
 
 test_variables()
@@ -208,3 +252,5 @@ test_linearize()
 test_bbl()
 
 test_kwargs()
+
+test_basic_gm()
