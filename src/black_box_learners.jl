@@ -38,7 +38,7 @@ Optional arguments:
     feas_learners::Array{IAI.OptimalTreeClassifier} = [] # Classification learners...
     feas_learner_kwargs = []                           # and their kwargs...
     mi_constraints::Array = []                         # and their corresponding MI constraints,
-    leaf_variables::Array = []                         # and their binary leaf variables,
+    leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their binary leaf variables,
     accuracies::Array{Float64} = []                    # and the tree misclassification scores.
     knn_tree::Union{KDTree, Nothing} = nothing         # KNN tree
     params::Dict = bbr_defaults(length(vars))          # Relevant settings
@@ -88,7 +88,7 @@ Optional arguments:
     # learner_data::Array{LearnerData} = []            # Constraints training data
     learner_kwargs = []                                # And their kwargs... 
     mi_constraints::Array = []                         # and their corresponding MI constraints,
-    leaf_variables::Array = []                         # and their binary leaf variables,
+    leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their binary leaves and associated variables,
     accuracies::Array{Float64} = []                    # and the tree misclassification scores.
     knn_tree::Union{KDTree, Nothing} = nothing         # KNN tree
     params::Dict = bbc_defaults(length(vars))          # Relevant settings
