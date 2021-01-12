@@ -12,7 +12,7 @@ function clear_tree_constraints!(gm::GlobalModel, bbl::BlackBoxLearner)
             delete(gm.model, constraint)
         end
     end
-    for variable in bbl.leaf_variables
+    for variable in collect(values(bbl.leaf_variables))
         if is_valid(gm.model, variable)
             delete(gm.model, variable)
         end
@@ -97,24 +97,17 @@ add_tree_constraints!(gm::GlobalModel; M = 1e5) = add_tree_constraints!(gm, gm.b
 function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::IAI.OptimalTreeClassifier;
                                M::Float64 = 1.e5, equality::Bool = false)
     check_if_trained(lnr);
-    n_nodes = IAI.get_num_nodes(lnr);
+    all_leaves = find_leaves(lnr)
     # Add a binary variable for each leaf
-    all_leaves = [i for i = 1:n_nodes if IAI.is_leaf(lnr, i)];
     feas_leaves =
         [i for i in all_leaves if Bool(IAI.get_classification_label(lnr, i))];
-    infeas_leaves = [i for i in all_leaves if i ∉ feas_leaves];
-    constraints = []; leaf_variables = [];
+    constraints = []
+    leaf_variables = Dict{Int64, JuMP.VariableRef}();
     z_feas = @variable(m, [1:size(feas_leaves, 1)], Bin)
-    append!(leaf_variables, z_feas)
     push!(constraints, @constraint(m, sum(z_feas) == 1))
-    if equality
-        z_infeas = @variable(m, [1:length(infeas_leaves)], Bin)
-        append!(leaf_variables, z_infeas)
-        push!(constraints, @constraint(m, sum(z_infeas) == 1))
-    end
     # Getting lnr data
     upperDict, lowerDict = trust_region_data(lnr, Symbol.(x))
-    for i = 1:size(feas_leaves, 1)
+    for i = 1:length(feas_leaves)
         leaf = feas_leaves[i]
         # ADDING TRUST REGIONS
         for region in upperDict[leaf]
@@ -127,8 +120,12 @@ function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::I
         end
     end
     if equality
+        infeas_leaves = [i for i in all_leaves if !Bool(IAI.get_classification_label(lnr, i))];
+        z_infeas = @variable(m, [1:length(infeas_leaves)], Bin)
+        push!(constraints, @constraint(m, sum(z_infeas) == 1))
         for i = 1:size(infeas_leaves, 1)
             leaf = infeas_leaves[i]
+            leaf_variables[leaf] = z_infeas[i]
             # ADDING TRUST REGIONS
             for region in upperDict[leaf]
                 threshold, α = region
@@ -155,12 +152,11 @@ function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuM
         M:: coefficient in bigM formulation
     """
     check_if_trained(lnr)
-    n_nodes = IAI.get_num_nodes(lnr)
+    all_leaves = find_leaves(lnr)
     # Add a binary variable for each leaf
-    all_leaves = [i for i = 1:n_nodes if IAI.is_leaf(lnr, i)]
-    constraints = []; leaf_variables = [];
+    constraints = [] 
+    leaf_variables = Dict{Int64, JuMP.VariableRef}()
     z = @variable(m, [1:size(all_leaves, 1)], Bin)
-    append!(leaf_variables, z)
     push!(constraints, @constraint(m, sum(z) == 1))
     # Getting lnr data
     pwlDict = pwl_constraint_data(lnr, Symbol.(x))
@@ -168,6 +164,7 @@ function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuM
     for i = 1:size(all_leaves, 1)
         # ADDING CONSTRAINTS
         leaf = all_leaves[i]
+        leaf_variables[leaf] = z[i]
         β0, β = pwlDict[leaf]
         push!(constraints, @constraint(m, sum(β .* x) + β0 <= y + M * (1 .- z[i])))
         if equality

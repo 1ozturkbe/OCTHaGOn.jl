@@ -38,15 +38,15 @@ Optional arguments:
     feas_learners::Array{IAI.OptimalTreeClassifier} = [] # Classification learners...
     feas_learner_kwargs = []                           # and their kwargs...
     mi_constraints::Array = []                         # and their corresponding MI constraints,
-    leaf_variables::Array = []                         # and their binary leaf variables,
+    leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their binary leaf variables,
     accuracies::Array{Float64} = []                    # and the tree misclassification scores.
     knn_tree::Union{KDTree, Nothing} = nothing         # KNN tree
     params::Dict = bbr_defaults(length(vars))          # Relevant settings
 end
 
-function Base.show(io::IO, bbc::BlackBoxRegressor)
-    println(io, "BlackBoxClassifier " * bbc.name * " with $(length(bbc.vars)) dependent variables: ")
-    println(io, "Sampled $(length(bbc.Y)) times, and has $(length(bbc.learners)) trained ORTs.")
+function Base.show(io::IO, bbr::BlackBoxRegressor)
+    println(io, "BlackBoxRegressor " * bbr.name * " with $(length(bbr.vars)) dependent variables: ")
+    println(io, "Sampled $(length(bbr.Y)) times, and has $(length(bbr.learners)) trained ORTs.")
 end
 
 """
@@ -88,7 +88,7 @@ Optional arguments:
     # learner_data::Array{LearnerData} = []            # Constraints training data
     learner_kwargs = []                                # And their kwargs... 
     mi_constraints::Array = []                         # and their corresponding MI constraints,
-    leaf_variables::Array = []                         # and their binary leaf variables,
+    leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their binary leaves and associated variables,
     accuracies::Array{Float64} = []                    # and the tree misclassification scores.
     knn_tree::Union{KDTree, Nothing} = nothing         # KNN tree
     params::Dict = bbc_defaults(length(vars))          # Relevant settings
@@ -119,7 +119,7 @@ function add_data!(bbc::BlackBoxClassifier, X::DataFrame, Y::Array)
     else
         bbc.feas_ratio = (bbc.feas_ratio*size(bbc.X,1) + sum(Y .>= 0))/(size(bbc.X, 1) + length(Y))
     end    
-    append!(bbc.X, X[:,string.(bbc.vars)], cols=:intersect)
+    append!(bbc.X, X, cols=:intersect)
     append!(bbc.Y, Y)
     return
 end

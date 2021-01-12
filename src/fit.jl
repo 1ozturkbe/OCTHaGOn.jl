@@ -101,6 +101,7 @@ check_accuracy(bbr::BlackBoxRegressor) = true # TODO: use MSE
 
 function check_sampled(bbl::BlackBoxLearner)
     size(bbl.X, 1) == 0 && throw(OCTException(string("BlackBoxLearner ", bbl.name, " must be sampled first.")))
+    return 
 end
 
 """

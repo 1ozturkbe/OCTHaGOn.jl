@@ -21,7 +21,9 @@ function gm_defaults()
          :linear => true,
          :convex => false,
          :lh_iterations => 5,
-         :sample_coeff => 200)
+         :sample_coeff => 200,
+         :sample_density => 1e-5,
+         :reltol => 1e-3)
 end
 
 """ Sets parameters within Dict. """

@@ -1,20 +1,9 @@
+""" 
+    find_leaves(lnr::OptimalTreeLearner)
+    
+Finds all leaves of OptimalTreeLearner.
 """
-    bin_to_leaves(lnr, X)
-
-Returns leaf indices for each data point as well as indices of every leaf.
-"""
-function bin_to_leaves(lnr::IAI.OptimalTreeLearner, X::DataFrame)
-    n_nodes = IAI.get_num_nodes(lnr)
-    all_leaves = [];
-    n,p = size(X);
-    for i=1:n_nodes
-        if IAI.is_leaf(lnr, i)
-            append!(all_leaves, i);
-        end
-    end
-    leaf_index = IAI.apply(lnr, X)
-    return leaf_index, all_leaves
-end
+find_leaves(lnr::OptimalTreeLearner) = [i for i=1:IAI.get_num_nodes(lnr) if IAI.is_leaf(lnr, i)]
 
 """
     pwl_constraint_data(lnr::IAI.OptimalTreeLearner, vks)
@@ -28,8 +17,7 @@ Returns:
 """
 function pwl_constraint_data(lnr::IAI.OptimalTreeLearner, vks)
 
-    n_nodes = IAI.get_num_nodes(lnr)
-    all_leaves = [i for i = 1:n_nodes if IAI.is_leaf(lnr, i)]
+    all_leaves = find_leaves(lnr)
     pwlConstraintDict = Dict()
     for i = 1:size(all_leaves, 1)
         β0 = IAI.get_regression_constant(lnr, all_leaves[i])
@@ -59,8 +47,7 @@ Returns:
     Dict[leaf_number] containing [B0, B]
 """
 function trust_region_data(lnr:: IAI.OptimalTreeLearner, vks)
-    n_nodes = IAI.get_num_nodes(lnr)
-    all_leaves = [i for i = 1:n_nodes if IAI.is_leaf(lnr, i)]
+    all_leaves = find_leaves(lnr)
     upperDict = Dict()
     lowerDict = Dict()
     for i = 1:size(all_leaves, 1)

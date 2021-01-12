@@ -64,7 +64,8 @@ module OptimalConstraintTree
            add_nonlinear_constraint, add_nonlinear_or_compatible, determine_vars,
            lh_sample, boundary_sample,
            accuracy, feasibility, check_accuracy, check_feasibility, 
-           check_bounds, solution, 
+           check_bounds,  check_sampled, 
+           solution, 
            evaluate_feasibility,
            nonlinearize!,
            save_fit, load_fit, set_param, get_param, 
@@ -77,7 +78,7 @@ module OptimalConstraintTree
            # Functions on BlackBoxLearners
            add_data!, match_bbls_to_vars,
            # Functions on IAI structs
-           bin_to_leaves, regress, check_if_trained,
+           find_leaves, regress, check_if_trained, trust_region_data, pwl_constraint_data,
            # Functions on JuMP objects
            evaluate, fetch_variable, get_bounds, get_unbounds,
            linearize_objective!, classify_constraints,
