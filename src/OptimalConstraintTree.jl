@@ -78,7 +78,7 @@ module OptimalConstraintTree
            # Functions on BlackBoxLearners
            add_data!, match_bbls_to_vars,
            # Functions on IAI structs
-           find_leaves, regress, check_if_trained,
+           find_leaves, regress, check_if_trained, trust_region_data, pwl_constraint_data,
            # Functions on JuMP objects
            evaluate, fetch_variable, get_bounds, get_unbounds,
            linearize_objective!, classify_constraints,
