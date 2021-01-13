@@ -33,13 +33,10 @@ Optional arguments:
     predictions::Array = []                            # Function predictions
     infeas_X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Infeasible samples, if any
     equality::Bool = false                             # Equality check
-    learners::Array{IAI.OptimalTreeRegressor} = []     # Learners...
+    learners::Array{Union{IAI.OptimalTreeRegressor, IAI.OptimalTreeClassifier}} = []     # Learners...
     learner_kwargs = []                                # and their kwargs... 
-    feas_learners::Array{IAI.OptimalTreeClassifier} = [] # Classification learners...
-    feas_learner_kwargs = []                           # and their kwargs...
     mi_constraints::Array = []                         # and their corresponding MI constraints,
     leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their binary leaf variables,
-    accuracies::Array{Float64} = []                    # and the tree misclassification scores.
     knn_tree::Union{KDTree, Nothing} = nothing         # KNN tree
     params::Dict = bbr_defaults(length(vars))          # Relevant settings
 end
@@ -217,5 +214,4 @@ function clear_data!(bbr::BlackBoxRegressor)
     bbr.infeas_X = DataFrame([Float64 for i=1:length(bbr.vars)], string.(bbr.vars));
     bbr.learners = [];
     bbr.learner_kwargs = []                            
-    bbr.accuracies = []                    # and the tree misclassification scores.
 end
