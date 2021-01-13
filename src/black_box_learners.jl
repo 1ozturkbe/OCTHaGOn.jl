@@ -30,7 +30,6 @@ Optional arguments:
     fn::Union{Nothing, Function} = functionify(constraint)         # ... and actually evaluated f'n
     X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Function samples
     Y::Array = []                                      # Function values
-    predictions::Array = []                            # Function predictions
     infeas_X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Infeasible samples, if any
     equality::Bool = false                             # Equality check
     learners::Array{Union{IAI.OptimalTreeRegressor, IAI.OptimalTreeClassifier}} = []     # Learners...
@@ -77,7 +76,6 @@ Optional arguments:
     X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars))
                                                        # Function samples
     Y::Array = []                                      # Function values
-    predictions::Array = []                            # Function predictions
     feas_ratio::Float64 = 0.                           # Feasible sample proportion
     equality::Bool = false                             # Equality check
     dependent_var::Union{JuMP.VariableRef, Nothing} = nothing
@@ -200,7 +198,6 @@ end
 function clear_data!(bbc::BlackBoxClassifier)
     bbc.X = DataFrame([Float64 for i=1:length(bbc.vars)], string.(bbc.vars))
     bbc.Y = [];
-    bbc.predictions = [];
     bbc.feas_ratio = 0
     bbc.learners = [];
     bbc.learner_kwargs = []                            
@@ -210,7 +207,6 @@ end
 function clear_data!(bbr::BlackBoxRegressor)
     bbr.X = DataFrame([Float64 for i=1:length(bbr.vars)], string.(bbr.vars))
     bbr.Y = [];
-    bbr.predictions = [];
     bbr.infeas_X = DataFrame([Float64 for i=1:length(bbr.vars)], string.(bbr.vars));
     bbr.learners = [];
     bbr.learner_kwargs = []                            
