@@ -253,18 +253,18 @@ function test_basic_gm()
     @test all([size(bbl.X, 1) == 0 for bbl in gm.bbls])
 end
 
-# test_expressions()
+test_expressions()
 
-# test_variables()
+test_variables()
 
-# test_bounds()
+test_bounds()
 
-# test_sets()
+test_sets()
 
-# test_linearize()
+test_linearize()
 
-# test_bbl()
+test_bbl()
 
-# test_kwargs()
+test_kwargs()
 
-# test_basic_gm()
+test_basic_gm()
