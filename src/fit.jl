@@ -138,12 +138,17 @@ function learn_constraint!(bbr::BlackBoxRegressor, ignore_feas::Bool = false; kw
         nl = learn_from_data!(bbr.X, bbr.Y .<= kwargs[:threshold], lnr; fit_classifier_kwargs(; kwargs...)...)    
         push!(bbr.learners, nl);
         push!(bbr.learner_kwargs, Dict(kwargs))
+        push!(bbr.thresholds, kwarg[:threshold])
+        push!(bbr.ul_data, ul_regress(bbr.X, bbr.Y))
         return 
+    end
     lnr = base_regressor()
     IAI.set_params!(lnr; regressor_kwargs(; kwargs...)...)
     nl = learn_from_data!(bbr.X, bbr.Y, lnr; fit_regressor_kwargs(; kwargs...)...)             
     push!(bbr.learners, nl);
     push!(bbr.learner_kwargs, Dict(kwargs))
+    push!(bbr.thresholds, nothing)
+    push!(bbr.ul_data, Dict())
     return
 end
 

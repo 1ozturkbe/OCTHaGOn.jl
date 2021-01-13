@@ -34,8 +34,10 @@ Optional arguments:
     equality::Bool = false                             # Equality check
     learners::Array{Union{IAI.OptimalTreeRegressor, IAI.OptimalTreeClassifier}} = []     # Learners...
     learner_kwargs = []                                # and their kwargs... 
+    thresholds::Array{Nothing, Float64} = []           # For thresholding. 
+    ul_data::Array{Dict} = Dict[]                      # Upper/Lower bounding data
     mi_constraints::Array = []                         # and their corresponding MI constraints,
-    leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their binary leaf variables,
+    leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their leaves and leaf variables
     knn_tree::Union{KDTree, Nothing} = nothing         # KNN tree
     params::Dict = bbr_defaults(length(vars))          # Relevant settings
 end
