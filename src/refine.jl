@@ -51,11 +51,10 @@ end
 Performs ridge regression on data. 
 """
 function ridge_regress(X::DataFrame, Y::Array; rho::Float64 = 0., weights = ones(length(Y)), solver = CPLEX_SILENT)
-    m = JuMP.Model()
+    m = JuMP.Model(with_optimizer(solver))
     normalized_X, lbs, ubs = normalized_data(X);
     @variable(m, x[1:size(X,2)])
     @variable(m, offset)
-    set_optimizer(m, solver)
     @objective(m, Min, sum((Y - normalized_X*x .- offset).^2) + rho*sum(x.^2))
     status = optimize!(m)
     return getvalue(offset), getvalue.(x)./(ubs-lbs)
@@ -92,5 +91,6 @@ function ul_regress(X::DataFrame, Y::Array; solver = CPLEX_SILENT)
     @constraint(m, [i=1:length(Y)], sum(Array{Float64}(X[i, :]).* α) + α0 >= Y[i])
     @constraint(m, [i=1:length(Y)], sum(Array{Float64}(X[i, :]).* β) + β0 <= Y[i])
     @objective(m, Min, sum(((Matrix(X) * α .+ α0) - (Matrix(X) * β .+ β0)).^2))
-    return m
+    optimize!(m)
+    return [getvalue(α0), getvalue.(α)], [getvalue(β0), getvalue.(β)]
 end

@@ -195,6 +195,20 @@ function test_kwargs()
     @test dict_lnr == dict_lnr2 == Dict(:localsearch => false, :ls_num_tree_restarts => 20)
 end
 
+""" Tests different kinds of regression. """
+function test_regress()
+    X = DataFrame(:x => 3*rand(100) .- 1, :y => 3*rand(100) .- 1);
+    Y = Array(X[!,:x].^3 .* sin.(X[!,:y]));
+    (α0, α), (β0, β) = ul_regress(X, Y)
+    lowers = β0 .+ Matrix(X) * β;
+    uppers = α0 .+ Matrix(X) * α;
+    @test all(lowers .<= Y) && all(uppers .>= Y)
+
+    rβ0, rβ = ridge_regress(X, Y)
+    mse = sum((Y .- (β0 .+ Matrix(X) * β)).^2)/length(Y)
+    @test true
+end
+
 """ Tests basic functionalities in GMs. """
 function test_basic_gm()
     gm = sagemark_to_GlobalModel(3; lse=false)
@@ -239,18 +253,18 @@ function test_basic_gm()
     @test all([size(bbl.X, 1) == 0 for bbl in gm.bbls])
 end
 
-test_expressions()
+# test_expressions()
 
-test_variables()
+# test_variables()
 
-test_bounds()
+# test_bounds()
 
-test_sets()
+# test_sets()
 
-test_linearize()
+# test_linearize()
 
-test_bbl()
+# test_bbl()
 
-test_kwargs()
+# test_kwargs()
 
-test_basic_gm()
+# test_basic_gm()
