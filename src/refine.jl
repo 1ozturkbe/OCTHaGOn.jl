@@ -46,11 +46,11 @@ function find_bounds!(gm::GlobalModel; bbls::Array{BlackBoxLearner} = gm.bbls, M
 end
 
 """ 
-    ridge_regress(X::DataFrame, Y::Array; rho::Float64 = 0., weights = ones(length(Y)), solver = CPLEX_SILENT)
+    ridge_regress(X::DataFrame, Y::Array; solver = CPLEX_SILENT, rho::Float64 = 0., weights = ones(length(Y)))
 
 Performs ridge regression on data. 
 """
-function ridge_regress(X::DataFrame, Y::Array; rho::Float64 = 0., weights = ones(length(Y)), solver = CPLEX_SILENT)
+function ridge_regress(X::DataFrame, Y::Array; solver = CPLEX_SILENT, rho::Float64 = 0., weights = ones(length(Y)))
     m = JuMP.Model(with_optimizer(solver))
     normalized_X, lbs, ubs = normalized_data(X);
     @variable(m, x[1:size(X,2)])

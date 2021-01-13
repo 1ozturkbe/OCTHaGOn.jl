@@ -1,5 +1,6 @@
 module OptimalConstraintTree
     using Combinatorics
+    using CPLEX
     using DataFrames
     using JuMP
     using LatinHypercubeSampling
@@ -9,7 +10,6 @@ module OptimalConstraintTree
     using MathOptSetDistances
     using NearestNeighbors
     using Parameters
-#     using Plots
     using ProgressMeter
     using Random
     using StatsBase
@@ -20,7 +20,7 @@ module OptimalConstraintTree
     const GAMS_DIR = PROJECT_ROOT * "\\data\\gams\\"  
     const SOL_DIR = PROJECT_ROOT * "\\data\\solutions\\"
     const TREE_DIR = PROJECT_ROOT * "\\data\\trees\\"
-
+    const CPLEX_SILENT = with_optimizer(CPLEX.Optimizer, CPX_PARAM_SCRIND = 0)
 
     include("small_scripts.jl")
 
