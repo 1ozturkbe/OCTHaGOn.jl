@@ -205,8 +205,8 @@ function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuM
     feas_leaves = collect(keys(leaf_variables))
     for leaf in feas_leaves
         (α0, α), (β0, β) = ul_data[leaf]
-        push!(constraints, @constraint(m, y <= α0 + sum(α .* x) + M * (1 .- leaf_variables[leaf]))
-        push!(constraints, @constraint(m, y + M * (1 .- leaf_variables[leaf]) >= β0 + sum(β .* x))
+        push!(constraints, @constraint(m, y <= α0 + sum(α .* x) + M * (1 .- leaf_variables[leaf])))
+        push!(constraints, @constraint(m, y + M * (1 .- leaf_variables[leaf]) >= β0 + sum(β .* x)))
     end
     return constraints, leaf_variables
 end
