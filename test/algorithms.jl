@@ -34,7 +34,6 @@ function test_speed_params(gm::GlobalModel = gear(true), solver = CPLEX_SILENT)
     # Trying different speed parameters
     ls_num_hyper_restarts = [1, 3]
     ls_num_tree_restarts = [5, 10]
-    score_mat = [[], []]
     tree_mat = [[], []]
     time_mat = [[], []]
     for i=1:length(ls_num_hyper_restarts)
@@ -46,7 +45,6 @@ function test_speed_params(gm::GlobalModel = gear(true), solver = CPLEX_SILENT)
             learn_constraint!(bbl; params...)
             push!(time_mat[i], time() - t1)
             push!(tree_mat[i], bbl.learners[end])
-            push!(score_mat[i], bbl.accuracies[end])
         end
     end
     @test true
