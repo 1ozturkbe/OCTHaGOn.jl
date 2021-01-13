@@ -4,7 +4,7 @@
     clear_tree_constraints!(gm::GlobalModel)
 
 Clears the constraints bbl.mi_constraints 
-    as well as bbl.leaf_variables in GlobalModel. 
+as well as bbl.leaf_variables in GlobalModel. 
 """
 function clear_tree_constraints!(gm::GlobalModel, bbl::BlackBoxLearner)
     for constraint in bbl.mi_constraints
@@ -102,8 +102,8 @@ function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::I
     feas_leaves =
         [i for i in all_leaves if Bool(IAI.get_classification_label(lnr, i))];
     constraints = []
-    leaf_variables = Dict{Int64, JuMP.VariableRef}();
     z_feas = @variable(m, [1:size(feas_leaves, 1)], Bin)
+    leaf_variables = Dict{Int64, JuMP.VariableRef}(feas_leaves .=> z_feas)
     push!(constraints, @constraint(m, sum(z_feas) == 1))
     # Getting lnr data
     upperDict, lowerDict = trust_region_data(lnr, Symbol.(x))
@@ -140,23 +140,26 @@ function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::I
     return constraints, leaf_variables
 end
 
+"""
+    add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuMP.VariableRef, lnr::IAI.OptimalTreeRegressor;
+                               M::Float64 = 1.e5, equality::Bool = false)
+
+Creates a set of MIO constraints from a OptimalTreeRegressor
+Arguments:
+    m:: JuMP Model
+    x:: independent JuMPVariable (features in lnr)
+    y:: dependent JuMPVariable (output of lnr)
+    lnr:: A fitted OptimalTreeRegressor
+    M:: coefficient in bigM formulation
+"""
 function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuMP.VariableRef, lnr::IAI.OptimalTreeRegressor;
                                M::Float64 = 1.e5, equality::Bool = false)
-    """
-    Creates a set of MIO constraints from a OptimalTreeRegressor
-    Arguments:
-        m:: JuMP Model
-        x:: independent JuMPVariable (features in lnr)
-        y:: dependent JuMPVariable (output of lnr)
-        lnr:: A fitted OptimalTreeRegressor
-        M:: coefficient in bigM formulation
-    """
     check_if_trained(lnr)
     all_leaves = find_leaves(lnr)
     # Add a binary variable for each leaf
     constraints = [] 
-    leaf_variables = Dict{Int64, JuMP.VariableRef}()
     z = @variable(m, [1:size(all_leaves, 1)], Bin)
+    leaf_variables = Dict{Int64, JuMP.VariableRef}(all_leaves .=> z)
     push!(constraints, @constraint(m, sum(z) == 1))
     # Getting lnr data
     pwlDict = pwl_constraint_data(lnr, Symbol.(x))
@@ -164,7 +167,6 @@ function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuM
     for i = 1:size(all_leaves, 1)
         # ADDING CONSTRAINTS
         leaf = all_leaves[i]
-        leaf_variables[leaf] = z[i]
         β0, β = pwlDict[leaf]
         push!(constraints, @constraint(m, sum(β .* x) + β0 <= y + M * (1 .- z[i])))
         if equality
@@ -179,6 +181,32 @@ function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuM
             threshold, α = region
             push!(constraints, @constraint(m, threshold + M * (1 - z[i]) >= sum(α .* x)))
         end
+    end
+    return constraints, leaf_variables
+end
+
+"""
+    add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuMP.VariableRef, lnr::IAI.OptimalTreeClassifier, 
+            ul_data::Union{Nothing, Dict} = nothing;
+            M::Float64 = 1.e5, equality::Bool = false)
+
+Creates a set of MIO constraints from a OptimalTreeClassifier that thresholds a BlackBoxRegressor.
+Arguments:
+    m:: JuMP Model
+    x:: independent JuMPVariable (features in lnr)
+    y:: dependent JuMPVariable (output of lnr)
+    lnr:: A fitted OptimalTreeRegressor
+    ul_data:: Upper and lower bounding hyperplanes for data in leaves of lnr
+    M:: coefficient in bigM formulation
+"""
+function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuMP.VariableRef, lnr::IAI.OptimalTreeClassifier, 
+                               ul_data::Dict; M::Float64 = 1.e5, equality::Bool = false)
+    constraints, leaf_variables = add_feas_constraints!(m, x, lnr, M=M, equality=equality)
+    feas_leaves = collect(keys(leaf_variables))
+    for leaf in feas_leaves
+        (α0, α), (β0, β) = ul_data[leaf]
+        push!(constraints, @constraint(m, y <= α0 + sum(α .* x) + M * (1 .- leaf_variables[leaf])))
+        push!(constraints, @constraint(m, y + M * (1 .- leaf_variables[leaf]) >= β0 + sum(β .* x)))
     end
     return constraints, leaf_variables
 end

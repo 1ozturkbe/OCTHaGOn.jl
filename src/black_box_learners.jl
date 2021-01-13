@@ -30,16 +30,14 @@ Optional arguments:
     fn::Union{Nothing, Function} = functionify(constraint)         # ... and actually evaluated f'n
     X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Function samples
     Y::Array = []                                      # Function values
-    predictions::Array = []                            # Function predictions
     infeas_X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Infeasible samples, if any
     equality::Bool = false                             # Equality check
-    learners::Array{IAI.OptimalTreeRegressor} = []     # Learners...
+    learners::Array{Union{IAI.OptimalTreeRegressor, IAI.OptimalTreeClassifier}} = []     # Learners...
     learner_kwargs = []                                # and their kwargs... 
-    feas_learners::Array{IAI.OptimalTreeClassifier} = [] # Classification learners...
-    feas_learner_kwargs = []                           # and their kwargs...
+    thresholds::Array = []                             # For thresholding. 
+    ul_data::Array{Dict} = Dict[]                      # Upper/Lower bounding data
     mi_constraints::Array = []                         # and their corresponding MI constraints,
-    leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their binary leaf variables,
-    accuracies::Array{Float64} = []                    # and the tree misclassification scores.
+    leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their leaves and leaf variables
     knn_tree::Union{KDTree, Nothing} = nothing         # KNN tree
     params::Dict = bbr_defaults(length(vars))          # Relevant settings
 end
@@ -80,7 +78,6 @@ Optional arguments:
     X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars))
                                                        # Function samples
     Y::Array = []                                      # Function values
-    predictions::Array = []                            # Function predictions
     feas_ratio::Float64 = 0.                           # Feasible sample proportion
     equality::Bool = false                             # Equality check
     dependent_var::Union{JuMP.VariableRef, Nothing} = nothing
@@ -203,7 +200,6 @@ end
 function clear_data!(bbc::BlackBoxClassifier)
     bbc.X = DataFrame([Float64 for i=1:length(bbc.vars)], string.(bbc.vars))
     bbc.Y = [];
-    bbc.predictions = [];
     bbc.feas_ratio = 0
     bbc.learners = [];
     bbc.learner_kwargs = []                            
@@ -213,9 +209,7 @@ end
 function clear_data!(bbr::BlackBoxRegressor)
     bbr.X = DataFrame([Float64 for i=1:length(bbr.vars)], string.(bbr.vars))
     bbr.Y = [];
-    bbr.predictions = [];
     bbr.infeas_X = DataFrame([Float64 for i=1:length(bbr.vars)], string.(bbr.vars));
     bbr.learners = [];
     bbr.learner_kwargs = []                            
-    bbr.accuracies = []                    # and the tree misclassification scores.
 end

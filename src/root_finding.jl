@@ -4,15 +4,27 @@ root_finding:
 - Date: 2020-08-07
 Root-finding methods sampling nonlinear functions
 =#
+""" 
+    normalized_data(bbl::BlackBoxLearner)
+    normalized_data(X::DataFrame)
 
+Normalizes and returns data (0-1) by lower and upper bounds.
+If used on DataFrame, returns lbs and ubs as well. 
+"""
 function normalized_data(bbl::BlackBoxLearner)
-    """ Normalizes and returns data (0-1) by lower and upper bounds."""
     bounds = get_bounds(bbl.vars)
     vks = string.(bbl.vars)
     lbs = [minimum(val) for (key, val) in bounds]
     ubs = [maximum(val) for (key, val) in bounds]
     normalized_X = reduce(hcat,[(bbl.X[:, i] .- lbs[i]) ./(ubs[i] - lbs[i]) for i=1:length(vks)]);
     return normalized_X
+end
+
+function normalized_data(X::DataFrame)
+    lbs = [minimum(col) for col in eachcol(X)]
+    ubs = [maximum(col) for col in eachcol(X)]
+    normalized_X = reduce(hcat,[(X[:, i] .- lbs[i]) ./(ubs[i] - lbs[i]) for i=1:length(lbs)]);
+    return normalized_X, lbs, ubs
 end
 
 function build_knn_tree(bbl::BlackBoxLearner)

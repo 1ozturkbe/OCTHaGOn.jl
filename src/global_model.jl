@@ -319,11 +319,12 @@ function accuracy(bbr::BlackBoxRegressor)
     if isempty(bbr.learners)
         throw(OCTException(string("BlackBoxRegressor ", bbr.name, " has not been trained yet.")))
     else
-        return bbr.accuracies[end]
+        return 1. 
     end
 end
 
 accuracy(bbls::Array{BlackBoxLearner}) = accuracy.(bbls)
+accuracy(bbls::Array{BlackBoxClassifier}) = accuracy.(bbls)
 accuracy(gm::GlobalModel) = accuracy.(gm.bbls)
 
 """ 

@@ -97,7 +97,7 @@ function check_accuracy(bbc::BlackBoxClassifier)
     return bbc.accuracies[end] >= get_param(bbc, :threshold_accuracy)
 end
 
-check_accuracy(bbr::BlackBoxRegressor) = true # TODO: use MSE
+check_accuracy(bbr::BlackBoxRegressor) = 1. # TODO: use MSE
 
 function check_sampled(bbl::BlackBoxLearner)
     size(bbl.X, 1) == 0 && throw(OCTException(string("BlackBoxLearner ", bbl.name, " must be sampled first.")))
@@ -121,7 +121,6 @@ function learn_constraint!(bbc::BlackBoxClassifier, ignore_feas::Bool = false; k
     if check_feasibility(bbc) || ignore_feas
         nl = learn_from_data!(bbc.X, bbc.Y .>= 0, lnr; fit_classifier_kwargs(; kwargs...)...)
         push!(bbc.learners, nl)
-        bbc.predictions = IAI.predict(nl, bbc.X)
         push!(bbc.accuracies, IAI.score(nl, bbc.X, bbc.Y .>= 0)) # TODO: add ability to specify criterion. 
         push!(bbc.learner_kwargs, Dict(kwargs))
     else
@@ -133,13 +132,23 @@ end
 function learn_constraint!(bbr::BlackBoxRegressor, ignore_feas::Bool = false; kwargs...)
     check_sampled(bbr)
     set_param(bbr, :reloaded, false) # Makes sure that we know trees are retrained. 
+    if haskey(kwargs, :threshold)
+        lnr = base_classifier()
+        IAI.set_params!(lnr; classifier_kwargs(; kwargs...)...)
+        nl = learn_from_data!(bbr.X, bbr.Y .<= kwargs[:threshold], lnr; fit_classifier_kwargs(; kwargs...)...)    
+        push!(bbr.learners, nl);
+        push!(bbr.learner_kwargs, Dict(kwargs))
+        push!(bbr.thresholds, kwarg[:threshold])
+        push!(bbr.ul_data, ul_regress(bbr.X, bbr.Y))
+        return 
+    end
     lnr = base_regressor()
     IAI.set_params!(lnr; regressor_kwargs(; kwargs...)...)
     nl = learn_from_data!(bbr.X, bbr.Y, lnr; fit_regressor_kwargs(; kwargs...)...)             
     push!(bbr.learners, nl);
-    bbr.predictions = IAI.predict(nl, bbr.X)
-    push!(bbr.accuracies, IAI.score(nl, bbr.X, bbr.Y)) # TODO: add ability to specify criterion. 
     push!(bbr.learner_kwargs, Dict(kwargs))
+    push!(bbr.thresholds, nothing)
+    push!(bbr.ul_data, Dict())
     return
 end
 

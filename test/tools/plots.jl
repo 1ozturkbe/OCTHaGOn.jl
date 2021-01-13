@@ -45,7 +45,7 @@ function plot_2d_predictions(bbr::BlackBoxRegressor; axes = [1, 2])
 end
 
 """ Plots the accuracies of different BlackBoxLearners. """
-function plot_accuracies(obj::Array{BlackBoxLearner})
-        bar(1:length(obj), [bbl.accuracies[end] for bbl in obj], xlabel="Constraint number",
+function plot_accuracies(bbls::Array{BlackBoxClassifier})
+        bar(1:length(bbls), [bbl.accuracies[end] for bbl in bbls], xlabel="Constraint number",
                         xticks=1:length(ineqs), title="Constraint accuracies", legend=false)
 end
