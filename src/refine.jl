@@ -62,7 +62,7 @@ end
 
 """ 
     ul_regress(X::DataFrame, Y::Array; solver = CPLEX_SILENT)
-    
+
 Finds upper/lower regressors of data that are conservative. 
 """
 function ul_regress(X::DataFrame, Y::Array; solver = CPLEX_SILENT)
