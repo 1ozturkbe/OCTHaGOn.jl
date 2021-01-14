@@ -60,7 +60,11 @@ function ridge_regress(X::DataFrame, Y::Array; solver = CPLEX_SILENT, rho::Float
     return getvalue(offset), getvalue.(x)./(ubs-lbs)
 end
 
-""" Finds upper/lower regressors of data that are conservative. """
+""" 
+    ul_regress(X::DataFrame, Y::Array; solver = CPLEX_SILENT)
+    
+Finds upper/lower regressors of data that are conservative. 
+"""
 function ul_regress(X::DataFrame, Y::Array; solver = CPLEX_SILENT)
     m = JuMP.Model(with_optimizer(solver))
     @variable(m, α[1:size(X, 2)])
