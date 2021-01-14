@@ -104,6 +104,29 @@ function check_sampled(bbl::BlackBoxLearner)
     return 
 end
 
+""" 
+    ul_boundify(lnr::OptimalTreeLearner, X::DataFrame, Y; solver = CPLEX_SILENT)
+
+Returns upper/lower bound data of an OptimalTreeLearner.
+"""
+function ul_boundify(lnr::IAI.OptimalTreeLearner, X::DataFrame, Y; solver = CPLEX_SILENT)
+    all_leaves = find_leaves(lnr)
+    leaf_idx = IAI.apply(lnr, X)
+    ul_data = Dict()
+    feas_leaves = []
+    if lnr isa IAI.OptimalTreeClassifier
+        feas_leaves = [i for i in all_leaves if Bool(IAI.get_classification_label(lnr, i))]
+    elseif lnr isa IAI.OptimalTreeRegressor
+        feas_leaves = all_leaves # TODO: improve depending on thresholding. 
+    end
+    for leaf in feas_leaves
+        idx = findall(x -> x == leaf, leaf_idx)
+        (α0, α), (β0, β) = ul_regress(X[idx,:], Y[idx]; solver = solver)
+        ul_data[leaf] = [(α0, α), (β0, β)]
+    end
+    return ul_data
+end
+
 """
     learn_constraint!(bbl::Union{GlobalModel, BlackBoxLearner, Array}; kwargs...)
 
@@ -139,7 +162,7 @@ function learn_constraint!(bbr::BlackBoxRegressor, ignore_feas::Bool = false; kw
         push!(bbr.learners, nl);
         push!(bbr.learner_kwargs, Dict(kwargs))
         push!(bbr.thresholds, kwarg[:threshold])
-        push!(bbr.ul_data, ul_regress(bbr.X, bbr.Y))
+        push!(bbr.ul_data, ul_boundify(nl, bbr.X, bbr.Y))
         return 
     end
     lnr = base_regressor()
@@ -147,8 +170,12 @@ function learn_constraint!(bbr::BlackBoxRegressor, ignore_feas::Bool = false; kw
     nl = learn_from_data!(bbr.X, bbr.Y, lnr; fit_regressor_kwargs(; kwargs...)...)             
     push!(bbr.learners, nl);
     push!(bbr.learner_kwargs, Dict(kwargs))
-    push!(bbr.thresholds, nothing)
-    push!(bbr.ul_data, Dict())
+    push!(bbr.thresholds, nothing)  
+    if haskey(kwargs, :regression_sparsity) && kwargs[:regression_sparsity] != :all
+        push!(bbr.ul_data, ul_boundify(nl, bbr.X, bbr.Y))
+    else
+        push!(bbr.ul_data, Dict())
+    end
     return
 end
 
