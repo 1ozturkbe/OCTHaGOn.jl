@@ -161,7 +161,7 @@ function learn_constraint!(bbr::BlackBoxRegressor, ignore_feas::Bool = false; kw
         nl = learn_from_data!(bbr.X, bbr.Y .<= kwargs[:threshold], lnr; fit_classifier_kwargs(; kwargs...)...)    
         push!(bbr.learners, nl);
         push!(bbr.learner_kwargs, Dict(kwargs))
-        push!(bbr.thresholds, kwarg[:threshold])
+        push!(bbr.thresholds, kwargs[:threshold])
         push!(bbr.ul_data, ul_boundify(nl, bbr.X, bbr.Y))
         return 
     end
