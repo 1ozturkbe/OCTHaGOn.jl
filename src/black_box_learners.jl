@@ -219,9 +219,6 @@ function clear_tree_data!(bbc::BlackBoxClassifier)
     bbc.learners = [];
     bbc.learner_kwargs = []                            
     bbc.accuracies = []
-    bbc.mi_constraints = []        
-    bbc.leaf_variables = Dict()
-    bbc.accuracies = []
 end
 
 function clear_tree_data!(bbr::BlackBoxRegressor)
@@ -229,6 +226,4 @@ function clear_tree_data!(bbr::BlackBoxRegressor)
     bbr.learner_kwargs = []   
     bbr.thresholds = []                         
     bbr.ul_data = Dict[]            
-    bbr.mi_constraints = []                     
-    bbr.leaf_variables = Dict()
 end
