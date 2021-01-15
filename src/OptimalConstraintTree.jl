@@ -2,6 +2,7 @@ module OptimalConstraintTree
     using Combinatorics
     using CPLEX
     using DataFrames
+    using JLD
     using JuMP
     using LatinHypercubeSampling
     using MacroTools
@@ -98,9 +99,9 @@ module OptimalConstraintTree
         # Exceptions
         OCTException,
         # Debugging tools
-            clear_data!,
-            # Small scripts
-            vars_from_expr, get_varmap, deconstruct, flat,
-            infarray, substitute, power
+        clear_data!, clear_tree_data!,
+        # Small scripts
+        vars_from_expr, get_varmap, deconstruct, flat,
+        infarray, substitute, power
 end
 

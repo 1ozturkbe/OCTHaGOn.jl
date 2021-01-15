@@ -194,7 +194,17 @@ learn_constraint!(gm::GlobalModel, ignore_feas::Bool = get_param(gm, :ignore_fea
 Saves IAI fits associated with different OptimalConstraintTree objects.
 """
 function save_fit(bbl::BlackBoxLearner, dir::String = TREE_DIR)
-    IAI.write_json(dir * bbl.name * ".json", bbl.learners[end])
+    # TODO: save_fit should also save ul_data!!
+    IAI.write_json(dir * bbl.name * ".json", bbl.learners[end]) # save learner
+    if bbl isa BlackBoxClassifier
+        save(dir * bbl.name * ".jld", Dict("learner_kwargs" => bbl.learner_kwargs,
+                                        "accuracies" => bbl.accuracies))
+    else
+        save(dir * bbl.name * ".jld", Dict("learner_kwargs" => bbl.learner_kwargs,
+                                        "thresholds" => bbl.thresholds,
+                                        "ul_data" => bbl.ul_data))
+    end
+    return
 end
 
 save_fit(bbls::Array, dir::String = TREE_DIR) = [save_fit(bbl, dir) for bbl in bbls]
@@ -213,6 +223,16 @@ function load_fit(bbl::BlackBoxLearner, dir::String = TREE_DIR)
         OCTException("Object " * bbl.name * " does not match associated learner."))
     set_param(bbl, :reloaded, true)
     push!(bbl.learners, loaded_lnr)
+    dd = load(dir * bbl.name * ".jld")
+    if bbl isa BlackBoxClassifier
+        push!(bbl.learner_kwargs, dd["learner_kwargs"])
+        push!(bbl.accuracies, dd["accuracies"])
+    else
+        push!(bbl.learner_kwargs, dd["learner_kwargs"])
+        push!(bbl.thresholds, dd["thresholds"])
+        push!(bbl.ul_data, dd["ul_data"])
+    end
+    return
 end
 
 load_fit(bbls::Array{BlackBoxLearner}, 

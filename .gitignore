@@ -23,6 +23,7 @@ __pycache__
 *.lxi
 *.tree
 *.txt
+*.jld
 
 tatus
 /dump/
