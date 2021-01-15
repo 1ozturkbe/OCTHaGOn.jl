@@ -243,7 +243,7 @@ function test_regressors()
     @test init_variables == length(all_variables(gm))
 
     # Flat prediction training
-    learn_constraint!(bbr, regression_sparsity = 0, max_depth = 3)
+    learn_constraint!(bbr, regression_sparsity = 0, max_depth = 2)
     lnr = bbr.learners[end]
     @test lnr isa IAI.OptimalTreeRegressor
     all_leaves = find_leaves(lnr)
@@ -251,7 +251,7 @@ function test_regressors()
     @test bbr.thresholds[end] == nothing
 
     # Full regression training
-    learn_constraint!(bbr, max_depth = 2)
+    learn_constraint!(bbr, max_depth = 1)
     lnr = bbr.learners[end]
     @test lnr isa IAI.OptimalTreeRegressor
     all_leaves = find_leaves(lnr)
@@ -303,20 +303,21 @@ function test_basic_gm()
     @test isnothing(get_unbounds(gm.bbls))
     @test isnothing(find_bounds!(gm))
 
+    # Test reloading
+    load_fit(gm)
+    @test all([get_param(bbl, :reloaded) == true for bbl in gm.bbls])
+    bbr = gm.bbls[1]
+    @test bbr.thresholds[end] == bbr.thresholds[end-1]
+    @test bbr.learner_kwargs[end] == bbr.learner_kwargs[end-1]
+    bbc = gm.bbls[2]
+    @test bbc.accuracies[end] == bbc.accuracies[end-1]
+    globalsolve(gm)
+    @test gm.solution_history[end, "obj"] ≈ gm.solution_history[end-1, "obj"] 
+
     # Testing clearing all data
     clear_data!(gm)
     @test all([size(bbl.X, 1) == 0 for bbl in gm.bbls])
-end
-
-""" Tests loading of previously solved GMs.
-NOTE: test_basic_functions MUST be called first. """
-function test_load_fits()
-    gm = sagemark_to_GlobalModel(3; lse=false)
-    set_optimizer(gm, CPLEX_SILENT);
-    load_fit(gm);
-    @test all([get_param(bbl, :reloaded) == true for bbl in gm.bbls])
-    globalsolve(gm)
-    @test true
+    @test all([length(bbl.learners) == 0 for bbl in gm.bbls])
 end
 
 test_expressions()
@@ -338,5 +339,3 @@ test_regress()
 test_regressors()
 
 test_basic_gm()
-
-test_load_fits()
