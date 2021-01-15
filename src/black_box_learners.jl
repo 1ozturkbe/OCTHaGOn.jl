@@ -203,7 +203,7 @@ function clear_data!(bbc::BlackBoxClassifier)
     bbc.feas_ratio = 0
     bbc.learners = [];
     bbc.learner_kwargs = []                            
-    bbc.accuracies = []                    # and the tree misclassification scores.
+    bbc.accuracies = []
 end
 
 function clear_data!(bbr::BlackBoxRegressor)
@@ -212,4 +212,18 @@ function clear_data!(bbr::BlackBoxRegressor)
     bbr.infeas_X = DataFrame([Float64 for i=1:length(bbr.vars)], string.(bbr.vars));
     bbr.learners = [];
     bbr.learner_kwargs = []                            
+end
+
+""" Deletes tree data associated with object. """
+function clear_tree_data!(bbc::BlackBoxClassifier)
+    bbc.learners = [];
+    bbc.learner_kwargs = []                            
+    bbc.accuracies = []
+end
+
+function clear_tree_data!(bbr::BlackBoxRegressor)
+    bbr.learners = [];
+    bbr.learner_kwargs = []   
+    bbr.thresholds = []                         
+    bbr.ul_data = Dict[]            
 end

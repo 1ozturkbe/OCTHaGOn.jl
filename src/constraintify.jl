@@ -69,10 +69,17 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor; M = 1e5)
     elseif isempty(bbr.learners)
         throw(OCTException("Constraint " * string(bbr.name) * " must be learned before tree constraints
                             can be generated."))
-    else
+    elseif !isempty(bbr.ul_data[end])
         bbr.mi_constraints, bbr.leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
-                                                                   bbr.learners[end];
+                                                                   bbr.learners[end], bbr.ul_data[end];
                                                                    M = M, equality = bbr.equality)
+    elseif bbr.learners[end] isa IAI.OptimalTreeRegressor
+        bbr.mi_constraints, bbr.leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
+                                                                bbr.learners[end];
+                                                                M = M, equality = bbr.equality)
+    else
+        throw(OCTException("Constraint " * string(bbr.name) * " is a Regressor, 
+                            but doesn't have a ORT and/or OCT with upper/lower bounding approximators!"))
     end
     return
 end
@@ -187,7 +194,7 @@ end
 
 """
     add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuMP.VariableRef, lnr::IAI.OptimalTreeClassifier, 
-            ul_data::Union{Nothing, Dict} = nothing;
+            ul_data::Dict;
             M::Float64 = 1.e5, equality::Bool = false)
 
 Creates a set of MIO constraints from a OptimalTreeClassifier that thresholds a BlackBoxRegressor.

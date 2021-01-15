@@ -2,6 +2,7 @@ module OptimalConstraintTree
     using Combinatorics
     using CPLEX
     using DataFrames
+    using JLD
     using JuMP
     using LatinHypercubeSampling
     using MacroTools
@@ -91,16 +92,16 @@ module OptimalConstraintTree
         regressor_kwargs, classifier_kwargs,
         functionify,
         # Other approximators, 
-        ridge_regress, ul_regress,
+        ridge_regress, ul_regress, ul_boundify,
         # Functions to import global optimization problems,
         sagemark_to_GlobalModel,
         alphac_to_expr, alphac_to_objexpr, alphac_to_varbound!,
         # Exceptions
         OCTException,
         # Debugging tools
-            clear_data!,
-            # Small scripts
-            vars_from_expr, get_varmap, deconstruct, flat,
-            infarray, substitute, power
+        clear_data!, clear_tree_data!,
+        # Small scripts
+        vars_from_expr, get_varmap, deconstruct, flat,
+        infarray, substitute, power
 end
 

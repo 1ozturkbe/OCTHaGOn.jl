@@ -32,6 +32,8 @@ include(OCT.PROJECT_ROOT * "/test/tools/sagemark.jl");
 
 include(OCT.PROJECT_ROOT * "/test/tools/models.jl")
 
-include(OCT.PROJECT_ROOT * "/data/baron/gear.jl");
+include(OCT.BARON_DIR * "gear.jl");
 
-include(OCT.PROJECT_ROOT * "/data/baron/minlp.jl");
+include(OCT.BARON_DIR * "minlp.jl");
+
+include(OCT.BARON_DIR * "nlp2.jl");

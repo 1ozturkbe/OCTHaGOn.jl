@@ -104,6 +104,29 @@ function check_sampled(bbl::BlackBoxLearner)
     return 
 end
 
+""" 
+    ul_boundify(lnr::OptimalTreeLearner, X::DataFrame, Y; solver = CPLEX_SILENT)
+
+Returns upper/lower bound data of an OptimalTreeLearner.
+"""
+function ul_boundify(lnr::IAI.OptimalTreeLearner, X::DataFrame, Y; solver = CPLEX_SILENT)
+    all_leaves = find_leaves(lnr)
+    leaf_idx = IAI.apply(lnr, X)
+    ul_data = Dict()
+    feas_leaves = []
+    if lnr isa IAI.OptimalTreeClassifier
+        feas_leaves = [i for i in all_leaves if Bool(IAI.get_classification_label(lnr, i))]
+    elseif lnr isa IAI.OptimalTreeRegressor
+        feas_leaves = all_leaves # TODO: improve depending on thresholding. 
+    end
+    for leaf in feas_leaves
+        idx = findall(x -> x == leaf, leaf_idx)
+        (α0, α), (β0, β) = ul_regress(X[idx,:], Y[idx]; solver = solver)
+        ul_data[leaf] = [(α0, α), (β0, β)]
+    end
+    return ul_data
+end
+
 """
     learn_constraint!(bbl::Union{GlobalModel, BlackBoxLearner, Array}; kwargs...)
 
@@ -138,8 +161,8 @@ function learn_constraint!(bbr::BlackBoxRegressor, ignore_feas::Bool = false; kw
         nl = learn_from_data!(bbr.X, bbr.Y .<= kwargs[:threshold], lnr; fit_classifier_kwargs(; kwargs...)...)    
         push!(bbr.learners, nl);
         push!(bbr.learner_kwargs, Dict(kwargs))
-        push!(bbr.thresholds, kwarg[:threshold])
-        push!(bbr.ul_data, ul_regress(bbr.X, bbr.Y))
+        push!(bbr.thresholds, kwargs[:threshold])
+        push!(bbr.ul_data, ul_boundify(nl, bbr.X, bbr.Y))
         return 
     end
     lnr = base_regressor()
@@ -147,8 +170,12 @@ function learn_constraint!(bbr::BlackBoxRegressor, ignore_feas::Bool = false; kw
     nl = learn_from_data!(bbr.X, bbr.Y, lnr; fit_regressor_kwargs(; kwargs...)...)             
     push!(bbr.learners, nl);
     push!(bbr.learner_kwargs, Dict(kwargs))
-    push!(bbr.thresholds, nothing)
-    push!(bbr.ul_data, Dict())
+    push!(bbr.thresholds, nothing)  
+    if haskey(kwargs, :regression_sparsity) && kwargs[:regression_sparsity] != :all
+        push!(bbr.ul_data, ul_boundify(nl, bbr.X, bbr.Y))
+    else
+        push!(bbr.ul_data, Dict())
+    end
     return
 end
 
@@ -167,7 +194,17 @@ learn_constraint!(gm::GlobalModel, ignore_feas::Bool = get_param(gm, :ignore_fea
 Saves IAI fits associated with different OptimalConstraintTree objects.
 """
 function save_fit(bbl::BlackBoxLearner, dir::String = TREE_DIR)
-    IAI.write_json(dir * bbl.name * ".json", bbl.learners[end])
+    # TODO: save_fit should also save ul_data!!
+    IAI.write_json(dir * bbl.name * ".json", bbl.learners[end]) # save learner
+    if bbl isa BlackBoxClassifier
+        save(dir * bbl.name * ".jld", Dict("learner_kwargs" => bbl.learner_kwargs[end],
+                                        "accuracies" => bbl.accuracies[end]))
+    else
+        save(dir * bbl.name * ".jld", Dict("learner_kwargs" => bbl.learner_kwargs[end],
+                                        "thresholds" => bbl.thresholds[end],
+                                        "ul_data" => bbl.ul_data[end]))
+    end
+    return
 end
 
 save_fit(bbls::Array, dir::String = TREE_DIR) = [save_fit(bbl, dir) for bbl in bbls]
@@ -186,6 +223,16 @@ function load_fit(bbl::BlackBoxLearner, dir::String = TREE_DIR)
         OCTException("Object " * bbl.name * " does not match associated learner."))
     set_param(bbl, :reloaded, true)
     push!(bbl.learners, loaded_lnr)
+    dd = load(dir * bbl.name * ".jld")
+    if bbl isa BlackBoxClassifier
+        push!(bbl.learner_kwargs, dd["learner_kwargs"])
+        push!(bbl.accuracies, dd["accuracies"])
+    else
+        push!(bbl.learner_kwargs, dd["learner_kwargs"])
+        push!(bbl.thresholds, dd["thresholds"])
+        push!(bbl.ul_data, dd["ul_data"])
+    end
+    return
 end
 
 load_fit(bbls::Array{BlackBoxLearner}, 

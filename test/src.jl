@@ -102,6 +102,13 @@ function test_linearize()
     @test length(l_constrs) == 27 && length(nl_constrs) == 1
 end
 
+function test_nonlinearize(gm::GlobalModel = minlp(true))
+    nonlinearize!(gm)
+    set_optimizer(gm, CPLEX_SILENT)
+    @test_throws ErrorException("The solver does not support nonlinear problems (i.e., NLobjective and NLconstraint).") optimize!(gm)
+    @test true
+end
+
 function test_bbl()
     model, x, y, z, a = test_model()
     nl_constr = @constraint(model, sum(x[4]^2 + x[5]^2) <= z)
@@ -209,6 +216,61 @@ function test_regress()
     @test true
 end
 
+""" Tests various ways to train a regressor"""
+function test_regressors()
+    gm = minlp(true)
+    set_optimizer(gm, CPLEX_SILENT)
+    uniform_sample_and_eval!(gm)
+    bbr = gm.bbls[3]
+
+    # Threshold training
+    learn_constraint!(bbr, threshold = 10)
+    lnr = bbr.learners[end]
+    @test lnr isa IAI.OptimalTreeClassifier
+    all_leaves = find_leaves(lnr)
+    # Add a binary variable for each leaf
+    feas_leaves =
+        [i for i in all_leaves if Bool(IAI.get_classification_label(lnr, i))];
+    @test sort(collect(keys(bbr.ul_data[end]))) == sort(feas_leaves)
+    @test bbr.thresholds[end] == 10
+
+    # Check clearing and adding of tree constraints as well
+    types = JuMP.list_of_constraint_types(gm.model)
+    init_constraints = sum(length(all_constraints(gm.model, type[1], type[2])) for type in types)
+    init_variables = length(all_variables(gm))
+    add_tree_constraints!(gm, bbr)
+    types = JuMP.list_of_constraint_types(gm.model)
+    final_constraints = sum(length(all_constraints(gm.model, type[1], type[2])) for type in types)
+    final_variables = length(all_variables(gm.model))
+    @test final_constraints == init_constraints + length(bbr.mi_constraints) + length(bbr.leaf_variables)    
+    @test final_variables == init_variables + length(bbr.leaf_variables)
+    clear_tree_constraints!(gm, bbr)
+    types = JuMP.list_of_constraint_types(gm.model)
+    @test init_constraints == sum(length(all_constraints(gm.model, type[1], type[2])) for type in types)
+    @test init_variables == length(all_variables(gm))
+
+    # Flat prediction training
+    learn_constraint!(bbr, regression_sparsity = 0, max_depth = 2)
+    lnr = bbr.learners[end]
+    @test lnr isa IAI.OptimalTreeRegressor
+    all_leaves = find_leaves(lnr)
+    @test sort(collect(keys(bbr.ul_data[end]))) == sort(all_leaves)
+    @test bbr.thresholds[end] == nothing
+
+    # Full regression training
+    learn_constraint!(bbr, max_depth = 1)
+    lnr = bbr.learners[end]
+    @test lnr isa IAI.OptimalTreeRegressor
+    all_leaves = find_leaves(lnr)
+    @test isempty(bbr.ul_data[end])
+    @test isnothing(bbr.thresholds[end])
+
+    # Checking proper storage
+    @test all(length.([bbr.ul_data, bbr.thresholds, bbr.learners, bbr.learner_kwargs]) .== 3)
+    clear_tree_data!(bbr)
+    @test all(length.([bbr.ul_data, bbr.thresholds, bbr.learners, bbr.learner_kwargs]) .== 0)
+end
+
 """ Tests basic functionalities in GMs. """
 function test_basic_gm()
     gm = sagemark_to_GlobalModel(3; lse=false)
@@ -248,9 +310,21 @@ function test_basic_gm()
     @test isnothing(get_unbounds(gm.bbls))
     @test isnothing(find_bounds!(gm))
 
+    # Test reloading
+    load_fit(gm)
+    @test all([get_param(bbl, :reloaded) == true for bbl in gm.bbls])
+    bbr = gm.bbls[1]
+    @test bbr.thresholds[end] == bbr.thresholds[end-1]
+    @test bbr.learner_kwargs[end] == bbr.learner_kwargs[end-1]
+    bbc = gm.bbls[2]
+    @test bbc.accuracies[end] == bbc.accuracies[end-1]
+    globalsolve(gm)
+    @test gm.solution_history[end, "obj"] ≈ gm.solution_history[end-1, "obj"] 
+
     # Testing clearing all data
     clear_data!(gm)
     @test all([size(bbl.X, 1) == 0 for bbl in gm.bbls])
+    @test all([length(bbl.learners) == 0 for bbl in gm.bbls])
 end
 
 test_expressions()
@@ -263,8 +337,14 @@ test_sets()
 
 test_linearize()
 
+test_nonlinearize()
+
 test_bbl()
 
 test_kwargs()
+
+test_regress()
+
+test_regressors()
 
 test_basic_gm()
