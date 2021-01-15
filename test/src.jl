@@ -170,7 +170,7 @@ function test_bbl()
 
     # Check feasibility and accuracy
     @test 0 <= feasibility(bbl) <= 1
-    @test 0 <= accuracy(bbl) <= 1
+    @test 0 <= evaluate_accuracy(bbl) <= 1
 
     # Training a model
     mi_constraints, leaf_variables = add_feas_constraints!(model, bbl.vars, bbl.learners[1]);
@@ -281,7 +281,7 @@ function test_basic_gm()
     uniform_sample_and_eval!(gm)
 
     learn_constraint!(gm)
-    println("Approximation accuracies: ", accuracy(gm))
+    println("Approximation accuracies: ", evaluate_accuracy(gm))
 
     # Solving of model
     @test_throws OCTException globalsolve(gm) # inaccuracy check in globalsolve.

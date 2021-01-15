@@ -84,7 +84,7 @@ end
 Does KNN and interval arithmetic based sampling once there is at least one feasible
     sample to a BlackBoxLearner.
 """
-function knn_sample(bbl::BlackBoxLearner; k::Int64 = 10)
+function knn_sample(bbl::BlackBoxClassifier; k::Int64 = 10)
     if bbl.feas_ratio == 0. || bbl.feas_ratio == 1.0
         throw(OCTException("Constraint " * string(bbl.name) * " must have at least one feasible or
                             infeasible sample to be KNN-sampled!"))

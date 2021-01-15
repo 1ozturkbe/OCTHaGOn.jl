@@ -304,7 +304,7 @@ feasibility(bbls::BlackBoxLearner) = feasibility.(bbls)
 feasibility(gm::GlobalModel) = feasibility.(gm.bbls)
 
 """ Returns the accuracy of learners in a bbl or GM. """
-function accuracy(bbc::BlackBoxClassifier)
+function evaluate_accuracy(bbc::BlackBoxClassifier)
     if bbc.feas_ratio in [1., 0]
         @warn(string("Accuracy of BlackBoxClassifier ", bbc.name, " is tautological."))
         return 1.
@@ -315,7 +315,7 @@ function accuracy(bbc::BlackBoxClassifier)
     end
 end
 
-function accuracy(bbr::BlackBoxRegressor)
+function evaluate_accuracy(bbr::BlackBoxRegressor)
     if isempty(bbr.learners)
         throw(OCTException(string("BlackBoxRegressor ", bbr.name, " has not been trained yet.")))
     else
@@ -323,9 +323,9 @@ function accuracy(bbr::BlackBoxRegressor)
     end
 end
 
-accuracy(bbls::Array{BlackBoxLearner}) = accuracy.(bbls)
-accuracy(bbls::Array{BlackBoxClassifier}) = accuracy.(bbls)
-accuracy(gm::GlobalModel) = accuracy.(gm.bbls)
+evaluate_accuracy(bbls::Array{BlackBoxLearner}) = evaluate_accuracy.(bbls)
+evaluate_accuracy(bbls::Array{BlackBoxClassifier}) = evaluate_accuracy.(bbls)
+evaluate_accuracy(gm::GlobalModel) = evaluate_accuracy.(gm.bbls)
 
 """ 
     JuMP.optimize!(gm::GlobalModel; kwargs...)
