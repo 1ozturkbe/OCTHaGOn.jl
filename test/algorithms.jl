@@ -50,7 +50,6 @@ end
 function recipe(gm::GlobalModel)
     @info "GlobalModel " * gm.name * " in progress..."
     set_optimizer(gm, CPLEX_SILENT)
-    find_bounds!(gm, all_bounds=false)
     set_param(gm, :ignore_feasibility, true)
     set_param(gm, :ignore_accuracy, true)
     uniform_sample_and_eval!(gm)
@@ -66,8 +65,8 @@ function test_recipe(gm::GlobalModel = minlp(true))
     @test true
 end
 
+""" Tests whether reloading of already solved models works. """
 function test_loaded_recipe(gm::GlobalModel = minlp(true))
-    @info "GlobalModel " * gm.name * " reloaded..."
     set_optimizer(gm, CPLEX_SILENT)
     load_fit(gm)
     globalsolve(gm)

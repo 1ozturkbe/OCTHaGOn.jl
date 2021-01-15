@@ -243,7 +243,7 @@ function test_regressors()
     @test init_variables == length(all_variables(gm))
 
     # Flat prediction training
-    learn_constraint!(bbr, regression_sparsity = 0, max_depth = 2)
+    learn_constraint!(bbr, regression_sparsity = 0, max_depth = 3)
     lnr = bbr.learners[end]
     @test lnr isa IAI.OptimalTreeRegressor
     all_leaves = find_leaves(lnr)
@@ -251,7 +251,7 @@ function test_regressors()
     @test bbr.thresholds[end] == nothing
 
     # Full regression training
-    learn_constraint!(bbr)
+    learn_constraint!(bbr, max_depth = 2)
     lnr = bbr.learners[end]
     @test lnr isa IAI.OptimalTreeRegressor
     all_leaves = find_leaves(lnr)
