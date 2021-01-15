@@ -1,14 +1,3 @@
-""" Tests loading of previously solved GMs.
-NOTE: test_basic_functions MUST be called first. """
-function test_load_fits()
-    gm = sagemark_to_GlobalModel(3; lse=false)
-    set_optimizer(gm, CPLEX_SILENT);
-    load_fit(gm);
-    @test all([get_param(bbl, :reloaded) == true for bbl in gm.bbls])
-    globalsolve(gm)
-    @test true
-end
-
 function test_baron_solve(gm::JuMP.Model = gear(false))
     set_optimizer(gm, BARON_SILENT)
     optimize!(gm)

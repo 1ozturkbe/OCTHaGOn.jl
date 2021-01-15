@@ -308,6 +308,17 @@ function test_basic_gm()
     @test all([size(bbl.X, 1) == 0 for bbl in gm.bbls])
 end
 
+""" Tests loading of previously solved GMs.
+NOTE: test_basic_functions MUST be called first. """
+function test_load_fits()
+    gm = sagemark_to_GlobalModel(3; lse=false)
+    set_optimizer(gm, CPLEX_SILENT);
+    load_fit(gm);
+    @test all([get_param(bbl, :reloaded) == true for bbl in gm.bbls])
+    globalsolve(gm)
+    @test true
+end
+
 test_expressions()
 
 test_variables()
@@ -327,3 +338,5 @@ test_regress()
 test_regressors()
 
 test_basic_gm()
+
+test_load_fits()

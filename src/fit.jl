@@ -197,12 +197,12 @@ function save_fit(bbl::BlackBoxLearner, dir::String = TREE_DIR)
     # TODO: save_fit should also save ul_data!!
     IAI.write_json(dir * bbl.name * ".json", bbl.learners[end]) # save learner
     if bbl isa BlackBoxClassifier
-        save(dir * bbl.name * ".jld", Dict("learner_kwargs" => bbl.learner_kwargs,
-                                        "accuracies" => bbl.accuracies))
+        save(dir * bbl.name * ".jld", Dict("learner_kwargs" => bbl.learner_kwargs[end],
+                                        "accuracies" => bbl.accuracies[end]))
     else
-        save(dir * bbl.name * ".jld", Dict("learner_kwargs" => bbl.learner_kwargs,
-                                        "thresholds" => bbl.thresholds,
-                                        "ul_data" => bbl.ul_data))
+        save(dir * bbl.name * ".jld", Dict("learner_kwargs" => bbl.learner_kwargs[end],
+                                        "thresholds" => bbl.thresholds[end],
+                                        "ul_data" => bbl.ul_data[end]))
     end
     return
 end
