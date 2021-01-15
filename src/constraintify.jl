@@ -101,13 +101,18 @@ add_tree_constraints!(gm::GlobalModel; M = 1e5) = add_tree_constraints!(gm, gm.b
         m:: JuMP Model
         x:: JuMPVariables (features in lnr)
 """
-function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::IAI.OptimalTreeClassifier;
+function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::IAI.OptimalTreeLearner;
                                M::Float64 = 1.e5, equality::Bool = false)
     check_if_trained(lnr);
     all_leaves = find_leaves(lnr)
     # Add a binary variable for each leaf
-    feas_leaves =
+    feas_leaves = []
+    if lnr isa IAI.OptimalTreeClassifier
+        feas_leaves = 
         [i for i in all_leaves if Bool(IAI.get_classification_label(lnr, i))];
+    else 
+        feas_leaves = all_leaves
+    end
     constraints = []
     z_feas = @variable(m, [1:size(feas_leaves, 1)], Bin)
     leaf_variables = Dict{Int64, JuMP.VariableRef}(feas_leaves .=> z_feas)
@@ -206,7 +211,7 @@ Arguments:
     ul_data:: Upper and lower bounding hyperplanes for data in leaves of lnr
     M:: coefficient in bigM formulation
 """
-function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuMP.VariableRef, lnr::IAI.OptimalTreeClassifier, 
+function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuMP.VariableRef, lnr::IAI.OptimalTreeLearner, 
                                ul_data::Dict; M::Float64 = 1.e5, equality::Bool = false)
     constraints, leaf_variables = add_feas_constraints!(m, x, lnr, M=M, equality=equality)
     feas_leaves = collect(keys(leaf_variables))
