@@ -23,11 +23,8 @@ function test_find_bounds(gm::GlobalModel = minlp(true))
     @test true
 end
 
-function test_speed_params(gm::GlobalModel = gear(true), solver = CPLEX_SILENT)
-    gm = gear(true)
-    solver = CPLEX_SILENT
+function test_speed_params(gm::GlobalModel = minlp(true), solver = CPLEX_SILENT)
     set_optimizer(gm, solver)   
-    bound!(gm, gm.vars[end] => [-10,10]) 
     bbl = gm.bbls[1]
     uniform_sample_and_eval!(bbl)    
     
