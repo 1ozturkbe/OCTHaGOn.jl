@@ -227,7 +227,7 @@ end
 Turns gm.model into the nonlinear representation.
 NOTE: to get back to MI-compatible forms, must rebuild model from scratch.
 """
-function nonlinearize!(gm::GlobalModel, bbls::Array{BlackBoxClassifier,BlackBoxRegressor})
+function nonlinearize!(gm::GlobalModel, bbls::Array{BlackBoxLearner})
     for (i, bbl) in enumerate(bbls)
         if bbl.constraint isa JuMP.ConstraintRef
             JuMP.add_constraint(gm.model, bbl.constraint)

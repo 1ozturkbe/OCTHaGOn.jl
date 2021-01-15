@@ -5,13 +5,6 @@ function test_baron_solve(gm::JuMP.Model = gear(false))
     @test true
 end
 
-function test_find_bounds(gm::GlobalModel = minlp(true))
-    set_optimizer(gm, CPLEX_SILENT)
-    old_bounds = get_bounds(gm.bbls)
-    linear_bounds = find_bounds!(gm)
-    @test true
-end
-
 function test_speed_params(gm::GlobalModel = minlp(true), solver = CPLEX_SILENT)
     set_optimizer(gm, solver)   
     bbl = gm.bbls[1]
@@ -36,40 +29,6 @@ function test_speed_params(gm::GlobalModel = minlp(true), solver = CPLEX_SILENT)
     @test true
 end
 
-function recipe(gm::GlobalModel)
-    @info "GlobalModel " * gm.name * " in progress..."
-    set_optimizer(gm, CPLEX_SILENT)
-    set_param(gm, :ignore_feasibility, true)
-    set_param(gm, :ignore_accuracy, true)
-    uniform_sample_and_eval!(gm)
-    learn_constraint!(gm)
-    save_fit(gm)
-    globalsolve(gm)
-    return
-end
-
-function test_recipe(gm::GlobalModel = minlp(true))
-    recipe(gm)
-    print(gm.solution_history)
-    @test true
-end
-
-""" Tests whether reloading of already solved models works. """
-function test_loaded_recipe(gm::GlobalModel = minlp(true))
-    set_optimizer(gm, CPLEX_SILENT)
-    load_fit(gm)
-    globalsolve(gm)
-    @test true
-end
-
-test_load_fits()
-
 test_baron_solve()
 
-test_find_bounds()
-
 test_speed_params()
-
-test_recipe()
-
-test_loaded_recipe()

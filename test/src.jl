@@ -102,6 +102,13 @@ function test_linearize()
     @test length(l_constrs) == 27 && length(nl_constrs) == 1
 end
 
+function test_nonlinearize(gm::GlobalModel = minlp(true))
+    nonlinearize!(gm)
+    set_optimizer(gm, CPLEX_SILENT)
+    @test_throws ErrorException("The solver does not support nonlinear problems (i.e., NLobjective and NLconstraint).") optimize!(gm)
+    @test true
+end
+
 function test_bbl()
     model, x, y, z, a = test_model()
     nl_constr = @constraint(model, sum(x[4]^2 + x[5]^2) <= z)
@@ -329,6 +336,8 @@ test_bounds()
 test_sets()
 
 test_linearize()
+
+test_nonlinearize()
 
 test_bbl()
 
