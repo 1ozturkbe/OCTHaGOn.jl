@@ -209,6 +209,61 @@ function test_regress()
     @test true
 end
 
+""" Tests various ways to train a regressor"""
+function test_regressors()
+    gm = minlp(true)
+    set_optimizer(gm, CPLEX_SILENT)
+    uniform_sample_and_eval!(gm)
+    bbr = gm.bbls[3]
+
+    # Threshold training
+    learn_constraint!(bbr, threshold = 10)
+    lnr = bbr.learners[end]
+    @test lnr isa IAI.OptimalTreeClassifier
+    all_leaves = find_leaves(lnr)
+    # Add a binary variable for each leaf
+    feas_leaves =
+        [i for i in all_leaves if Bool(IAI.get_classification_label(lnr, i))];
+    @test sort(collect(keys(bbr.ul_data[end]))) == sort(feas_leaves)
+    @test bbr.thresholds[end] == 10
+
+    # Check clearing and adding of tree constraints as well
+    types = JuMP.list_of_constraint_types(gm.model)
+    init_constraints = sum(length(all_constraints(gm.model, type[1], type[2])) for type in types)
+    init_variables = length(all_variables(gm))
+    add_tree_constraints!(gm, bbr)
+    types = JuMP.list_of_constraint_types(gm.model)
+    final_constraints = sum(length(all_constraints(gm.model, type[1], type[2])) for type in types)
+    final_variables = length(all_variables(gm.model))
+    @test final_constraints == init_constraints + length(bbr.mi_constraints) + length(bbr.leaf_variables)    
+    @test final_variables == init_variables + length(bbr.leaf_variables)
+    clear_tree_constraints!(gm, bbr)
+    types = JuMP.list_of_constraint_types(gm.model)
+    @test init_constraints == sum(length(all_constraints(gm.model, type[1], type[2])) for type in types)
+    @test init_variables == length(all_variables(gm))
+
+    # Flat prediction training
+    learn_constraint!(bbr, regression_sparsity = 0, max_depth = 2)
+    lnr = bbr.learners[end]
+    @test lnr isa IAI.OptimalTreeRegressor
+    all_leaves = find_leaves(lnr)
+    @test sort(collect(keys(bbr.ul_data[end]))) == sort(all_leaves)
+    @test bbr.thresholds[end] == nothing
+
+    # Full regression training
+    learn_constraint!(bbr)
+    lnr = bbr.learners[end]
+    @test lnr isa IAI.OptimalTreeRegressor
+    all_leaves = find_leaves(lnr)
+    @test isempty(bbr.ul_data[end])
+    @test isnothing(bbr.thresholds[end])
+
+    # Checking proper storage
+    @test all(length.([bbr.ul_data, bbr.thresholds, bbr.learners, bbr.learner_kwargs]) .== 3)
+    clear_tree_data!(bbr)
+    @test all(length.([bbr.ul_data, bbr.thresholds, bbr.learners, bbr.learner_kwargs]) .== 0)
+end
+
 """ Tests basic functionalities in GMs. """
 function test_basic_gm()
     gm = sagemark_to_GlobalModel(3; lse=false)
@@ -266,5 +321,9 @@ test_linearize()
 test_bbl()
 
 test_kwargs()
+
+test_regress()
+
+test_regressors()
 
 test_basic_gm()
