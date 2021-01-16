@@ -356,11 +356,19 @@ end
 
 """ Evaluates each constraint at solution to make sure it is feasible. """
 function evaluate_feasibility(gm::GlobalModel)
-    soln = solution(gm);
-    for fn in gm.bbls
-        eval!(fn, soln)
+    soln = solution(gm)
+    feas = []
+    for bbl in gm.bbls
+        eval!(bbl, soln)
+        if bbl isa BlackBoxClassifier
+            push!(feas, gm.bbls[i].Y[end] >= 0)
+        elseif bbl isa BlackBoxRegressor
+            reltol = get_param(gm, :reltol)
+            push!(feas, gm.bbls[i].Y[end] >= JuMP.getvalue(gm.bbls[1].dependent_var) * (1-reltol) && 
+                        gm.bbls[i].Y[end] <=  JuMP.getvalue(gm.bbls[1].dependent_var) * (1+reltol))
+        end
     end
-    return [gm.bbls[i].Y[end] >= 0 for i=1:length(gm.bbls)]
+    return feas
 end
 
 """ Matches bbls to associated variables (except for dependent variables in Regressors). """
