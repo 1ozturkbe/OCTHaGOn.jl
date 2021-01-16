@@ -63,10 +63,10 @@ module OptimalConstraintTree
         learn_from_data!, find_bounds!, find_linear_bounds!,
         add_nonlinear_constraint, add_nonlinear_or_compatible, determine_vars,
         lh_sample, boundary_sample,
-        accuracy, feasibility, check_accuracy, check_feasibility, 
+        feasibility, check_accuracy, check_feasibility, 
         check_bounds,  check_sampled, 
         solution, 
-        evaluate_feasibility,
+        evaluate_feasibility, evaluate_accuracy,
         nonlinearize!,
         save_fit, load_fit, set_param, get_param, 
         # Functions on BlackBoxLearners
@@ -102,6 +102,6 @@ module OptimalConstraintTree
         clear_data!, clear_tree_data!,
         # Small scripts
         vars_from_expr, get_varmap, deconstruct, flat,
-        infarray, substitute, power
+        infarray, substitute, power, normalized_data
 end
 

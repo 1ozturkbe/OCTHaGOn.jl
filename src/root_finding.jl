@@ -42,13 +42,13 @@ function find_knn(bbl::BlackBoxLearner; k::Int64 = 10)
 end
 
 """ Classifies KNN domains by feasibility. """
-function classify_patches(bbc::BlackBoxClassifier, idxs::Array)
+function classify_patches(bbc::BlackBoxLearner, idxs::Array, threshold = 0)
     arr = []
     for idx in idxs
         signs = [bbc.Y[i] for i in idx];
-        if all(signs .>= 0)
+        if all(signs .>= threshold)
             push!(arr, "feas")
-        elseif all(signs .< 0)
+        elseif all(signs .< threshold)
             push!(arr, "infeas")
         else
             push!(arr, "mixed")

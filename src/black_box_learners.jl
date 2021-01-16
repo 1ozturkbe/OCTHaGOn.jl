@@ -43,7 +43,7 @@ Optional arguments:
 end
 
 function Base.show(io::IO, bbr::BlackBoxRegressor)
-    println(io, "BlackBoxRegressor " * bbr.name * " with $(length(bbr.vars)) dependent variables: ")
+    println(io, "BlackBoxRegressor " * bbr.name * " with $(length(bbr.vars)) independent variables: ")
     println(io, "Sampled $(length(bbr.Y)) times, and has $(length(bbr.learners)) trained ORTs.")
 end
 
