@@ -53,15 +53,19 @@ function add_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier; M = 1e5
     elseif !get_param(gm, :ignore_accuracy) && !check_accuracy(bbc)
         throw(OCTException("Constraint " * string(bbc.name) * " is inaccurately approximated. "))
     else
-        bbc.mi_constraints, bbc.leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[end];
+        mi_constraints, leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[end];
                                             M=M, equality = bbc.equality);
+        append!(bbc.mi_constraints, mi_constraints)
+        append!(bbc.leaf_variables, leaf_variables)
     end
     return
 end
 
 function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor; M = 1e5)
+    mi_constraints = []
+    leaf_variables = []
     if get_param(bbr, :reloaded)
-        bbr.mi_constraints, bbr.leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
+        mi_constraints, leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
                                                                    bbr.learners[end];
                                                                    M = M, equality = bbr.equality)
     elseif size(bbr.X, 1) == 0
@@ -70,17 +74,19 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor; M = 1e5)
         throw(OCTException("Constraint " * string(bbr.name) * " must be learned before tree constraints
                             can be generated."))
     elseif !isempty(bbr.ul_data[end])
-        bbr.mi_constraints, bbr.leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
+        mi_constraints, leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
                                                                    bbr.learners[end], bbr.ul_data[end];
                                                                    M = M, equality = bbr.equality)
     elseif bbr.learners[end] isa IAI.OptimalTreeRegressor
-        bbr.mi_constraints, bbr.leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
+        mi_constraints, leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
                                                                 bbr.learners[end];
                                                                 M = M, equality = bbr.equality)
     else
         throw(OCTException("Constraint " * string(bbr.name) * " is a Regressor, 
                             but doesn't have a ORT and/or OCT with upper/lower bounding approximators!"))
     end
+    append!(bbr.mi_constraints, mi_constraints)
+    append!(bbr.leaf_variables, leaf_variables)
     return
 end
 
