@@ -361,11 +361,27 @@ function evaluate_feasibility(gm::GlobalModel)
     for bbl in gm.bbls
         eval!(bbl, soln)
         if bbl isa BlackBoxClassifier
-            push!(feas, gm.bbls[i].Y[end] >= 0)
+            push!(feas, bbl.Y[end] >= 0)
         elseif bbl isa BlackBoxRegressor
             reltol = get_param(gm, :reltol)
-            push!(feas, gm.bbls[i].Y[end] >= JuMP.getvalue(gm.bbls[1].dependent_var) * (1-reltol) && 
-                        gm.bbls[i].Y[end] <=  JuMP.getvalue(gm.bbls[1].dependent_var) * (1+reltol))
+            push!(feas, bbl.Y[end] >= JuMP.getvalue(bbl.dependent_var) * (1-reltol) && 
+                        bbl[i].Y[end] <=  JuMP.getvalue(bbl.dependent_var) * (1+reltol))
+        end
+    end
+    return feas
+end
+
+""" Evaluates feasibility gap at solution. """
+function feas_gap(gm::GlobalModel)
+    soln = solution(gm)
+    feas = []
+    for bbl in gm.bbls
+        eval!(bbl, soln)
+        if bbl isa BlackBoxClassifier
+            push!(feas, minimum([bbl.Y[end], 0]))
+        elseif bbl isa BlackBoxRegressor
+            reltol = get_param(gm, :reltol)
+            push!(feas, bbl.Y[end] - JuMP.getvalue(bbl.dependent_var))
         end
     end
     return feas

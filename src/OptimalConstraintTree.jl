@@ -67,6 +67,7 @@ module OptimalConstraintTree
         check_bounds,  check_sampled, 
         solution, 
         evaluate_feasibility, evaluate_accuracy,
+        feas_gap, 
         nonlinearize!,
         save_fit, load_fit, set_param, get_param, 
         # Functions on BlackBoxLearners
