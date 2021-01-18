@@ -10,7 +10,7 @@ nonlinear_model can contain JuMP.NonlinearConstraints.
     bbls::Array{BlackBoxLearner} = BlackBoxLearner[]             # Constraints to be learned
     vars::Array{JuMP.VariableRef} = JuMP.all_variables(model)    # JuMP variables
     solution_history::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Solution history
-    feas_history::DataFrame = DataFrame()                        # Constraint feasibility history
+    feas_history::Array = []                                     # Constraint feasibility history
     params::Dict = gm_defaults()                                 # GM settings
 end
 
@@ -336,6 +336,8 @@ Applies JuMP.optimize! to GlobalModels, and saves solution history.
 function JuMP.optimize!(gm::GlobalModel; kwargs...)
     JuMP.optimize!(gm.model, kwargs...)
     append!(gm.solution_history, solution(gm), cols=:intersect)
+    push!(gm.feas_history, feas_gap(gm))
+    return
 end
 
 """
