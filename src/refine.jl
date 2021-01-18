@@ -99,19 +99,20 @@ function ul_regress(X::DataFrame, Y::Array; solver = CPLEX_SILENT)
     return [getvalue(α0), getvalue.(α)], [getvalue(β0), getvalue.(β)]
 end
 
-function reweight(X::Matrix, sol::Array, mag::Float64 = 1.0)
-    """ Gaussian reweighting of existing data by proximity to previous solution.
-    Arguments:
-    - X: data
-    - x_sol: solution array with same # of columns
-    - mag: relative weighting, bigger is more.
-    Returns:
-    - weights: weights of X rows, by Euclidian distance
-    """
+""" 
+    reweight(X::Matrix, mag::Float64 = 10)
+
+Gaussian reweighting of existing data by proximity to previous solution.
+Note: mag -> Inf results in uniform reweighting. 
+Returns:
+- weights: weights of X rows, by Euclidian distance
+"""
+function reweight(X::Matrix, mag::Float64 = 10)
+
     n_samples, n_features = size(X);
     mean = [sum(X[:,i])/n_samples for i=1:n_features];
     std = [sum((X[:,i]-ones(n_samples)* mean[i]).^2)/n_samples for i=1:n_features];
-    distance = [sum((X[i,:] - mean).^2 ./std.^2) for i=1:n_samples];
-    weights = exp.(-0.5*mag*distance);
+    distance = [sum((X[i,:] - mean).^2 ./std) for i=1:n_samples];
+    weights = exp.(-1/mag*distance);
     return weights
 end
