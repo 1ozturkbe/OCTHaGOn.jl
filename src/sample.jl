@@ -84,7 +84,7 @@ end
 Does KNN and interval arithmetic based sampling once there is at least one feasible
     sample to a BlackBoxLearner.
 """
-function knn_sample(bbl::BlackBoxClassifier; k::Int64 = 10)
+function knn_sample(bbl::BlackBoxClassifier; k::Int64 = 10, tighttol = 1e-5)
     if bbl.feas_ratio == 0. || bbl.feas_ratio == 1.0
         throw(OCTException("Constraint " * string(bbl.name) * " must have at least one feasible or
                             infeasible sample to be KNN-sampled!"))
@@ -95,10 +95,10 @@ function knn_sample(bbl::BlackBoxClassifier; k::Int64 = 10)
     idxs, dists = find_knn(bbl, k=k);
     positives = findall(x -> x .>= 0 , bbl.Y);
     feas_class = classify_patches(bbl, idxs);
-    for center_node in positives # This loop is for making sure that every possible root is sampled only once.
-        if feas_class[center_node] == "mixed"
-            nodes = [idx for idx in idxs[center_node] if bbl.Y[idx] < 0];
-            push!(nodes, center_node)
+    for i = 1:length(positives) # This loop is for making sure that every possible root is sampled only once.
+        if feas_class[positives[i]] == "mixed"
+            nodes = [idxs[i][j] for j=1:length(idxs[i]) if (bbl.Y[idxs[i][j]] < 0 && dists[positives[i]][j] >= tighttol)];
+            push!(nodes, positives[i])
             np = secant_method(bbl.X[nodes, :], bbl.Y[nodes, :])
             append!(df, np);
         end
@@ -118,7 +118,7 @@ Keyword arguments:
 """
 function uniform_sample_and_eval!(bbl::BlackBoxLearner;
                           boundary_fraction::Float64 = 0.5,
-                          lh_iterations::Int64 = 0)
+                          lh_iterations::Int64 = 0, tighttol = tighttol)
     @assert size(bbl.X, 1) == 0 
     vks = string.(bbl.vars)
     n_dims = length(vks);
@@ -134,19 +134,21 @@ function uniform_sample_and_eval!(bbl::BlackBoxLearner;
             throw(OCTException(string(bbl.name) * " has zero infeasible samples. " *
                                "Please find at least one feasible sample, seed the data and KNN sample."))
         else
-            df = knn_sample(bbl)
-            eval!(bbl, df)
+            df = knn_sample(bbl, k = length(bbl.vars), tighttol = tighttol)
+            if size(df, 1) > 0
+                eval!(bbl, df)
+            end
         end
     end
     return
 end
 
-function uniform_sample_and_eval!(bbls::Array{BlackBoxLearner}; lh_iterations = 0) 
+function uniform_sample_and_eval!(bbls::Array{BlackBoxLearner}; lh_iterations = 0, tighttol = 1e-5) 
     for bbl in bbls 
-        uniform_sample_and_eval!(bbl, lh_iterations = lh_iterations)
+        uniform_sample_and_eval!(bbl, lh_iterations = lh_iterations, tighttol = tighttol)
     end
     return
 end
 
 uniform_sample_and_eval!(gm::GlobalModel; lh_iterations::Int64 = get_param(gm, :lh_iterations)) = 
-        uniform_sample_and_eval!(gm.bbls; lh_iterations = lh_iterations)
+        uniform_sample_and_eval!(gm.bbls; lh_iterations = lh_iterations, tighttol = get_param(gm, :tighttol))

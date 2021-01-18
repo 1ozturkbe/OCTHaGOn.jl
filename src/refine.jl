@@ -107,7 +107,7 @@ Note: mag -> Inf results in uniform reweighting.
 Returns:
 - weights: weights of X rows, by Euclidian distance
 """
-function reweight(X::Matrix, mag::Float64 = 10)
+function reweight(X::Matrix, mag::Float64 = 10.)
 
     n_samples, n_features = size(X);
     mean = [sum(X[:,i])/n_samples for i=1:n_features];
