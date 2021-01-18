@@ -56,7 +56,7 @@ function add_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier; M = 1e5
         mi_constraints, leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[end];
                                             M=M, equality = bbc.equality);
         append!(bbc.mi_constraints, mi_constraints)
-        append!(bbc.leaf_variables, leaf_variables)
+        merge(bbc.leaf_variables, leaf_variables) # TODO: figure out issues to do with merging...
     end
     return
 end
@@ -86,7 +86,7 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor; M = 1e5)
                             but doesn't have a ORT and/or OCT with upper/lower bounding approximators!"))
     end
     append!(bbr.mi_constraints, mi_constraints)
-    append!(bbr.leaf_variables, leaf_variables)
+    merge(bbr.leaf_variables, leaf_variables)
     return
 end
 

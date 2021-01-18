@@ -10,6 +10,7 @@ nonlinear_model can contain JuMP.NonlinearConstraints.
     bbls::Array{BlackBoxLearner} = BlackBoxLearner[]             # Constraints to be learned
     vars::Array{JuMP.VariableRef} = JuMP.all_variables(model)    # JuMP variables
     solution_history::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Solution history
+    feas_history::DataFrame = DataFrame()                        # Constraint feasibility history
     params::Dict = gm_defaults()                                 # GM settings
 end
 
@@ -378,9 +379,12 @@ function feas_gap(gm::GlobalModel)
     for bbl in gm.bbls
         eval!(bbl, soln)
         if bbl isa BlackBoxClassifier
-            push!(feas, minimum([bbl.Y[end], 0]))
+            if !bbl.equality
+                push!(feas, minimum([bbl.Y[end], 0]))
+            else
+                push!(feas, bbl.Y[end])
+            end
         elseif bbl isa BlackBoxRegressor
-            reltol = get_param(gm, :reltol)
             push!(feas, bbl.Y[end] - JuMP.getvalue(bbl.dependent_var))
         end
     end
