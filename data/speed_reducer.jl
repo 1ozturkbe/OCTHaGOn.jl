@@ -1,8 +1,4 @@
 #=
-test_speedreducer:
-- Julia version: 
-- Author: Berk
-- Date: 2020-08-10
 Speed reducer problem from [Li, 2017]
 Known optimum is 2999.76.
 =#
@@ -17,9 +13,9 @@ function speed_reducer(solver = CPLEX_SILENT)
     bound!(gm, Dict(var => [lbs[var], ubs[var]] for var in gm.vars))
 
 #     Objective
-    add_nonlinear_constraint(gm, :(x -> x[8] - (0.7854*x[1]*x[2]^2*(10. / 3. *x[3]^2 + 14.9334*x[3] - 43.0934) -
+    add_nonlinear_constraint(gm, :(x -> 0.7854*x[1]*x[2]^2*(10. / 3. *x[3]^2 + 14.9334*x[3] - 43.0934) -
              1.508*x[1]*(x[6]^2 + x[7]^2) + 7.477*(x[6]^3 + x[7]^3) +
-             0.7854*(x[4]*x[6]^2 + x[5]*x[7]^2))))
+             0.7854*(x[4]*x[6]^2 + x[5]*x[7]^2)), vars = x[1:7], dependent_var = x[8])
 
     # Constraints
     add_nonlinear_constraint(gm, :(x -> -27 + x[1] * x[2]^2 * x[3]), vars = x[1:3])
