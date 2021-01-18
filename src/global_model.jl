@@ -357,7 +357,11 @@ function solution(m::JuMP.Model)
     return DataFrame(vals', string.(variables))
 end
 
-""" Evaluates each constraint at solution to make sure it is feasible. """
+""" 
+evaluate_feasibility(gm::GlobalModel)
+
+Evaluates feasibility of constraints absolutely, and within tolerance for BBRs. 
+"""
 function evaluate_feasibility(gm::GlobalModel)
     soln = solution(gm)
     feas = []
@@ -366,15 +370,19 @@ function evaluate_feasibility(gm::GlobalModel)
         if bbl isa BlackBoxClassifier
             push!(feas, bbl.Y[end] >= 0)
         elseif bbl isa BlackBoxRegressor
-            reltol = get_param(gm, :reltol)
-            push!(feas, bbl.Y[end] >= JuMP.getvalue(bbl.dependent_var) * (1-reltol) && 
-                        bbl[i].Y[end] <=  JuMP.getvalue(bbl.dependent_var) * (1+reltol))
+            tighttol = get_param(gm, :tighttol)
+            push!(feas, bbl.Y[end] >= JuMP.getvalue(bbl.dependent_var) * (1-tighttol) && 
+                        bbl[i].Y[end] <=  JuMP.getvalue(bbl.dependent_var) * (1+tighttol))
         end
     end
     return feas
 end
 
-""" Evaluates feasibility gap at solution. """
+""" 
+    feas_gap(gm::GlobalModel)
+
+Evaluates relative feasibility gap at solution. 
+"""
 function feas_gap(gm::GlobalModel)
     soln = solution(gm)
     feas = []
@@ -382,12 +390,16 @@ function feas_gap(gm::GlobalModel)
         eval!(bbl, soln)
         if bbl isa BlackBoxClassifier
             if !bbl.equality
-                push!(feas, minimum([bbl.Y[end], 0]))
+                if bbl.Y[end] >= 0
+                    push!(feas, 0)
+                else
+                    push!(feas, bbl.Y[end] ./ (maximum(bbl.Y) - minimum(bbl.Y)))
+                end
             else
-                push!(feas, bbl.Y[end])
+                push!(feas, bbl.Y[end] ./ (maximum(bbl.Y) - minimum(bbl.Y)))
             end
         elseif bbl isa BlackBoxRegressor
-            push!(feas, bbl.Y[end] - JuMP.getvalue(bbl.dependent_var))
+            push!(feas, (bbl.Y[end] - JuMP.getvalue(bbl.dependent_var)) / (maximum(bbl.Y) - minimum(bbl.Y)))
         end
     end
     return feas
