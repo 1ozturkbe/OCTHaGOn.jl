@@ -21,7 +21,6 @@ global OCT = OptimalConstraintTree
 global MOI = MathOptInterface
 global BARON_SILENT = with_optimizer(BARON.Optimizer, OutputFlag = 0)
 global CPLEX_SILENT = OCT.CPLEX_SILENT
-# global IPOPT_SILENT = with_optimizer(Ipopt.Optimizer, print_level = 0)
 # global GUROBI_SILENT = with_optimizer(Gurobi.Optimizer, OutputFlag = 0, Gurobi.Env())
 Random.seed!(1);
 MOI.Silent() = true;
@@ -31,6 +30,8 @@ include(OCT.PROJECT_ROOT * "/test/tools/gams.jl");
 include(OCT.PROJECT_ROOT * "/test/tools/sagemark.jl");
 
 include(OCT.PROJECT_ROOT * "/test/tools/models.jl")
+
+include(OCT.DATA_DIR * "speed_reducer.jl")
 
 include(OCT.BARON_DIR * "gear.jl");
 
