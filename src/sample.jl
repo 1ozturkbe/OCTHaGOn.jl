@@ -81,10 +81,12 @@ end
 
 
 """
-Does KNN and interval arithmetic based sampling once there is at least one feasible
+    knn_sample(bbl::BlackBoxClassifier; k::Int64 = 10, tighttol = 1e-5, sample_idxs = nothing)
+
+Does KNN and secant method based sampling once there is at least one feasible
     sample to a BlackBoxLearner.
 """
-function knn_sample(bbl::BlackBoxClassifier; k::Int64 = 10, tighttol = 1e-5, sample_idxs = nothing)
+function knn_sample(bbl::BlackBoxClassifier; k::Int64 = length(bbl.vars), tighttol = 1e-5, sample_idxs = nothing, sign = 1)
     if bbl.feas_ratio == 0. || bbl.feas_ratio == 1.0
         throw(OCTException("Constraint " * string(bbl.name) * " must have at least one feasible or
                             infeasible sample to be KNN-sampled!"))
@@ -93,16 +95,14 @@ function knn_sample(bbl::BlackBoxClassifier; k::Int64 = 10, tighttol = 1e-5, sam
     df = DataFrame([Float64 for i in vks], vks)
     build_knn_tree(bbl);
     idxs, dists = find_knn(bbl, k=k);
-    positives = []
-    feas_clas = []
-    positives = findall(x -> x .>= 0 , bbl.Y);
     feas_class = []
+    positives = findall(x -> x .>= 0, bbl.Y)
     if !isnothing(sample_idxs)
         idxs = idxs[sample_idxs]
         dists = dists[sample_idxs]
-        positives = positives[sample_idxs]
-        feas_class = classify_patches(bbl, idxs);
+        positives = intersect(positives, sample_idxs)
     end
+    feas_class = classify_patches(bbl, idxs);
     for i = 1:length(positives) # This loop is for making sure that every possible root is sampled only once.
         if feas_class[positives[i]] == "mixed"
             nodes = [idxs[i][j] for j=1:length(idxs[i]) if (bbl.Y[idxs[i][j]] < 0 && dists[positives[i]][j] >= tighttol)];
@@ -126,7 +126,7 @@ Keyword arguments:
 """
 function uniform_sample_and_eval!(bbl::BlackBoxLearner;
                           boundary_fraction::Float64 = 0.5,
-                          lh_iterations::Int64 = 0, tighttol = tighttol)
+                          lh_iterations::Int64 = 0, tighttol = 1.e-5)
     @assert size(bbl.X, 1) == 0 
     vks = string.(bbl.vars)
     n_dims = length(vks);
