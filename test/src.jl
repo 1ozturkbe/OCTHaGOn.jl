@@ -218,9 +218,6 @@ function test_regress()
     X = DataFrame(:x => rand(100), :y => rand(100))
     Y = X[!,:y] - X[!,:x] .+ 0.1
     solver = CPLEX_SILENT
-    splits = (Y .>= threshold).*2 .- 1.0
-    trues = findall(x -> x .>= 0, splits)
-    scatter(X[trues, :x], X[trues, :y])
     β0, β = svm(Matrix(X), Y)
     predictions = Matrix(X) * β .+ β0 
     @test sum((predictions-Y).^2) <= 1e-10
