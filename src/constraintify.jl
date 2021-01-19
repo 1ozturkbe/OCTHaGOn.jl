@@ -11,11 +11,13 @@ function clear_tree_constraints!(gm::GlobalModel, bbl::BlackBoxLearner)
         if is_valid(gm.model, constraint)
             delete(gm.model, constraint)
         end
+        bbl.mi_constraints = []
     end
     for variable in collect(values(bbl.leaf_variables))
         if is_valid(gm.model, variable)
             delete(gm.model, variable)
         end
+        bbl.leaf_variables = Dict{Int64, JuMP.VariableRef}()
     end
     return
 end
@@ -40,8 +42,10 @@ function add_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier; M = 1e5
     if bbc.feas_ratio == 1.0
         return
     elseif get_param(bbc, :reloaded)
-        bbc.mi_constraints, bbc.leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[end];
+        mi_constraints, leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[end];
                                             M=M, equality = bbc.equality)
+        append!(bbc.mi_constraints, mi_constraints)
+        merge!(bbc.leaf_variables, leaf_variables) # TODO: figure out issues to do with merging...
     elseif size(bbc.X, 1) == 0
         throw(OCTException("Constraint " * string(bbc.name) * " has not been sampled yet, and is thus untrained."))
     elseif isempty(bbc.learners)
@@ -56,7 +60,7 @@ function add_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier; M = 1e5
         mi_constraints, leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[end];
                                             M=M, equality = bbc.equality);
         append!(bbc.mi_constraints, mi_constraints)
-        merge(bbc.leaf_variables, leaf_variables) # TODO: figure out issues to do with merging...
+        merge!(bbc.leaf_variables, leaf_variables) # TODO: figure out issues to do with merging...
     end
     return
 end
@@ -86,7 +90,7 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor; M = 1e5)
                             but doesn't have a ORT and/or OCT with upper/lower bounding approximators!"))
     end
     append!(bbr.mi_constraints, mi_constraints)
-    merge(bbr.leaf_variables, leaf_variables)
+    merge!(bbr.leaf_variables, leaf_variables)
     return
 end
 
