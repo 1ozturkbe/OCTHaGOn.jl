@@ -166,11 +166,11 @@ function test_bbl()
     uniform_sample_and_eval!(bbl);
 
     # Sampling, learning and showing...
-    learn_constraint!(bbl);
+    learn_constraint!(bbl, true);
 
     # Check feasibility and accuracy
     @test 0 <= feasibility(bbl) <= 1
-    @test 0 <= accuracy(bbl) <= 1
+    @test 0 <= evaluate_accuracy(bbl) <= 1
 
     # Training a model
     mi_constraints, leaf_variables = add_feas_constraints!(model, bbl.vars, bbl.learners[1]);
@@ -214,6 +214,13 @@ function test_regress()
     rβ0, rβ = ridge_regress(X, Y)
     mse = sum((Y .- (β0 .+ Matrix(X) * β)).^2)/length(Y)
     @test true
+
+    X = DataFrame(:x => rand(100), :y => rand(100))
+    Y = X[!,:y] - X[!,:x] .+ 0.1
+    solver = CPLEX_SILENT
+    β0, β = svm(Matrix(X), Y)
+    predictions = Matrix(X) * β .+ β0 
+    @test sum((predictions-Y).^2) <= 1e-10
 end
 
 """ Tests various ways to train a regressor"""
@@ -281,10 +288,9 @@ function test_basic_gm()
     uniform_sample_and_eval!(gm)
 
     learn_constraint!(gm)
-    println("Approximation accuracies: ", accuracy(gm))
+    println("Approximation accuracies: ", evaluate_accuracy(gm))
 
     # Solving of model
-    @test_throws OCTException globalsolve(gm) # inaccuracy check in globalsolve.
     set_param(gm, :ignore_accuracy, true)
     globalsolve(gm);
     vals = solution(gm);
@@ -293,7 +299,7 @@ function test_basic_gm()
 
     # Testing constraint addition and removal
     clear_tree_constraints!(gm) # Clears all bbl constraints
-    @test all([!is_valid(gm.model, constraint) for constraint in gm.bbls[2].mi_constraints])
+    @test !any([is_valid(gm.model, constraint) for constraint in gm.bbls[2].mi_constraints])
     add_tree_constraints!(gm, gm.bbls[2])
     @test all([is_valid(gm.model, constraint) for constraint in gm.bbls[2].mi_constraints])
     add_tree_constraints!(gm);

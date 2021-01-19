@@ -11,11 +11,13 @@ function clear_tree_constraints!(gm::GlobalModel, bbl::BlackBoxLearner)
         if is_valid(gm.model, constraint)
             delete(gm.model, constraint)
         end
+        bbl.mi_constraints = []
     end
     for variable in collect(values(bbl.leaf_variables))
         if is_valid(gm.model, variable)
             delete(gm.model, variable)
         end
+        bbl.leaf_variables = Dict{Int64, JuMP.VariableRef}()
     end
     return
 end
@@ -40,8 +42,10 @@ function add_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier; M = 1e5
     if bbc.feas_ratio == 1.0
         return
     elseif get_param(bbc, :reloaded)
-        bbc.mi_constraints, bbc.leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[end];
+        mi_constraints, leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[end];
                                             M=M, equality = bbc.equality)
+        append!(bbc.mi_constraints, mi_constraints)
+        merge!(bbc.leaf_variables, leaf_variables) # TODO: figure out issues to do with merging...
     elseif size(bbc.X, 1) == 0
         throw(OCTException("Constraint " * string(bbc.name) * " has not been sampled yet, and is thus untrained."))
     elseif isempty(bbc.learners)
@@ -53,15 +57,19 @@ function add_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier; M = 1e5
     elseif !get_param(gm, :ignore_accuracy) && !check_accuracy(bbc)
         throw(OCTException("Constraint " * string(bbc.name) * " is inaccurately approximated. "))
     else
-        bbc.mi_constraints, bbc.leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[end];
+        mi_constraints, leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[end];
                                             M=M, equality = bbc.equality);
+        append!(bbc.mi_constraints, mi_constraints)
+        merge!(bbc.leaf_variables, leaf_variables) # TODO: figure out issues to do with merging...
     end
     return
 end
 
 function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor; M = 1e5)
+    mi_constraints = []
+    leaf_variables = []
     if get_param(bbr, :reloaded)
-        bbr.mi_constraints, bbr.leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
+        mi_constraints, leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
                                                                    bbr.learners[end];
                                                                    M = M, equality = bbr.equality)
     elseif size(bbr.X, 1) == 0
@@ -70,17 +78,19 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor; M = 1e5)
         throw(OCTException("Constraint " * string(bbr.name) * " must be learned before tree constraints
                             can be generated."))
     elseif !isempty(bbr.ul_data[end])
-        bbr.mi_constraints, bbr.leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
+        mi_constraints, leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
                                                                    bbr.learners[end], bbr.ul_data[end];
                                                                    M = M, equality = bbr.equality)
     elseif bbr.learners[end] isa IAI.OptimalTreeRegressor
-        bbr.mi_constraints, bbr.leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
+        mi_constraints, leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
                                                                 bbr.learners[end];
                                                                 M = M, equality = bbr.equality)
     else
         throw(OCTException("Constraint " * string(bbr.name) * " is a Regressor, 
                             but doesn't have a ORT and/or OCT with upper/lower bounding approximators!"))
     end
+    append!(bbr.mi_constraints, mi_constraints)
+    merge!(bbr.leaf_variables, leaf_variables)
     return
 end
 
@@ -101,13 +111,18 @@ add_tree_constraints!(gm::GlobalModel; M = 1e5) = add_tree_constraints!(gm, gm.b
         m:: JuMP Model
         x:: JuMPVariables (features in lnr)
 """
-function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::IAI.OptimalTreeClassifier;
+function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::IAI.OptimalTreeLearner;
                                M::Float64 = 1.e5, equality::Bool = false)
     check_if_trained(lnr);
     all_leaves = find_leaves(lnr)
     # Add a binary variable for each leaf
-    feas_leaves =
+    feas_leaves = []
+    if lnr isa IAI.OptimalTreeClassifier
+        feas_leaves = 
         [i for i in all_leaves if Bool(IAI.get_classification_label(lnr, i))];
+    else 
+        feas_leaves = all_leaves
+    end
     constraints = []
     z_feas = @variable(m, [1:size(feas_leaves, 1)], Bin)
     leaf_variables = Dict{Int64, JuMP.VariableRef}(feas_leaves .=> z_feas)
@@ -206,7 +221,7 @@ Arguments:
     ul_data:: Upper and lower bounding hyperplanes for data in leaves of lnr
     M:: coefficient in bigM formulation
 """
-function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuMP.VariableRef, lnr::IAI.OptimalTreeClassifier, 
+function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuMP.VariableRef, lnr::IAI.OptimalTreeLearner, 
                                ul_data::Dict; M::Float64 = 1.e5, equality::Bool = false)
     constraints, leaf_variables = add_feas_constraints!(m, x, lnr, M=M, equality=equality)
     feas_leaves = collect(keys(leaf_variables))

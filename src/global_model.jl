@@ -10,6 +10,7 @@ nonlinear_model can contain JuMP.NonlinearConstraints.
     bbls::Array{BlackBoxLearner} = BlackBoxLearner[]             # Constraints to be learned
     vars::Array{JuMP.VariableRef} = JuMP.all_variables(model)    # JuMP variables
     solution_history::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Solution history
+    feas_history::Array = []                                     # Constraint feasibility history
     params::Dict = gm_defaults()                                 # GM settings
 end
 
@@ -304,7 +305,7 @@ feasibility(bbls::BlackBoxLearner) = feasibility.(bbls)
 feasibility(gm::GlobalModel) = feasibility.(gm.bbls)
 
 """ Returns the accuracy of learners in a bbl or GM. """
-function accuracy(bbc::BlackBoxClassifier)
+function evaluate_accuracy(bbc::BlackBoxClassifier)
     if bbc.feas_ratio in [1., 0]
         @warn(string("Accuracy of BlackBoxClassifier ", bbc.name, " is tautological."))
         return 1.
@@ -315,7 +316,7 @@ function accuracy(bbc::BlackBoxClassifier)
     end
 end
 
-function accuracy(bbr::BlackBoxRegressor)
+function evaluate_accuracy(bbr::BlackBoxRegressor)
     if isempty(bbr.learners)
         throw(OCTException(string("BlackBoxRegressor ", bbr.name, " has not been trained yet.")))
     else
@@ -323,9 +324,9 @@ function accuracy(bbr::BlackBoxRegressor)
     end
 end
 
-accuracy(bbls::Array{BlackBoxLearner}) = accuracy.(bbls)
-accuracy(bbls::Array{BlackBoxClassifier}) = accuracy.(bbls)
-accuracy(gm::GlobalModel) = accuracy.(gm.bbls)
+evaluate_accuracy(bbls::Array{BlackBoxLearner}) = evaluate_accuracy.(bbls)
+evaluate_accuracy(bbls::Array{BlackBoxClassifier}) = evaluate_accuracy.(bbls)
+evaluate_accuracy(gm::GlobalModel) = evaluate_accuracy.(gm.bbls)
 
 """ 
     JuMP.optimize!(gm::GlobalModel; kwargs...)
@@ -335,6 +336,8 @@ Applies JuMP.optimize! to GlobalModels, and saves solution history.
 function JuMP.optimize!(gm::GlobalModel; kwargs...)
     JuMP.optimize!(gm.model, kwargs...)
     append!(gm.solution_history, solution(gm), cols=:intersect)
+    push!(gm.feas_history, feas_gap(gm))
+    return
 end
 
 """
@@ -354,13 +357,52 @@ function solution(m::JuMP.Model)
     return DataFrame(vals', string.(variables))
 end
 
-""" Evaluates each constraint at solution to make sure it is feasible. """
+""" 
+evaluate_feasibility(gm::GlobalModel)
+
+Evaluates feasibility of constraints absolutely, and within tolerance for BBRs. 
+"""
 function evaluate_feasibility(gm::GlobalModel)
-    soln = solution(gm);
-    for fn in gm.bbls
-        eval!(fn, soln)
+    soln = solution(gm)
+    feas = []
+    for bbl in gm.bbls
+        eval!(bbl, soln)
+        if bbl isa BlackBoxClassifier
+            push!(feas, bbl.Y[end] >= 0)
+        elseif bbl isa BlackBoxRegressor
+            tighttol = get_param(gm, :tighttol)
+            push!(feas, bbl.Y[end] >= JuMP.getvalue(bbl.dependent_var) * (1-tighttol) && 
+                        bbl[i].Y[end] <=  JuMP.getvalue(bbl.dependent_var) * (1+tighttol))
+        end
     end
-    return [gm.bbls[i].Y[end] >= 0 for i=1:length(gm.bbls)]
+    return feas
+end
+
+""" 
+    feas_gap(gm::GlobalModel)
+
+Evaluates relative feasibility gap at solution. 
+"""
+function feas_gap(gm::GlobalModel)
+    soln = solution(gm)
+    feas = []
+    for bbl in gm.bbls
+        eval!(bbl, soln)
+        if bbl isa BlackBoxClassifier
+            if !bbl.equality
+                if bbl.Y[end] >= 0
+                    push!(feas, 0)
+                else
+                    push!(feas, bbl.Y[end] ./ (maximum(bbl.Y) - minimum(bbl.Y)))
+                end
+            else
+                push!(feas, bbl.Y[end] ./ (maximum(bbl.Y) - minimum(bbl.Y)))
+            end
+        elseif bbl isa BlackBoxRegressor
+            push!(feas, (bbl.Y[end] - JuMP.getvalue(bbl.dependent_var)) / (maximum(bbl.Y) - minimum(bbl.Y)))
+        end
+    end
+    return feas
 end
 
 """ Matches bbls to associated variables (except for dependent variables in Regressors). """

@@ -18,8 +18,8 @@ function nlp2(gm::Bool = false)
     else
         gm = GlobalModel(model = m, name = "nlp2")
         set_optimizer(gm, CPLEX_SILENT)
-        add_nonlinear_constraint(gm, :(x -> 250 + 30*x[1] - 6*x[1]^2 - x[3]), name = "e1", equality = true)
-        add_nonlinear_constraint(gm, :(x -> 300 + 20*x[2] - 12*x[2]^2 - x[3]), name = "e2", equality = true)
+        add_nonlinear_constraint(gm, :(x -> 250 + 30*x[1] - 6*x[1]^2 - x[3]), vars = [x[1], x[3]], name = "e1", equality = true)
+        add_nonlinear_constraint(gm, :(x -> 300 + 20*x[2] - 12*x[2]^2 - x[3]), vars = [x[2], x[3]], name = "e2", equality = true)
         add_nonlinear_constraint(gm, :(x ->  150 + 0.5*(x[1]+x[2])^2 - x[3]), name = "e3", equality = true)
         return gm
     end

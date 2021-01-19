@@ -14,16 +14,16 @@ If used on DataFrame, returns lbs and ubs as well.
 function normalized_data(bbl::BlackBoxLearner)
     bounds = get_bounds(bbl.vars)
     vks = string.(bbl.vars)
-    lbs = [minimum(val) for (key, val) in bounds]
-    ubs = [maximum(val) for (key, val) in bounds]
-    normalized_X = reduce(hcat,[(bbl.X[:, i] .- lbs[i]) ./(ubs[i] - lbs[i]) for i=1:length(vks)]);
+    lbs = [minimum(bounds[key]) for key in bbl.vars]
+    ubs = [maximum(bounds[key]) for key in bbl.vars]
+    normalized_X = reduce(hcat,[(bbl.X[:, vks[i]] .- lbs[i]) ./(ubs[i] - lbs[i]) for i=1:length(lbs)]);
     return normalized_X
 end
 
 function normalized_data(X::DataFrame)
     lbs = [minimum(col) for col in eachcol(X)]
     ubs = [maximum(col) for col in eachcol(X)]
-    normalized_X = reduce(hcat,[(X[:, i] .- lbs[i]) ./(ubs[i] - lbs[i]) for i=1:length(lbs)]);
+    normalized_X = reduce(hcat,[(X[:, i] .- lbs[i]) ./ (ubs[i] - lbs[i]) for i=1:length(lbs)]);
     return normalized_X, lbs, ubs
 end
 
@@ -42,13 +42,13 @@ function find_knn(bbl::BlackBoxLearner; k::Int64 = 10)
 end
 
 """ Classifies KNN domains by feasibility. """
-function classify_patches(bbc::BlackBoxClassifier, idxs::Array)
+function classify_patches(bbc::BlackBoxLearner, idxs::Array, threshold = 0)
     arr = []
     for idx in idxs
         signs = [bbc.Y[i] for i in idx];
-        if all(signs .>= 0)
+        if all(signs .>= threshold)
             push!(arr, "feas")
-        elseif all(signs .< 0)
+        elseif all(signs .< threshold)
             push!(arr, "infeas")
         else
             push!(arr, "mixed")
