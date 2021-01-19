@@ -166,7 +166,7 @@ function test_bbl()
     uniform_sample_and_eval!(bbl);
 
     # Sampling, learning and showing...
-    learn_constraint!(bbl);
+    learn_constraint!(bbl, true);
 
     # Check feasibility and accuracy
     @test 0 <= feasibility(bbl) <= 1
@@ -284,8 +284,6 @@ function test_basic_gm()
     println("Approximation accuracies: ", evaluate_accuracy(gm))
 
     # Solving of model
-    @test_throws OCTException globalsolve(gm) # inaccuracy check in globalsolve.
-    set_param(gm, :ignore_accuracy, true)
     globalsolve(gm);
     vals = solution(gm);
     println("X values: ", vals)
@@ -293,7 +291,7 @@ function test_basic_gm()
 
     # Testing constraint addition and removal
     clear_tree_constraints!(gm) # Clears all bbl constraints
-    @test all([!is_valid(gm.model, constraint) for constraint in gm.bbls[2].mi_constraints])
+    @test !any([is_valid(gm.model, constraint) for constraint in gm.bbls[2].mi_constraints])
     add_tree_constraints!(gm, gm.bbls[2])
     @test all([is_valid(gm.model, constraint) for constraint in gm.bbls[2].mi_constraints])
     add_tree_constraints!(gm);

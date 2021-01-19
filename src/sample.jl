@@ -86,7 +86,7 @@ end
 Does KNN and secant method based sampling once there is at least one feasible
     sample to a BlackBoxLearner.
 """
-function knn_sample(bbl::BlackBoxClassifier; k::Int64 = length(bbl.vars), tighttol = 1e-5, sample_idxs = nothing, sign = 1)
+function knn_sample(bbl::BlackBoxClassifier; k::Int64 = 10, tighttol = 1e-5, sample_idxs = nothing, sign = 1)
     if bbl.feas_ratio == 0. || bbl.feas_ratio == 1.0
         throw(OCTException("Constraint " * string(bbl.name) * " must have at least one feasible or
                             infeasible sample to be KNN-sampled!"))
@@ -95,20 +95,18 @@ function knn_sample(bbl::BlackBoxClassifier; k::Int64 = length(bbl.vars), tightt
     df = DataFrame([Float64 for i in vks], vks)
     build_knn_tree(bbl);
     idxs, dists = find_knn(bbl, k=k);
-    feas_class = []
-    positives = findall(x -> x .>= 0, bbl.Y)
-    if !isnothing(sample_idxs)
-        idxs = idxs[sample_idxs]
-        dists = dists[sample_idxs]
-        positives = intersect(positives, sample_idxs)
-    end
     feas_class = classify_patches(bbl, idxs);
-    for i = 1:length(positives) # This loop is for making sure that every possible root is sampled only once.
-        if feas_class[positives[i]] == "mixed"
-            nodes = [idxs[i][j] for j=1:length(idxs[i]) if (bbl.Y[idxs[i][j]] < 0 && dists[positives[i]][j] >= tighttol)];
-            push!(nodes, positives[i])
+    negatives = findall(x -> x .< 0, bbl.Y) # TODO: improve sign checking. 
+    if !isnothing(sample_idxs)
+        negatives = intersect(negatives, sample_idxs)
+    end
+    for i = 1:length(negatives) # This loop is for making sure that every possible root is sampled only once.
+        if feas_class[negatives[i]] == "mixed"
+            nodes = [idxs[negatives[i]][j] for j=1:length(idxs[negatives[i]]) 
+                            if (bbl.Y[idxs[negatives[i]][j]] >= 0 && dists[negatives[i]][j] >= tighttol)]
+            push!(nodes, negatives[i])
             np = secant_method(bbl.X[nodes, :], bbl.Y[nodes, :])
-            append!(df, np);
+            append!(df, np)
         end
     end
     return df
@@ -142,7 +140,7 @@ function uniform_sample_and_eval!(bbl::BlackBoxLearner;
             throw(OCTException(string(bbl.name) * " has zero infeasible samples. " *
                                "Please find at least one feasible sample, seed the data and KNN sample."))
         else
-            df = knn_sample(bbl, k = length(bbl.vars), tighttol = tighttol)
+            df = knn_sample(bbl, k=10, tighttol = tighttol)
             if size(df, 1) > 0
                 eval!(bbl, df)
             end
