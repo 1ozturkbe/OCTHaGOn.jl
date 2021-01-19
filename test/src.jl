@@ -214,6 +214,16 @@ function test_regress()
     rβ0, rβ = ridge_regress(X, Y)
     mse = sum((Y .- (β0 .+ Matrix(X) * β)).^2)/length(Y)
     @test true
+
+    X = DataFrame(:x => rand(100), :y => rand(100))
+    Y = X[!,:y] - X[!,:x] .+ 0.1
+    solver = CPLEX_SILENT
+    splits = (Y .>= threshold).*2 .- 1.0
+    trues = findall(x -> x .>= 0, splits)
+    scatter(X[trues, :x], X[trues, :y])
+    β0, β = svm(Matrix(X), Y)
+    predictions = Matrix(X) * β .+ β0 
+    @test sum((predictions-Y).^2) <= 1e-10
 end
 
 """ Tests various ways to train a regressor"""
@@ -284,6 +294,7 @@ function test_basic_gm()
     println("Approximation accuracies: ", evaluate_accuracy(gm))
 
     # Solving of model
+    set_param(gm, :ignore_accuracy, true)
     globalsolve(gm);
     vals = solution(gm);
     println("X values: ", vals)

@@ -100,6 +100,25 @@ function ul_regress(X::DataFrame, Y::Array; solver = CPLEX_SILENT)
 end
 
 """ 
+    svm(X::DataFrame, Y::Array, threshold = 0; solver = CPLEX_SILENT)
+
+Finds the unregularized SVM split, where threshold is the allowable error. 
+"""
+function svm(X::Matrix, Y::Array, threshold = 0; solver = CPLEX_SILENT)
+    m = JuMP.Model(with_optimizer(solver))
+    @variable(m, error[1:length(Y)] >= 0)
+    @variable(m, β[1:size(X, 2)])
+    @variable(m, β0)
+    for i=1:length(Y)
+        @constraint(m, threshold + error[i] >= Y[i] - β0 - sum(X[i,:] .* β))
+        @constraint(m, threshold + error[i] >= -Y[i] + β0 + sum(X[i,:] .* β))
+    end
+    @objective(m, Min, sum(error))
+    optimize!(m)
+    return getvalue(β0), getvalue.(β)
+end
+
+""" 
     reweight(X::Matrix, mag::Float64 = 10)
 
 Gaussian reweighting of existing data by proximity to previous solution.
