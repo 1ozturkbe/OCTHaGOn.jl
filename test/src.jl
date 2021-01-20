@@ -44,10 +44,11 @@ function test_expressions()
     @test infarray([(1,4), (1,3), (2,0)]) == [[Inf, Inf, Inf, Inf], Inf]
 
     # Testing gradientify
-    grad = gradientify(expr, model)
+    grad = gradientify(expr, vars_from_expr(expr, model))
     @test grad(ones(9)) == [1, 1, 1, 1, 0, -1, -1, 0, 1]
-    other_grad = gradientify(simp_expr, model)
+    other_grad = gradientify(simp_expr, vars_from_expr(simp_expr, model))
     @test other_grad(ones(5)) == 5 .* ones(5)
+    @test grad(ones(9)) == [1, 1, 1, 1, 0, -1, -1, 0, 1] # in case of world age problems
 end
 
 function test_variables()

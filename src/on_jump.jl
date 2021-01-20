@@ -172,15 +172,13 @@ function vars_from_expr(expr::Expr, model::JuMP.Model)
 end
 
 """
-gradientify(expr::Expr, model::JuMP.Model)
+    gradientify(expr::Expr, expr_vars::Array)
 
 Turns an expression into a gradient-able (via ForwardDiff), flattened function. 
 """
-function gradientify(expr::Expr, model::JuMP.Model)
-    expr_vars = vars_from_expr(expr, model)
+function gradientify(expr::Expr, expr_vars::Array)
     var_ranges = get_var_ranges(expr_vars)
-    f = functionify(expr)
-    gradable_fn = x -> Base.invokelatest(f, [x[i] for i in var_ranges]...)
+    gradable_fn = x -> Base.invokelatest(functionify(expr), [x[i] for i in var_ranges]...)
     return x -> ForwardDiff.gradient(gradable_fn, x)
 end
 
