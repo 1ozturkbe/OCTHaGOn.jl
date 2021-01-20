@@ -86,6 +86,22 @@ end
 
 get_varmap(expr_vars::Nothing, vars::Array) = nothing
 
+"""Returns the relevant ranges for variables in expr_vars..."""
+function get_var_ranges(expr_vars::Array)            
+    var_ranges = []
+    count = 0
+    for varlist in expr_vars
+        if varlist isa VariableRef
+            count += 1
+            push!(var_ranges, count)
+        else
+            push!(var_ranges, (count + 1 : count + length(varlist)))
+            count += length(varlist)
+        end
+    end
+    return var_ranges
+end
+
 """
     infarray(varmap::Array)
 

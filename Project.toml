@@ -1,13 +1,14 @@
 name = "OptimalConstraintTree"
 uuid = "0bb7ae64-b219-4fe7-9577-362e06a335f4"
 authors = ["Berk Ozturk <1ozturkbe@gmail.com>"]
-version = "0.2.1"
+version = "0.2.2"
 
 [deps]
 Combinatorics = "861a8166-3701-5b0c-9a16-15d98fcdc6aa"
 ConicBenchmarkUtilities = "e95a7839-07fb-532d-9a0e-071766bb5168"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
+ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 Gurobi = "2e9cd046-0924-5485-92f1-d5272153d98b"
 JLD = "4138dd39-2aa7-5051-a626-17a0bb65d9c8"
 JuMP = "4076af6c-e467-56ae-b986-b466b2749572"

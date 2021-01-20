@@ -3,13 +3,18 @@ include("../load.jl")
 function recipe(gm::GlobalModel)
     @info "GlobalModel " * gm.name * " in progress..."
     set_optimizer(gm, CPLEX_SILENT)
-    find_bounds!(gm, all_bounds=false)
-    set_param(gm, :ignore_feasibility, true)
-    set_param(gm, :ignore_accuracy, true)
     uniform_sample_and_eval!(gm)
-    learn_constraint!(gm)
-    save_fit(gm)
-    globalsolve(gm)
+    set_param(gm, :ignore_accuracy, true)
+    set_param(gm, :ignore_feasibility, true)
+    for bbl in gm.bbls
+        if bbl isa BlackBoxClassifier
+            learn_constraint!(bbl, get_param(gm, :ignore_feasibility))
+        else
+            learn_constraint!(bbl, regression_sparsity = 0)
+        end
+        add_tree_constraints!(gm, bbl)
+    end
+    optimize!(gm)    
 end
 
 # Loading BARON examples (that haven't been loaded yet)
