@@ -177,10 +177,11 @@ gradientify(expr::Expr, model::JuMP.Model)
 Turns an expression into a gradient-able (via ForwardDiff), flattened function. 
 """
 function gradientify(expr::Expr, model::JuMP.Model)
-expr_vars = vars_from_expr(expr, model)
-var_ranges = get_var_ranges(expr_vars)
-gradable_fn = x -> Base.invokelatest(f, [x[i] for i in var_ranges]...)
-return x -> ForwardDiff.gradient(gradable_fn, x)
+    expr_vars = vars_from_expr(expr, model)
+    var_ranges = get_var_ranges(expr_vars)
+    f = functionify(expr)
+    gradable_fn = x -> Base.invokelatest(f, [x[i] for i in var_ranges]...)
+    return x -> ForwardDiff.gradient(gradable_fn, x)
 end
 
 """

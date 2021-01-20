@@ -30,18 +30,24 @@ function test_expressions()
     @test vars_from_expr(:((x, a) -> x[2] + a[2,2]),model) == [x, a]
 
     # Testing "flattening of expressions" for nonlinearization
-    vars = vars_from_expr(expr, model)
-    var_ranges = [(1:5),(6:8),9]
-    flat_expr = :((x...) -> $(expr)([x[i] for i in $(var_ranges)]...))
+    expr_vars = vars_from_expr(expr, model)
+    @test get_var_ranges(expr_vars) == [(1:5),(6:8),9]
+    flat_expr = :((x...) -> $(expr)([x[i] for i in $(get_var_ranges(expr_vars))]...))
     fn = functionify(flat_expr)
     @test Base.invokelatest(fn, [1,2,3,4,1,5,-6,-7,7]...) == Base.invokelatest(f, ([1,2,3,4,1], [5,-6,-7], 7)...)
-    @test Base.invokelatest(fn, flat(vars)...) == res
+    @test Base.invokelatest(fn, flat(expr_vars)...) == res
 
     # Testing proper mapping for expressions
     flatvars = flat([y[2], z, x[1:4]])
     vars = vars_from_expr(expr, model)
     @test get_varmap(vars, flatvars) == [(2,2), (3,0), (1,1), (1, 2), (1,3), (1,4)]
     @test infarray([(1,4), (1,3), (2,0)]) == [[Inf, Inf, Inf, Inf], Inf]
+
+    # Testing gradientify
+    grad = gradientify(expr, model)
+    @test grad(ones(9)) == [1, 1, 1, 1, 0, -1, -1, 0, 1]
+    other_grad = gradientify(simp_expr, model)
+    @test other_grad(ones(5)) == 5 .* ones(5)
 end
 
 function test_variables()
