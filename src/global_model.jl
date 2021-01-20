@@ -235,17 +235,7 @@ function nonlinearize!(gm::GlobalModel, bbls::Array{BlackBoxLearner})
         elseif bbl.constraint isa Expr
             symb = Symbol(bbl.name)
             vars = flat(bbl.expr_vars) # We want flattening of dense vars.
-            var_ranges = []
-            count = 0
-            for varlist in bbl.expr_vars
-                if varlist isa VariableRef
-                    count += 1
-                    push!(var_ranges, count)
-                else
-                    push!(var_ranges, (count + 1 : count + length(varlist)))
-                    count += length(varlist)
-                end
-            end
+            var_ranges = get_var_ranges(bbl.expr_vars)
             expr = bbl.constraint
             flat_expr = :((x...) -> $(expr)([x[i] for i in $(var_ranges)]...))
             fn = eval(flat_expr)

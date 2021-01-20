@@ -2,6 +2,7 @@ module OptimalConstraintTree
     using Combinatorics
     using CPLEX
     using DataFrames
+    using ForwardDiff
     using JLD
     using JuMP
     using LatinHypercubeSampling
@@ -91,7 +92,7 @@ module OptimalConstraintTree
         base_regressor, base_classifier,
         fit_regressor_kwargs, fit_classifier_kwargs, 
         regressor_kwargs, classifier_kwargs,
-        functionify,
+        functionify, gradientify, 
         # Other approximators, 
         ridge_regress, ul_regress, ul_boundify, svm, reweight,
         # Functions to import global optimization problems,
@@ -102,7 +103,8 @@ module OptimalConstraintTree
         # Debugging tools
         clear_data!, clear_tree_data!,
         # Small scripts
-        vars_from_expr, get_varmap, deconstruct, flat,
+        vars_from_expr, get_varmap, get_var_ranges, 
+        deconstruct, flat,
         infarray, substitute, power, normalized_data
 end
 
