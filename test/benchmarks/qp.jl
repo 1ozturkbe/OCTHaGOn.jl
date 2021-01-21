@@ -48,15 +48,28 @@ optimize!(gm)
 Find leaf of previous solution via binary variables. 
 """
 function find_leaf_of_soln(bbl::BlackBoxLearner)
-    leaf_in = 0
-    for (leaf, var) in bbl.leaf_variables
-        if getvalue(var) == 1
-            leaf_in = leaf
+    if !bbl.equality
+        leaf_in = 0
+        for (leaf, var) in bbl.leaf_variables
+            if getvalue(var) == 1
+                leaf_in = leaf
+            end
+        end
+        @assert leaf_in != 0
+        return leaf_in
+    else
+        leaf_in = []
+        for (leaf, var) in bbl.leaf_variables
+            if getvalue(var) == 1
+                push!(leaf_in, leaf)
+            end
+        end
+        @assert length(leaf_in) == 2
+        return leaf_in
     end
-    @assert leaf_in != 0
-    return leaf_in
 end
-@assert leaf_in != 0
+
+leaf_in = find_leaf_of_soln(bbl)
 #UL_data for the leaf
 (α0, α), (β0, β) = bbl.ul_data[end][leaf_in]
 push!(uppers, α0 + sum(α .* getvalue.(bbl.vars)))
