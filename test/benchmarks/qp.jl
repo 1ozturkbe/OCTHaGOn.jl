@@ -9,8 +9,8 @@ function random_qp(dims::Int64, nconstrs::Int64, sparsity=dims, solver = CPLEX_S
     m[:b] = rand(dims)
     m[:C] = rand(nconstrs, dims).*2 .- 1
     m[:d] = rand(nconstrs)
-    @constraint(m, m[:C]*x .>= d)
-    @objective(m, Min, sum((A*x[sparse_vars] - b).^2))
+    @constraint(m, m[:C]*x .>= m[:d])
+    @objective(m, Min, sum((m[:A]*x[sparse_vars] - m[:b]).^2))
     return m
 end
 
@@ -92,7 +92,7 @@ bbl = gm.bbls[1]
 uniform_sample_and_eval!(gm)
 uppers = []
 lowers = []
-actual = []
+actuals = []
 threshold = quantile(bbl.Y, 0.25)
 learn_constraint!(gm, threshold=threshold)
 add_tree_constraints!(gm)
@@ -105,39 +105,19 @@ leaf_in = find_leaf_of_soln(bbl)
 (α0, α), (β0, β) = bbl.ul_data[end][leaf_in]
 push!(uppers, α0 + sum(α .* getvalue.(bbl.vars)))
 push!(lowers, β0 + sum(β .* getvalue.(bbl.vars)))
-push!(actual, bbl(solution(gm)))
+push!(actuals, bbl(solution(gm))[1])
+# Resample
+df = knn_outward_from_leaf(bbl, leaf_in)
+eval!(bbl, df)
 
+# Do something about uppers, lowers and actuals. 
+if actuals[end] <= lowers[end]
+    threshold = lowers[end]
+elseif lowers[end] <= actuals[end] <= uppers[end]
+    threshold = (uppers[end] - actuals[end])/2 + actuals[end]
+elseif actuals[end] >= uppers[end]
+    threshold = threshold
+    push!(bbl.learners, bbl.learners[end])
+    push!(bbl.ul_data, ul_boundify(bbl.learners[end], bbl.X, bbl.Y))
+end
 
-            # df = knn_sample(bbl, k = length(bbl.vars), tighttol = get_param(gm, :tighttol), sample_idxs = leaf_neighbors)
-            # last_sample = bbl.knn_tree.data[end]
-            # println("New_samples: ", size(df))
-            # if size(df, 1) > 0
-            #     eval!(bbl, df)
-            # #     weights = reweight(normalized_data(bbl))
-            # #     learn_constraint!(bbl, sample_weight = weights)
-            #     clear_tree_constraints!(gm, bbl)
-            #     add_tree_constraints!(gm, bbl)
-            # #     scatter!(df[:, string(vars[1])], df[:, string(vars[2])], color = :red)
-            # end
-            # LEARN TREE ON DF AS WELL AS ORIGINAL DATA IN THE LEAF. 
-            # REMOVE ORIGINAL CONSTRAINT, RETRAIN WITH THE NEW DATA
-            # weights = reweight(normalized_data(bbl), mag)
-            # Learn greedy SVM approx locally
-            # samp = 30
-            # idxs, dists = OCT.knn(bbl.knn_tree, [last_sample], samp)
-            # β0, β = svm(Matrix(bbl.X[idxs[1], :]), bbl.Y[idxs[1]])
-            leaf_var = bbl.leaf_variables[leaves[end]]
-            M = 1e5
-            gfn = x -> ForwardDiff.gradient(bbl.f, x)
-            varmap = get_varmap(bbl.expr_vars, bbl.vars)        
-            inp = deconstruct(solution(gm), bbl.vars, varmap)
-            grad = gfn(inp[1]...)    
-            grad = [grad[v[2]] for v in varmap]
-            constr = @constraint(gm.model, 0 <= sum(grad .* bbl.vars) + M * (1 - leaf_var))
-            push!(bbl.mi_constraints, constr)
-        end
-
-
-
-
-gmsol = getvalue.(gm.model[:x])
