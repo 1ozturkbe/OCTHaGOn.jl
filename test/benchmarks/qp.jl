@@ -23,25 +23,6 @@ function gmify(m::JuMP.Model)
     return gm
 end
 
-# Initializing, and solving via Ipopt
-m = random_qp(10, 5, 4)
-optimize!(m)
-mcost = JuMP.getobjectivevalue(m)
-msol = getvalue.(m[:x])
-
-# Trying thresholding method 
-using StatsBase
-gm = gmify(m)
-bbl = gm.bbls[1]
-uniform_sample_and_eval!(gm)
-uppers = []
-lowers = []
-actual = []
-threshold = quantile(bbl.Y, 0.25)
-learn_constraint!(gm, threshold=threshold)
-add_tree_constraints!(gm)
-optimize!(gm)
-
 """ 
     find_leaf_of_soln(bbl::BlackBoxLearner)
 
@@ -69,59 +50,62 @@ function find_leaf_of_soln(bbl::BlackBoxLearner)
     end
 end
 
+"""
+    knn_outward_from_leaf(bbl::BlackBoxLearner, leaf_in::Int64 = find_leaf_of_soln(bbl))
+
+Binary knn samples from current leaf to surrounding leaves.   
+"""
+function knn_outward_from_leaf(bbl::BlackBoxLearner, leaf_in::Int64 = find_leaf_of_soln(bbl))
+    leaves = IAI.apply(bbl.learners[end], bbl.X);
+    leaf_neighbors = findall(x -> x == leaf_in, leaves);
+    df = DataFrame([Float64 for i in vks], vks)
+    build_knn_tree(bbl);
+    idxs, dists = find_knn(bbl, k=k);
+    leaf_neighbors = findall(x -> x == leaf_in, leaves)
+    leaf_neighbors = leaf_neighbors[randperm(MersenneTwister(1234), length(leaf_neighbors))]; # Shuffling pre while loop
+    ct = 1
+    while size(df, 1) <= get_param(bbl, :n_samples)/2 && ct <= length(leaf_neighbors)
+        neighbor = leaf_neighbors[ct] # sampling from inside outward
+        stranger_idxs = findall(i -> leaves[i] != leaf_in, idxs[neighbor])
+        for idx in stranger_idxs
+            dist = dists[neighbor][idx]
+            if dist >= get_param(gm, :tighttol)
+                np = (Array(bbl.X[neighbor, :]) + Array(bbl.X[idxs[neighbor][idx], :]))./2
+                push!(df, np)
+            end
+        end
+        ct += 1
+    end
+    return df
+end
+
+# Initializing, and solving via Ipopt
+m = random_qp(10, 5, 4)
+optimize!(m)
+mcost = JuMP.getobjectivevalue(m)
+msol = getvalue.(m[:x])
+
+# Trying thresholding method 
+using StatsBase
+gm = gmify(m)
+bbl = gm.bbls[1]
+uniform_sample_and_eval!(gm)
+uppers = []
+lowers = []
+actual = []
+threshold = quantile(bbl.Y, 0.25)
+learn_constraint!(gm, threshold=threshold)
+add_tree_constraints!(gm)
+optimize!(gm)
+
+
+
 leaf_in = find_leaf_of_soln(bbl)
 #UL_data for the leaf
 (α0, α), (β0, β) = bbl.ul_data[end][leaf_in]
 push!(uppers, α0 + sum(α .* getvalue.(bbl.vars)))
 push!(lowers, β0 + sum(β .* getvalue.(bbl.vars)))
 push!(actual, bbl(solution(gm)))
-
-# Getting new data
-
-leaf_neighbors = findall(x -> x == leaves[end], leaves);
-df = DataFrame([Float64 for i in vks], vks)
-build_knn_tree(bbl);
-idxs, dists = find_knn(bbl, k=k);
-leaves = IAI.apply(bbl.learners[end], bbl.X);
-leaf_neighbors = randperm(MersenneTwister(1234), findall(x -> x == leaf_in, leaves));
-count = 1
-while size(df, 1) <= get_param(bbl, :n_samples)/2
-    signs = [leaves[i] == leaf_in for i in idxs[count]]
-    if length(signs) > sum(signs) > 0 
-        inleaf = idxs[count][findall(x -> x == 1, signs)]
-        outleaf = idxs[count][findall(x -> x != 1, signs)]
-        for i in inleaf
-            for j in outleaf
-                np = (Array(bbl.X[i, :]) + Array(bbl.X[j, :]))./2
-                push!(df, np)
-            end
-        end
-    end
-    count += 1
-end
-end
-
-function knn_outward(bbl::BlackBoxClassifier, leaf, leaf_neighbors::Array; k::Int64 = 10, tighttol = 1e-5)
-    vks = string.(bbl.vars)
-    df = DataFrame([Float64 for i in vks], vks)
-    build_knn_tree(bbl);
-    idxs, dists = find_knn(bbl, k=k);
-    feas_class = classify_patches(bbl, idxs);
-    negatives = findall(x -> x .< 0, bbl.Y) # TODO: improve sign checking. 
-    if !isnothing(sample_idxs)
-        negatives = intersect(negatives, sample_idxs)
-    end
-    for i = 1:length(negatives) # This loop is for making sure that every possible root is sampled only once.
-        if feas_class[negatives[i]] == "mixed"
-            nodes = [idxs[negatives[i]][j] for j=1:length(idxs[negatives[i]]) 
-                            if (bbl.Y[idxs[negatives[i]][j]] >= 0 && dists[negatives[i]][j] >= tighttol)]
-            push!(nodes, negatives[i])
-            np = secant_method(bbl.X[nodes, :], bbl.Y[nodes, :])
-            append!(df, np)
-        end
-    end
-    return df
-end
 
 
             # df = knn_sample(bbl, k = length(bbl.vars), tighttol = get_param(gm, :tighttol), sample_idxs = leaf_neighbors)
