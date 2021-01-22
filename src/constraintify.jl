@@ -7,18 +7,19 @@ Clears the constraints bbl.mi_constraints
 as well as bbl.leaf_variables in GlobalModel. 
 """
 function clear_tree_constraints!(gm::GlobalModel, bbl::BlackBoxLearner)
-    for constraint in bbl.mi_constraints
-        if is_valid(gm.model, constraint)
-            delete(gm.model, constraint)
+    for (leaf, constraints) in bbl.mi_constraints
+        for constraint in constraints
+            if is_valid(gm.model, constraint)
+                delete(gm.model, constraint)
+            end
         end
-        bbl.mi_constraints = []
     end
-    for variable in collect(values(bbl.leaf_variables))
+    for (leaf, variable) in bbl.leaf_variables
         if is_valid(gm.model, variable)
             delete(gm.model, variable)
         end
-        bbl.leaf_variables = Dict{Int64, JuMP.VariableRef}()
     end
+    bbl.leaf_variables = Dict{Int64, JuMP.VariableRef}()
     return
 end
 
@@ -44,7 +45,7 @@ function add_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier; M = 1e5
     elseif get_param(bbc, :reloaded)
         mi_constraints, leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[end];
                                             M=M, equality = bbc.equality)
-        append!(bbc.mi_constraints, mi_constraints)
+        merge!(bbc.mi_constraints, mi_constraints)
         merge!(bbc.leaf_variables, leaf_variables) # TODO: figure out issues to do with merging...
     elseif size(bbc.X, 1) == 0
         throw(OCTException("Constraint " * string(bbc.name) * " has not been sampled yet, and is thus untrained."))
@@ -59,15 +60,15 @@ function add_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier; M = 1e5
     else
         mi_constraints, leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[end];
                                             M=M, equality = bbc.equality);
-        append!(bbc.mi_constraints, mi_constraints)
+        merge!(bbc.mi_constraints, mi_constraints)
         merge!(bbc.leaf_variables, leaf_variables) # TODO: figure out issues to do with merging...
     end
     return
 end
 
 function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor; M = 1e5)
-    mi_constraints = []
-    leaf_variables = []
+    mi_constraints = Dict{Int64, Array{JuMP.ConstraintRef}}()
+    leaf_variables = Dict{Int64, JuMP.VariableRef}()
     if get_param(bbr, :reloaded)
         mi_constraints, leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
                                                                    bbr.learners[end];
@@ -89,7 +90,7 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor; M = 1e5)
         throw(OCTException("Constraint " * string(bbr.name) * " is a Regressor, 
                             but doesn't have a ORT and/or OCT with upper/lower bounding approximators!"))
     end
-    append!(bbr.mi_constraints, mi_constraints)
+    merge!(bbr.mi_constraints, mi_constraints)
     merge!(bbr.leaf_variables, leaf_variables)
     return
 end
@@ -123,10 +124,11 @@ function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::I
     else 
         feas_leaves = all_leaves
     end
-    constraints = []
+    constraints = Dict(leaf => JuMP.ConstraintRef[] for leaf in feas_leaves)
+    constraints[0] = JuMP.ConstraintRef[]
     z_feas = @variable(m, [1:size(feas_leaves, 1)], Bin)
     leaf_variables = Dict{Int64, JuMP.VariableRef}(feas_leaves .=> z_feas)
-    push!(constraints, @constraint(m, sum(z_feas) == 1))
+    push!(constraints[0], @constraint(m, sum(z_feas) == 1))
     # Getting lnr data
     upperDict, lowerDict = trust_region_data(lnr, Symbol.(x))
     for i = 1:length(feas_leaves)
@@ -134,28 +136,31 @@ function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::I
         # ADDING TRUST REGIONS
         for region in upperDict[leaf]
             threshold, α = region
-            push!(constraints, @constraint(m, threshold <= sum(α .* x) + M * (1 - z_feas[i])))
+            push!(constraints[leaf], @constraint(m, threshold <= sum(α .* x) + M * (1 - z_feas[i])))
         end
         for region in lowerDict[leaf]
             threshold, α = region
-            push!(constraints, @constraint(m, threshold + M * (1 - z_feas[i]) >= sum(α .* x)))
+            push!(constraints[leaf], @constraint(m, threshold + M * (1 - z_feas[i]) >= sum(α .* x)))
         end
     end
     if equality
         infeas_leaves = [i for i in all_leaves if !Bool(IAI.get_classification_label(lnr, i))];
         z_infeas = @variable(m, [1:length(infeas_leaves)], Bin)
-        push!(constraints, @constraint(m, sum(z_infeas) == 1))
+        push!(constraints[0], @constraint(m, sum(z_infeas) == 1))
+        for leaf in infeas_leaves
+            constraints[leaf] = JuMP.ConstraintRef[]
+        end
         for i = 1:size(infeas_leaves, 1)
             leaf = infeas_leaves[i]
             leaf_variables[leaf] = z_infeas[i]
             # ADDING TRUST REGIONS
             for region in upperDict[leaf]
                 threshold, α = region
-                push!(constraints, @constraint(m, threshold <= sum(α .* x) + M * (1 - z_infeas[i])))
+                push!(constraints[leaf], @constraint(m, threshold <= sum(α .* x) + M * (1 - z_infeas[i])))
             end
             for region in lowerDict[leaf]
                 threshold, α = region
-                push!(constraints, @constraint(m, threshold + M * (1 - z_infeas[i]) >= sum(α .* x)))
+                push!(constraints[leaf], @constraint(m, threshold + M * (1 - z_infeas[i]) >= sum(α .* x)))
             end
         end
     end
@@ -179,10 +184,11 @@ function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuM
     check_if_trained(lnr)
     all_leaves = find_leaves(lnr)
     # Add a binary variable for each leaf
-    constraints = [] 
+    constraints = Dict(leaf => JuMP.ConstraintRef[] for leaf in all_leaves)
+    constraints[0] = JuMP.ConstraintRef[]
     z = @variable(m, [1:size(all_leaves, 1)], Bin)
     leaf_variables = Dict{Int64, JuMP.VariableRef}(all_leaves .=> z)
-    push!(constraints, @constraint(m, sum(z) == 1))
+    push!(constraints[0], @constraint(m, sum(z) == 1))
     # Getting lnr data
     pwlDict = pwl_constraint_data(lnr, Symbol.(x))
     upperDict, lowerDict = trust_region_data(lnr, Symbol.(x))
@@ -190,18 +196,18 @@ function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuM
         # ADDING CONSTRAINTS
         leaf = all_leaves[i]
         β0, β = pwlDict[leaf]
-        push!(constraints, @constraint(m, sum(β .* x) + β0 <= y + M * (1 .- z[i])))
+        push!(constraints[leaf], @constraint(m, sum(β .* x) + β0 <= y + M * (1 .- z[i])))
         if equality
-            push!(constraints, @constraint(m, sum(β .* x) + β0 + M * (1 .- z[i]) >= y))
+            push!(constraints[leaf], @constraint(m, sum(β .* x) + β0 + M * (1 .- z[i]) >= y))
         end
         # ADDING TRUST REGIONS
         for region in upperDict[leaf]
             threshold, α = region
-            push!(constraints, @constraint(m, threshold <= sum(α .* x) + M * (1 - z[i])))
+            push!(constraints[leaf], @constraint(m, threshold <= sum(α .* x) + M * (1 - z[i])))
         end
         for region in lowerDict[leaf]
             threshold, α = region
-            push!(constraints, @constraint(m, threshold + M * (1 - z[i]) >= sum(α .* x)))
+            push!(constraints[leaf], @constraint(m, threshold + M * (1 - z[i]) >= sum(α .* x)))
         end
     end
     return constraints, leaf_variables
@@ -227,8 +233,8 @@ function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuM
     feas_leaves = collect(keys(leaf_variables))
     for leaf in feas_leaves
         (α0, α), (β0, β) = ul_data[leaf]
-        push!(constraints, @constraint(m, y <= α0 + sum(α .* x) + M * (1 .- leaf_variables[leaf])))
-        push!(constraints, @constraint(m, y + M * (1 .- leaf_variables[leaf]) >= β0 + sum(β .* x)))
+        push!(constraints[leaf], @constraint(m, y <= α0 + sum(α .* x) + M * (1 .- leaf_variables[leaf])))
+        push!(constraints[leaf], @constraint(m, y + M * (1 .- leaf_variables[leaf]) >= β0 + sum(β .* x)))
     end
     return constraints, leaf_variables
 end
