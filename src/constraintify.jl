@@ -25,6 +25,7 @@ function clear_tree_constraints!(gm::GlobalModel, bbl::BlackBoxLearner)
             delete(gm.model, constraint)
         end
     end
+    bbl.mi_constraints = Dict{Int64, Array{JuMP.ConstraintRef}}()
     for (leaf, variable) in bbl.leaf_variables
         if is_valid(gm.model, variable)
             delete(gm.model, variable)
