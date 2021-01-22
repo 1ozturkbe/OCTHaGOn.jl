@@ -254,7 +254,7 @@ function test_regressors()
     types = JuMP.list_of_constraint_types(gm.model)
     final_constraints = sum(length(all_constraints(gm.model, type[1], type[2])) for type in types)
     final_variables = length(all_variables(gm.model))
-    @test final_constraints == init_constraints + length(bbr.mi_constraints) + length(bbr.leaf_variables)    
+    @test final_constraints == init_constraints + length(all_mi_constraints(bbr)) + length(bbr.leaf_variables)    
     @test final_variables == init_variables + length(bbr.leaf_variables)
     clear_tree_constraints!(gm, bbr)
     types = JuMP.list_of_constraint_types(gm.model)
@@ -304,12 +304,12 @@ function test_basic_gm()
 
     # Testing constraint addition and removal
     clear_tree_constraints!(gm) # Clears all bbl constraints
-    @test !any([is_valid(gm.model, constraint) for constraint in gm.bbls[2].mi_constraints])
+    @test !any(is_valid(gm.model, constraint) for constraint in all_mi_constraints(gm.bbls[2]))
     add_tree_constraints!(gm, gm.bbls[2])
-    @test all([is_valid(gm.model, constraint) for constraint in gm.bbls[2].mi_constraints])
+    @test all(is_valid(gm.model, constraint) for constraint in all_mi_constraints(gm.bbls[2]))
     add_tree_constraints!(gm);
     clear_tree_constraints!(gm, gm.bbls[1])
-    @test !any(is_valid(gm.model, constraint) for constraint in gm.bbls[1].mi_constraints)
+    @test !any(is_valid(gm.model, constraint) for constraint in all_mi_constraints(gm.bbls[1]))
     clear_tree_constraints!(gm) # Finds and clears the one remaining bbl constraint.
     @test all([!is_valid(gm.model, constraint) for constraint in gm.bbls[1].mi_constraints])
     @test all([!is_valid(gm.model, var) for var in values(gm.bbls[1].leaf_variables)])

@@ -55,7 +55,7 @@ function test_refinement()
             grad = gfn(inp[1]...)    
             grad = [grad[v[2]] for v in varmap]
             constr = @constraint(gm.model, 0 <= sum(grad .* bbl.vars) + M * (1 - leaf_var))
-            push!(bbl.mi_constraints, constr)
+            push!(bbl.mi_constraints[leaves[end]], constr)
         end
     end
     optimize!(gm)

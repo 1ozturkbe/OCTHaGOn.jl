@@ -36,7 +36,7 @@ Optional arguments:
     learner_kwargs = []                                # and their kwargs... 
     thresholds::Array = []                             # For thresholding. 
     ul_data::Array{Dict} = Dict[]                      # Upper/Lower bounding data
-    mi_constraints::Array = []                         # and their corresponding MI constraints,
+    mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}() # and their corresponding MI constraints,
     leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their leaves and leaf variables
     knn_tree::Union{KDTree, Nothing} = nothing         # KNN tree
     params::Dict = bbr_defaults(length(vars))          # Relevant settings
@@ -84,7 +84,7 @@ Optional arguments:
     learners::Array{IAI.OptimalTreeClassifier} = []    # Learners...
     # learner_data::Array{LearnerData} = []            # Constraints training data
     learner_kwargs = []                                # And their kwargs... 
-    mi_constraints::Array = []                         # and their corresponding MI constraints,
+    mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}() # and their corresponding MI constraints,
     leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their binary leaves and associated variables,
     accuracies::Array{Float64} = []                    # and the tree misclassification scores.
     knn_tree::Union{KDTree, Nothing} = nothing         # KNN tree
