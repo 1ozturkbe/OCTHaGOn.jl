@@ -50,7 +50,7 @@ function test_refinement()
             leaf_var = bbl.leaf_variables[leaves[end]]
             M = 1e5
             constr = @constraint(gm.model, 0 <= β0 + sum(β .* bbl.vars) + M * (1 - leaf_var))
-            push!(bbl.mi_constraints, constr)
+            push!(bbl.mi_constraints[leaves[end]], constr)
         end
     end
     optimize!(gm)
