@@ -68,7 +68,7 @@ Finds upper/lower regressors of data that are conservative.
 function ul_regress(X::DataFrame, Y::Array; solver = CPLEX_SILENT)
     if size(X, 1) <= 2*size(X, 2)
         @warn("U/L regression doesn't have enough data, thus returning constant bounds. ")
-        return [maximum(Y), zeros(size(X,2))], [minimum(Y), zeros(size(X,2))], [ridge_regress(X, Y, solver = solver)]
+        return [maximum(Y), zeros(size(X,2))], [minimum(Y), zeros(size(X,2))], ridge_regress(X, Y, solver = solver)
     end
     m = JuMP.Model(with_optimizer(solver))
     @variable(m, α[1:size(X, 2)])

@@ -79,6 +79,11 @@ function knn_outward_from_leaf(bbl::BlackBoxLearner, leaf_in::Int64 = find_leaf_
     return df
 end
 
+# function knn_around_lastsol(bbl::BlackBoxLearner)
+#     lastsol = getvalue.(bbl.vars)
+#     build_knn_tree(bbl)
+#     pts = NearestNeighbors.inrange(bbl.knn_tree, lastsol, 0.05)
+
 # Initializing, and solving via Ipopt
 m = random_qp(10, 5, 4)
 optimize!(m)
@@ -89,40 +94,67 @@ msol = getvalue.(m[:x])
 using StatsBase
 gm = gmify(m)
 bbl = gm.bbls[1]
+set_param(gm, :sample_coeff, 300)
 uniform_sample_and_eval!(gm)
 uppers = []
 lowers = []
 actuals = []
+estimates = []
 thresholds = []
 tightnesses = []
-threshold = quantile(bbl.Y, 0.25)
+errors = []
+threshold = quantile(bbl.Y, 0.1)
 push!(thresholds, threshold)
 
-learn_constraint!(gm, threshold=thresholds[end])
-add_tree_constraints!(gm)
-optimize!(gm)
+while length(bbl.learners) <= 5
+    learn_constraint!(gm, threshold=thresholds[end])
+    add_tree_constraints!(gm)
+    optimize!(gm)
 
+    leaf_in = find_leaf_of_soln(bbl)
+    #UL_data for the leaf
+    (α0, α), (β0, β), (γ0, γ) = bbl.ul_data[end][leaf_in]
+    push!(uppers, α0 + sum(α .* getvalue.(bbl.vars)))
+    push!(lowers, β0 + sum(β .* getvalue.(bbl.vars)))
+    push!(actuals, bbl(solution(gm))[1])
+    push!(estimates, JuMP.getobjectivevalue(gm.model))
+    push!(errors, abs((estimates[end] - actuals[end]) ./ (maximum(bbl.Y) - minimum(bbl.Y))))
+    # Resample
+    df = knn_outward_from_leaf(bbl, leaf_in)
+    eval!(bbl, df)
 
-leaf_in = find_leaf_of_soln(bbl)
-#UL_data for the leaf
-(α0, α), (β0, β) = bbl.ul_data[end][leaf_in]
-push!(uppers, α0 + sum(α .* getvalue.(bbl.vars)))
-push!(lowers, β0 + sum(β .* getvalue.(bbl.vars)))
-push!(actuals, bbl(solution(gm))[1])
-# Resample
-df = knn_outward_from_leaf(bbl, leaf_in)
-eval!(bbl, df)
+    # Do something about uppers, lowers and actuals. 
+    # push!(thresholds, actuals[end])
+    # if actuals[end] <= lowers[end]
+    #     push!(thresholds, lowers[end])
+    # elseif lowers[end] <= actuals[end] <= uppers[end]
+    #     push!(thresholds, (uppers[end] - actuals[end])/2 + actuals[end])
+    # elseif actuals[end] >= uppers[end]
+    #     push!(thresholds, actuals[end])
+    #     push!(bbl.learners, bbl.learners[end])
+    #     push!(bbl.ul_data, ul_boundify(bbl.learners[end], bbl.X, bbl.Y))
+    # end
 
-# Do something about uppers, lowers and actuals. 
-if actuals[end] <= lowers[end]
-    push!(thresholds, lowers[end])
-elseif lowers[end] <= actuals[end] <= uppers[end]
-    push!(thresholds[end], (uppers[end] - actuals[end])/2 + actuals[end])
-elseif actuals[end] >= uppers[end]
-    push!(thresholds, actuals[end])
-    push!(bbl.learners, bbl.learners[end])
-    push!(bbl.ul_data, ul_boundify(bbl.learners[end], bbl.X, bbl.Y))
+    # Find a way to add a cut and remove certain data. 
+
+    if lowers[end] <= actuals[end] <= estimates[end] <= uppers[end]
+        push!(thresholds, (actuals[end] + estimates[end])/2)
+    elseif lowers[end] <= estimates[end] <= actuals[end] <= uppers[end]
+        push!(thresholds, actuals[end])
+    elseif actuals[end] >= uppers[end]
+        push!(thresholds, actuals[end])
+        push!(bbl.learners, bbl.learners[end])
+        push!(bbl.ul_data, ul_boundify(bbl.learners[end], bbl.X, bbl.Y))
+    end
+    clear_tree_constraints!(gm, bbl)
 end
 
-push!(tightnesses, abs(lowers[end] - actuals[end]) /(maximum(bbl.Y) - minimum(bbl.Y)))
-clear_tree_constraints!(gm)
+# When doing threshold training, make sure I can ignore data above. 
+
+# Plotting
+using Plots
+plot(lowers, label = "lowers")
+plot!(actuals, label = "actuals")
+plot!(estimates, label = "estimates")
+plot!(uppers, label = "uppers")
+plot!(thresholds, label = "thresholds")

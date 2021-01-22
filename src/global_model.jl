@@ -362,7 +362,7 @@ function evaluate_feasibility(gm::GlobalModel)
         elseif bbl isa BlackBoxRegressor
             tighttol = get_param(gm, :tighttol)
             push!(feas, bbl.Y[end] >= JuMP.getvalue(bbl.dependent_var) * (1-tighttol) && 
-                        bbl[i].Y[end] <=  JuMP.getvalue(bbl.dependent_var) * (1+tighttol))
+                        bbl.Y[end] <=  JuMP.getvalue(bbl.dependent_var) * (1+tighttol))
         end
     end
     return feas
