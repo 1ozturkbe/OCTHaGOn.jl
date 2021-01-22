@@ -1,4 +1,17 @@
 """ 
+    all_mi_constraints(bbl::BlackBoxLearner)
+
+Returns all JuMP.ConstraintRefs associated with BBL. 
+"""
+function all_mi_constraints(bbl::BlackBoxLearner)
+    all_constraints = []
+    for (leaf, constraints) in bbl.mi_constraints
+        push!(all_constraints, constraints...)
+    end
+    return all_constraints
+end
+
+""" 
     clear_tree_constraints!(gm::GlobalModel, bbl::BlackBoxLearner)
     clear_tree_constraints!(gm::GlobalModel, bbls::Array{BlackBoxLearner})
     clear_tree_constraints!(gm::GlobalModel)
@@ -7,11 +20,9 @@ Clears the constraints bbl.mi_constraints
 as well as bbl.leaf_variables in GlobalModel. 
 """
 function clear_tree_constraints!(gm::GlobalModel, bbl::BlackBoxLearner)
-    for (leaf, constraints) in bbl.mi_constraints
-        for constraint in constraints
-            if is_valid(gm.model, constraint)
-                delete(gm.model, constraint)
-            end
+    for constraint in all_mi_constraints(bbl)
+        if is_valid(gm.model, constraint)
+            delete(gm.model, constraint)
         end
     end
     for (leaf, variable) in bbl.leaf_variables

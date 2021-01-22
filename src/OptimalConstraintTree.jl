@@ -72,7 +72,7 @@ module OptimalConstraintTree
         nonlinearize!,
         save_fit, load_fit, set_param, get_param, 
         # Functions on BlackBoxLearners
-        show_trees, learn_constraint!,
+        show_trees, learn_constraint!, all_mi_constraints, 
         # Functions on BlackBoxLearners only
         eval!, uniform_sample_and_eval!,
         secant_method, knn_sample, build_knn_tree,
@@ -86,7 +86,7 @@ module OptimalConstraintTree
         linearize_objective!, classify_constraints,
         bound!,
         data_to_DataFrame, data_to_Dict,
-        distance_to_set, get_constant,
+        distance_to_set, get_constant, 
         add_feas_constraints!, add_regr_constraints!,
         add_tree_constraints!, clear_tree_constraints!,
         base_regressor, base_classifier,
