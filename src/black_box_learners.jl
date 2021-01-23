@@ -227,3 +227,43 @@ function clear_tree_data!(bbr::BlackBoxRegressor)
     bbr.thresholds = []                         
     bbr.ul_data = Dict[]            
 end
+
+""" 
+    find_leaf_of_soln(bbl::BlackBoxLearner)
+
+Find leaf of previous solution via binary variables. 
+"""
+function find_leaf_of_soln(bbl::BlackBoxLearner)
+    if !bbl.equality
+        leaf_in = 0
+        for (leaf, var) in bbl.leaf_variables
+            if getvalue(var) == 1
+                leaf_in = leaf
+            end
+        end
+        @assert leaf_in != 0
+        return leaf_in
+    else
+        leaf_in = []
+        for (leaf, var) in bbl.leaf_variables
+            if getvalue(var) == 1
+                push!(leaf_in, leaf)
+            end
+        end
+        @assert length(leaf_in) == 2
+        return leaf_in
+    end
+end
+
+""" 
+    all_mi_constraints(bbl::BlackBoxLearner)
+
+Returns all JuMP.ConstraintRefs associated with BBL. 
+"""
+function all_mi_constraints(bbl::BlackBoxLearner)
+    all_constraints = []
+    for (leaf, constraints) in bbl.mi_constraints
+        push!(all_constraints, constraints...)
+    end
+    return all_constraints
+end

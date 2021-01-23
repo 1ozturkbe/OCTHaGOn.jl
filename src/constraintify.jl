@@ -1,49 +1,3 @@
-""" 
-    all_mi_constraints(bbl::BlackBoxLearner)
-
-Returns all JuMP.ConstraintRefs associated with BBL. 
-"""
-function all_mi_constraints(bbl::BlackBoxLearner)
-    all_constraints = []
-    for (leaf, constraints) in bbl.mi_constraints
-        push!(all_constraints, constraints...)
-    end
-    return all_constraints
-end
-
-""" 
-    clear_tree_constraints!(gm::GlobalModel, bbl::BlackBoxLearner)
-    clear_tree_constraints!(gm::GlobalModel, bbls::Array{BlackBoxLearner})
-    clear_tree_constraints!(gm::GlobalModel)
-
-Clears the constraints bbl.mi_constraints 
-as well as bbl.leaf_variables in GlobalModel. 
-"""
-function clear_tree_constraints!(gm::GlobalModel, bbl::BlackBoxLearner)
-    for constraint in all_mi_constraints(bbl)
-        if is_valid(gm.model, constraint)
-            delete(gm.model, constraint)
-        end
-    end
-    bbl.mi_constraints = Dict{Int64, Array{JuMP.ConstraintRef}}()
-    for (leaf, variable) in bbl.leaf_variables
-        if is_valid(gm.model, variable)
-            delete(gm.model, variable)
-        end
-    end
-    bbl.leaf_variables = Dict{Int64, JuMP.VariableRef}()
-    return
-end
-
-function clear_tree_constraints!(gm::GlobalModel, bbls::Array{BlackBoxLearner})
-    for bbl in bbls
-        clear_tree_constraints!(gm, bbl)
-    end
-    return
-end
-
-clear_tree_constraints!(gm::GlobalModel) = clear_tree_constraints!(gm, gm.bbls)
-
 """
     add_tree_constraints!(gm::GlobalModel, bbl::BlackBoxLearner, M=1e5)
     add_tree_constraints!(gm::GlobalModel, bbls::Vector{BlackBoxLearner}; M=1e5)
@@ -254,3 +208,36 @@ function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuM
     end
     return constraints, leaf_variables
 end
+
+""" 
+    clear_tree_constraints!(gm::GlobalModel, bbl::BlackBoxLearner)
+    clear_tree_constraints!(gm::GlobalModel, bbls::Array{BlackBoxLearner})
+    clear_tree_constraints!(gm::GlobalModel)
+
+Clears the constraints bbl.mi_constraints 
+as well as bbl.leaf_variables in GlobalModel. 
+"""
+function clear_tree_constraints!(gm::GlobalModel, bbl::BlackBoxLearner)
+    for constraint in all_mi_constraints(bbl)
+        if is_valid(gm.model, constraint)
+            delete(gm.model, constraint)
+        end
+    end
+    bbl.mi_constraints = Dict{Int64, Array{JuMP.ConstraintRef}}()
+    for (leaf, variable) in bbl.leaf_variables
+        if is_valid(gm.model, variable)
+            delete(gm.model, variable)
+        end
+    end
+    bbl.leaf_variables = Dict{Int64, JuMP.VariableRef}()
+    return
+end
+
+function clear_tree_constraints!(gm::GlobalModel, bbls::Array{BlackBoxLearner})
+    for bbl in bbls
+        clear_tree_constraints!(gm, bbl)
+    end
+    return
+end
+
+clear_tree_constraints!(gm::GlobalModel) = clear_tree_constraints!(gm, gm.bbls)

@@ -23,33 +23,6 @@ function gmify(m::JuMP.Model)
     return gm
 end
 
-""" 
-    find_leaf_of_soln(bbl::BlackBoxLearner)
-
-Find leaf of previous solution via binary variables. 
-"""
-function find_leaf_of_soln(bbl::BlackBoxLearner)
-    if !bbl.equality
-        leaf_in = 0
-        for (leaf, var) in bbl.leaf_variables
-            if getvalue(var) == 1
-                leaf_in = leaf
-            end
-        end
-        @assert leaf_in != 0
-        return leaf_in
-    else
-        leaf_in = []
-        for (leaf, var) in bbl.leaf_variables
-            if getvalue(var) == 1
-                push!(leaf_in, leaf)
-            end
-        end
-        @assert length(leaf_in) == 2
-        return leaf_in
-    end
-end
-
 """
     knn_outward_from_leaf(bbl::BlackBoxLearner, leaf_in::Int64 = find_leaf_of_soln(bbl))
 

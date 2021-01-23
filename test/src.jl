@@ -299,6 +299,7 @@ function test_basic_gm()
     set_param(gm, :ignore_accuracy, true)
     globalsolve(gm);
     vals = solution(gm);
+    init_leaves = find_leaf_of_soln.(gm.bbls)
     println("X values: ", vals)
     println("Optimal X: ", vcat(exp.([5.01063529, 3.40119660, -0.48450710]), [-147-2/3]))
 
@@ -330,6 +331,8 @@ function test_basic_gm()
     bbc = gm.bbls[2]
     @test bbc.accuracies[end] == bbc.accuracies[end-1]
     globalsolve(gm)
+    final_leaves = find_leaf_of_soln.(gm.bbls)
+    @test all(init_leaves .== final_leaves)
     @test gm.solution_history[end, "obj"] ≈ gm.solution_history[end-1, "obj"] 
 
     # Testing clearing all data
