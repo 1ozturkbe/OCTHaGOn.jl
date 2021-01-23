@@ -121,8 +121,8 @@ function ul_boundify(lnr::IAI.OptimalTreeLearner, X::DataFrame, Y; solver = CPLE
     end
     for leaf in feas_leaves
         idx = findall(x -> x == leaf, leaf_idx)
-        (α0, α), (β0, β) = ul_regress(X[idx,:], Y[idx]; solver = solver)
-        ul_data[leaf] = [(α0, α), (β0, β)]
+        (α0, α), (β0, β), (γ0, γ) = ul_regress(X[idx,:], Y[idx]; solver = solver)
+        ul_data[leaf] = [(α0, α), (β0, β), (γ0, γ)]
     end
     return ul_data
 end

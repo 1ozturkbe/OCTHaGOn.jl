@@ -212,14 +212,13 @@ end
 function test_regress()
     X = DataFrame(:x => 3*rand(100) .- 1, :y => 3*rand(100) .- 1);
     Y = Array(X[!,:x].^3 .* sin.(X[!,:y]));
-    (α0, α), (β0, β) = ul_regress(X, Y)
+    (α0, α), (β0, β), (γ0, γ) = ul_regress(X, Y)
     lowers = β0 .+ Matrix(X) * β;
     uppers = α0 .+ Matrix(X) * α;
-    @test all(lowers .<= Y) && all(uppers .>= Y)
-
-    rβ0, rβ = ridge_regress(X, Y)
-    mse = sum((Y .- (β0 .+ Matrix(X) * β)).^2)/length(Y)
-    @test true
+    best_fit = γ0 .+ Matrix(X) * γ;
+    @test all(lowers .<= Y) && all(uppers .>= Y) && all(uppers .>= lowers)
+    errors = [sum((lowers-Y).^2), sum((uppers-Y).^2), sum((best_fit-Y).^2)]
+    @test errors[3] <= errors[1] && errors[3] <= errors[2]  
 
     X = DataFrame(:x => rand(100), :y => rand(100))
     Y = X[!,:y] - X[!,:x] .+ 0.1
@@ -300,6 +299,7 @@ function test_basic_gm()
     set_param(gm, :ignore_accuracy, true)
     globalsolve(gm);
     vals = solution(gm);
+    init_leaves = find_leaf_of_soln.(gm.bbls)
     println("X values: ", vals)
     println("Optimal X: ", vcat(exp.([5.01063529, 3.40119660, -0.48450710]), [-147-2/3]))
 
@@ -331,6 +331,8 @@ function test_basic_gm()
     bbc = gm.bbls[2]
     @test bbc.accuracies[end] == bbc.accuracies[end-1]
     globalsolve(gm)
+    final_leaves = find_leaf_of_soln.(gm.bbls)
+    @test all(init_leaves .== final_leaves)
     @test gm.solution_history[end, "obj"] ≈ gm.solution_history[end-1, "obj"] 
 
     # Testing clearing all data
