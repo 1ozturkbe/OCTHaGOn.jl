@@ -350,6 +350,16 @@ function test_basic_gm()
     @test all([length(bbl.learners) == 0 for bbl in gm.bbls])
 end
 
+function test_gradients()
+    gm = test_gqp()
+    bbl = gm.bbls[1]
+    set_param(bbl, :n_samples, 100)
+    uniform_sample_and_eval!(gm)
+    gradvals = evaluate_gradient(bbl, bbl.X)
+    hand_calcs = [[6*x[1] + 2*x[2] + 1, 2*x[2] + 2*x[1] + 6] for x in eachrow(Matrix(bbl.X))]
+    @test all(gradvals .== evaluate_gradient(bbl, Matrix(bbl.X)) .== hand_calcs)
+end
+
 test_expressions()
 
 test_variables()
@@ -371,3 +381,5 @@ test_regress()
 test_regressors()
 
 test_basic_gm()
+
+test_gradients()
