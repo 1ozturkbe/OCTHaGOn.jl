@@ -187,12 +187,13 @@ end
 Evaluates gradient of function through ForwardDiff. 
 TODO: speed-ups!. 
 """
-function evaluate_gradient(bbl::BlackBoxLearner, data::Union{Array, DataFrame})
+function evaluate_gradient(bbl::BlackBoxLearner, data::DataFrame)
     @assert(size(data, 2) == length(bbl.vars))
-    if data isa Array
-        gradvals = [bbl.g(row) for row in eachrow(data)]
-    elseif data isa DataFrame
-        gradvals = [bbl.g(Array(row)) for row in eachrow(data[:, string.(bbl.vars)])]
+    if bbl.constraint isa JuMP.ConstraintRef
+        return [bbl.g(Array(row)) for row in eachrow(data[:, string.(bbl.vars)])]
+    elseif bbl.constraint isa Expr
+        arrs = deconstruct(data, bbl.vars, bbl.varmap)
+        return [Base.invokelatest(bbl.g, (arr...)) for arr in arrs]
     end
 end
 

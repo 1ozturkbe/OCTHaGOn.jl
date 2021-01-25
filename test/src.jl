@@ -357,7 +357,7 @@ function test_gradients()
     uniform_sample_and_eval!(gm)
     gradvals = evaluate_gradient(bbl, bbl.X)
     hand_calcs = [[6*x[1] + 2*x[2] + 1, 2*x[2] + 2*x[1] + 6] for x in eachrow(Matrix(bbl.X))]
-    @test all(gradvals .== evaluate_gradient(bbl, Matrix(bbl.X)) .== hand_calcs)
+    @test all(gradvals .== hand_calcs)
     
     # Testing adding gradient cuts
     for i=1:size(bbl.X, 1)
