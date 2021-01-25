@@ -23,6 +23,26 @@ function gmify(m::JuMP.Model)
     return gm
 end
 
+function test_qp(solver = CPLEX_SILENT)
+    m = JuMP.Model(with_optimizer(solver))
+    @variable(m, 2 >= x[1:2] >= 0) 
+    @objective(m, Min, 3*x[1]^2 + x[2]^2 + 2*x[1]*x[2] + x[1] + 6*x[2] + 2)
+    @constraint(m, 2*x[1] + 3*x[2] >= 4)
+    return m
+end
+
+function test_gm(solver = CPLEX_SILENT)
+    m = JuMP.Model(with_optimizer(solver))
+    @variable(m, 2 >= x[1:2] >= 0) 
+    @constraint(m, 2*x[1] + 3*x[2] >= 4)
+    @variable(m, obj)
+    @objective(m, Min, obj)
+    gm = GlobalModel(model = m)
+    add_nonlinear_constraint(gm, :(x -> 3*x[1]^2 + x[2]^2 + 2*x[1]*x[2] + x[1] + 6*x[2] + 2), dependent_var = obj)
+    return gm
+end
+
+
 """
     knn_outward_from_leaf(bbl::BlackBoxLearner, leaf_in::Int64 = find_leaf_of_soln(bbl))
 
@@ -176,8 +196,8 @@ end
 # When doing threshold training, make sure I can ignore data above. 
 
 # Plotting
-using Plots
-plot(lowers, label = "lowers")
-plot!(actuals, label = "actuals")
-plot!(estimates, label = "estimates")
-plot!(uppers, label = "uppers")
+# using Plots
+# plot(lowers, label = "lowers")
+# plot!(actuals, label = "actuals")
+# plot!(estimates, label = "estimates")
+# plot!(uppers, label = "uppers")
