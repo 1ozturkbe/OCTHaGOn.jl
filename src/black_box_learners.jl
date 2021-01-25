@@ -10,10 +10,10 @@ Mandatory arguments:
     constraint::Union{JuMP.ConstraintRef, Expr}
         A function
     vars::Array{JuMP.VariableRef,1}, 
+    expr_vars::Array
     dependent_var::JuMP.VariableRef
 
 Optional arguments:
-    expr_vars::Union{Array, Nothing}
         JuMP variables as function arguments (i.e. vars rolled up into vector forms).
         vars ⋐ flat(expr_vars)
     name::String
@@ -25,11 +25,12 @@ Optional arguments:
     vars::Array{JuMP.VariableRef,1}                    # JuMP variables (flat)
     dependent_var::JuMP.VariableRef                    # Dependent variable
     name::String = ""                                  # Function name
-    expr_vars:: Union{Array, Nothing} = nothing        # Function inputs (nonflat JuMP variables)
+    expr_vars::Array                                   # Function inputs (nonflat JuMP variables)
     varmap::Union{Nothing,Array} = get_varmap(expr_vars, vars)     # ... with the required varmapping.
-    fn::Union{Nothing, Function} = functionify(constraint)         # ... and actually evaluated f'n
+    f::Union{Nothing, Function} = functionify(constraint)         # ... and actually evaluated f'n
+    g::Union{Nothing, Function} = gradientify(constraint, expr_vars)   # ... and its gradient f'n
     X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Function samples
-    Y::Array = []                                      # Function values
+    Y::Array = []                                                           # Function values
     infeas_X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Infeasible samples, if any
     equality::Bool = false                             # Equality check
     learners::Array{Union{IAI.OptimalTreeRegressor, IAI.OptimalTreeClassifier}} = []     # Learners...
@@ -72,17 +73,16 @@ Optional arguments:
     constraint::Union{JuMP.ConstraintRef, Expr}        # The "raw" constraint
     vars::Array{JuMP.VariableRef,1}                    # JuMP variables (flat)
     name::String = ""                                  # Function name
-    expr_vars:: Union{Array, Nothing} = nothing        # Function inputs (nonflat JuMP variables)
+    expr_vars::Array                                   # Function inputs (nonflat JuMP variables)
     varmap::Union{Nothing,Array} = get_varmap(expr_vars, vars)     # ... with the required varmapping.
-    fn::Union{Nothing, Function} = functionify(constraint)         # ... and actually evaluated f'n
+    f::Union{Nothing, Function} = functionify(constraint)         # ... and actually evaluated f'n
+    g::Union{Nothing, Function} = gradientify(constraint, expr_vars)   # ... and its gradient f'n
     X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars))
                                                        # Function samples
     Y::Array = []                                      # Function values
     feas_ratio::Float64 = 0.                           # Feasible sample proportion
     equality::Bool = false                             # Equality check
-    dependent_var::Union{JuMP.VariableRef, Nothing} = nothing
     learners::Array{IAI.OptimalTreeClassifier} = []    # Learners...
-    # learner_data::Array{LearnerData} = []            # Constraints training data
     learner_kwargs = []                                # And their kwargs... 
     mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}() # and their corresponding MI constraints,
     leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their binary leaves and associated variables,
@@ -148,7 +148,7 @@ Evaluates constraint violation on data in the variables, and returns distance fr
 """
 function evaluate(bbl::BlackBoxLearner, data::Union{Dict, DataFrame})
     clean_data = data_to_DataFrame(data);
-    if isnothing(bbl.fn)
+    if isnothing(bbl.f)
         constr_obj = constraint_object(bbl.constraint)
         rhs_const = get_constant(constr_obj.set)
         vals = [JuMP.value(constr_obj.func, i -> clean_data[!,string(i)][j]) for j=1:size(clean_data,1)]
@@ -172,7 +172,7 @@ function evaluate(bbl::BlackBoxLearner, data::Union{Dict, DataFrame})
         vals = []
         for arr in arrs
             try
-                push!(vals, Base.invokelatest(bbl.fn, (arr...)))
+                push!(vals, Base.invokelatest(bbl.f, (arr...)))
             catch DomainError
                 push!(vals, -Inf)
             end

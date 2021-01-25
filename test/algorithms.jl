@@ -12,7 +12,7 @@ function test_speed_params(gm::GlobalModel = minlp(true), solver = CPLEX_SILENT)
     
     # Trying different speed parameters
     ls_num_hyper_restarts = [1, 3]
-    ls_num_tree_restarts = [5, 10]
+    ls_num_tree_restarts = [3, 5]
     tree_mat = [[], []]
     time_mat = [[], []]
     for i=1:length(ls_num_hyper_restarts)

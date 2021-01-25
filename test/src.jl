@@ -44,10 +44,19 @@ function test_expressions()
     @test infarray([(1,4), (1,3), (2,0)]) == [[Inf, Inf, Inf, Inf], Inf]
 
     # Testing gradientify
-    grad = gradientify(expr, model)
+    grad = gradientify(expr, vars_from_expr(expr, model))
     @test grad(ones(9)) == [1, 1, 1, 1, 0, -1, -1, 0, 1]
-    other_grad = gradientify(simp_expr, model)
+    other_grad = gradientify(simp_expr, vars_from_expr(simp_expr, model))
     @test other_grad(ones(5)) == 5 .* ones(5)
+    @test grad(ones(9)) == [1, 1, 1, 1, 0, -1, -1, 0, 1] # in case of world age problems
+    con = @constraint(model, Base.invokelatest(f, (x,y,z)...) >= 1) # also on JuMP constraints
+    gradfn = gradientify(con, expr_vars)
+    @test gradfn(ones(9)) == grad(ones(9))
+    @test_throws OCTException gradientify(@constraint(model, [x[1] x[2];
+                                                              x[3] x[4]] in PSDCone()), x[1:4])
+
+    # Testing vars_from_constraint as well
+    @test all([var in [x[1], x[2], x[3], x[4], y[1], y[2], z] for var in vars_from_constraint(con)])
 end
 
 function test_variables()
@@ -130,7 +139,7 @@ function test_bbl()
     # Test bbl creation
     @test isnothing(functionify(nl_constr))
     @test functionify(expr) isa Function
-    bbls = [BlackBoxClassifier(constraint = nl_constr, vars = [x[4], x[5], z]),
+    bbls = [BlackBoxClassifier(constraint = nl_constr, vars = [x[4], x[5], z], expr_vars = [x[4], x[5], z]),
         BlackBoxClassifier(constraint = expr, vars = flat([x[1:4], y[1:2], z]),
                          expr_vars = [x,y,z])]
 
