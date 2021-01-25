@@ -92,7 +92,7 @@ mi_constraints, leaf_variables = add_feas_constraints!(gm.model, bbl.vars, upper
 feas_leaves = collect(keys(leaf_variables))
 for leaf in feas_leaves
     (α0, α), (β0, β), (γ0, γ) = upper_ul_data[end][leaf]
-    merge!(push!, mi_constraints[leaf], @constraint(m, bbl.dependent_var <= α0 + sum(α .* bbl.vars) + M * (1 .- leaf_variables[leaf])))   
+    push!(mi_constraints[leaf], @constraint(m, bbl.dependent_var <= α0 + sum(α .* bbl.vars) + M * (1 .- leaf_variables[leaf])))   
 end
 merge!(append!, bbl.mi_constraints, mi_constraints)
 merge!(append!, bbl.leaf_variables, leaf_variables)
@@ -101,7 +101,7 @@ mi_constraints, leaf_variables = add_feas_constraints!(gm.model, bbl.vars, lower
 feas_leaves = collect(keys(leaf_variables))
 for leaf in feas_leaves
     (α0, α), (β0, β), (γ0, γ) = lower_ul_data[end][leaf]
-    merge!(push!, @constraint(m, bbl.dependent_var + M * (1 .- leaf_variables[leaf]) >= β0 + sum(β .* bbl.vars)))
+    push!(mi_constraints[leaf], @constraint(m, bbl.dependent_var + M * (1 .- leaf_variables[leaf]) >= β0 + sum(β .* bbl.vars)))
 end
 merge!(append!, bbl.mi_constraints, mi_constraints)
 merge!(append!, bbl.leaf_variables, leaf_variables)
