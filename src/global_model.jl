@@ -93,19 +93,23 @@ end
 
 """
     determine_vars(gm::GlobalModel,
-                        constraint::Union{JuMP.ScalarConstraint, JuMP.ConstraintRef, Expr};
+                        constraint::Union{JuMP.ConstraintRef, Expr};
                         vars::Union{Nothing, Array{JuMP.VariableRef, 1}} = nothing,
                         expr_vars::Union{Nothing, Array} = nothing)
 
 Takes on parsing and allocation of variables depending on user input. 
 """
 function determine_vars(gm::GlobalModel,
-                        constraint::Union{JuMP.ScalarConstraint, JuMP.ConstraintRef, Expr};
+                        constraint::Union{JuMP.ConstraintRef, Expr};
                         vars::Union{Nothing, Array{JuMP.VariableRef, 1}} = nothing,
                         expr_vars::Union{Nothing, Array} = nothing)
-    if constraint isa Union{JuMP.ScalarConstraint, JuMP.ConstraintRef}
-        # Since we cannot determine variables inside JuMP constraints yet...
-        return vars, expr_vars
+    if constraint isa JuMP.ConstraintRef
+        if isnothing(vars) && isnothing(expr_vars)
+            vars = vars_from_constraint(constraint)
+            return vars, vars
+        elseif !isnothing(vars)
+            return vars, vars
+        end
     else
         if isnothing(vars) && isnothing(expr_vars)
             expr_vars = vars_from_expr(constraint, gm.model)
@@ -127,7 +131,7 @@ end
 
 """
     add_nonlinear_constraint(gm::GlobalModel,
-                     constraint::Union{JuMP.ScalarConstraint, JuMP.ConstraintRef, Expr};
+                     constraint::Union{JuMP.ConstraintRef, Expr};
                      vars::Union{Nothing, Array{JuMP.VariableRef, 1}} = nothing,
                      expr_vars::Union{Nothing, Array} = nothing,
                      dependent_var::Union{Nothing, JuMP.VariableRef} = nothing,
@@ -137,7 +141,7 @@ end
  Adds a new nonlinear constraint to Global Model. Standard method for adding bbls.
 """
 function add_nonlinear_constraint(gm::GlobalModel,
-                     constraint::Union{JuMP.ScalarConstraint, JuMP.ConstraintRef, Expr};
+                     constraint::Union{JuMP.ConstraintRef, Expr};
                      vars::Union{Nothing, Array{JuMP.VariableRef, 1}} = nothing,
                      expr_vars::Union{Nothing, Array} = nothing,
                      dependent_var::Union{Nothing, JuMP.VariableRef} = nothing,
@@ -156,29 +160,19 @@ function add_nonlinear_constraint(gm::GlobalModel,
             push!(gm.bbls, new_bbl)
             return
         end
-    elseif constraint isa Union{JuMP.ScalarConstraint, JuMP.ConstraintRef}
+    elseif constraint isa JuMP.ConstraintRef
         !isnothing(dependent_var) && throw(OCTException("Constraint " * name * " is of type $(string(typeof(constraint))) " *
                                                         "and cannot have a dependent variable " * string(dependent_var) * "."))
-        if constraint isa JuMP.ScalarConstraint
-            con = JuMP.add_constraint(gm.model, constraint)
-            JuMP.delete(gm.model, con)
-            new_bbl = BlackBoxClassifier(constraint = con, vars = vars, expr_vars = expr_vars,
-                                         equality = equality, name = name)
-            push!(gm.bbls, new_bbl)
-            return
-        else
-            JuMP.delete(gm.model, constraint)   
-            new_bbl = BlackBoxClassifier(constraint = constraint, vars = vars, expr_vars = expr_vars,
-                                         equality = equality, name = name)
-            push!(gm.bbls, new_bbl)
-            return     
-        end
+        JuMP.delete(gm.model, constraint)   
+        new_bbl = BlackBoxClassifier(constraint = constraint, vars = vars, expr_vars = expr_vars,
+                                        equality = equality, name = name)
+        push!(gm.bbls, new_bbl)
     end
 end
 
 """
     add_nonlinear_or_compatible(gm::GlobalModel,
-                         constraint::Union{JuMP.ScalarConstraint, JuMP.ConstraintRef, Expr};
+                         constraint::Union{JuMP.ConstraintRef, Expr};
                          vars::Union{Nothing, Array{JuMP.VariableRef, 1}} = nothing,
                          expr_vars::Union{Nothing, Array} = nothing,
                          dependent_var::Union{Nothing, JuMP.VariableRef} = nothing,
@@ -189,7 +183,7 @@ Extents add_nonlinear_constraint to recognize JuMP compatible constraints and ad
 as normal JuMP constraints
 """
 function add_nonlinear_or_compatible(gm::GlobalModel,
-                     constraint::Union{JuMP.ScalarConstraint, JuMP.ConstraintRef, Expr};
+                     constraint::Union{JuMP.ConstraintRef, Expr};
                      vars::Union{Nothing, Array{JuMP.VariableRef, 1}} = nothing,
                      expr_vars::Union{Nothing, Array} = nothing,
                      dependent_var::Union{Nothing, JuMP.VariableRef} = nothing,
