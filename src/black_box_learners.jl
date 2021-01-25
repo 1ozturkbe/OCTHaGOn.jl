@@ -31,7 +31,6 @@ Optional arguments:
     g::Union{Nothing, Function} = gradientify(constraint, expr_vars)   # ... and its gradient f'n
     X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Function samples
     Y::Array = []                                                           # Function values
-    ∇::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Gradient values
     infeas_X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Infeasible samples, if any
     equality::Bool = false                             # Equality check
     learners::Array{Union{IAI.OptimalTreeRegressor, IAI.OptimalTreeClassifier}} = []     # Learners...
@@ -81,7 +80,6 @@ Optional arguments:
     X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars))
                                                        # Function samples
     Y::Array = []                                      # Function values
-    ∇::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Gradient values
     feas_ratio::Float64 = 0.                           # Feasible sample proportion
     equality::Bool = false                             # Equality check
     learners::Array{IAI.OptimalTreeClassifier} = []    # Learners...

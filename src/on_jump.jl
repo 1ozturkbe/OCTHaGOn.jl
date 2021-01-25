@@ -193,6 +193,7 @@ end
     gradientify(expr::JuMP.ConstraintRef, expr_vars::Array)
 
 Turns an expression into a gradient-able (via ForwardDiff), flattened function. 
+TODO: add option to not use gradients for certain functions or data driven constraints. 
 """
 function gradientify(expr::Expr, expr_vars::Array)
     var_ranges = get_var_ranges(expr_vars)
