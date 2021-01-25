@@ -23,26 +23,6 @@ function gmify(m::JuMP.Model)
     return gm
 end
 
-function test_qp(solver = CPLEX_SILENT)
-    m = JuMP.Model(with_optimizer(solver))
-    @variable(m, 2 >= x[1:2] >= 0) 
-    @objective(m, Min, 3*x[1]^2 + x[2]^2 + 2*x[1]*x[2] + x[1] + 6*x[2] + 2)
-    @constraint(m, 2*x[1] + 3*x[2] >= 4)
-    return m
-end
-
-function test_gm(solver = CPLEX_SILENT)
-    m = JuMP.Model(with_optimizer(solver))
-    @variable(m, 2 >= x[1:2] >= 0) 
-    @constraint(m, 2*x[1] + 3*x[2] >= 4)
-    @variable(m, obj)
-    @objective(m, Min, obj)
-    gm = GlobalModel(model = m)
-    add_nonlinear_constraint(gm, :(x -> 3*x[1]^2 + x[2]^2 + 2*x[1]*x[2] + x[1] + 6*x[2] + 2), dependent_var = obj)
-    return gm
-end
-
-
 """
     knn_outward_from_leaf(bbl::BlackBoxLearner, leaf_in::Int64 = find_leaf_of_soln(bbl))
 
@@ -78,21 +58,23 @@ end
 #     pts = NearestNeighbors.inrange(bbl.knn_tree, lastsol, 0.05)
 
 # Initializing, and solving via Ipopt
-m = random_qp(7, 5, 4)
-optimize!(m)
-mcost = JuMP.getobjectivevalue(m)
-msol = getvalue.(m[:x])
+# m = random_qp(7, 5, 4)
+# optimize!(m)
+# mcost = JuMP.getobjectivevalue(m)
+# msol = getvalue.(m[:x])
 
 # Trying thresholding method 
-using StatsBase
-gm = gmify(m)
+# using StatsBase
+# gm = gmify(m)
+# bbl = gm.bbls[1]
+gm = test_gqp()
 bbl = gm.bbls[1]
-set_param(bbl, :n_samples, 1000)
+set_param(bbl, :n_samples, 400)
 uniform_sample_and_eval!(gm)
-uppers = [5.]
+uppers = [20.]
 upper_learners = []
 upper_ul_data = []
-lowers = [1.]
+lowers = [0.]
 lower_learners = []
 lower_ul_data = []
 actuals = []
@@ -112,7 +94,7 @@ mi_constraints, leaf_variables = add_feas_constraints!(gm.model, bbl.vars, upper
 feas_leaves = collect(keys(leaf_variables))
 for leaf in feas_leaves
     (α0, α), (β0, β), (γ0, γ) = upper_ul_data[end][leaf]
-    push!(mi_constraints[leaf], @constraint(m, bbl.dependent_var <= α0 + sum(α .* bbl.vars) + M * (1 .- leaf_variables[leaf])))   
+    push!(mi_constraints[leaf], @constraint(gm.model, bbl.dependent_var <= α0 + sum(α .* bbl.vars) + M * (1 .- leaf_variables[leaf])))   
 end
 merge!(append!, bbl.mi_constraints, mi_constraints)
 merge!(append!, bbl.leaf_variables, leaf_variables)
@@ -121,7 +103,7 @@ mi_constraints, leaf_variables = add_feas_constraints!(gm.model, bbl.vars, lower
 feas_leaves = collect(keys(leaf_variables))
 for leaf in feas_leaves
     (α0, α), (β0, β), (γ0, γ) = lower_ul_data[end][leaf]
-    push!(mi_constraints[leaf], @constraint(m, bbl.dependent_var + M * (1 .- leaf_variables[leaf]) >= β0 + sum(β .* bbl.vars)))
+    push!(mi_constraints[leaf], @constraint(gm.model, bbl.dependent_var + M * (1 .- leaf_variables[leaf]) >= β0 + sum(β .* bbl.vars)))
 end
 merge!(append!, bbl.mi_constraints, mi_constraints)
 merge!(append!, bbl.leaf_variables, leaf_variables)
@@ -143,6 +125,9 @@ elseif actuals[end] >= uppers[end]
     push!(uppers, actuals[end])
     push!(lowers, lowers[end])
 end
+
+# Adding all gradient constraints in leaf, just in case
+
 
 
 
