@@ -32,3 +32,31 @@ function test_gqp(solver = CPLEX_SILENT)
     add_nonlinear_constraint(gm, :(x -> 3*x[1]^2 + x[2]^2 + 2*x[1]*x[2] + x[1] + 6*x[2] + 2), dependent_var = obj)
     return gm
 end
+
+"""
+    random_qp(dims::Int64, nconstrs::Int64, sparsity=dims, solver = CPLEX_SILENT)
+
+Generates a random quadratic program with the specified parameters. 
+"""
+function random_qp(dims::Int64, nconstrs::Int64, sparsity=dims, solver = CPLEX_SILENT)
+    m = JuMP.Model(with_optimizer(solver))
+    @variable(m, -1 <= x[1:dims] <= 1)
+    m[:sparse_vars] = randperm(dims)[1:sparsity]
+    m[:A] = rand(dims, sparsity).*2 .- 1
+    m[:b] = rand(dims)
+    m[:C] = rand(nconstrs, dims).*2 .- 1
+    m[:d] = rand(nconstrs)
+    @constraint(m, m[:C]*x .>= m[:d])
+    @objective(m, Min, sum((m[:A]*x[m[:sparse_vars]] - m[:b]).^2))
+    return m
+end
+
+""" Turns random_qp into a GlobalModel. """
+function gmify_random_qp(m::JuMP.Model)
+    @variable(m, obj)
+    @objective(m, Min, obj)
+    gm = GlobalModel(model = m)
+    add_nonlinear_constraint(gm, :(x -> sum(($(m[:A])*x[$(m[:sparse_vars])] - $(m[:b])).^2)), vars = m[:x][m[:sparse_vars]], 
+                                    dependent_var = obj, name = "qp") 
+    return gm
+end

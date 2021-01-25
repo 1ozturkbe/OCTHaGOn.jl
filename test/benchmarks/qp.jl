@@ -1,28 +1,3 @@
-# include("../load.jl")
-using StatsBase
-
-function random_qp(dims::Int64, nconstrs::Int64, sparsity=dims, solver = CPLEX_SILENT)
-    m = JuMP.Model(with_optimizer(solver))
-    @variable(m, -1 <= x[1:dims] <= 1)
-    m[:sparse_vars] = randperm(dims)[1:sparsity]
-    m[:A] = rand(dims, sparsity).*2 .- 1
-    m[:b] = rand(dims)
-    m[:C] = rand(nconstrs, dims).*2 .- 1
-    m[:d] = rand(nconstrs)
-    @constraint(m, m[:C]*x .>= m[:d])
-    @objective(m, Min, sum((m[:A]*x[m[:sparse_vars]] - m[:b]).^2))
-    return m
-end
-
-function gmify(m::JuMP.Model)
-    @variable(m, obj)
-    @objective(m, Min, obj)
-    gm = GlobalModel(model = m)
-    add_nonlinear_constraint(gm, :(x -> sum(($(m[:A])*x[$(m[:sparse_vars])] - $(m[:b])).^2)), vars = m[:x][m[:sparse_vars]], 
-                                    dependent_var = obj, name = "qp") 
-    return gm
-end
-
 """
     knn_outward_from_leaf(bbl::BlackBoxLearner, leaf_in::Int64 = find_leaf_of_soln(bbl))
 
@@ -58,18 +33,16 @@ end
 #     pts = NearestNeighbors.inrange(bbl.knn_tree, lastsol, 0.05)
 
 # Initializing, and solving via Ipopt
-# m = random_qp(7, 5, 4)
-# optimize!(m)
-# mcost = JuMP.getobjectivevalue(m)
-# msol = getvalue.(m[:x])
+m = random_qp(5, 3, 2)
+optimize!(m)
+mcost = JuMP.getobjectivevalue(m)
+msol = getvalue.(m[:x])
 
 # Trying thresholding method 
 # using StatsBase
-# gm = gmify(m)
-# bbl = gm.bbls[1]
-gm = test_gqp()
+gm = gmify_random_qp(m)
 bbl = gm.bbls[1]
-set_param(bbl, :n_samples, 400)
+set_param(bbl, :n_samples, 500)
 uniform_sample_and_eval!(gm)
 uppers = [20.]
 upper_learners = []
@@ -97,7 +70,7 @@ for leaf in feas_leaves
     push!(mi_constraints[leaf], @constraint(gm.model, bbl.dependent_var <= α0 + sum(α .* bbl.vars) + M * (1 .- leaf_variables[leaf])))   
 end
 merge!(append!, bbl.mi_constraints, mi_constraints)
-merge!(append!, bbl.leaf_variables, leaf_variables)
+merge!(append!, bbl.leaf_variables, leaf_variables) # This is problematic...
 
 mi_constraints, leaf_variables = add_feas_constraints!(gm.model, bbl.vars, lower_learners[end]; M=1e5)
 feas_leaves = collect(keys(leaf_variables))
@@ -181,8 +154,21 @@ end
 # When doing threshold training, make sure I can ignore data above. 
 
 # Plotting
-# using Plots
-# plot(lowers, label = "lowers")
-# plot!(actuals, label = "actuals")
-# plot!(estimates, label = "estimates")
-# plot!(uppers, label = "uppers")
+using Plots
+plot(lowers[1:5], label = "lowers")
+plot!(actuals[1:5], label = "actuals")
+plot!(estimates[1:5], label = "estimates")
+plot!(uppers[1:5], label = "uppers", thickness_scaling = 2)
+
+# What if I just used cutting planes? 
+
+clear_data!(gm)
+uniform_sample_and_eval!(gm)
+gradvals = evaluate_gradient(bbl, bbl.X)
+
+# Testing adding gradient cuts
+for i=1:size(bbl.X, 1)
+    @constraint(gm.model, bbl.dependent_var >= sum(gradvals[i] .* (bbl.vars .- Array(bbl.X[i, :]))) + bbl.Y[i])
+end
+optimize!(gm)
+@test all(isapprox(Array(solution(gm))[i], [0.5, 1.0, 11.25][i], atol=0.1) for i=1:3)
