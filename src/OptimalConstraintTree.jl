@@ -73,7 +73,7 @@ module OptimalConstraintTree
         save_fit, load_fit, set_param, get_param, 
         # Functions on BlackBoxLearners
         show_trees, learn_constraint!, all_mi_constraints, 
-        find_leaf_of_soln,
+        find_leaf_of_soln, evaluate, evaluate_gradient, 
         # Functions on BlackBoxLearners only
         eval!, uniform_sample_and_eval!,
         secant_method, knn_sample, build_knn_tree,
@@ -83,7 +83,7 @@ module OptimalConstraintTree
         # Functions on IAI structs
         find_leaves, regress, check_if_trained, trust_region_data, pwl_constraint_data,
         # Functions on JuMP objects
-        evaluate, fetch_variable, get_bounds, get_unbounds,
+        fetch_variable, get_bounds, get_unbounds,
         linearize_objective!, classify_constraints,
         bound!,
         data_to_DataFrame, data_to_Dict,

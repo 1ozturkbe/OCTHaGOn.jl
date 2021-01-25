@@ -163,10 +163,10 @@ function add_nonlinear_constraint(gm::GlobalModel,
     elseif constraint isa JuMP.ConstraintRef
         !isnothing(dependent_var) && throw(OCTException("Constraint " * name * " is of type $(string(typeof(constraint))) " *
                                                         "and cannot have a dependent variable " * string(dependent_var) * "."))
-        JuMP.delete(gm.model, constraint)   
         new_bbl = BlackBoxClassifier(constraint = constraint, vars = vars, expr_vars = expr_vars,
                                         equality = equality, name = name)
         push!(gm.bbls, new_bbl)
+        JuMP.delete(gm.model, constraint)   
     end
 end
 

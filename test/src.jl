@@ -350,6 +350,23 @@ function test_basic_gm()
     @test all([length(bbl.learners) == 0 for bbl in gm.bbls])
 end
 
+function test_gradients()
+    gm = test_gqp()
+    bbl = gm.bbls[1]
+    set_param(bbl, :n_samples, 100)
+    uniform_sample_and_eval!(gm)
+    gradvals = evaluate_gradient(bbl, bbl.X)
+    hand_calcs = [[6*x[1] + 2*x[2] + 1, 2*x[2] + 2*x[1] + 6] for x in eachrow(Matrix(bbl.X))]
+    @test all(gradvals .== evaluate_gradient(bbl, Matrix(bbl.X)) .== hand_calcs)
+    
+    # Testing adding gradient cuts
+    for i=1:size(bbl.X, 1)
+        @constraint(gm.model, bbl.dependent_var >= sum(gradvals[i] .* (bbl.vars .- Array(bbl.X[i, :]))) + bbl.Y[i])
+    end
+    optimize!(gm)
+    @test all(isapprox(Array(solution(gm))[i], [0.5, 1.0, 11.25][i], atol=0.1) for i=1:3)
+end
+
 test_expressions()
 
 test_variables()
@@ -371,3 +388,5 @@ test_regress()
 test_regressors()
 
 test_basic_gm()
+
+test_gradients()
