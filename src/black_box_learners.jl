@@ -10,10 +10,10 @@ Mandatory arguments:
     constraint::Union{JuMP.ConstraintRef, Expr}
         A function
     vars::Array{JuMP.VariableRef,1}, 
+    expr_vars::Array
     dependent_var::JuMP.VariableRef
 
 Optional arguments:
-    expr_vars::Union{Array, Nothing}
         JuMP variables as function arguments (i.e. vars rolled up into vector forms).
         vars ⋐ flat(expr_vars)
     name::String
@@ -25,13 +25,13 @@ Optional arguments:
     vars::Array{JuMP.VariableRef,1}                    # JuMP variables (flat)
     dependent_var::JuMP.VariableRef                    # Dependent variable
     name::String = ""                                  # Function name
-    expr_vars:: Union{Array, Nothing} = nothing        # Function inputs (nonflat JuMP variables)
+    expr_vars::Array                                   # Function inputs (nonflat JuMP variables)
     varmap::Union{Nothing,Array} = get_varmap(expr_vars, vars)     # ... with the required varmapping.
     f::Union{Nothing, Function} = functionify(constraint)         # ... and actually evaluated f'n
     g::Union{Nothing, Function} = gradientify(constraint, expr_vars)   # ... and its gradient f'n
     X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Function samples
     Y::Array = []                                                           # Function values
-    # ∇::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Gradient values                                    # Function values
+    ∇::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Gradient values
     infeas_X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Infeasible samples, if any
     equality::Bool = false                             # Equality check
     learners::Array{Union{IAI.OptimalTreeRegressor, IAI.OptimalTreeClassifier}} = []     # Learners...
@@ -74,14 +74,14 @@ Optional arguments:
     constraint::Union{JuMP.ConstraintRef, Expr}        # The "raw" constraint
     vars::Array{JuMP.VariableRef,1}                    # JuMP variables (flat)
     name::String = ""                                  # Function name
-    expr_vars:: Union{Array, Nothing} = nothing        # Function inputs (nonflat JuMP variables)
+    expr_vars::Array                                   # Function inputs (nonflat JuMP variables)
     varmap::Union{Nothing,Array} = get_varmap(expr_vars, vars)     # ... with the required varmapping.
     f::Union{Nothing, Function} = functionify(constraint)         # ... and actually evaluated f'n
     g::Union{Nothing, Function} = gradientify(constraint, expr_vars)   # ... and its gradient f'n
     X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars))
                                                        # Function samples
     Y::Array = []                                      # Function values
-    # ∇::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Gradient values
+    ∇::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Gradient values
     feas_ratio::Float64 = 0.                           # Feasible sample proportion
     equality::Bool = false                             # Equality check
     learners::Array{IAI.OptimalTreeClassifier} = []    # Learners...
