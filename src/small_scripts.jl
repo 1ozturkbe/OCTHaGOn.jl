@@ -60,6 +60,9 @@ function get_varmap(expr_vars::Array, vars::Array)
     length(flat(expr_vars)) >= length(vars) || throw(OCTException(string("Insufficiently many input
         variables declared in ", vars, ".")))
     unique(vars) == vars || throw(OCTException(string("Nonunique variables among ", vars, ".")))
+    if expr_vars == vars
+        return collect(1:length(vars))
+    end
     varmap = Tuple[(0,0) for i=1:length(vars)]
     for i = 1:length(expr_vars)
         if expr_vars[i] isa JuMP.VariableRef
