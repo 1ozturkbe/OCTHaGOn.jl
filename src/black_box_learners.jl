@@ -182,6 +182,21 @@ function evaluate(bbl::BlackBoxLearner, data::Union{Dict, DataFrame})
 end
 
 """
+    evaluate_gradient(bbl::BlackBoxLearner, data::Union{Array, DataFrame})
+
+Evaluates gradient of function through ForwardDiff. 
+TODO: speed-ups!. 
+"""
+function evaluate_gradient(bbl::BlackBoxLearner, data::Union{Array, DataFrame})
+    @assert(size(data, 2) == length(bbl.vars))
+    if data isa Array
+        gradvals = [bbl.g(row) for row in eachrow(data)]
+    elseif data isa DataFrame
+        gradvals = [bbl.g(Array(row)) for row in eachrow(data[:, string.(bbl.vars)])]
+    end
+end
+
+"""
     function (bbl::BlackBoxLearner)(x::Union{DataFrame,Dict,DataFrameRow})
 
 Makes the BBC or BBR callable as a function.
