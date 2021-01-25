@@ -172,7 +172,25 @@ function vars_from_expr(expr::Expr, model::JuMP.Model)
 end
 
 """
+    vars_from_constraint(con::JuMP.ConstraintRef)
+
+Returns the JuMP Variables that are associated with a JuMP.ConstraintRef. 
+Note: Currently only works for affine and quadratic constraints. 
+"""
+function vars_from_constraint(con::JuMP.ConstraintRef)
+    confunc = constraint_object(con).func
+    confunc isa Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr} || 
+        throw(OCTException("Only affine or quadratic constraints are current supported."))
+    vars = [term for (term,val) in confunc.aff.terms]
+    for (term, val) in confunc.terms
+        append!(vars, [term.a, term.b])
+    end
+    return unique(vars)
+end
+
+"""
     gradientify(expr::Expr, expr_vars::Array)
+    gradientify(expr::JuMP.ConstraintRef, expr_vars::Array)
 
 Turns an expression into a gradient-able (via ForwardDiff), flattened function. 
 """
@@ -180,6 +198,38 @@ function gradientify(expr::Expr, expr_vars::Array)
     var_ranges = get_var_ranges(expr_vars)
     gradable_fn = x -> Base.invokelatest(functionify(expr), [x[i] for i in var_ranges]...)
     return x -> ForwardDiff.gradient(gradable_fn, x)
+end
+
+function gradientify(con::JuMP.ConstraintRef, expr_vars::Array)
+    confunc = constraint_object(con).func
+    confunc isa Union{JuMP.GenericQuadExpr, JuMP.GenericAffExpr} || throw(
+        OCTException("Currently, only supporting gradients of affine or quadratic JuMP constraints. Please " *
+                     "submit your constraint as a Expr instead and try again. "))
+    flatvars = flat(expr_vars)
+    gradarr = zeros(length(flatvars))
+    graddict = Dict()
+    for (term, val) in confunc.aff.terms # Affine component
+        idx = findall(x -> x == term, flatvars)
+        if !isempty(idx)
+            gradarr[idx[1]] += val
+        end
+    end
+    for (term, val) in confunc.terms # Quadratic component
+        idx1 = findall(x -> x == term.a, flatvars)[1]
+        idx2 = findall(x -> x == term.b, flatvars)[1]
+        graddict[(idx1, idx2)] = val
+    end
+    gradfn = let gdict = graddict, garr = gradarr
+        function (x)
+            quad_terms = zeros(length(garr))
+            for (term, val) in gdict
+                quad_terms[term[1]] = val * x[term[2]]
+                quad_terms[term[2]] = val * x[term[1]]
+            end
+            return garr.*x + quad_terms
+        end
+    end
+    return gradfn
 end
 
 """
