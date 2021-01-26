@@ -95,7 +95,7 @@ module OptimalConstraintTree
         regressor_kwargs, classifier_kwargs,
         functionify, gradientify, 
         # Other approximators, 
-        ridge_regress, ul_regress, ul_boundify, svm, reweight,
+        ridge_regress, u_regress, l_regress, boundify, svm, reweight,
         # Functions to import global optimization problems,
         sagemark_to_GlobalModel,
         alphac_to_expr, alphac_to_objexpr, alphac_to_varbound!,
