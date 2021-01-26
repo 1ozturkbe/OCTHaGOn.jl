@@ -140,7 +140,7 @@ function learn_constraint!(bbc::BlackBoxClassifier, ignore_feas::Bool = false; k
     check_sampled(bbc)
     set_param(bbc, :reloaded, false) # Makes sure that we know trees are retrained. 
     lnr = base_classifier()
-    IAI.set_params!(lnr; classifier_kwargs(; kwargs...)...)
+    IAI.set_params!(lnr; minbucket = length(bbc.vars) + 1, classifier_kwargs(; kwargs...)...)
     if check_feasibility(bbc) || ignore_feas
         nl = learn_from_data!(bbc.X, bbc.Y .>= 0, lnr; fit_classifier_kwargs(; kwargs...)...)
         push!(bbc.learners, nl)
@@ -157,7 +157,7 @@ function learn_constraint!(bbr::BlackBoxRegressor, ignore_feas::Bool = false; kw
     set_param(bbr, :reloaded, false) # Makes sure that we know trees are retrained. 
     if haskey(kwargs, :threshold)
         lnr = base_classifier()
-        IAI.set_params!(lnr; classifier_kwargs(; kwargs...)...)
+        IAI.set_params!(lnr; minbucket = length(bbr.vars) + 1, classifier_kwargs(; kwargs...)...)
         nl = learn_from_data!(bbr.X, bbr.Y .<= kwargs[:threshold], lnr; fit_classifier_kwargs(; kwargs...)...)    
         push!(bbr.learners, nl);
         push!(bbr.learner_kwargs, Dict(kwargs))
@@ -166,7 +166,7 @@ function learn_constraint!(bbr::BlackBoxRegressor, ignore_feas::Bool = false; kw
         return 
     end
     lnr = base_regressor()
-    IAI.set_params!(lnr; regressor_kwargs(; kwargs...)...)
+    IAI.set_params!(lnr; minbucket = length(bbr.vars) + 1, regressor_kwargs(; kwargs...)...)
     nl = learn_from_data!(bbr.X, bbr.Y, lnr; fit_regressor_kwargs(; kwargs...)...)             
     push!(bbr.learners, nl);
     push!(bbr.learner_kwargs, Dict(kwargs))
