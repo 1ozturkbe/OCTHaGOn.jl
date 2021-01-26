@@ -124,7 +124,7 @@ function test_nonlinearize(gm::GlobalModel = minlp(true))
     @test true
 end
 
-function test_bbl()
+function test_bbc()
     model, x, y, z, a = test_model()
     nl_constr = @constraint(model, sum(x[4]^2 + x[5]^2) <= z)
     expr = :((x, y, z) -> sum(x[i] for i=1:4) - y[1] * y[2] + z)
@@ -247,15 +247,15 @@ function test_regressors()
     bbr = gm.bbls[3]
 
     # Threshold training
-    learn_constraint!(bbr, threshold = 10)
+    learn_constraint!(bbr, threshold = "upper" => 10.)
     lnr = bbr.learners[end]
     @test lnr isa IAI.OptimalTreeClassifier
     all_leaves = find_leaves(lnr)
     # Add a binary variable for each leaf
     feas_leaves =
         [i for i in all_leaves if Bool(IAI.get_classification_label(lnr, i))];
-    @test sort(collect(keys(bbr.ul_data[end]))) == sort(feas_leaves)
-    @test bbr.thresholds[end] == 10
+    @test sort(abs.(collect(keys(bbr.ul_data[end])))) == sort(feas_leaves)
+    @test bbr.thresholds[end] == "upper" => 10.
 
     # Check clearing and adding of tree constraints as well
     types = JuMP.list_of_constraint_types(gm.model)
@@ -369,26 +369,26 @@ function test_gradients()
     @test all(isapprox(Array(solution(gm))[i], [0.5, 1.0, 11.25][i], atol=0.1) for i=1:3)
 end
 
-test_expressions()
+# test_expressions()
 
-test_variables()
+# test_variables()
 
-test_bounds()
+# test_bounds()
 
-test_sets()
+# test_sets()
 
-test_linearize()
+# test_linearize()
 
-test_nonlinearize()
+# test_nonlinearize()
 
-test_bbl()
+# test_bbc()
 
-test_kwargs()
+# test_kwargs()
 
-test_regress()
+# test_regress()
 
-test_regressors()
+# test_regressors()
 
-test_basic_gm()
+# test_basic_gm()
 
-test_gradients()
+# test_gradients()
