@@ -240,7 +240,7 @@ function test_regress()
 end
 
 """ Tests various ways to train a regressor"""
-function test_regressors()
+function test_bbr()
     gm = minlp(true)
     set_optimizer(gm, CPLEX_SILENT)
     uniform_sample_and_eval!(gm)
@@ -254,8 +254,9 @@ function test_regressors()
     # Add a binary variable for each leaf
     feas_leaves =
         [i for i in all_leaves if Bool(IAI.get_classification_label(lnr, i))];
-    @test sort(abs.(collect(keys(bbr.ul_data[end])))) == sort(feas_leaves)
-    @test bbr.thresholds[end] == "upper" => 10.
+    @test sort(-1 .*collect(keys(bbr.ul_data[end]))) == sort(feas_leaves) # upper bounding leaves have negative idxs
+    @test bbr.thresholds[end] == ("upper" => 10.)
+    
 
     # Check clearing and adding of tree constraints as well
     types = JuMP.list_of_constraint_types(gm.model)
@@ -267,6 +268,7 @@ function test_regressors()
     final_variables = length(all_variables(gm.model))
     @test final_constraints == init_constraints + length(all_mi_constraints(bbr)) + length(bbr.leaf_variables)    
     @test final_variables == init_variables + length(bbr.leaf_variables)
+    
     clear_tree_constraints!(gm, bbr)
     types = JuMP.list_of_constraint_types(gm.model)
     @test init_constraints == sum(length(all_constraints(gm.model, type[1], type[2])) for type in types)
@@ -377,18 +379,18 @@ end
 
 # test_sets()
 
-# test_linearize()
+test_linearize()
 
-# test_nonlinearize()
+test_nonlinearize()
 
-# test_bbc()
+test_bbc()
 
-# test_kwargs()
+test_kwargs()
 
-# test_regress()
+test_regress()
 
-# test_regressors()
+test_bbr()
 
-# test_basic_gm()
+test_basic_gm()
 
-# test_gradients()
+test_gradients()

@@ -213,7 +213,7 @@ learn_constraint!(gm::GlobalModel, ignore_feas::Bool = get_param(gm, :ignore_fea
 Saves IAI fits associated with different OptimalConstraintTree objects.
 """
 function save_fit(bbl::BlackBoxLearner, dir::String = TREE_DIR)
-    # TODO: save_fit should also save ul_data!!
+    # TODO: support saving all of the BBR learner history. 
     IAI.write_json(dir * bbl.name * ".json", bbl.learners[end]) # save learner
     if bbl isa BlackBoxClassifier
         save(dir * bbl.name * ".jld", Dict("learner_kwargs" => bbl.learner_kwargs[end],

@@ -37,7 +37,7 @@ Optional arguments:
     learner_kwargs = []                                # and their kwargs... 
     thresholds::Array{Union{Nothing, Pair}} = []       # For thresholding. 
     ul_data::Array{Dict} = Dict[]                      # Upper/lower bounding data
-    active_trees::Array = []                           # Currently active tree indices [upper, lower]
+    active_trees::Dict{Int64, Union{Nothing, Pair}} = Dict() # Currently active tree indices
     mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}() # and their corresponding MI constraints,
     leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their leaves and leaf variables
     knn_tree::Union{KDTree, Nothing} = nothing         # KNN tree
@@ -284,3 +284,6 @@ function all_mi_constraints(bbl::BlackBoxLearner)
     end
     return all_constraints
 end
+
+# function lower_mi_constraints(bbl::BlackBoxLearner)
+#     lower_constraints = 
