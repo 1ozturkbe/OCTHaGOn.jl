@@ -262,6 +262,48 @@ end
 
 clear_tree_constraints!(gm::GlobalModel) = clear_tree_constraints!(gm, gm.bbls)
 
-# function update_lower_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, new_idx::Int64)
-#     length(bbl.active_trees) == 2 || throw(OCTException("Must have a lower and upper tree to update bounding trees of BBR."))
+
+"""
+    update_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = length(bbr.learners))
+    update_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier, idx = length(bbc.learners))
+
+Updates the MI constraints associated with a BBL. 
+For BBRs, makes sure to replace the appropriate lower/upper/regressor approximations. 
+"""
+function update_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = length(bbr.learners))
+    @assert !isempty(bbr.active_trees)
+    if length(bbr.active_trees) == 0 # no mi constraints yet. 
+        add_tree_constraints!(gm, bbr, idx)
+    elseif length(bbr.active_trees) == 1 # one set of mi_constraints
+        new_threshold = bbr.thresholds[idx]
+        active_idx = collect(keys(bbr.active_trees))[1]
+        last_threshold = bbr.active_trees[active_idx]
+        if new_threshold isa Nothing || last_threshold isa Nothing # i.e. an ORT
+            clear_tree_constraints!(gm, bbr)
+            add_tree_constraints!(gm, bbr, idx)
+            return
+        elseif last_threshold.first != new_threshold.first # replacing an existing threshold
+            add_tree_constraints!(gm, bbr, idx)
+            return
+        else # updating a lower or upper threshold
+            clear_tree_constraints!(gm, bbr)
+            add_tree_constraints!(gm, bbr, idx)
+            return
+        end
+    elseif length(bbr.active_trees) == 2 # two sets of mi_constraints
+        active_idx = collect(keys(bbr.active_trees))
+        for idx in active_idx
+        end
+    else
+        throw(OCTException("$(gm.name) has too many active lower/upper bounding regressors."))
+    end
+    return
+end
+
+function update_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier, idx = length(bbc.learners))
+    clear_tree_constraints!(gm, bbc)
+    add_tree_constraints!(gm, bbc, idx)
+    return
+end
+        
     

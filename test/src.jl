@@ -258,17 +258,22 @@ function test_bbr()
     @test bbr.thresholds[end] == ("upper" => 10.)
     
 
-    # Check clearing and adding of tree constraints as well
+    # Check adding of upper bounding constraint to empty model
     types = JuMP.list_of_constraint_types(gm.model)
     init_constraints = sum(length(all_constraints(gm.model, type[1], type[2])) for type in types)
     init_variables = length(all_variables(gm))
     add_tree_constraints!(gm, bbr)
+    @test sort(union(feas_leaves, [1])) == sort(abs.(collect(keys(bbr.mi_constraints))))
+    @test sort(abs.(collect(keys(bbr.leaf_variables)))) == sort(feas_leaves)
+
+    # Checking that correct numbers of constraints and variables are added
     types = JuMP.list_of_constraint_types(gm.model)
     final_constraints = sum(length(all_constraints(gm.model, type[1], type[2])) for type in types)
     final_variables = length(all_variables(gm.model))
     @test final_constraints == init_constraints + length(all_mi_constraints(bbr)) + length(bbr.leaf_variables)    
     @test final_variables == init_variables + length(bbr.leaf_variables)
-    
+
+    # Check clearing of all constraints and variables
     clear_tree_constraints!(gm, bbr)
     types = JuMP.list_of_constraint_types(gm.model)
     @test init_constraints == sum(length(all_constraints(gm.model, type[1], type[2])) for type in types)
@@ -277,9 +282,9 @@ function test_bbr()
     # Flat prediction training
     learn_constraint!(bbr, regression_sparsity = 0, max_depth = 2)
     lnr = bbr.learners[end]
-    @test lnr isa IAI.OptimalTreeRegressor
     all_leaves = find_leaves(lnr)
-    @test sort(collect(keys(bbr.ul_data[end]))) == sort(all_leaves)
+    @test lnr isa IAI.OptimalTreeRegressor
+    @test length(bbr.ul_data[end]) == length(all_leaves) * 2 # double since contains lower and upper data
     @test bbr.thresholds[end] == nothing
 
     # Full regression training
@@ -289,6 +294,10 @@ function test_bbr()
     all_leaves = find_leaves(lnr)
     @test isempty(bbr.ul_data[end])
     @test isnothing(bbr.thresholds[end])
+
+    # Lower regression training
+    learn_constraint!(bbr,  threshold = "lower" => 5.)
+
 
     # Checking proper storage
     @test all(length.([bbr.ul_data, bbr.thresholds, bbr.learners, bbr.learner_kwargs]) .== 3)

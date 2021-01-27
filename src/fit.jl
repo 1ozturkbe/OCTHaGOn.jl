@@ -165,7 +165,7 @@ end
 
 function learn_constraint!(bbr::BlackBoxRegressor, ignore_feas::Bool = false; kwargs...)
     check_sampled(bbr)
-    set_param(bbr, :reloaded, false) # Makes sure that we know trees are retrained. 
+    get_param(bbr, :reloaded) && set_param(bbr, :reloaded, false) # Makes sure that we know trees are retrained. 
     if haskey(kwargs, :threshold)
         nl = base_classifier()
         IAI.set_params!(nl; classifier_kwargs(; kwargs...)...)
