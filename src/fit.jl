@@ -105,26 +105,37 @@ function check_sampled(bbl::BlackBoxLearner)
 end
 
 """ 
-    ul_boundify(lnr::OptimalTreeLearner, X::DataFrame, Y; solver = CPLEX_SILENT)
+    boundify(lnr::OptimalTreeRegressor, X::DataFrame, Y; solver = CPLEX_SILENT)
+    boundify(lnr::OptimalTreeClassifier, X::DataFrame, Y, hypertype::String = "lower"; solver = CPLEX_SILENT)
 
-Returns upper/lower bound data of an OptimalTreeLearner.
+Returns bounding hyperplanes of an OptimalTreeLearner.
 """
-function ul_boundify(lnr::IAI.OptimalTreeLearner, X::DataFrame, Y; solver = CPLEX_SILENT)
-    all_leaves = find_leaves(lnr)
+function boundify(lnr::IAI.OptimalTreeRegressor, X::DataFrame, Y; solver = CPLEX_SILENT)
+    feas_leaves = find_leaves(lnr)
     leaf_idx = IAI.apply(lnr, X)
     ul_data = Dict()
-    feas_leaves = []
-    if lnr isa IAI.OptimalTreeClassifier
-        feas_leaves = [i for i in all_leaves if Bool(IAI.get_classification_label(lnr, i))]
-    elseif lnr isa IAI.OptimalTreeRegressor
-        feas_leaves = all_leaves # TODO: improve depending on thresholding. 
-    end
     for leaf in feas_leaves
         idx = findall(x -> x == leaf, leaf_idx)
-        (α0, α), (β0, β), (γ0, γ) = ul_regress(X[idx,:], Y[idx]; solver = solver)
-        ul_data[leaf] = [(α0, α), (β0, β), (γ0, γ)]
+        ul_data[-leaf] = u_regress(X[idx,:], Y[idx]; solver = solver) # negative leaf shows upper bounding
+        ul_data[leaf] = l_regress(X[idx,:], Y[idx]; solver = solver)
     end
     return ul_data
+end
+
+function boundify(lnr::IAI.OptimalTreeClassifier, X::DataFrame, Y, hypertype::String = "lower"; solver = CPLEX_SILENT)
+    all_leaves = find_leaves(lnr)
+    leaf_idx = IAI.apply(lnr, X)
+    data = Dict()
+    feas_leaves = [i for i in all_leaves if Bool(IAI.get_classification_label(lnr, i))]
+    for leaf in feas_leaves
+        idx = findall(x -> x == leaf, leaf_idx)
+        if hypertype == "upper"
+            data[-leaf] = u_regress(X[idx,:], Y[idx]; solver = solver)
+        elseif hypertype == "lower"
+            data[leaf] = l_regress(X[idx,:], Y[idx]; solver = solver)
+        end
+    end
+    return data
 end
 
 """
@@ -156,13 +167,21 @@ function learn_constraint!(bbr::BlackBoxRegressor, ignore_feas::Bool = false; kw
     check_sampled(bbr)
     set_param(bbr, :reloaded, false) # Makes sure that we know trees are retrained. 
     if haskey(kwargs, :threshold)
-        lnr = base_classifier()
-        IAI.set_params!(lnr; classifier_kwargs(; kwargs...)...)
-        nl = learn_from_data!(bbr.X, bbr.Y .<= kwargs[:threshold], lnr; fit_classifier_kwargs(; kwargs...)...)    
+        nl = base_classifier()
+        IAI.set_params!(nl; classifier_kwargs(; kwargs...)...)
+        if kwargs[:threshold].first == "upper"
+            nl = learn_from_data!(bbr.X, bbr.Y .<= kwargs[:threshold].second, nl; fit_classifier_kwargs(; kwargs...)...)
+        elseif kwargs[:threshold].second == "lower"
+            nl = learn_from_data!(bbr.X, bbr.Y .>= kwargs[:threshold].second, nl; fit_classifier_kwargs(; kwargs...)...)
+        end        
         push!(bbr.learners, nl);
         push!(bbr.learner_kwargs, Dict(kwargs))
         push!(bbr.thresholds, kwargs[:threshold])
-        push!(bbr.ul_data, ul_boundify(nl, bbr.X, bbr.Y))
+        if kwargs[:threshold].first == "upper"
+            push!(bbr.ul_data, boundify(nl, bbr.X, bbr.Y, "upper"))
+        elseif kwargs[:threshold].first == "lower"
+            push!(bbr.ul_data, boundify(nl, bbr.X, bbr.Y, "lower"))
+        end
         return 
     end
     lnr = base_regressor()
@@ -172,7 +191,7 @@ function learn_constraint!(bbr::BlackBoxRegressor, ignore_feas::Bool = false; kw
     push!(bbr.learner_kwargs, Dict(kwargs))
     push!(bbr.thresholds, nothing)  
     if haskey(kwargs, :regression_sparsity) && kwargs[:regression_sparsity] != :all
-        push!(bbr.ul_data, ul_boundify(nl, bbr.X, bbr.Y))
+        push!(bbr.ul_data, boundify(nl, bbr.X, bbr.Y))
     else
         push!(bbr.ul_data, Dict())
     end
