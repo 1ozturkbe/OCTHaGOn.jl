@@ -277,30 +277,24 @@ end
 
 Returns all JuMP.ConstraintRefs associated with BBL. 
 """
-function all_mi_constraints(bbl::BlackBoxLearner)
+function all_mi_constraints(bbl::BlackBoxLearner, hypertype::Union{String, Nothing} = nothing)
     all_constraints = []
-    for (leaf, constraints) in bbl.mi_constraints
-        push!(all_constraints, constraints...)
+    if hypertype isa Nothing
+        for (leaf, constraints) in bbl.mi_constraints
+            push!(all_constraints, constraints...)
+        end
+    elseif hypertype == "lower"
+        for (leaf, constraints) in bbl.mi_constraints
+            if leaf >= 0 
+                push!(all_constraints, constraints...)
+            end
+        end
+    elseif hypertype == "upper"
+        for (leaf, constraints) in bbl.mi_constraints
+            if leaf <= 0 
+                push!(all_constraints, constraints...)
+            end
+        end
     end
     return all_constraints
-end
-
-function upper_mi_constraints(bbl::BlackBoxRegressor)
-    upper_constraints = []
-    for (leaf, constraints) in bbl.mi_constraints
-        if leaf <= 0 
-            push!(upper_constraints, constraints...)
-        end
-    end
-    return upper_constraints
-end
-
-function lower_mi_constraints(bbl::BlackBoxRegressor)
-    lower_constraints = []
-    for (leaf, constraints) in bbl.mi_constraints
-        if leaf >= 0 
-            push!(lower_constraints, constraints...)
-        end
-    end
-    return lower_constraints
 end
