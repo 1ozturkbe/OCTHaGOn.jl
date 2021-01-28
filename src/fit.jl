@@ -171,12 +171,16 @@ function learn_constraint!(bbr::BlackBoxRegressor, ignore_feas::Bool = false; kw
         IAI.set_params!(nl; classifier_kwargs(; kwargs...)...)
         if kwargs[:threshold].first == "upper"
             nl = learn_from_data!(bbr.X, bbr.Y .<= kwargs[:threshold].second, nl; fit_classifier_kwargs(; kwargs...)...)
+            push!(bbr.learners, nl); 
+            push!(bbr.learner_kwargs, Dict(kwargs))
+            push!(bbr.thresholds, kwargs[:threshold])
         elseif kwargs[:threshold].second == "lower"
             nl = learn_from_data!(bbr.X, bbr.Y .>= kwargs[:threshold].second, nl; fit_classifier_kwargs(; kwargs...)...)
+            push!(bbr.learners, nl);
+            push!(bbr.learner_kwargs, Dict(kwargs))
+            push!(bbr.thresholds, kwargs[:threshold])
         end        
-        push!(bbr.learners, nl);
-        push!(bbr.learner_kwargs, Dict(kwargs))
-        push!(bbr.thresholds, kwargs[:threshold])
+
         if kwargs[:threshold].first == "upper"
             push!(bbr.ul_data, boundify(nl, bbr.X, bbr.Y, "upper"))
         elseif kwargs[:threshold].first == "lower"
