@@ -208,13 +208,15 @@ Arguments:
 function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuMP.VariableRef, lnr::IAI.OptimalTreeLearner, 
                                ul_data::Dict; M::Float64 = 1.e5, equality::Bool = false)
     constraints, leaf_variables = add_feas_constraints!(m, x, lnr, M=M, equality=equality)
-    if any(keys(ul_data) .<= 0)
-        constraints = Dict(-key => value for (key, value) in constraints) # hacky sign flipping for upkeep.
-        leaf_variables = Dict(-key => value for (key, value) in leaf_variables)
+    if all(keys(ul_data) .<= 0) && lnr isa IAI.OptimalTreeClassifier # means an upper bounding tree. 
+        constraints = Dict(-key => value for (key, value) in constraints) # hacky sign flipping for upkeep. 
+        leaf_variables = Dict(-key => value for (key, value) in leaf_variables) # TODO: could be buggy
     end
     for leaf in collect(keys(ul_data))
         γ0, γ = ul_data[leaf]
-        if leaf <= 0
+        if !haskey(constraints, leaf) && lnr isa IAI.OptimalTreeRegressor # occurs with ORTS with bounding hyperplanes
+            constraints[leaf] = [@constraint(m, y <= γ0 + sum(γ .* x) + M * (1 .- leaf_variables[-leaf]))]
+        elseif leaf <= 0
             push!(constraints[leaf], @constraint(m, y <= γ0 + sum(γ .* x) + M * (1 .- leaf_variables[leaf])))
         else
             push!(constraints[leaf], @constraint(m, y + M * (1 .- leaf_variables[leaf]) >= γ0 + sum(γ .* x)))
@@ -268,7 +270,6 @@ Updates the MI constraints associated with a BBL.
 For BBRs, makes sure to replace the appropriate lower/upper/regressor approximations. 
 """
 function update_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = length(bbr.learners))
-    @assert !isempty(bbr.active_trees)
     if length(bbr.active_trees) == 0 # no mi constraints yet. 
         add_tree_constraints!(gm, bbr, idx)
     elseif length(bbr.active_trees) == 1 # one set of mi_constraints

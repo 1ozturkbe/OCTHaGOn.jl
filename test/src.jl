@@ -239,7 +239,7 @@ function test_regress()
     @test sum((predictions-Y).^2) <= 1e-10
 end
 
-""" Tests various ways to train a regressor"""
+""" Tests various ways to train a regressor. """
 function test_bbr()
     gm = minlp(true)
     set_optimizer(gm, CPLEX_SILENT)
@@ -297,7 +297,19 @@ function test_bbr()
 
     # Lower regression training
     learn_constraint!(bbr,  threshold = "lower" => 5.)
+    lnr = bbr.learners[end]
+    @test all(sign.(collect(keys(bbr.ul_data))) .== 1)
+    @test bbr.thresholds[end] == ("lower" => 5.)
 
+    # Checking all possible update scenarios
+    # Note: [1] => upper bounds, [2,3] => regressors, [4] => lower bounds
+    update_tree_constraints!(gm, bbr, 1) # Single regressor
+    @test bbr.active_trees == Dict(1 => bbr.thresholds[1]) && 
+        all(sign.(collect(keys(bbr.mi_constraints))) .== -1)
+
+    clear_tree_constraints!(gm)
+    update_tree_constraints!(gm, bbr, 2)
+    
 
     # Checking proper storage
     @test all(length.([bbr.ul_data, bbr.thresholds, bbr.learners, bbr.learner_kwargs]) .== 3)
