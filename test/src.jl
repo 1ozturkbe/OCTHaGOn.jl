@@ -430,13 +430,13 @@ function test_gradients()
     @test all(isapprox(Array(solution(gm))[i], [0.5, 1.0, 11.25][i], atol=0.1) for i=1:3)
 end
 
-# test_expressions()
+test_expressions()
 
-# test_variables()
+test_variables()
 
-# test_bounds()
+test_bounds()
 
-# test_sets()
+test_sets()
 
 test_linearize()
 
