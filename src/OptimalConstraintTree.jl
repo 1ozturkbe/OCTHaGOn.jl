@@ -73,7 +73,7 @@ module OptimalConstraintTree
         save_fit, load_fit, set_param, get_param, 
         # Functions on BlackBoxLearners
         show_trees, learn_constraint!, 
-        all_mi_constraints, upper_mi_constraints, lower_mi_constraints, 
+        all_mi_constraints, 
         find_leaf_of_soln, evaluate, evaluate_gradient, 
         # Functions on BlackBoxLearners only
         eval!, uniform_sample_and_eval!,
@@ -90,7 +90,7 @@ module OptimalConstraintTree
         data_to_DataFrame, data_to_Dict,
         distance_to_set, get_constant, 
         add_feas_constraints!, add_regr_constraints!,
-        add_tree_constraints!, clear_tree_constraints!,
+        add_tree_constraints!, clear_tree_constraints!, update_tree_constraints!,
         base_regressor, base_classifier,
         fit_regressor_kwargs, fit_classifier_kwargs, 
         regressor_kwargs, classifier_kwargs,
