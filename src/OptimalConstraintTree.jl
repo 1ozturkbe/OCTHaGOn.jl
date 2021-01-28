@@ -72,7 +72,8 @@ module OptimalConstraintTree
         nonlinearize!,
         save_fit, load_fit, set_param, get_param, 
         # Functions on BlackBoxLearners
-        show_trees, learn_constraint!, all_mi_constraints, 
+        show_trees, learn_constraint!, 
+        all_mi_constraints, upper_mi_constraints, lower_mi_constraints, 
         find_leaf_of_soln, evaluate, evaluate_gradient, 
         # Functions on BlackBoxLearners only
         eval!, uniform_sample_and_eval!,

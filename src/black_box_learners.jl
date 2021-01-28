@@ -285,5 +285,22 @@ function all_mi_constraints(bbl::BlackBoxLearner)
     return all_constraints
 end
 
-# function lower_mi_constraints(bbl::BlackBoxLearner)
-#     lower_constraints = 
+function upper_mi_constraints(bbl::BlackBoxRegressor)
+    upper_constraints = []
+    for (leaf, constraints) in bbl.mi_constraints
+        if leaf <= 0 
+            push!(upper_constraints, constraints...)
+        end
+    end
+    return upper_constraints
+end
+
+function lower_mi_constraints(bbl::BlackBoxRegressor)
+    lower_constraints = []
+    for (leaf, constraints) in bbl.mi_constraints
+        if leaf >= 0 
+            push!(lower_constraints, constraints...)
+        end
+    end
+    return lower_constraints
+end
