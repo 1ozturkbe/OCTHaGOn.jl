@@ -64,7 +64,7 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
         all(collect(keys(bbr.mi_constraints)) .>= 0)  || throw(OCTException("Please clear previous upper tree constraints from $(gm.name) " *
                                                           "before adding new constraints."))
     elseif bbr.thresholds[idx].first == "lower"
-        all(collect(keys(bbr.mi_constraints))) <= 0 || throw(OCTException("Please clear previous lower tree constraints from $(gm.name) " *
+        all(collect(keys(bbr.mi_constraints)) .<= 0) || throw(OCTException("Please clear previous lower tree constraints from $(gm.name) " *
                                                             "before adding new constraints."))
     end    
     merge!(bbr.mi_constraints, mi_constraints)
@@ -292,7 +292,7 @@ function update_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx =
         if bbr.thresholds[idx] isa Nothing # if replacing with an ORT, can delete everything. 
             clear_tree_constraints!(gm, bbr)
             add_tree_constraints!(gm, bbr, idx)
-            bbr.active_trees = [idx]
+            bbr.active_trees = Dict(idx => bbr.thresholds[idx])
             return
         end
         hypertype = bbr.thresholds[idx].first # otherwise, check approximation type
@@ -303,20 +303,21 @@ function update_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx =
                 delete(gm.model, constraint)
             end
         end 
-        for (leaf, variable) in bbl.leaf_variables # removing relevant binary vars
+        for (leaf, variable) in bbr.leaf_variables # removing relevant binary vars
             if sign(leaf) == leaf_sign && is_valid(gm.model, variable)
                 delete(gm.model, variable)
             end
         end
-        if bbr.thresholds[bbl.active_trees[1]].first == hypertype # updating active trees
-            bbr.active_trees[1] = idx
-        else
-            bbr.active_trees[2] = idx
+        for last_idx in collect(keys(bbr.active_trees))
+            if bbr.thresholds[last_idx].first == hypertype # updating active trees
+                delete!(bbr.active_trees, last_idx)
+            end
         end
+        bbr.active_trees[idx] = bbr.thresholds[idx]
+        return 
     else
         throw(OCTException("$(gm.name) has too many active lower/upper bounding regressors."))
     end
-    return
 end
 
 function update_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier, idx = length(bbc.learners))
