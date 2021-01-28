@@ -58,7 +58,7 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
 
     end
     if bbr.thresholds[idx] isa Nothing
-        isempty(bbl.leaf_variables) || throw(OCTException("Please clear previous tree constraints from $(gm.name) " *
+        isempty(bbr.leaf_variables) || throw(OCTException("Please clear previous tree constraints from $(gm.name) " *
                                                           "before adding new constraints."))
     elseif bbr.thresholds[idx].first == "upper"
         all(collect(keys(bbr.mi_constraints)) .>= 0)  || throw(OCTException("Please clear previous upper tree constraints from $(gm.name) " *
@@ -288,8 +288,29 @@ function update_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx =
             return
         end
     elseif length(bbr.active_trees) == 2 # two sets of mi_constraints
-        active_idx = collect(keys(bbr.active_trees))
-        for idx in active_idx
+        if bbr.thresholds[idx] isa Nothing # if replacing with an ORT, can delete everything. 
+            clear_tree_constraints!(gm, bbr)
+            add_tree_constraints!(gm, bbr, idx)
+            bbr.active_trees = [idx]
+            return
+        end
+        hypertype = bbr.thresholds[idx].first # otherwise, check approximation type
+        constraints_for_removal = all_mi_constraints(bbr, hypertype)
+        leaf_sign = (hypertype == "lower") * 2 - 1
+        for constraint in constraints_for_removal # removing relevant mi constraints
+            if is_valid(gm.model, constraint)
+                delete(gm.model, constraint)
+            end
+        end 
+        for (leaf, variable) in bbl.leaf_variables # removing relevant binary vars
+            if sign(leaf) == leaf_sign && is_valid(gm.model, variable)
+                delete(gm.model, variable)
+            end
+        end
+        if bbr.thresholds[bbl.active_trees[1]].first == hypertype # updating active trees
+            bbr.active_trees[1] = idx
+        else
+            bbr.active_trees[2] = idx
         end
     else
         throw(OCTException("$(gm.name) has too many active lower/upper bounding regressors."))
