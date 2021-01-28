@@ -5,13 +5,13 @@
 
 Generates MI constraints from gm.learners, and adds them to gm.model.
 """
-function add_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier; M = 1e5)
+function add_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier, idx = length(bbc.learners); M = 1e5)
     isempty(bbc.mi_constraints) || throw(OCTException("BBC $(bbc.name) already has associated MI approximation."))
     isempty(bbc.leaf_variables) || throw(OCTException("BBC $(bbc.name) already has associated MI variables."))
     if bbc.feas_ratio == 1.0
         return
     elseif get_param(bbc, :reloaded)
-        mi_constraints, leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[end];
+        mi_constraints, leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[idx];
                                             M=M, equality = bbc.equality)
         merge!(bbc.mi_constraints, mi_constraints)
         merge!(bbc.leaf_variables, leaf_variables) # TODO: figure out issues to do with merging...
@@ -26,7 +26,7 @@ function add_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier; M = 1e5
     elseif !get_param(gm, :ignore_accuracy) && !check_accuracy(bbc)
         throw(OCTException("Constraint " * string(bbc.name) * " is inaccurately approximated. "))
     else
-        mi_constraints, leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[end];
+        mi_constraints, leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[idx];
                                             M=M, equality = bbc.equality);
         bbc.mi_constraints = mi_constraints
         bbc.leaf_variables = leaf_variables
@@ -34,7 +34,7 @@ function add_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier; M = 1e5
     return
 end
 
-function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = 0; M = 1e5)
+function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = length(bbr.learners); M = 1e5)
     mi_constraints = Dict{Int64, Array{JuMP.ConstraintRef}}()
     leaf_variables = Dict{Int64, JuMP.VariableRef}()
     if size(bbr.X, 1) == 0 && !get_param(bbr, :reloaded)
@@ -45,9 +45,6 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = 0;
     elseif isempty(bbr.ul_data)
         throw(OCTException("Constraint " * string(bbr.name) * " is a Regressor, 
         but doesn't have a ORT and/or OCT with upper/lower bounding approximators!"))
-    end
-    if idx == 0
-        idx = length(bbr.learners)
     end
     if !isempty(bbr.ul_data[idx])
         mi_constraints, leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
