@@ -61,27 +61,41 @@ function ridge_regress(X::DataFrame, Y::Array; solver = CPLEX_SILENT, rho::Float
 end
 
 """ 
-    ul_regress(X::DataFrame, Y::Array; solver = CPLEX_SILENT)
+    u_regress(X::DataFrame, Y::Array; solver = CPLEX_SILENT)
 
-Finds upper/lower regressors of data that are conservative. 
+Finds upper regressors of data that are conservative. 
 """
-function ul_regress(X::DataFrame, Y::Array; solver = CPLEX_SILENT)
+function u_regress(X::DataFrame, Y::Array; solver = CPLEX_SILENT)
     if size(X, 1) <= 2*size(X, 2)
-        @warn("U/L regression doesn't have enough data, thus returning constant bounds. ")
-        return [maximum(Y), zeros(size(X,2))], [minimum(Y), zeros(size(X,2))], ridge_regress(X, Y, solver = solver)
+        @warn("Upper regression doesn't have enough data, thus returning constant bounds. ")
+        return maximum(Y), zeros(size(X,2))
     end
     m = JuMP.Model(with_optimizer(solver))
     @variable(m, α[1:size(X, 2)])
     @variable(m, α0)
+    @constraint(m, [i=1:length(Y)], sum(Array{Float64}(X[i, :]).* α) + α0 >= Y[i])
+    @objective(m, Min, sum(((Matrix(X) * α .+ α0 - Y).^2)))
+    optimize!(m)
+    return getvalue(α0), getvalue.(α)
+end
+
+""" 
+    l_regress(X::DataFrame, Y::Array; solver = CPLEX_SILENT)
+
+Finds lower regressors of data that are conservative. 
+"""
+function l_regress(X::DataFrame, Y::Array; solver = CPLEX_SILENT)
+    if size(X, 1) <= 2*size(X, 2)
+        @warn("Lower regression doesn't have enough data, thus returning constant bounds. ")
+        return minimum(Y), zeros(size(X,2))
+    end
+    m = JuMP.Model(with_optimizer(solver))
     @variable(m, β[1:size(X, 2)])
     @variable(m, β0)
-    @constraint(m, [i=1:length(Y)], sum(Array{Float64}(X[i, :]).* α) + α0 >= Y[i])
     @constraint(m, [i=1:length(Y)], sum(Array{Float64}(X[i, :]).* β) + β0 <= Y[i])
-    @constraint(m, [i=1:length(Y)], sum(Array{Float64}(X[i, :]).* (α .- β)) + α0 - β0 .>= 0)
-    @objective(m, Min, sum(((Matrix(X) * α .+ α0) - (Matrix(X) * β .+ β0)).^2))
+    @objective(m, Min, sum(((Y - (Matrix(X) * β .+ β0)).^2)))
     optimize!(m)
-    γ0, γ = ridge_regress(X, Y, solver = solver)
-    return [getvalue(α0), getvalue.(α)], [getvalue(β0), getvalue.(β)], [γ0, γ]
+    return getvalue(β0), getvalue.(β)
 end
 
 """ 

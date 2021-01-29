@@ -35,8 +35,9 @@ Optional arguments:
     equality::Bool = false                             # Equality check
     learners::Array{Union{IAI.OptimalTreeRegressor, IAI.OptimalTreeClassifier}} = []     # Learners...
     learner_kwargs = []                                # and their kwargs... 
-    thresholds::Array = []                             # For thresholding. 
-    ul_data::Array{Dict} = Dict[]                      # Upper/Lower bounding data
+    thresholds::Array{Union{Nothing, Pair}} = []       # For thresholding. 
+    ul_data::Array{Dict} = Dict[]                      # Upper/lower bounding data
+    active_trees::Dict{Int64, Union{Nothing, Pair}} = Dict() # Currently active tree indices
     mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}() # and their corresponding MI constraints,
     leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their leaves and leaf variables
     knn_tree::Union{KDTree, Nothing} = nothing         # KNN tree
@@ -253,8 +254,9 @@ function find_leaf_of_soln(bbl::BlackBoxLearner)
     if !bbl.equality
         leaf_in = 0
         for (leaf, var) in bbl.leaf_variables
-            if getvalue(var) ≈ 1
+            if isapprox(getvalue(var), 1; atol=1e-5)
                 leaf_in = leaf
+                break
             end
         end
         @assert leaf_in != 0
@@ -276,10 +278,24 @@ end
 
 Returns all JuMP.ConstraintRefs associated with BBL. 
 """
-function all_mi_constraints(bbl::BlackBoxLearner)
+function all_mi_constraints(bbl::BlackBoxLearner, hypertype::Union{String, Nothing} = nothing)
     all_constraints = []
-    for (leaf, constraints) in bbl.mi_constraints
-        push!(all_constraints, constraints...)
+    if hypertype isa Nothing
+        for (leaf, constraints) in bbl.mi_constraints
+            push!(all_constraints, constraints...)
+        end
+    elseif hypertype == "lower"
+        for (leaf, constraints) in bbl.mi_constraints
+            if leaf >= 0 
+                push!(all_constraints, constraints...)
+            end
+        end
+    elseif hypertype == "upper"
+        for (leaf, constraints) in bbl.mi_constraints
+            if leaf <= 0 
+                push!(all_constraints, constraints...)
+            end
+        end
     end
     return all_constraints
 end

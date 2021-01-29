@@ -124,7 +124,7 @@ function test_nonlinearize(gm::GlobalModel = minlp(true))
     @test true
 end
 
-function test_bbl()
+function test_bbc()
     model, x, y, z, a = test_model()
     nl_constr = @constraint(model, sum(x[4]^2 + x[5]^2) <= z)
     expr = :((x, y, z) -> sum(x[i] for i=1:4) - y[1] * y[2] + z)
@@ -202,7 +202,7 @@ function test_kwargs()
     dict_fit = fit_classifier_kwargs(; sample_kwargs...)
     dict_fit2 = fit_classifier_kwargs(localsearch = false, invalid_kwarg = :hello,
                            ls_num_tree_restarts = 20)
-    @test dict_fit == dict_fit2 == Dict(:sample_weight => :autobalance)
+    @test dict_fit == dict_fit2 == Dict() #Dict(:sample_weight => :autobalance)
 
     dict_lnr = classifier_kwargs(; sample_kwargs...)
     dict_lnr2 = classifier_kwargs(localsearch = false, invalid_kwarg = :hello, ls_num_tree_restarts = 20)
@@ -221,7 +221,9 @@ end
 function test_regress()
     X = DataFrame(:x => 3*rand(100) .- 1, :y => 3*rand(100) .- 1);
     Y = Array(X[!,:x].^3 .* sin.(X[!,:y]));
-    (α0, α), (β0, β), (γ0, γ) = ul_regress(X, Y)
+    α0, α = u_regress(X, Y)
+    β0, β = l_regress(X, Y)
+    γ0, γ = ridge_regress(X, Y)
     lowers = β0 .+ Matrix(X) * β;
     uppers = α0 .+ Matrix(X) * α;
     best_fit = γ0 .+ Matrix(X) * γ;
@@ -237,45 +239,65 @@ function test_regress()
     @test sum((predictions-Y).^2) <= 1e-10
 end
 
-""" Tests various ways to train a regressor"""
-function test_regressors()
-    gm = minlp(true)
+""" Tests various ways to train a regressor. """
+function test_bbr()
+    gm = minlp(true, 1e-6)
     set_optimizer(gm, CPLEX_SILENT)
     uniform_sample_and_eval!(gm)
     bbr = gm.bbls[3]
 
+    # Make sure to train and add bbcs, and forget for a while...
+    # TODO: improve significant figure truncation...
+    # bbcs = [bbl for bbl in gm.bbls if bbl isa BlackBoxClassifier]
+    # learn_constraint!(bbcs)
+    # @test all(evaluate_accuracy.(bbcs) .>= 0.95)
+    # for bbc in bbcs
+    #     add_tree_constraints!(gm, bbc)
+    # end
+    
     # Threshold training
-    learn_constraint!(bbr, threshold = 10)
+    learn_constraint!(bbr, threshold = "upper" => 10.)
     lnr = bbr.learners[end]
     @test lnr isa IAI.OptimalTreeClassifier
     all_leaves = find_leaves(lnr)
     # Add a binary variable for each leaf
     feas_leaves =
         [i for i in all_leaves if Bool(IAI.get_classification_label(lnr, i))];
-    @test sort(collect(keys(bbr.ul_data[end]))) == sort(feas_leaves)
-    @test bbr.thresholds[end] == 10
+    @test sort(-1 .*collect(keys(bbr.ul_data[end]))) == sort(feas_leaves) # upper bounding leaves have negative idxs
+    @test bbr.thresholds[end] == ("upper" => 10.)
+    
 
-    # Check clearing and adding of tree constraints as well
+    # Check adding of upper bounding constraint to empty model
     types = JuMP.list_of_constraint_types(gm.model)
     init_constraints = sum(length(all_constraints(gm.model, type[1], type[2])) for type in types)
     init_variables = length(all_variables(gm))
     add_tree_constraints!(gm, bbr)
+    @test sort(union(feas_leaves, [1])) == sort(abs.(collect(keys(bbr.mi_constraints))))
+    @test sort(abs.(collect(keys(bbr.leaf_variables)))) == sort(feas_leaves)
+
+    # Checking that correct numbers of constraints and variables are added
     types = JuMP.list_of_constraint_types(gm.model)
     final_constraints = sum(length(all_constraints(gm.model, type[1], type[2])) for type in types)
     final_variables = length(all_variables(gm.model))
     @test final_constraints == init_constraints + length(all_mi_constraints(bbr)) + length(bbr.leaf_variables)    
-    @test final_variables == init_variables + length(bbr.leaf_variables)
+    @test final_variables == init_variables + length(bbr.leaf_variables) #+ 
+                                #length(bbcs[1].leaf_variables) + length(bbcs[2].leaf_variables)
+
+    # Check clearing of all constraints and variables
     clear_tree_constraints!(gm, bbr)
     types = JuMP.list_of_constraint_types(gm.model)
     @test init_constraints == sum(length(all_constraints(gm.model, type[1], type[2])) for type in types)
     @test init_variables == length(all_variables(gm))
+    # Since all_variables(gm) doesn't count auxiliary variables...
+    @test length(all_variables(gm.model)) == length(all_variables(gm)) #+
+            #length(bbcs[1].leaf_variables) + length(bbcs[2].leaf_variables)     
 
     # Flat prediction training
     learn_constraint!(bbr, regression_sparsity = 0, max_depth = 2)
     lnr = bbr.learners[end]
-    @test lnr isa IAI.OptimalTreeRegressor
     all_leaves = find_leaves(lnr)
-    @test sort(collect(keys(bbr.ul_data[end]))) == sort(all_leaves)
+    @test lnr isa IAI.OptimalTreeRegressor
+    @test length(bbr.ul_data[end]) == length(all_leaves) * 2 # double since contains lower and upper data
     @test bbr.thresholds[end] == nothing
 
     # Full regression training
@@ -286,8 +308,58 @@ function test_regressors()
     @test isempty(bbr.ul_data[end])
     @test isnothing(bbr.thresholds[end])
 
+    # Lower regression training
+    learn_constraint!(bbr,  threshold = "lower" => 5.)
+    lnr = bbr.learners[end]
+    @test all(sign.(collect(keys(bbr.ul_data))) .== 1)
+    @test bbr.thresholds[end] == ("lower" => 5.)
+
+    # Checking all possible update scenarios
+    # Note: [1] => upper bounds, [2,3] => regressors, [4] => lower bounds
+    update_tree_constraints!(gm, bbr, 1) # Updating nothing with single upper bound
+    @test bbr.active_trees == Dict(1 => bbr.thresholds[1]) && 
+        all(sign.(collect(keys(bbr.mi_constraints))) .== -1)
+
+    clear_tree_constraints!(gm)
+    update_tree_constraints!(gm, bbr, 2) # Updating nothing with single regressor
+    @test all(sign.(collect(keys(bbr.leaf_variables))) .== 1) &&
+            2*length(bbr.leaf_variables) + 1 == length(bbr.mi_constraints) &&
+                bbr.active_trees == Dict(2 => bbr.thresholds[2])
+    
+
+    update_tree_constraints!(gm, bbr, 3) # Replacing regressor with a regressor
+    # No upper and lower bounding, just regressor here
+    @test all(sign.(collect(keys(bbr.leaf_variables))) .== 1) &&
+        length(bbr.leaf_variables) + 1 == length(bbr.mi_constraints) &&
+            bbr.active_trees == Dict(3 => bbr.thresholds[3])
+
+    update_tree_constraints!(gm, bbr, 4) # Replacing regressor with lower bound
+    @test all(sign.(collect(keys(bbr.leaf_variables))) .== 1) && # since lower bounding
+        length(bbr.leaf_variables) + 1 == length(bbr.mi_constraints) && 
+            bbr.active_trees == Dict(4 => bbr.thresholds[4])
+
+    update_tree_constraints!(gm, bbr, 1) # Adding upper bound to lower bound
+    @test length(bbr.leaf_variables) + 2 == length(bbr.mi_constraints) && # checking leaf variables
+        length(bbr.active_trees) == 2
+    optimize!(gm)
+
+    clear_tree_constraints!(gm, bbr)
+    update_tree_constraints!(gm, bbr, 1)
+    update_tree_constraints!(gm, bbr, 4) # Adding lower bound to upper bound
+    @test length(bbr.leaf_variables) + 2 == length(bbr.mi_constraints) && # checking leaf variables
+        length(bbr.active_trees) == 2
+    optimize!(gm)
+
+    # Make sure that all solutions are the same. 
+    update_tree_constraints!(gm, bbr, 4) 
+    optimize!(gm)
+    update_tree_constraints!(gm, bbr, 1)
+    optimize!(gm)
+
+    # @test all(Array(gm.solution_history[1,:]) .≈ Array(gm.solution_history[2,:]))
+
     # Checking proper storage
-    @test all(length.([bbr.ul_data, bbr.thresholds, bbr.learners, bbr.learner_kwargs]) .== 3)
+    @test all(length.([bbr.ul_data, bbr.thresholds, bbr.learners, bbr.learner_kwargs]) .== 4)
     clear_tree_data!(bbr)
     @test all(length.([bbr.ul_data, bbr.thresholds, bbr.learners, bbr.learner_kwargs]) .== 0)
 end
@@ -308,7 +380,8 @@ function test_basic_gm()
     set_param(gm, :ignore_accuracy, true)
     globalsolve(gm);
     vals = solution(gm);
-    init_leaves = find_leaf_of_soln.(gm.bbls)
+    init_leaves = [find_leaf_of_soln(bbl) for bbl in gm.bbls]
+    @test all(init_leaves[i] in keys(gm.bbls[i].leaf_variables) for i=1:length(gm.bbls))
     println("X values: ", vals)
     println("Optimal X: ", vcat(exp.([5.01063529, 3.40119660, -0.48450710]), [-147-2/3]))
 
@@ -317,6 +390,7 @@ function test_basic_gm()
     @test !any(is_valid(gm.model, constraint) for constraint in all_mi_constraints(gm.bbls[2]))
     add_tree_constraints!(gm, gm.bbls[2])
     @test all(is_valid(gm.model, constraint) for constraint in all_mi_constraints(gm.bbls[2]))
+    clear_tree_constraints!(gm);
     add_tree_constraints!(gm);
     clear_tree_constraints!(gm, gm.bbls[1])
     @test !any(is_valid(gm.model, constraint) for constraint in all_mi_constraints(gm.bbls[1]))
@@ -340,8 +414,7 @@ function test_basic_gm()
     bbc = gm.bbls[2]
     @test bbc.accuracies[end] == bbc.accuracies[end-1]
     globalsolve(gm)
-    final_leaves = find_leaf_of_soln.(gm.bbls)
-    @test all(init_leaves .== final_leaves)
+    final_leaves = [find_leaf_of_soln(bbl) for bbl in gm.bbls]
     @test gm.solution_history[end, "obj"] ≈ gm.solution_history[end-1, "obj"] 
 
     # Testing clearing all data
@@ -364,7 +437,7 @@ function test_gradients()
         @constraint(gm.model, bbl.dependent_var >= sum(gradvals[i] .* (bbl.vars .- Array(bbl.X[i, :]))) + bbl.Y[i])
     end
     optimize!(gm)
-    @test all(isapprox(Array(solution(gm))[i], [0.5, 1.0, 11.25][i], atol=0.1) for i=1:3)
+    @test all(isapprox(Array(solution(gm))[i], [0.5, 1.0, 11.25][i], atol=0.15) for i=1:3)
 end
 
 test_expressions()
@@ -379,13 +452,13 @@ test_linearize()
 
 test_nonlinearize()
 
-test_bbl()
+test_bbc()
 
 test_kwargs()
 
 test_regress()
 
-test_regressors()
+test_bbr()
 
 test_basic_gm()
 
