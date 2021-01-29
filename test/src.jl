@@ -380,7 +380,7 @@ function test_basic_gm()
     set_param(gm, :ignore_accuracy, true)
     globalsolve(gm);
     vals = solution(gm);
-    init_leaves = find_leaf_of_soln.(gm.bbls)
+    init_leaves = [find_leaf_of_soln(bbl) for bbl in gm.bbls]
     @test all(init_leaves[i] in keys(gm.bbls[i].leaf_variables) for i=1:length(gm.bbls))
     println("X values: ", vals)
     println("Optimal X: ", vcat(exp.([5.01063529, 3.40119660, -0.48450710]), [-147-2/3]))

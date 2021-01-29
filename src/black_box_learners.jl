@@ -254,8 +254,9 @@ function find_leaf_of_soln(bbl::BlackBoxLearner)
     if !bbl.equality
         leaf_in = 0
         for (leaf, var) in bbl.leaf_variables
-            if getvalue(var) ≈ 1
+            if isapprox(getvalue(var), 1; atol=1e-5)
                 leaf_in = leaf
+                break
             end
         end
         @assert leaf_in != 0
