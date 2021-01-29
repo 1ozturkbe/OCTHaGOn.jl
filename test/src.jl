@@ -414,7 +414,7 @@ function test_basic_gm()
     bbc = gm.bbls[2]
     @test bbc.accuracies[end] == bbc.accuracies[end-1]
     globalsolve(gm)
-    final_leaves = find_leaf_of_soln.(gm.bbls)
+    final_leaves = [find_leaf_of_soln(bbl) for bbl in gm.bbls]
     @test all(init_leaves .== final_leaves)
     @test gm.solution_history[end, "obj"] ≈ gm.solution_history[end-1, "obj"] 
 
