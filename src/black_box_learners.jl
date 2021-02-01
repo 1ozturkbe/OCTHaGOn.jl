@@ -248,12 +248,12 @@ end
 """ 
     find_leaf_of_soln(bbl::BlackBoxLearner)
 
-Find leaf of previous solution via binary variables. 
+Find leaf (or leaves) of previous solution via binary variables. 
 """
-function find_leaf_of_soln(bbl::BlackBoxLearner)
-    if !bbl.equality
+function find_leaf_of_soln(bbc::BlackBoxClassifier)
+    if !bbc.equality
         leaf_in = 0
-        for (leaf, var) in bbl.leaf_variables
+        for (leaf, var) in bbc.leaf_variables
             if isapprox(getvalue(var), 1; atol=1e-5)
                 leaf_in = leaf
                 break
@@ -263,8 +263,31 @@ function find_leaf_of_soln(bbl::BlackBoxLearner)
         return leaf_in
     else
         leaf_in = []
-        for (leaf, var) in bbl.leaf_variables
-            if getvalue(var) == 1
+        for (leaf, var) in bbc.leaf_variables
+            if isapprox(getvalue(var), 1; atol=1e-5)
+                push!(leaf_in, leaf)
+            end
+        end
+        @assert length(leaf_in) == 2
+        return leaf_in
+    end
+end
+
+function find_leaf_of_soln(bbr::BlackBoxRegressor)
+    leaf_in = 0
+    if length(bbr.active_trees) == 1
+        for (leaf, var) in bbr.leaf_variables
+            if isapprox(getvalue(var), 1; atol=1e-5)
+                leaf_in = leaf
+                break
+            end
+        end
+        @assert leaf_in != 0
+        return leaf_in
+    elseif length(bbr.active_trees) == 2
+        leaf_in = []
+        for (leaf, var) in bbr.leaf_variables
+            if isapprox(getvalue(var), 1; atol=1e-5)
                 push!(leaf_in, leaf)
             end
         end
