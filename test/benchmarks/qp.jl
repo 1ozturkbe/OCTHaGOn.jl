@@ -27,13 +27,71 @@ function knn_outward_from_leaf(bbl::BlackBoxLearner, leaf_in::Int64 = find_leaf_
     return df
 end
 
-# function knn_around_lastsol(bbl::BlackBoxLearner)
-#     lastsol = getvalue.(bbl.vars)
-#     build_knn_tree(bbl)
-#     pts = NearestNeighbors.inrange(bbl.knn_tree, lastsol, 0.05)
+""" Solves the QP with cutting planes only. """
+function cutting_plane_solve(gm::GlobalModel)
+    bbr = gm.bbls[1]
+    gradvals = evaluate_gradient(bbr, bbr.X)
+    # Testing adding gradient cuts
+    for i=1:size(bbr.X, 1)
+        @constraint(gm.model, bbr.dependent_var >= sum(gradvals[i] .* (bbr.vars .- Array(bbr.X[i, :]))) + bbr.Y[i])
+    end
+    optimize!(gm)   
+end
+
+""" Very coarse solution for gm to check for feasibility and an initial starting point. """
+function surveysolve(gm::GlobalModel)
+    bbcs = [bbl for bbl in gm.bbls if bbl isa BlackBoxClassifier]
+    for bbc in bbcs
+        learn_constraint!(bbc)
+        update_tree_constraints!(gm, bbc)
+    end
+    bbrs = [bbl for bbl in gm.bbls if bbl isa BlackBoxRegressor]
+    bbr = bbrs[1]
+    learn_constraint!(bbr, regression_sparsity = 0, max_depth = 2)
+    update_tree_constraints!(gm, bbr)
+    optimize!(gm)
+    return
+end
+
+function refine_thresholds(gm::GlobalModel, bbr::BlackBoxRegressor)
+    if length(bbr.active_trees) == 1
+        best_lower = getvalue(bbr.dependent_var)
+        best_upper = bbr.Y[end]
+        learn_constraint!(bbr, threshold = "upper" => best_upper)
+        update_tree_constraints!(gm, bbr)
+        learn_constraint!(bbr, threshold = "lower" =>best_lower)
+        update_tree_constraints!(gm, bbr)
+        return
+    elseif length(bbr.active_trees) == 2
+        bds = Dict(collect(values(bbr.active_trees))) # TODO: have a cleaner system for this. 
+        old_lower = bds["lower"]
+        old_upper = bds["upper"]
+        new_lower = getvalue(bbr.dependent_var)
+        new_upper = bbr.Y[end]
+        if new_upper <= old_upper # tightening the upper bound
+            learn_constraint!(bbr, threshold = "upper" => new_upper)
+            update_tree_constraints!(gm, bbr)
+            learn_constraint!(bbr, # binary reduce the lower bound
+                threshold = "lower" => (maximum([new_lower, old_lower]) + new_upper)/2)
+        end
+        if new_lower > old_lower
+            learn_constraint!(bbr, threshold = "lower" => new_lower)
+            update_tree_constraints!(gm, bbr)
+        else
+            learn_constraint!(bbr, threshold = "lower" => new_lower) # TODO: determine if better way exists
+        end 
+        return 
+    else 
+        throw(OCTException("Cannot refine $(bbr.name) thresholds without having solved " *
+                           "GlobalModel $(gm.name) with valid approximations first." ))
+    end
+end
+
+function leaf_sample(bbr::BlackBoxRegressor, lnr)
+    last_leaf = find_leaf_of_soln(bbr)
 
 # Initializing, and solving via Ipopt
-m = random_qp(5, 3, 2)
+m = random_qp(5, 3, 4)
 optimize!(m)
 mcost = JuMP.getobjectivevalue(m)
 msol = getvalue.(m[:x])
@@ -41,45 +99,24 @@ msol = getvalue.(m[:x])
 # Trying thresholding method 
 # using StatsBase
 gm = gmify_random_qp(m)
-bbl = gm.bbls[1]
-set_param(bbl, :n_samples, 500)
+bbr = gm.bbls[1]
 uniform_sample_and_eval!(gm)
-uppers = [20.]
-upper_learners = []
-upper_ul_data = []
-lowers = [0.]
-lower_learners = []
-lower_ul_data = []
-actuals = []
-estimates = []
-tightnesses = []
-errors = []
+surveysolve(gm)
 
-kwargs = Dict()
-lnr = base_classifier()
-M = 1e5
-push!(upper_learners, learn_from_data!(bbl.X, bbl.Y .<= uppers[end], IAI.clone(lnr); fit_classifier_kwargs(; kwargs...)...))
-push!(upper_ul_data, ul_boundify(upper_learners[end], bbl.X, bbl.Y))
-push!(lower_learners, learn_from_data!(bbl.X, bbl.Y .>= lowers[end], IAI.clone(lnr); fit_classifier_kwargs(; kwargs...)...))
-push!(lower_ul_data, ul_boundify(lower_learners[end], bbl.X, bbl.Y))
-
-mi_constraints, leaf_variables = add_feas_constraints!(gm.model, bbl.vars, upper_learners[end]; M=1e5)
-feas_leaves = collect(keys(leaf_variables))
-for leaf in feas_leaves
-    (α0, α), (β0, β), (γ0, γ) = upper_ul_data[end][leaf]
-    push!(mi_constraints[leaf], @constraint(gm.model, bbl.dependent_var <= α0 + sum(α .* bbl.vars) + M * (1 .- leaf_variables[leaf])))   
+abstol = 1e-1
+old_lower = -Inf
+old_upper = Inf
+iterations = 0
+while old_upper - old_lower >= abstol && iterations <= 3
+    refine_thresholds(gm, bbr)
+    optimize!(gm)
+    bds = Dict(collect(values(bbr.active_trees))) # TODO: have a cleaner system for this. 
+    old_lower = bds["lower"]
+    old_upper = bds["upper"]
+    println("Next bounds: " * string([old_lower, old_upper]))
+    iterations += 1
 end
-merge!(append!, bbl.mi_constraints, mi_constraints)
-merge!(append!, bbl.leaf_variables, leaf_variables) # This is problematic...
 
-mi_constraints, leaf_variables = add_feas_constraints!(gm.model, bbl.vars, lower_learners[end]; M=1e5)
-feas_leaves = collect(keys(leaf_variables))
-for leaf in feas_leaves
-    (α0, α), (β0, β), (γ0, γ) = lower_ul_data[end][leaf]
-    push!(mi_constraints[leaf], @constraint(gm.model, bbl.dependent_var + M * (1 .- leaf_variables[leaf]) >= β0 + sum(β .* bbl.vars)))
-end
-merge!(append!, bbl.mi_constraints, mi_constraints)
-merge!(append!, bbl.leaf_variables, leaf_variables)
 
 # Getting solution
 optimize!(gm)
@@ -159,16 +196,3 @@ plot(lowers[1:5], label = "lowers")
 plot!(actuals[1:5], label = "actuals")
 plot!(estimates[1:5], label = "estimates")
 plot!(uppers[1:5], label = "uppers", thickness_scaling = 2)
-
-# What if I just used cutting planes? 
-
-clear_data!(gm)
-uniform_sample_and_eval!(gm)
-gradvals = evaluate_gradient(bbl, bbl.X)
-
-# Testing adding gradient cuts
-for i=1:size(bbl.X, 1)
-    @constraint(gm.model, bbl.dependent_var >= sum(gradvals[i] .* (bbl.vars .- Array(bbl.X[i, :]))) + bbl.Y[i])
-end
-optimize!(gm)
-@test all(isapprox(Array(solution(gm))[i], [0.5, 1.0, 11.25][i], atol=0.1) for i=1:3)
