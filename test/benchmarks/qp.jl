@@ -1,3 +1,5 @@
+using LatinHypercubeSampling
+
 """
     knn_outward_from_leaf(bbl::BlackBoxLearner, leaf_in::Int64 = find_leaf_of_soln(bbl))
 
@@ -132,19 +134,23 @@ gm = gmify_random_qp(m)
 bbr = gm.bbls[1]
 uniform_sample_and_eval!(gm)
 surveysolve(gm)
+refine_thresholds(gm, bbr)
+optimize!(gm)
 
 abstol = 1e-1
-old_lower = -Inf
-old_upper = Inf
+old_lower = bds["lower"]
+old_upper = bds["upper"]
 iterations = 0
 while old_upper - old_lower >= abstol && iterations <= 3
-    refine_thresholds(gm, bbr)
-    optimize!(gm)
-    bds = Dict(collect(values(bbr.active_trees))) # TODO: have a cleaner system for this. 
-    old_lower = bds["lower"]
-    old_upper = bds["upper"]
+    df = leaf_sample(bbr);
+    eval!(bbr, df);
+    refine_thresholds(gm, bbr);
+    optimize!(gm);
+    bds = Dict(collect(values(bbr.active_trees))); # TODO: have a cleaner system for this. 
+    old_lower = bds["lower"];
+    old_upper = bds["upper"];
     println("Next bounds: " * string([old_lower, old_upper]))
-    global iterations += 1
+    global iterations += 1;
 end
 
 
