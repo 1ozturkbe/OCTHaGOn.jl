@@ -24,6 +24,8 @@ __pycache__
 *.tree
 *.txt
 *.jld
+*.zip
 
 tatus
 /dump/
+/bugreport/
