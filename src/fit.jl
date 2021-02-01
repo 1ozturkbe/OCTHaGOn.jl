@@ -170,21 +170,14 @@ function learn_constraint!(bbr::BlackBoxRegressor, ignore_feas::Bool = false; kw
     if haskey(kwargs, :threshold)
         lnr = base_classifier()
         IAI.set_params!(lnr; minbucket = length(bbr.vars) + 1, classifier_kwargs(; kwargs...)...)
-        nl = learn_from_data!(bbr.X, bbr.Y .<= kwargs[:threshold], lnr; fit_classifier_kwargs(; kwargs...)...)    
-        push!(bbr.learners, nl);
-        push!(bbr.learner_kwargs, Dict(kwargs))
-        push!(bbr.thresholds, kwargs[:threshold])
-        push!(bbr.ul_data, ul_boundify(nl, bbr.X, bbr.Y))
-        nl = base_classifier()
-        IAI.set_params!(nl; classifier_kwargs(; kwargs...)...)
         if kwargs[:threshold].first == "upper"
-            nl = learn_from_data!(bbr.X, bbr.Y .<= kwargs[:threshold].second, nl; fit_classifier_kwargs(; kwargs...)...)
+            nl = learn_from_data!(bbr.X, bbr.Y .<= kwargs[:threshold].second, lnr; fit_classifier_kwargs(; kwargs...)...)
             push!(bbr.learners, nl); 
             push!(bbr.learner_kwargs, Dict(kwargs))
             push!(bbr.thresholds, kwargs[:threshold])
             push!(bbr.ul_data, boundify(nl, bbr.X, bbr.Y, "upper"))
         elseif kwargs[:threshold].first == "lower"
-            nl = learn_from_data!(bbr.X, bbr.Y .>= kwargs[:threshold].second, nl; fit_classifier_kwargs(; kwargs...)...)
+            nl = learn_from_data!(bbr.X, bbr.Y .>= kwargs[:threshold].second, lnr; fit_classifier_kwargs(; kwargs...)...)
             push!(bbr.learners, nl);
             push!(bbr.learner_kwargs, Dict(kwargs))
             push!(bbr.thresholds, kwargs[:threshold])
