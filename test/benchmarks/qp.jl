@@ -87,8 +87,38 @@ function refine_thresholds(gm::GlobalModel, bbr::BlackBoxRegressor)
     end
 end
 
-function leaf_sample(bbr::BlackBoxRegressor, lnr)
-    last_leaf = find_leaf_of_soln(bbr)
+"""
+    leaf_sample(bbl::BlackBoxLearner)
+
+Gets Latin Hypercube samples that fall in the leaf of the last solution.
+"""
+
+function leaf_sample(bbc::BlackBoxClassifier)
+    # TODO: write. 
+    return
+end
+
+function leaf_sample(bbr::BlackBoxRegressor)
+    length(bbr.active_trees) == 2 || throw(OCTException("Can only leaf sample BBRs with upper/lower " *
+                                                        "classifiers."))
+    upper_leaf, lower_leaf = sort(find_leaf_of_soln(bbr))
+    upper_leafneighbor = [];
+    lower_leafneighbor = [];
+    for (tree_idx, threshold) in bbr.active_trees
+        if threshold.first == "upper"
+            append!(upper_leafneighbor, IAI.apply(bbr.learners[tree_idx], bbr.X) .== -upper_leaf)
+        elseif threshold.first == "lower"
+            append!(lower_leafneighbor, IAI.apply(bbr.learners[tree_idx], bbr.X) .== lower_leaf)
+        end
+    end
+    idxs =  findall(x -> x .>= 0.5, upper_leafneighbor .* lower_leafneighbor)
+    lbs = [minimum(col) for col in eachcol(bbr.X[idxs, :])]
+    ubs = [maximum(col) for col in eachcol(bbr.X[idxs, :])]
+    plan, _ = LHCoptim(get_param(bbr, :n_samples), length(bbr.vars), 3);
+    X = scaleLHC(plan, [(lbs[i], ubs[i]) for i=1:length(lbs)]);
+   return DataFrame(X, string.(bbr.vars))
+end
+
 
 # Initializing, and solving via Ipopt
 m = random_qp(5, 3, 4)
@@ -114,27 +144,23 @@ while old_upper - old_lower >= abstol && iterations <= 3
     old_lower = bds["lower"]
     old_upper = bds["upper"]
     println("Next bounds: " * string([old_lower, old_upper]))
-    iterations += 1
+    global iterations += 1
 end
 
 
 # Getting solution
-optimize!(gm)
-push!(estimates, getvalue(bbl.dependent_var))
-push!(actuals, bbl(solution(gm))[1])
-clear_tree_constraints!(gm)
 
 # Updating bounds
-if actuals[end] <= lowers[end]
-    push!(uppers, lowers[end])
-    push!(lowers, minimum(bbl.Y))
-elseif lowers[end] <= actuals[end] <= uppers[end]
-    push!(uppers, actuals[end])
-    push!(lowers, (uppers[end] + lowers[end])/2) # Binary reduce
-elseif actuals[end] >= uppers[end]
-    push!(uppers, actuals[end])
-    push!(lowers, lowers[end])
-end
+# if actuals[end] <= lowers[end]
+#     push!(uppers, lowers[end])
+#     push!(lowers, minimum(bbl.Y))
+# elseif lowers[end] <= actuals[end] <= uppers[end]
+#     push!(uppers, actuals[end])
+#     push!(lowers, (uppers[end] + lowers[end])/2) # Binary reduce
+# elseif actuals[end] >= uppers[end]
+#     push!(uppers, actuals[end])
+#     push!(lowers, lowers[end])
+# end
 
 # Adding all gradient constraints in leaf, just in case
 
@@ -191,8 +217,8 @@ end
 # When doing threshold training, make sure I can ignore data above. 
 
 # Plotting
-using Plots
-plot(lowers[1:5], label = "lowers")
-plot!(actuals[1:5], label = "actuals")
-plot!(estimates[1:5], label = "estimates")
-plot!(uppers[1:5], label = "uppers", thickness_scaling = 2)
+# using Plots
+# plot(lowers[1:5], label = "lowers")
+# plot!(actuals[1:5], label = "actuals")
+# plot!(estimates[1:5], label = "estimates")
+# plot!(uppers[1:5], label = "uppers", thickness_scaling = 2)
