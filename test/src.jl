@@ -356,7 +356,7 @@ function test_bbr()
     update_tree_constraints!(gm, bbr, 1)
     optimize!(gm)
 
-    # @test all(Array(gm.solution_history[1,:]) .≈ Array(gm.solution_history[2,:]))
+    @test all(Array(gm.solution_history[:,"obj"]) .≈ gm.solution_history[1, "obj"])
 
     # Checking proper storage
     @test all(length.([bbr.ul_data, bbr.thresholds, bbr.learners, bbr.learner_kwargs]) .== 4)
