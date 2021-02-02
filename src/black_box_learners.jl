@@ -261,7 +261,8 @@ function find_leaf_of_soln(bbc::BlackBoxClassifier)
                 break
             end
         end
-        @assert leaf_in != 0
+        leaf_in != 0 || throw(OCTException("BBC $(bbc.name) did not return a valid leaf. "*
+                                           "Please make sure the MI constraints are added to a GM."))
         return leaf_in
     else
         leaf_in = []
@@ -284,7 +285,8 @@ function find_leaf_of_soln(bbr::BlackBoxRegressor)
                 break
             end
         end
-        @assert leaf_in != 0
+        leaf_in != 0 || throw(OCTException("BBR $(bbr.name) did not return a valid leaf. "*
+                                           "Please make sure the MI constraints are added to a GM."))
         return leaf_in
     elseif length(bbr.active_trees) == 2
         leaf_in = []
@@ -293,7 +295,8 @@ function find_leaf_of_soln(bbr::BlackBoxRegressor)
                 push!(leaf_in, leaf)
             end
         end
-        @assert length(leaf_in) == 2
+        length(leaf_in) == 2 || throw(OCTException("BBR $(bbr.name) did not return valid leaves. "*
+                                        "Please make sure the MI constraints are added to a GM."))
         return leaf_in
     end
 end
