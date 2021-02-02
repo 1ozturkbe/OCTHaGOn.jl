@@ -247,16 +247,15 @@ function test_bbr()
     bbr = gm.bbls[3]
 
     # Make sure to train and add bbcs, and forget for a while...
-    # TODO: improve significant figure truncation...
-    # bbcs = [bbl for bbl in gm.bbls if bbl isa BlackBoxClassifier]
-    # learn_constraint!(bbcs)
-    # @test all(evaluate_accuracy.(bbcs) .>= 0.95)
-    # for bbc in bbcs
-    #     add_tree_constraints!(gm, bbc)
-    # end
+    bbcs = [bbl for bbl in gm.bbls if bbl isa BlackBoxClassifier]
+    learn_constraint!(bbcs)
+    @test all(evaluate_accuracy.(bbcs) .>= 0.95)
+    for bbc in bbcs
+        add_tree_constraints!(gm, bbc)
+    end
     
     # Threshold training
-    learn_constraint!(bbr, threshold = "upper" => 10.)
+    learn_constraint!(bbr, threshold = "upper" => 20.)
     lnr = bbr.learners[end]
     @test lnr isa IAI.OptimalTreeClassifier
     all_leaves = find_leaves(lnr)
@@ -264,7 +263,7 @@ function test_bbr()
     feas_leaves =
         [i for i in all_leaves if Bool(IAI.get_classification_label(lnr, i))];
     @test sort(-1 .*collect(keys(bbr.ul_data[end]))) == sort(feas_leaves) # upper bounding leaves have negative idxs
-    @test bbr.thresholds[end] == ("upper" => 10.)
+    @test bbr.thresholds[end] == ("upper" => 20.)
     
 
     # Check adding of upper bounding constraint to empty model
@@ -280,8 +279,8 @@ function test_bbr()
     final_constraints = sum(length(all_constraints(gm.model, type[1], type[2])) for type in types)
     final_variables = length(all_variables(gm.model))
     @test final_constraints == init_constraints + length(all_mi_constraints(bbr)) + length(bbr.leaf_variables)    
-    @test final_variables == init_variables + length(bbr.leaf_variables) #+ 
-                                #length(bbcs[1].leaf_variables) + length(bbcs[2].leaf_variables)
+    @test final_variables == init_variables + length(bbr.leaf_variables) + 
+                                length(bbcs[1].leaf_variables) + length(bbcs[2].leaf_variables)
 
     # Check clearing of all constraints and variables
     clear_tree_constraints!(gm, bbr)
@@ -289,8 +288,8 @@ function test_bbr()
     @test init_constraints == sum(length(all_constraints(gm.model, type[1], type[2])) for type in types)
     @test init_variables == length(all_variables(gm))
     # Since all_variables(gm) doesn't count auxiliary variables...
-    @test length(all_variables(gm.model)) == length(all_variables(gm)) #+
-            #length(bbcs[1].leaf_variables) + length(bbcs[2].leaf_variables)     
+    @test length(all_variables(gm.model)) == length(all_variables(gm)) +
+            length(bbcs[1].leaf_variables) + length(bbcs[2].leaf_variables)     
 
     # Flat prediction training
     learn_constraint!(bbr, regression_sparsity = 0, max_depth = 2)
@@ -320,7 +319,7 @@ function test_bbr()
     @test bbr.active_trees == Dict(1 => bbr.thresholds[1]) && 
         all(sign.(collect(keys(bbr.mi_constraints))) .== -1)
 
-    clear_tree_constraints!(gm)
+    clear_tree_constraints!(gm, bbr)
     update_tree_constraints!(gm, bbr, 2) # Updating nothing with single regressor
     @test all(sign.(collect(keys(bbr.leaf_variables))) .== 1) &&
             2*length(bbr.leaf_variables) + 1 == length(bbr.mi_constraints) &&
@@ -363,7 +362,10 @@ function test_bbr()
     @test size(df, 1) == get_param(bbr, :n_samples)
     update_tree_constraints!(gm, bbr, 2)
     @test_throws OCTException leaf_sample(bbr)
-    # TODO: test leaf_sampling for bbcs as well. 
+    for bbc in bbcs
+        df = leaf_sample(bbc)
+        @test size(df, 1) == get_param(bbc, :n_samples)
+    end
 
     @test all(Array(gm.solution_history[:,"obj"]) .≈ gm.solution_history[1, "obj"])
 
