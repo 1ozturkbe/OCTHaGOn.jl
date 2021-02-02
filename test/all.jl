@@ -14,6 +14,9 @@ Note: All tests should be run from a julia REPR within the OptimalConstraintTree
 
 include("load.jl");
 
+using Distributed
+addprocs(4)
+
 @testset "OptimalConstraintTree" begin
     include(string(OptimalConstraintTree.PROJECT_ROOT, "/test/src.jl"))
 

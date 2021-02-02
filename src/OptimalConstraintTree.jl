@@ -57,13 +57,13 @@ module OptimalConstraintTree
         # Structs
     export GlobalModel, BlackBoxLearner, BlackBoxClassifier, BlackBoxRegressor,
         # GlobalModel Functions
-        globalsolve,
+        surveysolve,
         # JuMP.Model extensions to GlobalModel
         set_optimizer, optimize!,
         # Functions on GlobalModel and BlackBoxLearners
         learn_from_data!, find_bounds!, find_linear_bounds!,
         add_nonlinear_constraint, add_nonlinear_or_compatible, determine_vars,
-        lh_sample, boundary_sample,
+        lh_sample, boundary_sample, leaf_sample,
         feasibility, check_accuracy, check_feasibility, 
         check_bounds,  check_sampled, 
         solution, 

@@ -9,12 +9,14 @@ function add_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier, idx = l
     isempty(bbc.mi_constraints) || throw(OCTException("BBC $(bbc.name) already has associated MI approximation."))
     isempty(bbc.leaf_variables) || throw(OCTException("BBC $(bbc.name) already has associated MI variables."))
     if bbc.feas_ratio == 1.0
-        return
+        z_feas = @variable(m, binary = true)
+        bbc.mi_constraints = Dict(1 => [@constraint(gm.model, z_feas == 1)])
+        bbc.leaf_variables = Dict(1 => z_feas)
     elseif get_param(bbc, :reloaded)
         mi_constraints, leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[idx];
                                             M=M, equality = bbc.equality)
-        merge!(bbc.mi_constraints, mi_constraints)
-        merge!(bbc.leaf_variables, leaf_variables) # TODO: figure out issues to do with merging...
+        bbc.mi_constraints = mi_constraints
+        bbc.leaf_variables = leaf_variables
     elseif size(bbc.X, 1) == 0
         throw(OCTException("Constraint " * string(bbc.name) * " has not been sampled yet, and is thus untrained."))
     elseif isempty(bbc.learners)
@@ -292,28 +294,33 @@ function update_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx =
         if bbr.thresholds[idx] isa Nothing # if replacing with an ORT, can delete everything. 
             clear_tree_constraints!(gm, bbr)
             add_tree_constraints!(gm, bbr, idx)
-            bbr.active_trees = Dict(idx => bbr.thresholds[idx])
             return
         end
         hypertype = bbr.thresholds[idx].first # otherwise, check approximation type
         constraints_for_removal = all_mi_constraints(bbr, hypertype)
         leaf_sign = (hypertype == "lower") * 2 - 1
-        for constraint in constraints_for_removal # removing relevant mi constraints
+        for constraint in constraints_for_removal # removing relevant mi constraints from JuMP.Model
             if is_valid(gm.model, constraint)
                 delete(gm.model, constraint)
             end
         end 
-        for (leaf, variable) in bbr.leaf_variables # removing relevant binary vars
+        for (leaf, constraints) in bbr.mi_constraints # removing references to constraints
+            if sign(leaf) == leaf_sign 
+                delete!(bbr.mi_constraints, leaf)
+            end
+        end
+        for (leaf, variable) in bbr.leaf_variables # removing relevant binary vars from JuMP.Model
             if sign(leaf) == leaf_sign && is_valid(gm.model, variable)
                 delete(gm.model, variable)
+                delete!(bbr.leaf_variables, leaf)
             end
         end
         for last_idx in collect(keys(bbr.active_trees))
-            if bbr.thresholds[last_idx].first == hypertype # updating active trees
-                delete!(bbr.active_trees, last_idx)
+            if bbr.thresholds[last_idx].first == hypertype
+                delete!(bbr.active_trees, last_idx) # updating active trees
             end
         end
-        bbr.active_trees[idx] = bbr.thresholds[idx]
+        add_tree_constraints!(gm, bbr, idx)
         return 
     else
         throw(OCTException("$(gm.name) has too many active lower/upper bounding regressors."))

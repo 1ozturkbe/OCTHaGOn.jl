@@ -356,7 +356,16 @@ function test_bbr()
     update_tree_constraints!(gm, bbr, 1)
     optimize!(gm)
 
-    # @test all(Array(gm.solution_history[1,:]) .≈ Array(gm.solution_history[2,:]))
+    # Testing leaf sampling
+    df = leaf_sample(bbr)
+    active_tree_idxs = collect(keys(bbr.active_trees))
+    @test sort(active_tree_idxs) == [1, 4]
+    @test size(df, 1) == get_param(bbr, :n_samples)
+    update_tree_constraints!(gm, bbr, 2)
+    @test_throws OCTException leaf_sample(bbr)
+    # TODO: test leaf_sampling for bbcs as well. 
+
+    @test all(Array(gm.solution_history[:,"obj"]) .≈ gm.solution_history[1, "obj"])
 
     # Checking proper storage
     @test all(length.([bbr.ul_data, bbr.thresholds, bbr.learners, bbr.learner_kwargs]) .== 4)
@@ -378,7 +387,8 @@ function test_basic_gm()
 
     # Solving of model
     set_param(gm, :ignore_accuracy, true)
-    globalsolve(gm);
+    add_tree_constraints!(gm)
+    optimize!(gm)
     vals = solution(gm);
     init_leaves = [find_leaf_of_soln(bbl) for bbl in gm.bbls]
     @test all(init_leaves[i] in keys(gm.bbls[i].leaf_variables) for i=1:length(gm.bbls))
@@ -413,7 +423,8 @@ function test_basic_gm()
     @test bbr.learner_kwargs[end] == bbr.learner_kwargs[end-1]
     bbc = gm.bbls[2]
     @test bbc.accuracies[end] == bbc.accuracies[end-1]
-    globalsolve(gm)
+    add_tree_constraints!(gm)
+    optimize!(gm)
     final_leaves = [find_leaf_of_soln(bbl) for bbl in gm.bbls]
     @test gm.solution_history[end, "obj"] ≈ gm.solution_history[end-1, "obj"] 
 
@@ -421,6 +432,12 @@ function test_basic_gm()
     clear_data!(gm)
     @test all([size(bbl.X, 1) == 0 for bbl in gm.bbls])
     @test all([length(bbl.learners) == 0 for bbl in gm.bbls])
+
+    # Testing surveysolve
+    @test_throws OCTException surveysolve(gm) # no data error
+    uniform_sample_and_eval!(gm)
+    surveysolve(gm)
+    @test true
 end
 
 function test_gradients()
@@ -433,11 +450,46 @@ function test_gradients()
     @test all(gradvals .== hand_calcs)
     
     # Testing adding gradient cuts
+    constraints = []
     for i=1:size(bbl.X, 1)
-        @constraint(gm.model, bbl.dependent_var >= sum(gradvals[i] .* (bbl.vars .- Array(bbl.X[i, :]))) + bbl.Y[i])
+        push!(constraints, @constraint(gm.model, bbl.dependent_var >= sum(gradvals[i] .* (bbl.vars .- Array(bbl.X[i, :]))) + bbl.Y[i]))
     end
     optimize!(gm)
     @test all(isapprox(Array(solution(gm))[i], [0.5, 1.0, 11.25][i], atol=0.15) for i=1:3)
+    [delete(gm.model, constraint) for constraint in constraints];
+    @test true
+
+    # # Take a gradient step in leaf. 
+    # learn_constraint!(bbl, threshold=15)
+    # add_tree_constraints!(gm)
+    # optimize!(gm)
+
+    # last_sol = getvalue.(bbl.vars)
+    # cost = bbl(solution(gm))[1]
+    # estimate = getvalue(bbl.dependent_var)
+
+    # leaf_in = find_leaf_of_soln(bbl)
+    # leaves = IAI.apply(bbl.learners[end], bbl.X);
+    # leaf_neighbors = bbl.X[findall(x -> x == leaf_in, leaves), :];
+    # leaf_vals = bbl.Y[findall(x -> x == leaf_in, leaves)];
+    # leaf_gradients = evaluate_gradient(bbl, leaf_neighbors)
+    # last_sol = getvalue.(bbl.vars)
+
+    # df = DataFrame([Float64 for i in string.(bbl.vars)], string.(bbl.vars))
+    # append!(df, )
+
+
+    # # Plotting
+    # surface(Array(leaf_neighbors[!, "x[1]"]), Array(leaf_neighbors[!, "x[2]"]), leaf_vals)
+    # scatter!([last_sol[1]], [last_sol[2]], [getvalue(bbl.dependent_var)], color=:red, marker = :o)
+
+    # # Testing NelderMead from last solution
+    # idxs, dists = knn(bbl.knn_tree, last_sol, length(bbl.vars) + 1, true)
+
+    # x = getvalue.(bbl.vars)
+    # build_knn_tree(bbl);
+    # idxs, dists = find_knn(bbl, k = length(bbl.vars) + 1);
+    # leaf_neighbors = findall(x -> x == leaf_in, leaves)
 end
 
 test_expressions()

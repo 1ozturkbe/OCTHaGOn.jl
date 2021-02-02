@@ -1,20 +1,3 @@
-# """ Very coarse solution for gm to check for feasibility and an initial starting point. """
-# function surveysolve(gm::GlobalModel)
-#     bbcs = [bbl for bbl in gm.bbls if bbl isa BlackBoxClassifier]
-#     learn_constraint!(bbcs)
-#     bbrs = [bbl for bbl in gm.bbls if bbl isa BlackBoxRegressor]
-#     bbr = bbrs[1]
-#     learn_constraint!(bbr, regression_sparsity = 0, max_depth = 2)
-#     ul_data = ul_boundify(bbr.learners[end], bbr.X, bbr.Y)
-#     # Setting an extremely conservative upper bound for the objective. 
-#     # l_con = @constraint(gm.model, gm.model[:obj] >= α0 + sum(α .* bbr.vars))
-#     for bbc in bbcs
-#         add_tree_constraints!(gm, bbc)
-#     end
-#     add_tree_constraints!(gm, bbr)
-#     optimize!(gm)
-#     return
-# end
 
 # last_regr = bbr.learners[end]
 # df = DataFrame([Float64 for i in 1:length(bbr.vars)], string.(bbr.vars))
