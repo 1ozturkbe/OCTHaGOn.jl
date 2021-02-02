@@ -228,7 +228,9 @@ function clear_data!(bbr::BlackBoxRegressor)
     bbr.Y = [];
     bbr.infeas_X = DataFrame([Float64 for i=1:length(bbr.vars)], string.(bbr.vars));
     bbr.learners = [];
-    bbr.learner_kwargs = []                            
+    bbr.learner_kwargs = []   
+    bbr.thresholds = []                         
+    bbr.ul_data = Dict[]                          
 end
 
 """ Deletes tree data associated with object. """
