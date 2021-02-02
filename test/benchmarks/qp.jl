@@ -1,4 +1,5 @@
 using LatinHypercubeSampling
+using Plots
 
 """
     knn_outward_from_leaf(bbl::BlackBoxLearner, leaf_in::Int64 = find_leaf_of_soln(bbl))
@@ -40,49 +41,41 @@ function cutting_plane_solve(gm::GlobalModel)
     optimize!(gm)   
 end
 
-""" Very coarse solution for gm to check for feasibility and an initial starting point. """
-function surveysolve(gm::GlobalModel)
-    bbcs = [bbl for bbl in gm.bbls if bbl isa BlackBoxClassifier]
-    for bbc in bbcs
-        learn_constraint!(bbc)
-        update_tree_constraints!(gm, bbc)
-    end
-    bbrs = [bbl for bbl in gm.bbls if bbl isa BlackBoxRegressor]
-    bbr = bbrs[1]
-    learn_constraint!(bbr, regression_sparsity = 0, max_depth = 2)
-    update_tree_constraints!(gm, bbr)
-    optimize!(gm)
-    return
-end
-
 function refine_thresholds(gm::GlobalModel, bbr::BlackBoxRegressor)
     if length(bbr.active_trees) == 1
         best_lower = getvalue(bbr.dependent_var)
-        best_upper = bbr.Y[end]
+        best_upper = bbr(solution(gm))[1]
         learn_constraint!(bbr, threshold = "upper" => best_upper)
         update_tree_constraints!(gm, bbr)
         learn_constraint!(bbr, threshold = "lower" =>best_lower)
         update_tree_constraints!(gm, bbr)
         return
     elseif length(bbr.active_trees) == 2
-        bds = Dict(collect(values(bbr.active_trees))) # TODO: have a cleaner system for this. 
+        bds = Dict(collect(values(bbr.active_trees))) # TODO: have a cleaner system for this.
         old_lower = bds["lower"]
         old_upper = bds["upper"]
         new_lower = getvalue(bbr.dependent_var)
-        new_upper = bbr.Y[end]
-        if new_upper <= old_upper # tightening the upper bound
+        new_upper = bbr(solution(gm))[1]
+        # Updating upper bounds
+        if new_upper <= old_upper
             learn_constraint!(bbr, threshold = "upper" => new_upper)
             update_tree_constraints!(gm, bbr)
+        else
+            learn_constraint!(bbr, threshold = "upper" => old_upper) #TODO add warmstarts here. 
+            update_tree_constraints!(gm, bbr)
+        end
+        # Updating lower bounds
+        if new_lower >= new_upper
+            learn_constraint!(bbr, threshold = "lower" => old_lower)
+            update_tree_constraints!(gm, bbr)
+            return 
+        elseif old_lower <= new_lower # tightening the lower bound
             learn_constraint!(bbr, # binary reduce the lower bound
                 threshold = "lower" => (maximum([new_lower, old_lower]) + new_upper)/2)
-        end
-        if new_lower > old_lower
-            learn_constraint!(bbr, threshold = "lower" => new_lower)
             update_tree_constraints!(gm, bbr)
-        else
-            learn_constraint!(bbr, threshold = "lower" => new_lower) # TODO: determine if better way exists
-        end 
+            return
         return 
+        end
     else 
         throw(OCTException("Cannot refine $(bbr.name) thresholds without having solved " *
                            "GlobalModel $(gm.name) with valid approximations first." ))
@@ -96,7 +89,8 @@ Gets Latin Hypercube samples that fall in the leaf of the last solution.
 """
 
 function leaf_sample(bbc::BlackBoxClassifier)
-    # TODO: write. 
+    last_leaf = find_leaf_of_soln(bbc)
+    idxs = IAI.apply
     return
 end
 
@@ -114,22 +108,28 @@ function leaf_sample(bbr::BlackBoxRegressor)
         end
     end
     idxs =  findall(x -> x .>= 0.5, upper_leafneighbor .* lower_leafneighbor)
+    if length(idxs) == 0
+        @warn("No points in $(bbr.name) in the intersection of trees. Widening sampling. ")
+        idxs =  findall(x -> x .>= 0.5, upper_leafneighbor + lower_leafneighbor)
+    end
     lbs = [minimum(col) for col in eachcol(bbr.X[idxs, :])]
     ubs = [maximum(col) for col in eachcol(bbr.X[idxs, :])]
     plan, _ = LHCoptim(get_param(bbr, :n_samples), length(bbr.vars), 3);
     X = scaleLHC(plan, [(lbs[i], ubs[i]) for i=1:length(lbs)]);
-   return DataFrame(X, string.(bbr.vars))
+    return DataFrame(X, string.(bbr.vars))
 end
 
 
 # Initializing, and solving via Ipopt
-m = random_qp(5, 3, 4)
+Random.seed!(1212)
+m = random_qp(5,3,4)
+# m = random_qp(2,1,2)
+
 optimize!(m)
 mcost = JuMP.getobjectivevalue(m)
 msol = getvalue.(m[:x])
 
 # Trying thresholding method 
-# using StatsBase
 gm = gmify_random_qp(m)
 bbr = gm.bbls[1]
 uniform_sample_and_eval!(gm)
@@ -137,11 +137,15 @@ surveysolve(gm)
 refine_thresholds(gm, bbr)
 optimize!(gm)
 
-abstol = 1e-1
+bds = Dict(collect(values(bbr.active_trees))); # TODO: have a cleaner system for this. 
 old_lower = bds["lower"]
 old_upper = bds["upper"]
+
 iterations = 0
-while old_upper - old_lower >= abstol && iterations <= 3
+reltol = 1e-5
+set_param(gm, :reltol, reltol)
+while abs(bbr(solution(gm))[1] - bbr(DataFrame(gm.solution_history[end-1, :]))[1]) >= reltol*bbr(solution(gm))[1] && 
+        iterations <= 5
     df = leaf_sample(bbr);
     eval!(bbr, df);
     refine_thresholds(gm, bbr);
@@ -152,75 +156,7 @@ while old_upper - old_lower >= abstol && iterations <= 3
     println("Next bounds: " * string([old_lower, old_upper]))
     global iterations += 1;
 end
-
-
-# Getting solution
-
-# Updating bounds
-# if actuals[end] <= lowers[end]
-#     push!(uppers, lowers[end])
-#     push!(lowers, minimum(bbl.Y))
-# elseif lowers[end] <= actuals[end] <= uppers[end]
-#     push!(uppers, actuals[end])
-#     push!(lowers, (uppers[end] + lowers[end])/2) # Binary reduce
-# elseif actuals[end] >= uppers[end]
-#     push!(uppers, actuals[end])
-#     push!(lowers, lowers[end])
-# end
-
-# Adding all gradient constraints in leaf, just in case
-
-
-
-
-
-# threshold = quantile(bbl.Y, 0.1)
-# push!(thresholds, threshold)
-
-# while length(bbl.learners) <= 5
-#     learn_constraint!(gm, threshold=thresholds[end])
-#     add_tree_constraints!(gm)
-#     optimize!(gm)
-
-#     leaf_in = find_leaf_of_soln(bbl)
-#     #UL_data for the leaf
-#     (α0, α), (β0, β), (γ0, γ) = bbl.ul_data[end][leaf_in]
-#     push!(uppers, α0 + sum(α .* getvalue.(bbl.vars)))
-#     push!(lowers, β0 + sum(β .* getvalue.(bbl.vars)))
-#     push!(actuals, bbl(solution(gm))[1])
-#     push!(estimates, JuMP.getobjectivevalue(gm.model))
-#     push!(errors, abs((estimates[end] - actuals[end]) ./ (maximum(bbl.Y) - minimum(bbl.Y))))
-#     # Resample
-#     # df = knn_outward_from_leaf(bbl, leaf_in)
-#     # eval!(bbl, df)
-
-#     # Do something about uppers, lowers and actuals. 
-#     # push!(thresholds, actuals[end])
-#     # if actuals[end] <= lowers[end]
-#     #     push!(thresholds, lowers[end])
-#     # elseif lowers[end] <= actuals[end] <= uppers[end]
-#     #     push!(thresholds, (uppers[end] - actuals[end])/2 + actuals[end])
-#     # elseif actuals[end] >= uppers[end]
-#     #     push!(thresholds, actuals[end])
-#     #     push!(bbl.learners, bbl.learners[end])
-#     #     push!(bbl.ul_data, ul_boundify(bbl.learners[end], bbl.X, bbl.Y))
-#     # end
-
-#     # Find a way to add a cut and remove certain data. 
-
-#     if lowers[end] <= actuals[end] <= estimates[end] <= uppers[end]
-#         push!(thresholds, (actuals[end] + estimates[end])/2)
-#     elseif lowers[end] <= estimates[end] <= actuals[end] <= uppers[end]
-#         push!(thresholds, actuals[end])
-#     elseif actuals[end] >= uppers[end]
-#         push!(thresholds, actuals[end])
-#         push!(bbl.learners, bbl.learners[end])
-#         push!(bbl.ul_data, ul_boundify(bbl.learners[end], bbl.X, bbl.Y))
-#     end
-#     clear_tree_constraints!(gm, bbl)
-# end
-
-# When doing threshold training, make sure I can ignore data above. 
+progress = [bbr(DataFrame(gm.solution_history[i, :]))[1] for i = 1:size(gm.solution_history,1)]
 
 # Plotting
 # using Plots

@@ -37,7 +37,7 @@ uniform_sample_and_eval!(md);
 learn_constraint!(md);
 
 # Solving the model
-status = globalsolve(md)
+status = optimize!(md)
 OCT_vars = JuMP.getvalue.(md.vars);
 feas_bools = evaluate_feasibility(md);
 

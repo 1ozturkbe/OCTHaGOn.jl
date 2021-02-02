@@ -1,12 +1,19 @@
-"""
-    globalsolve(gm::GlobalModel)
-
-Creates and solves the global optimization model using the linear constraints from GlobalModel,
-and approximated nonlinear constraints from inside its BlackBoxLearners.
-"""
-function globalsolve(gm::GlobalModel)
-    clear_tree_constraints!(gm)   # remove trees from previous solve (if any).
-    add_tree_constraints!(gm)     # refresh latest tree constraints.
-    status = JuMP.optimize!(gm)
-    return status
+""" Very coarse solution for gm to check for feasibility and an initial starting point. """
+function surveysolve(gm::GlobalModel)
+    bbcs = [bbl for bbl in gm.bbls if bbl isa BlackBoxClassifier]
+    if !isempty(bbcs)
+        for bbc in bbcs
+            learn_constraint!(bbc)
+            update_tree_constraints!(gm, bbc)
+        end
+    end
+    bbrs = [bbl for bbl in gm.bbls if bbl isa BlackBoxRegressor]
+    if !isempty(bbrs)
+        for bbr in bbrs
+        learn_constraint!(bbr, regression_sparsity = 0, max_depth = 3)
+        update_tree_constraints!(gm, bbr)
+        end
+    end
+    optimize!(gm)
+    return
 end

@@ -378,7 +378,8 @@ function test_basic_gm()
 
     # Solving of model
     set_param(gm, :ignore_accuracy, true)
-    globalsolve(gm);
+    add_tree_constraints!(gm)
+    optimize!(gm)
     vals = solution(gm);
     init_leaves = [find_leaf_of_soln(bbl) for bbl in gm.bbls]
     @test all(init_leaves[i] in keys(gm.bbls[i].leaf_variables) for i=1:length(gm.bbls))
@@ -413,7 +414,8 @@ function test_basic_gm()
     @test bbr.learner_kwargs[end] == bbr.learner_kwargs[end-1]
     bbc = gm.bbls[2]
     @test bbc.accuracies[end] == bbc.accuracies[end-1]
-    globalsolve(gm)
+    add_tree_constraints!(gm)
+    optimize!(gm)
     final_leaves = [find_leaf_of_soln(bbl) for bbl in gm.bbls]
     @test gm.solution_history[end, "obj"] ≈ gm.solution_history[end-1, "obj"] 
 
