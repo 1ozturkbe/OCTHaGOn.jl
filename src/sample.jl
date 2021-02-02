@@ -1,4 +1,14 @@
 """
+    truncate_sigfigs(data, digits = 8)
+
+Cuts off more than digits significant figures. 
+Used to reduce tree training degeneracies. 
+"""
+function truncate_sigfigs(data, digits = 7)
+    return round.(data, sigdigits = digits)
+end
+
+"""
     lh_sample(vars::Array{JuMP.VariableRef, 1}; lh_iterations::Int64 = 0,
                    n_samples::Int64 = 1000)
     lh_sample(bbl::BlackBoxLearner; lh_iterations::Int64 = 0,
@@ -18,7 +28,7 @@ function lh_sample(vars::Array{JuMP.VariableRef, 1}; lh_iterations::Int64 = 0,
         plan = rand(n_samples, n_dims)
     end
    X = scaleLHC(plan,[(minimum(bounds[var]), maximum(bounds[var])) for var in vars]);
-   return DataFrame(X, string.(vars))
+   return DataFrame(truncate_sigfigs(X), string.(vars))
 end
 
 function lh_sample(bbl::BlackBoxLearner; lh_iterations::Int64 = 0,
@@ -71,7 +81,7 @@ function boundary_sample(vars::Array{JuMP.VariableRef, 1}; n_samples::Int64 = 10
         ubscopy[:, vks[i]] = lbscopy[:, vks[i]];
         append!(nX, ubscopy);
     end
-    return nX
+    return nX # Note: boundary samples are not truncated for significant figures
 end
 
 function boundary_sample(bbl::BlackBoxLearner; fraction::Float64 = 0.5)
@@ -109,7 +119,7 @@ function knn_sample(bbl::BlackBoxClassifier; k::Int64 = 10, tighttol = 1e-5, sam
             append!(df, np)
         end
     end
-    return df
+    return truncate_sigfigs(df)
 end
 
 """
@@ -171,7 +181,7 @@ function leaf_sample(bbc::BlackBoxClassifier)
     ubs = [maximum(col) for col in eachcol(bbc.X[idxs, :])]
     plan, _ = LHCoptim(get_param(bbc, :n_samples), length(bbc.vars), 3);
     X = scaleLHC(plan, [(lbs[i], ubs[i]) for i=1:length(lbs)]);
-    return DataFrame(X, string.(bbc.vars))
+    return DataFrame(truncate_sigfigs(X), string.(bbc.vars))
 end
 
 function leaf_sample(bbr::BlackBoxRegressor)
@@ -196,5 +206,5 @@ function leaf_sample(bbr::BlackBoxRegressor)
     ubs = [maximum(col) for col in eachcol(bbr.X[idxs, :])]
     plan, _ = LHCoptim(get_param(bbr, :n_samples), length(bbr.vars), 3);
     X = scaleLHC(plan, [(lbs[i], ubs[i]) for i=1:length(lbs)]);
-    return DataFrame(X, string.(bbr.vars))
+    return DataFrame(truncate_sigfigs(X), string.(bbr.vars))
 end
