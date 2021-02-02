@@ -4,7 +4,7 @@
 Cuts off more than digits significant figures. 
 Used to reduce tree training degeneracies. 
 """
-function truncate_sigfigs(data, digits = 8)
+function truncate_sigfigs(data, digits = 7)
     return round.(data, sigdigits = digits)
 end
 

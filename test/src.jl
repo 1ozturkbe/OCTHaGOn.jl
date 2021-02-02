@@ -360,12 +360,13 @@ function test_bbr()
     active_tree_idxs = collect(keys(bbr.active_trees))
     @test sort(active_tree_idxs) == [1, 4]
     @test size(df, 1) == get_param(bbr, :n_samples)
-    update_tree_constraints!(gm, bbr, 2)
-    @test_throws OCTException leaf_sample(bbr)
     for bbc in bbcs
         df = leaf_sample(bbc)
         @test size(df, 1) == get_param(bbc, :n_samples)
     end
+    update_tree_constraints!(gm, bbr, 2)
+    @test_throws OCTException leaf_sample(bbr)
+    @test_throws OptimizeNotCalled leaf_sample(bbcs[1])
 
     @test all(Array(gm.solution_history[:,"obj"]) .≈ gm.solution_history[1, "obj"])
 
@@ -373,6 +374,9 @@ function test_bbr()
     @test all(length.([bbr.ul_data, bbr.thresholds, bbr.learners, bbr.learner_kwargs]) .== 4)
     clear_tree_data!(bbr)
     @test all(length.([bbr.ul_data, bbr.thresholds, bbr.learners, bbr.learner_kwargs]) .== 0)
+    @test !isempty(bbr.mi_constraints) && !isempty(bbr.leaf_variables)
+    clear_tree_constraints!(gm, bbr)
+    @test isempty(bbr.mi_constraints) && isempty(bbr.leaf_variables)
 end
 
 """ Tests basic functionalities in GMs. """
