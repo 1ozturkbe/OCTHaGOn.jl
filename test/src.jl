@@ -356,6 +356,15 @@ function test_bbr()
     update_tree_constraints!(gm, bbr, 1)
     optimize!(gm)
 
+    # Testing leaf sampling
+    df = leaf_sample(bbr)
+    active_tree_idxs = collect(keys(bbr.active_trees))
+    @test sort(active_tree_idxs) == [1, 4]
+    @test size(df, 1) == get_param(bbr, :n_samples)
+    update_tree_constraints!(gm, bbr, 2)
+    @test_throws OCTException leaf_sample(bbr)
+    # TODO: test leaf_sampling for bbcs as well. 
+
     @test all(Array(gm.solution_history[:,"obj"]) .≈ gm.solution_history[1, "obj"])
 
     # Checking proper storage
@@ -423,6 +432,12 @@ function test_basic_gm()
     clear_data!(gm)
     @test all([size(bbl.X, 1) == 0 for bbl in gm.bbls])
     @test all([length(bbl.learners) == 0 for bbl in gm.bbls])
+
+    # Testing surveysolve
+    @test_throws OCTException surveysolve(gm) # no data error
+    uniform_sample_and_eval!(gm)
+    surveysolve(gm)
+    @test true
 end
 
 function test_gradients()
