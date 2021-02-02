@@ -158,3 +158,43 @@ end
 
 uniform_sample_and_eval!(gm::GlobalModel; lh_iterations::Int64 = get_param(gm, :lh_iterations)) = 
         uniform_sample_and_eval!(gm.bbls; lh_iterations = lh_iterations, tighttol = get_param(gm, :tighttol))
+
+"""
+    leaf_sample(bbl::BlackBoxLearner)
+
+Gets Latin Hypercube samples that fall in the leaf of the last solution.
+"""
+function leaf_sample(bbc::BlackBoxClassifier)
+    last_leaf = find_leaf_of_soln(bbc)
+    idxs = findall(x -> x .>= 0.5, IAI.apply(bbc.learners[end], bbc.X) .== last_leaf)
+    lbs = [minimum(col) for col in eachcol(bbc.X[idxs, :])]
+    ubs = [maximum(col) for col in eachcol(bbc.X[idxs, :])]
+    plan, _ = LHCoptim(get_param(bbc, :n_samples), length(bbc.vars), 3);
+    X = scaleLHC(plan, [(lbs[i], ubs[i]) for i=1:length(lbs)]);
+    return DataFrame(X, string.(bbc.vars))
+end
+
+function leaf_sample(bbr::BlackBoxRegressor)
+    length(bbr.active_trees) == 2 || throw(OCTException("Can only leaf sample BBRs with upper/lower " *
+                                                        "classifiers."))
+    upper_leaf, lower_leaf = sort(find_leaf_of_soln(bbr))
+    upper_leafneighbor = [];
+    lower_leafneighbor = [];
+    for (tree_idx, threshold) in bbr.active_trees
+        if threshold.first == "upper"
+            append!(upper_leafneighbor, IAI.apply(bbr.learners[tree_idx], bbr.X) .== -upper_leaf)
+        elseif threshold.first == "lower"
+            append!(lower_leafneighbor, IAI.apply(bbr.learners[tree_idx], bbr.X) .== lower_leaf)
+        end
+    end
+    idxs =  findall(x -> x .>= 0.5, upper_leafneighbor .* lower_leafneighbor)
+    if length(idxs) == 0
+        @warn("No points in $(bbr.name) in the intersection of trees. Widening sampling. ")
+        idxs =  findall(x -> x .>= 0.5, upper_leafneighbor + lower_leafneighbor)
+    end
+    lbs = [minimum(col) for col in eachcol(bbr.X[idxs, :])]
+    ubs = [maximum(col) for col in eachcol(bbr.X[idxs, :])]
+    plan, _ = LHCoptim(get_param(bbr, :n_samples), length(bbr.vars), 3);
+    X = scaleLHC(plan, [(lbs[i], ubs[i]) for i=1:length(lbs)]);
+    return DataFrame(X, string.(bbr.vars))
+end
