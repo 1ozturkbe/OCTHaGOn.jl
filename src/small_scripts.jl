@@ -24,7 +24,7 @@ function data_to_Dict(data::Union{Dict, DataFrame, DataFrameRow}, model::JuMP.Mo
 end
 
 """ Wrapper around Iterators.flatten for variables. """
-flat(arr) = Array{VariableRef, 1}(collect(Iterators.flatten(arr)))
+flat(arr) = Array{Any, 1}(collect(Iterators.flatten(arr)))
 
 """ For substitution into expressions. IMPORTANT. """
 function substitute(e::Expr, pair)

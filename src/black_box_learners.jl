@@ -191,10 +191,10 @@ TODO: speed-ups!.
 function evaluate_gradient(bbl::BlackBoxLearner, data::DataFrame)
     @assert(size(data, 2) == length(bbl.vars))
     if bbl.constraint isa JuMP.ConstraintRef
-        return [bbl.g(Array(row)) for row in eachrow(data[:, string.(bbl.vars)])]
+        return [Base.invokelatest(bbl.g, Array(row)) for row in eachrow(data[:, string.(bbl.vars)])]
     elseif bbl.constraint isa Expr
         arrs = deconstruct(data, bbl.vars, bbl.varmap)
-        return [Base.invokelatest(bbl.g, (arr...)) for arr in arrs]
+        return [Base.invokelatest(bbl.g, Float64[flat(arr)...]) for arr in arrs]
     end
 end
 
