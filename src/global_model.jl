@@ -366,6 +366,10 @@ end
     feas_gap(gm::GlobalModel)
 
 Evaluates relative feasibility gap at solution. 
+Negative values -> constraint violation for BBCs, 
+                    regression underestimation for BBRs. 
+Positive values -> constraint violation for BBC equalities, 
+                    regression overestimation for BBRs.
 """
 function feas_gap(gm::GlobalModel)
     soln = solution(gm)
@@ -383,7 +387,7 @@ function feas_gap(gm::GlobalModel)
                 push!(feas, bbl.Y[end] ./ (maximum(bbl.Y) - minimum(bbl.Y)))
             end
         elseif bbl isa BlackBoxRegressor
-            push!(feas, (bbl.Y[end] - JuMP.getvalue(bbl.dependent_var)) / (maximum(bbl.Y) - minimum(bbl.Y)))
+            push!(feas, (JuMP.getvalue(bbl.dependent_var - bbl.Y[end])) / (maximum(bbl.Y) - minimum(bbl.Y)))
         end
     end
     return feas
