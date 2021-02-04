@@ -9,6 +9,7 @@ using DataFrames
 using JuMP
 using BARON
 using CPLEX
+using Distributed
 # using Gurobi
 # using Ipopt
 using JLD
@@ -25,6 +26,7 @@ global CPLEX_SILENT = OCT.CPLEX_SILENT
 # global GUROBI_SILENT = with_optimizer(Gurobi.Optimizer, OutputFlag = 0, Gurobi.Env())
 Random.seed!(1);
 MOI.Silent() = true;
+addprocs(3);
 
 include(OCT.PROJECT_ROOT * "/test/tools/gams.jl");
 

@@ -54,17 +54,20 @@ function refine_thresholds(gm::GlobalModel, bbr::BlackBoxRegressor)
             update_tree_constraints!(gm, bbr)
         end
         # Updating lower bounds
-        if new_lower >= new_upper
-            learn_constraint!(bbr, threshold = "lower" => old_lower)
-            update_tree_constraints!(gm, bbr)
-            return 
-        elseif old_lower <= new_lower # tightening the lower bound
-            learn_constraint!(bbr, # binary reduce the lower bound
-                threshold = "lower" => (maximum([new_lower, old_lower]) + new_upper)/2)
-            update_tree_constraints!(gm, bbr)
-            return
-        return 
-        end
+        learn_constraint!(bbr, threshold = "lower" => (maximum([old_lower, new_lower]) + minimum([new_upper, old_upper]))/2)
+        update_tree_constraints!(gm, bbr)
+        return
+        # if new_lower >= old_lower
+        #     learn_constraint!(bbr, threshold = "lower" => (new_lower + minimum([new_upper, old_upper])/2)
+        #     update_tree_constraints!(gm, bbr)
+        #     return 
+        # else
+        #     learn_constraint!(bbr, # binary reduce the lower bound
+        #         threshold = "lower" => (new_lower + old_lower)/2)
+        #     update_tree_constraints!(gm, bbr)
+        #     return
+        # return 
+        # end
     else 
         throw(OCTException("Cannot refine $(bbr.name) thresholds without having solved " *
                            "GlobalModel $(gm.name) with valid approximations first." ))
@@ -73,19 +76,29 @@ end
 
 
 # Initializing, and solving via Ipopt
-Random.seed!(1212)
+using StatsBase
+Random.seed!(121)
 m = random_qp(5,3,4)
 # m = random_qp(2,1,2)
 
 optimize!(m)
 mcost = JuMP.getobjectivevalue(m)
 msol = getvalue.(m[:x])
+push!(msol, mcost)
 
 # Trying thresholding method 
 gm = gmify_random_qp(m)
+msol = DataFrame(string.(all_variables(gm)) .=> msol)
+
 bbr = gm.bbls[1]
 uniform_sample_and_eval!(gm)
-surveysolve(gm)
+learn_constraint!(bbr, threshold = "upper" => quantile(bbr.Y, 0.5))
+update_tree_constraints!(gm, bbr)
+learn_constraint!(bbr, threshold = "lower" => minimum(bbr.Y))
+update_tree_constraints!(gm, bbr)
+optimize!(gm)
+
+
 refine_thresholds(gm, bbr)
 optimize!(gm)
 

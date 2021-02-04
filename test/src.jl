@@ -202,7 +202,7 @@ function test_kwargs()
     dict_fit = fit_classifier_kwargs(; sample_kwargs...)
     dict_fit2 = fit_classifier_kwargs(localsearch = false, invalid_kwarg = :hello,
                            ls_num_tree_restarts = 20)
-    @test dict_fit == dict_fit2 == Dict() #Dict(:sample_weight => :autobalance)
+    @test dict_fit == dict_fit2 == Dict(:sample_weight => :autobalance)
 
     dict_lnr = classifier_kwargs(; sample_kwargs...)
     dict_lnr2 = classifier_kwargs(localsearch = false, invalid_kwarg = :hello, ls_num_tree_restarts = 20)
