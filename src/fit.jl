@@ -24,7 +24,7 @@ end
 """ Preprocesses merging of kwargs for IAI.fit!, to avoid errors! 
 TODO: Add nkwargs that can be changed! """
 function fit_classifier_kwargs(; kwargs...)
-    nkwargs = Dict{Symbol, Any}()
+    nkwargs = Dict{Symbol, Any}(:sample_weight => :autobalance)
     for item in kwargs
         if item.first in keys(nkwargs)
             nkwargs[item.first] = item.second
