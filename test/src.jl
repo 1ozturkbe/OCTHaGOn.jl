@@ -452,8 +452,8 @@ function test_gradients()
     set_param(bbl, :n_samples, 100)
     uniform_sample_and_eval!(gm)
     gradvals = evaluate_gradient(bbl, bbl.X)
-    hand_calcs = [[6*x[1] + 2*x[2] + 1, 2*x[2] + 2*x[1] + 6] for x in eachrow(Matrix(bbl.X))]
-    @test all(gradvals .== hand_calcs)
+    hand_calcs = DataFrame(hcat([[6*x[1] + 2*x[2] + 1, 2*x[2] + 2*x[1] + 6] for x in eachrow(Matrix(bbl.X))]...)', string.(bbl.vars))
+    @test all(eachrow(gradvals) .== eachrow(hand_calcs))
     
     # Testing adding gradient cuts
     constraints = []

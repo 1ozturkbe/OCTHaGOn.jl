@@ -81,6 +81,7 @@ Optional arguments:
     X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars))
                                                        # Function samples
     Y::Array = []                                      # Function values
+    # gradients::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars))
     feas_ratio::Float64 = 0.                           # Feasible sample proportion
     equality::Bool = false                             # Equality check
     learners::Array{IAI.OptimalTreeClassifier} = []    # Learners...
@@ -132,7 +133,10 @@ function add_data!(bbr::BlackBoxRegressor, X::DataFrame, Y::Array)
     infeas_idxs = findall(x -> isinf(x), Y)
     if !isempty(infeas_idxs)
         append!(bbr.infeas_X, X[infeas_idxs, :], cols=:intersect)
-        append!(bbr.X, delete!(X, infeas_idxs), cols=:intersect)
+        clean_X = delete!(X, infeas_idxs)
+        # grads = evaluate_gradient(bbr, clean_X)
+        # grads = DataFrame(, string.(bbr.vars)
+        append!(bbr.X, clean_X, cols=:intersect)
         append!(bbr.Y, deleteat!(Y, infeas_idxs))
     else
         append!(bbr.X, X, cols=:intersect)
@@ -191,10 +195,12 @@ TODO: speed-ups!.
 function evaluate_gradient(bbl::BlackBoxLearner, data::DataFrame)
     @assert(size(data, 2) == length(bbl.vars))
     if bbl.constraint isa JuMP.ConstraintRef
-        return [Base.invokelatest(bbl.g, Array(row)) for row in eachrow(data[:, string.(bbl.vars)])]
+        return DataFrame(hcat([Base.invokelatest(bbl.g, Array(row)) 
+                for row in eachrow(data[:, string.(bbl.vars)])]...)', string.(bbl.vars))
     elseif bbl.constraint isa Expr
         arrs = deconstruct(data, bbl.vars, bbl.varmap)
-        return [Base.invokelatest(bbl.g, Float64[flat(arr)...]) for arr in arrs]
+        return DataFrame(hcat([Base.invokelatest(bbl.g, Float64[flat(arr)...]) 
+                for arr in arrs]...)', string.(bbl.vars))
     end
 end
 
