@@ -74,3 +74,31 @@ function secant_method(X::DataFrame, Y::Array)
     end
     return np
 end
+
+""" 
+    classify_curvature(bbr::BlackBoxRegressor, idxs = collect(1:size(bbr.X, 1)))
+
+Classify curvature of KNN patches, over given point indices. 
+"""
+function classify_curvature(bbr::BlackBoxRegressor, idxs = collect(1:size(bbr.X, 1)))
+    build_knn_tree(bbr);
+    knn_idxs, dists = find_knn(bbr, k=length(bbr.vars) + 1);
+    if any(ismissing.(bbr.gradients[idxs,1])) # Only need to check the first element
+        @warn("Missing gradient information was updated.")
+        miss_idxs = [idx for idx in idxs if ismissing(bbr.gradients[idx,1])]
+        update_gradients(bbr, miss_idxs)
+    end
+    for i in idxs
+        diffs = [Array(bbr.X[i, :]) - Array(bbr.X[j, :]) for j in knn_idxs[i]]
+        center_grad = Array(bbr.gradients[i,:])
+        under_offsets = [-dot(center_grad, differ) for differ in diffs]
+        actual_offsets = bbr.Y[knn_idxs[i]] .- bbr.Y[i]
+        if all(actual_offsets .>= under_offsets .- 1e-10)
+            bbr.curvatures[i] = 1
+        elseif all(actual_offsets .<= under_offsets .- 1e-10)
+            bbr.curvatures[i] = -1
+        else
+            bbr.curvatures[i] = -0
+        end
+    end
+end
