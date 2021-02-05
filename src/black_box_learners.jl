@@ -29,9 +29,12 @@ Optional arguments:
     varmap::Union{Nothing,Array} = get_varmap(expr_vars, vars)     # ... with the required varmapping.
     f::Union{Nothing, Function} = functionify(constraint)         # ... and actually evaluated f'n
     g::Union{Nothing, Function} = gradientify(constraint, expr_vars)   # ... and its gradient f'n
-    X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Function samples
+    X::DataFrame = DataFrame([Float64 
+                 for i=1:length(vars)], string.(vars)) # Function samples
     Y::Array = []                                                           # Function values
-    gradients::DataFrame = DataFrame([Union{Missing, Float64} for i=1:length(vars)], string.(vars)) # Gradients
+    gradients::DataFrame = DataFrame([Union{Missing, Float64} 
+                 for i=1:length(vars)], string.(vars)) # Gradients
+    curvatures::Array = []                             # Curvature around the points
     infeas_X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Infeasible samples, if any
     equality::Bool = false                             # Equality check
     learners::Array{Union{IAI.OptimalTreeRegressor, IAI.OptimalTreeClassifier}} = []     # Learners...
@@ -82,7 +85,6 @@ Optional arguments:
     X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars))
                                                        # Function samples
     Y::Array = []                                      # Function values
-    gradients::DataFrame = DataFrame([Union{Missing, Float64} for i=1:length(vars)], string.(vars)) # Gradients
     feas_ratio::Float64 = 0.                           # Feasible sample proportion
     equality::Bool = false                             # Equality check
     learners::Array{IAI.OptimalTreeClassifier} = []    # Learners...
@@ -135,11 +137,15 @@ function add_data!(bbr::BlackBoxRegressor, X::DataFrame, Y::Array)
     if !isempty(infeas_idxs)
         append!(bbr.infeas_X, X[infeas_idxs, :], cols=:intersect)
         clean_X = delete!(X, infeas_idxs)
-        append!(bbr.gradients, DataFrame(missings(size(clean_X, 1), length(bbr.vars)), string.(bbr.vars)), cols=:intersect)
+        append!(bbr.gradients, DataFrame(missings(size(clean_X, 1), 
+                               length(bbr.vars)), string.(bbr.vars)), cols=:intersect)
+        append!(bbr.curvatures, missings(size(clean_X,1)))
         append!(bbr.X, clean_X, cols=:intersect)
         append!(bbr.Y, deleteat!(Y, infeas_idxs))
     else
-        append!(bbr.gradients, DataFrame(missings(size(X, 1), length(bbr.vars)), string.(bbr.vars)), cols=:intersect)
+        append!(bbr.gradients, DataFrame(missings(size(X, 1), 
+                               length(bbr.vars)), string.(bbr.vars)), cols=:intersect)
+        append!(bbr.curvatures, missings(size(X,1)))
         append!(bbr.X, X, cols=:intersect)
         append!(bbr.Y, Y)
     end
