@@ -1,7 +1,7 @@
-function test_baron_solve(gm::JuMP.Model = gear(false))
-    set_optimizer(gm, BARON_SILENT)
-    optimize!(gm)
-    sol = solution(gm)
+function test_baron_solve(m::JuMP.Model = gear(false))
+    set_optimizer(m, BARON_SILENT)
+    optimize!(m)
+    sol = solution(m)
     @test true
 end
 
@@ -29,6 +29,46 @@ function test_speed_params(gm::GlobalModel = minlp(true), solver = CPLEX_SILENT)
     @test true
 end
 
+""" 
+    classify_curvature(bbr::BlackBoxRegressor)
+
+Classify curvature of KNN patches. 
+"""
+function classify_curvature(bbr::BlackBoxRegressor, idxs = 1:size(bbr.X, 1))
+    build_knn_tree(bbr);
+    idxs, dists = find_knn(bbr, k=length(bbr.vars) + 1);
+    X = Matrix(bbr.X)
+    curvs = zeros(length(idxs))
+
+    for i in idxs
+        diffs = [Array(bbr.X[i, :]) - Array(bbr.X[j, :]) for j in idxs[i]]
+        center_grad = bbr.gradients[i]
+        under_offsets = [-dot(center_grad, differ) for differ in diffs]
+        actual_offsets = bbr.Y[idxs[i]] .- bbr.Y[i]
+        if all(actual_offsets .>= under_offsets .- 1e-10)
+            append!(up_idxs, i)
+        elseif all(actual_offsets .<= under_offsets .- 1e-10)
+            append!(down_idxs, i)
+        else
+            append!(mixed_idxs, i)
+        end
+    end
+end
+
+function test_classify_gradients()
+    gm = gear(true)
+    bbr = gm.bbls[1]
+    uniform_sample_and_eval!(gm)
+    # learn_constraint!(bbr, regression_sparsity = 0, max_depth = 6)
+    # update_tree_constraints!(gm, bbr)
+    # optimize!(gm)
+
+
+    @test true
+end
+
 test_baron_solve()
 
 test_speed_params()
+
+test_classify_gradients()
