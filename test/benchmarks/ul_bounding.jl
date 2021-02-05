@@ -43,36 +43,7 @@ end
 # for tree in bbr.learners
 #     println("Tree score: ", IAI.score(tree, bbr.X, bbr.Y))
 # end
-
-# # Sample in all leaves that contain the actual solution, and retrain. 
-# # How about minimizing gradient cross products? 
-
-# # Using local KNN regression
-build_knn_tree(bbr);
-idxs, dists = find_knn(bbr, k=length(bbr.vars) + 1);
-X = Matrix(bbr.X)
-bbr_gradients = evaluate_gradient(bbr, bbr.X);
-up_idxs = []
-down_idxs = []
-mixed_idxs = []
-for i = 1:size(bbr.X, 1)
-    diffs = [X[i, :] - X[j, :] for j in idxs[i]]
-    center_grad = bbr_gradients[i]
-    under_offsets = [-dot(center_grad, differ) for differ in diffs]
-    actual_offsets = bbr.Y[idxs[i]] .- bbr.Y[i]
-    if all(actual_offsets .>= under_offsets .- 1e-10)
-        append!(up_idxs, i)
-    elseif all(actual_offsets .- 1e-10 .<= under_offsets )
-        append!(down_idxs, i)
-    else
-        append!(mixed_idxs, i)
-    end
-end
-
-
 # DETECTING CONVEXITY
-
-
 
 all_leaves = find_leaves(lnr)
 points_in_leaves = Dict(leaf => [] for leaf in all_leaves)
