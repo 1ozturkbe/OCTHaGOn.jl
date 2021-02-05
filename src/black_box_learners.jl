@@ -134,11 +134,15 @@ function add_data!(bbr::BlackBoxRegressor, X::DataFrame, Y::Array)
     if !isempty(infeas_idxs)
         append!(bbr.infeas_X, X[infeas_idxs, :], cols=:intersect)
         clean_X = delete!(X, infeas_idxs)
-        # grads = evaluate_gradient(bbr, clean_X)
-        # grads = DataFrame(, string.(bbr.vars)
+        if get_param(bbr, :gradients)
+            append!(bbr.gradients, evaluate_gradient(bbr, clean_X))
+        end
         append!(bbr.X, clean_X, cols=:intersect)
         append!(bbr.Y, deleteat!(Y, infeas_idxs))
     else
+        if get_param(bbr, :gradients)
+            append!(bbr.gradients, evaluate_gradient(bbr, X))
+        end
         append!(bbr.X, X, cols=:intersect)
         append!(bbr.Y, Y)
     end
