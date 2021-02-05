@@ -451,14 +451,16 @@ function test_gradients()
     bbl = gm.bbls[1]
     set_param(bbl, :n_samples, 100)
     uniform_sample_and_eval!(gm)
-    gradvals = evaluate_gradient(bbl, bbl.X)
+    update_gradients(bbl, [1,2])
+    @test !any(ismissing.(flat(Matrix(bbl.X[1:2,:])))) 
+    update_gradients(bbl)
     hand_calcs = DataFrame(hcat([[6*x[1] + 2*x[2] + 1, 2*x[2] + 2*x[1] + 6] for x in eachrow(Matrix(bbl.X))]...)', string.(bbl.vars))
-    @test all(eachrow(gradvals) .== eachrow(hand_calcs))
+    @test all(eachrow(bbl.gradients) .== eachrow(hand_calcs))
     
     # Testing adding gradient cuts
     constraints = []
     for i=1:size(bbl.X, 1)
-        push!(constraints, @constraint(gm.model, bbl.dependent_var >= sum(gradvals[i] .* (bbl.vars .- Array(bbl.X[i, :]))) + bbl.Y[i]))
+        push!(constraints, @constraint(gm.model, bbl.dependent_var >= sum(Array(bbl.gradients[i,:]) .* (bbl.vars .- Array(bbl.X[i, :]))) + bbl.Y[i]))
     end
     optimize!(gm)
     @test all(isapprox(Array(solution(gm))[i], [0.5, 1.0, 11.25][i], atol=0.15) for i=1:3)

@@ -75,7 +75,7 @@ module OptimalConstraintTree
         # Functions on BlackBoxLearners
         show_trees, learn_constraint!, 
         all_mi_constraints, 
-        find_leaf_of_soln, evaluate, evaluate_gradient, 
+        find_leaf_of_soln, evaluate, evaluate_gradient, update_gradients,
         # Functions on BlackBoxLearners only
         eval!, uniform_sample_and_eval!,
         secant_method, knn_sample, build_knn_tree,

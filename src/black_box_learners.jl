@@ -135,11 +135,11 @@ function add_data!(bbr::BlackBoxRegressor, X::DataFrame, Y::Array)
     if !isempty(infeas_idxs)
         append!(bbr.infeas_X, X[infeas_idxs, :], cols=:intersect)
         clean_X = delete!(X, infeas_idxs)
-        append!(bbr.gradients, DataFrame(missings(size(clean_X)), string.(bbr.vars)))
+        append!(bbr.gradients, DataFrame(missings(size(clean_X, 1), length(bbr.vars)), string.(bbr.vars)), cols=:intersect)
         append!(bbr.X, clean_X, cols=:intersect)
         append!(bbr.Y, deleteat!(Y, infeas_idxs))
     else
-        append!(bbr.gradients, DataFrame(missings(size(X)), string.(bbr.vars)))
+        append!(bbr.gradients, DataFrame(missings(size(X, 1), length(bbr.vars)), string.(bbr.vars)), cols=:intersect)
         append!(bbr.X, X, cols=:intersect)
         append!(bbr.Y, Y)
     end
@@ -204,6 +204,16 @@ function evaluate_gradient(bbl::BlackBoxLearner, data::DataFrame)
                 for arr in arrs]...)', string.(bbl.vars))
     end
 end
+
+"""
+    update_gradients(bbl::BlackBoxLearner, idxs = collect(1:size(bbl.X,1)))
+
+Updates gradient information of selected points. 
+"""
+function update_gradients(bbl::BlackBoxLearner, idxs = collect(1:size(bbl.X,1)))
+    bbl.gradients[idxs, :] = evaluate_gradient(bbl, bbl.X[idxs, :])
+    return
+end    
 
 """
     function (bbl::BlackBoxLearner)(x::Union{DataFrame,Dict,DataFrameRow})
