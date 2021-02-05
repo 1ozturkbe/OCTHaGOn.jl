@@ -6,6 +6,7 @@ module OptimalConstraintTree
     using JLD
     using JuMP
     using LatinHypercubeSampling
+    using LinearAlgebra
     using MacroTools
     using Main.IAI
     using MathOptInterface
@@ -79,7 +80,7 @@ module OptimalConstraintTree
         # Functions on BlackBoxLearners only
         eval!, uniform_sample_and_eval!,
         secant_method, knn_sample, build_knn_tree,
-        find_knn, classify_patches,
+        find_knn, classify_patches, classify_curvature,
         # Functions on BlackBoxLearners
         add_data!, match_bbls_to_vars,
         # Functions on IAI structs

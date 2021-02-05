@@ -466,38 +466,6 @@ function test_gradients()
     @test all(isapprox(Array(solution(gm))[i], [0.5, 1.0, 11.25][i], atol=0.15) for i=1:3)
     [delete(gm.model, constraint) for constraint in constraints];
     @test true
-
-    # # Take a gradient step in leaf. 
-    # learn_constraint!(bbl, threshold=15)
-    # add_tree_constraints!(gm)
-    # optimize!(gm)
-
-    # last_sol = getvalue.(bbl.vars)
-    # cost = bbl(solution(gm))[1]
-    # estimate = getvalue(bbl.dependent_var)
-
-    # leaf_in = find_leaf_of_soln(bbl)
-    # leaves = IAI.apply(bbl.learners[end], bbl.X);
-    # leaf_neighbors = bbl.X[findall(x -> x == leaf_in, leaves), :];
-    # leaf_vals = bbl.Y[findall(x -> x == leaf_in, leaves)];
-    # leaf_gradients = evaluate_gradient(bbl, leaf_neighbors)
-    # last_sol = getvalue.(bbl.vars)
-
-    # df = DataFrame([Float64 for i in string.(bbl.vars)], string.(bbl.vars))
-    # append!(df, )
-
-
-    # # Plotting
-    # surface(Array(leaf_neighbors[!, "x[1]"]), Array(leaf_neighbors[!, "x[2]"]), leaf_vals)
-    # scatter!([last_sol[1]], [last_sol[2]], [getvalue(bbl.dependent_var)], color=:red, marker = :o)
-
-    # # Testing NelderMead from last solution
-    # idxs, dists = knn(bbl.knn_tree, last_sol, length(bbl.vars) + 1, true)
-
-    # x = getvalue.(bbl.vars)
-    # build_knn_tree(bbl);
-    # idxs, dists = find_knn(bbl, k = length(bbl.vars) + 1);
-    # leaf_neighbors = findall(x -> x == leaf_in, leaves)
 end
 
 test_expressions()

@@ -1,7 +1,7 @@
-function test_baron_solve(gm::JuMP.Model = gear(false))
-    set_optimizer(gm, BARON_SILENT)
-    optimize!(gm)
-    sol = solution(gm)
+function test_baron_solve(m::JuMP.Model = gear(false))
+    set_optimizer(m, BARON_SILENT)
+    optimize!(m)
+    sol = solution(m)
     @test true
 end
 
@@ -29,6 +29,19 @@ function test_speed_params(gm::GlobalModel = minlp(true), solver = CPLEX_SILENT)
     @test true
 end
 
+function test_classify_gradients()
+    gm = minlp(true)
+    bbr = gm.bbls[3]
+    uniform_sample_and_eval!(gm)
+    idxs = collect(1:10)
+    classify_curvature(bbr, idxs)
+    @test !any(ismissing.(bbr.curvatures[idxs]))
+    classify_curvature(bbr)
+    @test all(bbr.curvatures .> 0)
+end
+
 test_baron_solve()
 
 test_speed_params()
+
+test_classify_gradients()
