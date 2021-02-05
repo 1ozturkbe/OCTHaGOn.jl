@@ -10,6 +10,7 @@ module OptimalConstraintTree
     using Main.IAI
     using MathOptInterface
     using MathOptSetDistances
+    using Missings
     using NearestNeighbors
     using Parameters
     using ProgressMeter

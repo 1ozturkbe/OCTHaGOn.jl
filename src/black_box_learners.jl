@@ -31,6 +31,7 @@ Optional arguments:
     g::Union{Nothing, Function} = gradientify(constraint, expr_vars)   # ... and its gradient f'n
     X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Function samples
     Y::Array = []                                                           # Function values
+    gradients::DataFrame = DataFrame([Union{Missing, Float64} for i=1:length(vars)], string.(vars)) # Gradients
     infeas_X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Infeasible samples, if any
     equality::Bool = false                             # Equality check
     learners::Array{Union{IAI.OptimalTreeRegressor, IAI.OptimalTreeClassifier}} = []     # Learners...
@@ -81,7 +82,7 @@ Optional arguments:
     X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars))
                                                        # Function samples
     Y::Array = []                                      # Function values
-    # gradients::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars))
+    gradients::DataFrame = DataFrame([Union{Missing, Float64} for i=1:length(vars)], string.(vars)) # Gradients
     feas_ratio::Float64 = 0.                           # Feasible sample proportion
     equality::Bool = false                             # Equality check
     learners::Array{IAI.OptimalTreeClassifier} = []    # Learners...
@@ -134,15 +135,11 @@ function add_data!(bbr::BlackBoxRegressor, X::DataFrame, Y::Array)
     if !isempty(infeas_idxs)
         append!(bbr.infeas_X, X[infeas_idxs, :], cols=:intersect)
         clean_X = delete!(X, infeas_idxs)
-        if get_param(bbr, :gradients)
-            append!(bbr.gradients, evaluate_gradient(bbr, clean_X))
-        end
+        append!(bbr.gradients, DataFrame(missings(size(clean_X)), string.(bbr.vars)))
         append!(bbr.X, clean_X, cols=:intersect)
         append!(bbr.Y, deleteat!(Y, infeas_idxs))
     else
-        if get_param(bbr, :gradients)
-            append!(bbr.gradients, evaluate_gradient(bbr, X))
-        end
+        append!(bbr.gradients, DataFrame(missings(size(X)), string.(bbr.vars)))
         append!(bbr.X, X, cols=:intersect)
         append!(bbr.Y, Y)
     end
