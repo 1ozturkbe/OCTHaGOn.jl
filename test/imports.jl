@@ -53,7 +53,7 @@ function test_gams_to_GlobalModel()
     gm =  GAMS_to_GlobalModel(OCT.GAMS_DIR, filename)
     x = gm.model[:x]
     @test length(gm.vars) == 8
-    @test all(bound == [0,100] for bound in values(get_bounds(flat(gm.model[:x]))))
+    @test all(bound == [0,100] for bound in values(get_bounds(Array{JuMP.VariableRef}(flat(gm.model[:x])))))
     @test length(gm.bbls) == 1
     return true
 end

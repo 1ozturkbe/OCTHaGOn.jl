@@ -1,7 +1,8 @@
 """ Returns default BlackBoxRegressor settings for approximation."""
 function bbr_defaults(n_vars::Int64 = 10; sample_coeff = 200)
     Dict(:n_samples => Int(ceil(sample_coeff*sqrt(n_vars))), # (0 if no sampling fn)
-         :reloaded => false)                                 # Whether learners are reloaded
+        :gradients => true, 
+        :reloaded => false)                                 # Whether learners are reloaded
 end
 
 """ Returns default BlackBoxClassifier settings for approximation."""
