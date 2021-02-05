@@ -74,3 +74,31 @@ function secant_method(X::DataFrame, Y::Array)
     end
     return np
 end
+
+# """ 
+#     classify_curvature(bbr::BlackBoxRegressor)
+
+# Classify curvature of KNN patches. 
+# """
+# function classify_curvature(bbr::BlackBoxRegressor)
+#     build_knn_tree(bbr);
+#     idxs, dists = find_knn(bbr, k=length(bbr.vars) + 1);
+#     X = Matrix(bbr.X)
+#     bbr_gradients = evaluate_gradient(bbr, bbr.X);
+#     up_idxs = []
+#     down_idxs = []
+#     mixed_idxs = []
+#     for i = 1:size(bbr.X, 1)
+#         diffs = [Array(bbr.X[i, :]) - Array(bbr.X[j, :]) for j in idxs[i]]
+#         center_grad = bbr_gradients[i]
+#         under_offsets = [-dot(center_grad, differ) for differ in diffs]
+#         actual_offsets = bbr.Y[idxs[i]] .- bbr.Y[i]
+#         if all(actual_offsets .>= under_offsets .- 1e-10)
+#             append!(up_idxs, i)
+#         elseif all(actual_offsets .<= under_offsets .- 1e-10)
+#             append!(down_idxs, i)
+#         else
+#             append!(mixed_idxs, i)
+#         end
+#     end
+#end
