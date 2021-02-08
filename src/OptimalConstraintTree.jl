@@ -110,6 +110,6 @@ module OptimalConstraintTree
         # Small scripts
         vars_from_expr, vars_from_constraint, get_varmap, get_var_ranges, 
         deconstruct, flat,
-        infarray, substitute, power, normalized_data
+        zeroarray, substitute, power, normalized_data
 end
 

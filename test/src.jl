@@ -32,7 +32,7 @@ function test_expressions()
     # Testing "flattening of expressions" for nonlinearization
     expr_vars = vars_from_expr(expr, model)
     @test get_var_ranges(expr_vars) == [(1:5),(6:8),9]
-    @test infarray([(1:5),(6:8),9]) == [Inf*ones(5), Inf.*ones(3), Inf]
+    @test zeroarray([(1:5),(6:8),9]) == [zeros(5), zeros(3), 0]
     flat_expr = :((x...) -> $(expr)([x[i] for i in $(get_var_ranges(expr_vars))]...))
     fn = functionify(flat_expr)
     @test Base.invokelatest(fn, [1,2,3,4,1,5,-6,-7,7]...) == Base.invokelatest(f, ([1,2,3,4,1], [5,-6,-7], 7)...)

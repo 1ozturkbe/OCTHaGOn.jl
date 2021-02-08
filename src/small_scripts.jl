@@ -106,17 +106,17 @@ function get_var_ranges(expr_vars::Array)
 end
 
 """
-    infarray(varmap::Array)
+    zeroarray(varmap::Array)
 
 Creates a template array for deconstruct function.
 """
-function infarray(var_ranges::Array)
+function zeroarray(var_ranges::Array)
     arr = []
     for i in var_ranges
         if i isa UnitRange || i isa Array
-            push!(arr, Inf.*ones(length(i)))
+            push!(arr, zeros(length(i)))
         elseif i isa Int64
-            push!(arr, Inf)
+            push!(arr, 0)
         end
     end
     return arr
@@ -129,11 +129,11 @@ Takes in data for input into a Function, and rips it apart into appropriate arra
 """
 function deconstruct(data::DataFrame, vars::Array, expr_vars::Array, varmap::Array)
     n_samples, n_vars = size(data)
-    infarr = infarray(get_var_ranges(expr_vars))
+    zeroarr = zeroarray(get_var_ranges(expr_vars))
     arrs = [];
     stringvars = string.(vars)
     for i = 1:n_samples
-        narr = deepcopy(infarr)
+        narr = copy(zeroarr)
         for j = 1:length(varmap)
             if varmap[j] isa Tuple && varmap[j][2] != 0
                 narr[varmap[j][1]][varmap[j][2]] = data[i, stringvars[j]]
