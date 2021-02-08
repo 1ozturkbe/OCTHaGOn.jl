@@ -40,8 +40,25 @@ function test_classify_gradients()
     @test all(bbr.curvatures .> 0)
 end
 
+function test_infeasibility_cuts()
+    gm = sagemark_to_GlobalModel(15, lse=false)
+    set_param(gm, :ignore_accuracy, true)
+    uniform_sample_and_eval!(gm)
+    learn_constraint!(gm)
+    add_tree_constraints!(gm)
+    optimize!(gm)
+    bbc_idxs = [bbl isa BlackBoxClassifier for bbl in gm.bbls]
+    while any(gm.feas_history[end] .* bbc_idxs .!= 0)
+        add_infeasibility_cuts!(gm)
+        optimize!(gm)
+    end
+    @test true
+end
+
 test_baron_solve()
 
 test_speed_params()
 
 test_classify_gradients()
+
+test_infeasibility_cuts()

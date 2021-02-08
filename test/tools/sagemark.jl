@@ -71,5 +71,6 @@ function sagemark_to_GlobalModel(idx; lse=false)
         constrexpr, constrvars = alphac_to_expr(gm.model, equals[i].alpha, equals[i].c, lse=lse)
         add_nonlinear_constraint(gm, constrexpr, vars = constrvars, equality=true)
     end
+    set_optimizer(gm, CPLEX_SILENT)
     return gm
 end

@@ -99,6 +99,7 @@ module OptimalConstraintTree
         functionify, gradientify, 
         # Other approximators, 
         ridge_regress, u_regress, l_regress, boundify, svm, reweight,
+        add_infeasibility_cuts!,
         # Functions to import global optimization problems,
         sagemark_to_GlobalModel,
         alphac_to_expr, alphac_to_objexpr, alphac_to_varbound!,
