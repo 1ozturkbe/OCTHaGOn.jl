@@ -42,7 +42,8 @@ function test_expressions()
     flatvars = flat([y[2], z, x[1:4]])
     vars = vars_from_expr(expr, model)
     @test get_varmap(vars, flatvars) == [(2,2), (3,0), (1,1), (1, 2), (1,3), (1,4)]
-
+    @test get_datamap(vars, flatvars) == [7, 9, 1, 2, 3, 4]
+    
     # Testing gradientify
     grad = gradientify(expr, vars_from_expr(expr, model))
     @test all(grad(ones(9)) .≈ [1, 1, 1, 1, 0, -1, -1, 0, 1])

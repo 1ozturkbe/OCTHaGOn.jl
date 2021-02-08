@@ -89,6 +89,23 @@ end
 
 get_varmap(expr_vars::Nothing, vars::Array) = nothing
 
+
+""" Returns the mapping from flattened expr_vars to vars. """
+function get_datamap(expr_vars::Array, vars::Array)
+    datamap = []
+    flatvars = flat(expr_vars)
+    for var in vars
+        idx = findall(x -> x == var, flatvars)
+        if length(idx) == 1
+            push!(datamap, idx[1])
+        else
+            throw(OCTException("There was an issue with getting data mapping."))
+        end
+    end
+    return datamap
+end
+
+
 """Returns the relevant ranges for variables in expr_vars..."""
 function get_var_ranges(expr_vars::Array)            
     var_ranges = []
@@ -133,7 +150,7 @@ function deconstruct(data::DataFrame, vars::Array, expr_vars::Array, varmap::Arr
     arrs = [];
     stringvars = string.(vars)
     for i = 1:n_samples
-        narr = copy(zeroarr)
+        narr = deepcopy(zeroarr)
         for j = 1:length(varmap)
             if varmap[j] isa Tuple && varmap[j][2] != 0
                 narr[varmap[j][1]][varmap[j][2]] = data[i, stringvars[j]]
