@@ -147,7 +147,7 @@ function uniform_sample_and_eval!(bbl::BlackBoxLearner;
         if bbl.feas_ratio == 1.0
             @warn(string(bbl.name) * " was not KNN sampled since it has no infeasible samples.")
         elseif bbl.feas_ratio == 0.0
-            throw(OCTException(string(bbl.name) * " has zero infeasible samples. " *
+            throw(OCTException(string(bbl.name) * " has zero feasible samples. " *
                                "Please find at least one feasible sample, seed the data and KNN sample."))
         else
             df = knn_sample(bbl, k=10, tighttol = tighttol)
