@@ -198,7 +198,12 @@ TODO: add option to not use gradients for certain functions or data driven const
 function gradientify(expr::Expr, expr_vars::Array)
     var_ranges = get_var_ranges(expr_vars)
     gradable_fn = x -> Base.invokelatest(functionify(expr), [x[i] for i in var_ranges]...)
-    return x -> ForwardDiff.gradient(gradable_fn, x)
+    try 
+        return Calculus.gradient(gradable_fn)
+    catch
+        @warn("Calculus.gradient failed, using ForwardDiff instead.")
+        return x -> ForwardDiff.gradient(gradable_fn, x)
+    end
 end
 
 function gradientify(con::JuMP.ConstraintRef, expr_vars::Array)
