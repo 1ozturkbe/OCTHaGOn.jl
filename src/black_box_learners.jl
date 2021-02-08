@@ -180,7 +180,7 @@ function evaluate(bbl::BlackBoxLearner, data::Union{Dict, DataFrame})
         length(vals) == 1 && return vals[1]
         return vals
     else
-        arrs = deconstruct(clean_data, bbl.vars, bbl.varmap)
+        arrs = deconstruct(clean_data, bbl.vars, bbl.expr_vars, bbl.varmap)
         vals = []
         for arr in arrs
             try
@@ -205,7 +205,7 @@ function evaluate_gradient(bbl::BlackBoxLearner, data::DataFrame)
         return DataFrame(hcat([Base.invokelatest(bbl.g, Array(row)) 
                 for row in eachrow(data[:, string.(bbl.vars)])]...)', string.(bbl.vars))
     elseif bbl.constraint isa Expr
-        arrs = deconstruct(data, bbl.vars, bbl.varmap)
+        arrs = deconstruct(data, bbl.vars, bbl.expr_vars, bbl.varmap)
         return DataFrame(hcat([Base.invokelatest(bbl.g, Float64[flat(arr)...]) 
                 for arr in arrs]...)', string.(bbl.vars))
     end
