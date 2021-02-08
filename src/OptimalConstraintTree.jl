@@ -1,4 +1,5 @@
 module OptimalConstraintTree
+    using Calculus
     using Combinatorics
     using CPLEX
     using DataFrames
@@ -108,8 +109,8 @@ module OptimalConstraintTree
         # Debugging tools
         clear_data!, clear_tree_data!,
         # Small scripts
-        vars_from_expr, vars_from_constraint, get_varmap, get_var_ranges, 
+        vars_from_expr, vars_from_constraint, get_varmap, get_var_ranges, get_datamap,
         deconstruct, flat,
-        infarray, substitute, power, normalized_data
+        zeroarray, substitute, power, normalized_data
 end
 

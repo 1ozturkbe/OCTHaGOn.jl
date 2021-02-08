@@ -27,6 +27,7 @@ Optional arguments:
     name::String = ""                                  # Function name
     expr_vars::Array                                   # Function inputs (nonflat JuMP variables)
     varmap::Union{Nothing,Array} = get_varmap(expr_vars, vars)     # ... with the required varmapping.
+    datamap::Union{Nothing,Array} = get_datamap(expr_vars, vars)     # ... with the required datamapping.
     f::Union{Nothing, Function} = functionify(constraint)         # ... and actually evaluated f'n
     g::Union{Nothing, Function} = gradientify(constraint, expr_vars)   # ... and its gradient f'n
     X::DataFrame = DataFrame([Float64 
@@ -80,6 +81,7 @@ Optional arguments:
     name::String = ""                                  # Function name
     expr_vars::Array                                   # Function inputs (nonflat JuMP variables)
     varmap::Union{Nothing,Array} = get_varmap(expr_vars, vars)     # ... with the required varmapping.
+    datamap::Union{Nothing,Array} = get_datamap(expr_vars, vars)     # ... with the required datamapping.
     f::Union{Nothing, Function} = functionify(constraint)         # ... and actually evaluated f'n
     g::Union{Nothing, Function} = gradientify(constraint, expr_vars)   # ... and its gradient f'n
     X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars))
@@ -180,7 +182,7 @@ function evaluate(bbl::BlackBoxLearner, data::Union{Dict, DataFrame})
         length(vals) == 1 && return vals[1]
         return vals
     else
-        arrs = deconstruct(clean_data, bbl.vars, bbl.varmap)
+        arrs = deconstruct(clean_data, bbl.vars, bbl.expr_vars, bbl.varmap)
         vals = []
         for arr in arrs
             try
@@ -202,12 +204,13 @@ TODO: speed-ups!.
 function evaluate_gradient(bbl::BlackBoxLearner, data::DataFrame)
     @assert(size(data, 2) == length(bbl.vars))
     if bbl.constraint isa JuMP.ConstraintRef
-        return DataFrame(hcat([Base.invokelatest(bbl.g, Array(row)) 
+        return DataFrame(hcat([bbl.g(Array(row)) 
                 for row in eachrow(data[:, string.(bbl.vars)])]...)', string.(bbl.vars))
     elseif bbl.constraint isa Expr
-        arrs = deconstruct(data, bbl.vars, bbl.varmap)
-        return DataFrame(hcat([Base.invokelatest(bbl.g, Float64[flat(arr)...]) 
-                for arr in arrs]...)', string.(bbl.vars))
+        arrs = deconstruct(data, bbl.vars, bbl.expr_vars, bbl.varmap)
+        grads = hcat([bbl.g(Float64[flat(arr)...]) 
+                            for arr in arrs]...)'
+        return DataFrame(grads[:, bbl.datamap], string.(bbl.vars))
     end
 end
 

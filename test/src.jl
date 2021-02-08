@@ -32,6 +32,7 @@ function test_expressions()
     # Testing "flattening of expressions" for nonlinearization
     expr_vars = vars_from_expr(expr, model)
     @test get_var_ranges(expr_vars) == [(1:5),(6:8),9]
+    @test zeroarray([(1:5),(6:8),9]) == [zeros(5), zeros(3), 0]
     flat_expr = :((x...) -> $(expr)([x[i] for i in $(get_var_ranges(expr_vars))]...))
     fn = functionify(flat_expr)
     @test Base.invokelatest(fn, [1,2,3,4,1,5,-6,-7,7]...) == Base.invokelatest(f, ([1,2,3,4,1], [5,-6,-7], 7)...)
@@ -41,17 +42,17 @@ function test_expressions()
     flatvars = flat([y[2], z, x[1:4]])
     vars = vars_from_expr(expr, model)
     @test get_varmap(vars, flatvars) == [(2,2), (3,0), (1,1), (1, 2), (1,3), (1,4)]
-    @test infarray([(1,4), (1,3), (2,0)]) == [[Inf, Inf, Inf, Inf], Inf]
-
+    @test get_datamap(vars, flatvars) == [7, 9, 1, 2, 3, 4]
+    
     # Testing gradientify
     grad = gradientify(expr, vars_from_expr(expr, model))
-    @test grad(ones(9)) == [1, 1, 1, 1, 0, -1, -1, 0, 1]
+    @test all(grad(ones(9)) .≈ [1, 1, 1, 1, 0, -1, -1, 0, 1])
     other_grad = gradientify(simp_expr, vars_from_expr(simp_expr, model))
-    @test other_grad(ones(5)) == 5 .* ones(5)
-    @test grad(ones(9)) == [1, 1, 1, 1, 0, -1, -1, 0, 1] # in case of world age problems
+    @test all(other_grad(ones(5)) .≈ 5 .* ones(5))
+    @test all(grad(ones(9)) .≈ [1, 1, 1, 1, 0, -1, -1, 0, 1]) # in case of world age problems
     con = @constraint(model, Base.invokelatest(f, (x,y,z)...) >= 1) # also on JuMP constraints
     gradfn = gradientify(con, expr_vars)
-    @test gradfn(ones(9)) == grad(ones(9))
+    @test all(gradfn(ones(9)) .≈ grad(ones(9)))
     @test_throws OCTException gradientify(@constraint(model, [x[1] x[2];
                                                               x[3] x[4]] in PSDCone()), x[1:4])
 
@@ -455,7 +456,7 @@ function test_gradients()
     @test !any(ismissing.(flat(Matrix(bbl.X[1:2,:])))) 
     update_gradients(bbl)
     hand_calcs = DataFrame(hcat([[6*x[1] + 2*x[2] + 1, 2*x[2] + 2*x[1] + 6] for x in eachrow(Matrix(bbl.X))]...)', string.(bbl.vars))
-    @test all(eachrow(bbl.gradients) .== eachrow(hand_calcs))
+    @test all(all(Array(bbl.gradients[i,:]) .≈ Array(hand_calcs[i,:])) for i = 1:100)
     
     # Testing adding gradient cuts
     constraints = []

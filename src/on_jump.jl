@@ -197,7 +197,8 @@ TODO: add option to not use gradients for certain functions or data driven const
 """
 function gradientify(expr::Expr, expr_vars::Array)
     var_ranges = get_var_ranges(expr_vars)
-    gradable_fn = x -> Base.invokelatest(functionify(expr), [x[i] for i in var_ranges]...)
+    f = functionify(expr)
+    gradable_fn = x -> Base.invokelatest(f, [x[i] for i in var_ranges]...)
     return x -> ForwardDiff.gradient(gradable_fn, x)
 end
 
