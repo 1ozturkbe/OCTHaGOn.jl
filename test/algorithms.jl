@@ -47,7 +47,6 @@ function test_infeasibility_cuts()
     learn_constraint!(gm)
     add_tree_constraints!(gm)
     optimize!(gm)
-    bbc_idxs = [bbl isa BlackBoxClassifier for bbl in gm.bbls]
     while any(gm.feas_history[end] .* bbc_idxs .!= 0)
         add_infeasibility_cuts!(gm)
         optimize!(gm)
