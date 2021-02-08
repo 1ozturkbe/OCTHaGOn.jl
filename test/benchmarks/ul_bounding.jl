@@ -81,37 +81,3 @@ for par in parents
         end
     end
 end
-
-
-
-
-        # parents = [all_leaves[i]]
-        # while IAI.get_depth(lnr, parents[end]) > 0
-        #     append!(parents, IAI.get_parent(lnr, parents[end]))
-        # end
-        # upperDict[all_leaves[i]] = []
-        # lowerDict[all_leaves[i]] = []
-        # for j in parents[2:end]
-        #     # For each parent, define trust region with binary variables
-        #     threshold = IAI.get_split_threshold(lnr, j)
-        #     if IAI.is_hyperplane_split(lnr, j)
-        #         weights = IAI.get_split_weights(lnr, j)
-        #         weights = weights[1]
-        #     else
-        #         feature = IAI.get_split_feature(lnr, j)
-        #         weights = Dict(feature => 1)
-        #     end
-        #     upper = IAI.get_upper_child(lnr, j) in parents # Checking upper vs. lower split
-        #     α = []
-        #     for i = 1:size(vks, 1)
-        #         if vks[i] in keys(weights)
-        #             append!(α, weights[vks[i]])
-        #         else
-        #             append!(α, 0.0)
-        #         end
-        #     end
-        #     if upper
-        #         append!(upperDict[all_leaves[i]], [[threshold, α]])
-        #     else
-        #         append!(lowerDict[all_leaves[i]], [[threshold, α]])
-
