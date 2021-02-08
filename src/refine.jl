@@ -146,11 +146,11 @@ function add_infeasibility_cuts!(gm::GlobalModel)
         if gm.bbls[i] isa BlackBoxClassifier && gm.feas_history[end][i] != 0 && !gm.bbls[i].equality
             bbl = gm.bbls[i]        
             leaf = sol_leaves[i]
-            var_vals = JuMP.getvalue.(bbl.vars)
-            cut_grad = evaluate_gradient(bbl, DataFrame(string.(bbl.vars) .=> var_vals))
+            var_vals = gm.solution_history[end, :][string.(bbl.vars)]
+            cut_grad = evaluate_gradient(bbl, DataFrame(var_vals))
             push!(bbl.mi_constraints[leaf], 
-                @constraint(gm.model, sum(Array(cut_grad[1,:]) .* (bbl.vars .- var_vals)) + 
-                                      bbl(solution(gm))[1] >= 0)) 
+                @constraint(gm.model, sum(Array(cut_grad) .* (bbl.vars .- Array(var_vals))) + 
+                                      bbl(DataFrame(var_vals))[1] >= 0)) 
         end
     end
 end
