@@ -67,9 +67,3 @@ function evaluate(constraint::Function, data::Union{Dict, DataFrame}, vars::Arra
         return [substitute_expr(constraint, new_data[i]) for i=1:length(new_data)]
     end
 end
-
-function evaluate(constraint::Expr, data::Union{Dict, DataFrame}, vars::Array)
-    f = eval(constraint)
-    @assert f isa Function
-    evaluate(f, data, vars)
-end
