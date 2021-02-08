@@ -93,12 +93,12 @@ function classify_curvature(bbr::BlackBoxRegressor, idxs = collect(1:size(bbr.X,
         center_grad = Array(bbr.gradients[i,:])
         under_offsets = [-dot(center_grad, differ) for differ in diffs]
         actual_offsets = bbr.Y[knn_idxs[i]] .- bbr.Y[i]
-        if all(actual_offsets .>= under_offsets .- 1e-10)
+        if all(actual_offsets .>= under_offsets .- 1e-12)
             bbr.curvatures[i] = 1
-        elseif all(actual_offsets .<= under_offsets .- 1e-10)
+        elseif all(actual_offsets .<= under_offsets .+ 1e-12)
             bbr.curvatures[i] = -1
         else
-            bbr.curvatures[i] = -0
+            bbr.curvatures[i] = 0
         end
     end
 end
