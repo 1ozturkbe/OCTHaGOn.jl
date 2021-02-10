@@ -65,7 +65,7 @@ function test_expressions()
     nl_vars = vars_from_constraint.(nl_constrs)
     @test length.(nl_vars) == [3,3,3,2]
     g_fns = gradientify.(nl_constrs, nl_vars)
-    @test g_fn[1](ones(length(nl_vars[1]))) == [-1, 2, -8]
+    @test g_fns[1](ones(length(nl_vars[1]))) == [-1, 2, -8]
 end
 
 function test_variables()
