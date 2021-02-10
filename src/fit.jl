@@ -53,7 +53,11 @@ function regressor_kwargs(; kwargs...)
     return merge_kwargs(valid_keys; kwargs...)
 end
 
-""" Wrapper around IAI.fit! for constraint learning.
+""" 
+    learn_from_data!(X::DataFrame, Y::AbstractArray, lnr::IAI.OptimalTreeLearner, 
+                          idxs::Union{Nothing, Array}=nothing; kwargs...)
+
+Wrapper around IAI.fit! for constraint learning.
 Arguments:
     lnr: OptimalTreeClassifier or OptimalTreeRegressor
     X: matrix of feature data
