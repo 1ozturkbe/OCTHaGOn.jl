@@ -179,13 +179,19 @@ Note: Currently only works for affine and quadratic constraints.
 """
 function vars_from_constraint(con::JuMP.ConstraintRef)
     confunc = constraint_object(con).func
-    confunc isa Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr} || 
+    if confunc isa JuMP.GenericQuadExpr
+        vars = [term for (term,val) in confunc.aff.terms]
+        for (term, val) in confunc.terms
+            append!(vars, [term.a, term.b])
+        end
+        return unique(vars)
+    elseif confunc isa JuMP.GenericAffExpr
+        return collect(keys(confunc.terms))
+    elseif confunc isa VariableRef
+        return [confunc]
+    else
         throw(OCTException("Only affine or quadratic constraints are current supported."))
-    vars = [term for (term,val) in confunc.aff.terms]
-    for (term, val) in confunc.terms
-        append!(vars, [term.a, term.b])
     end
-    return unique(vars)
 end
 
 """
