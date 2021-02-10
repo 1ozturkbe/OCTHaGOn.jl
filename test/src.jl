@@ -309,7 +309,7 @@ function test_bbr()
     @test bbr.thresholds[end] == nothing
 
     # Full regression training
-    learn_constraint!(bbr, max_depth = 1)
+    learn_constraint!(bbr, max_depth = 0)
     lnr = bbr.learners[end]
     @test lnr isa IAI.OptimalTreeRegressor
     all_leaves = find_leaves(lnr)
@@ -338,7 +338,6 @@ function test_bbr()
     update_tree_constraints!(gm, bbr, 3) # Replacing regressor with a regressor
     # No upper and lower bounding, just regressor here
     @test all(sign.(collect(keys(bbr.leaf_variables))) .== 1) &&
-        length(bbr.leaf_variables) + 1 == length(bbr.mi_constraints) &&
             bbr.active_trees == Dict(3 => bbr.thresholds[3])
 
     update_tree_constraints!(gm, bbr, 4) # Replacing regressor with lower bound
