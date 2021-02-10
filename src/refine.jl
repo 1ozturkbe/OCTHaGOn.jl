@@ -142,13 +142,14 @@ Adds cuts reducing infeasibility of BBC inequalities.
 """
 function add_infeasibility_cuts!(gm::GlobalModel)
     sol_leaves = find_leaf_of_soln.(gm.bbls)
+    var_vals = solution(gm)
     for i=1:length(gm.bbls)
         if gm.bbls[i] isa BlackBoxClassifier && gm.feas_history[end][i] != 0 && !gm.bbls[i].equality
             bbl = gm.bbls[i]
-            var_vals = JuMP.getvalue.(bbl.vars)
-            cut_grad = evaluate_gradient(bbl, DataFrame(string.(bbl.vars) .=> var_vals))
+            rel_vals = var_vals[:, string.(bbl.vars)]
+            cut_grad = evaluate_gradient(bbl, relvals)
             push!(bbl.mi_constraints[sol_leaves[i]], 
-                @constraint(gm.model, sum(Array(cut_grad[1,:]) .* (bbl.vars .- var_vals)) + bbl(solution(gm))[1] >= 0)) 
+                @constraint(gm.model, sum(Array(cut_grad[1,:]) .* (bbl.vars .- Array(rel_vals))) + bbl(var_vals)[1] >= 0)) 
         end
     end
 end
