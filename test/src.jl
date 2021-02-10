@@ -58,6 +58,12 @@ function test_expressions()
 
     # Testing vars_from_constraint as well
     @test all([var in [x[1], x[2], x[3], x[4], y[1], y[2], z] for var in vars_from_constraint(con)])
+    m = pool1(false)
+    l_constrs, nl_constrs = classify_constraints(m)
+    l_vars = vars_from_constraint.(l_constrs)
+    @test length.(l_vars) == [4,4,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+    nl_vars = vars_from_constraint.(nl_constrs)
+    @test length.(nl_vars) == [3,3,3,2]
 end
 
 function test_variables()
