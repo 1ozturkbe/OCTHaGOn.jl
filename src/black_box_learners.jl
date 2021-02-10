@@ -87,6 +87,9 @@ Optional arguments:
     X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars))
                                                        # Function samples
     Y::Array = []                                      # Function values
+    gradients::DataFrame = DataFrame([Union{Missing, Float64} 
+                 for i=1:length(vars)], string.(vars)) # Gradients
+    curvatures::Array = []                             # Curvature around the points
     feas_ratio::Float64 = 0.                           # Feasible sample proportion
     equality::Bool = false                             # Equality check
     learners::Array{IAI.OptimalTreeClassifier} = []    # Learners...
@@ -122,7 +125,10 @@ function add_data!(bbc::BlackBoxClassifier, X::DataFrame, Y::Array)
         bbc.feas_ratio = sum(Y .>= 0)/length(Y)
     else
         bbc.feas_ratio = (bbc.feas_ratio*size(bbc.X,1) + sum(Y .>= 0))/(size(bbc.X, 1) + length(Y))
-    end    
+    end
+    append!(bbc.gradients, DataFrame(missings(size(X, 1), 
+                            length(bbc.vars)), string.(bbc.vars)), cols=:intersect)
+    append!(bbc.curvatures, missings(size(X,1)))    
     append!(bbc.X, X, cols=:intersect)
     append!(bbc.Y, Y)
     return

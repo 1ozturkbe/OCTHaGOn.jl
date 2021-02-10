@@ -1,5 +1,4 @@
 module OptimalConstraintTree
-    using Calculus
     using Combinatorics
     using CPLEX
     using DataFrames

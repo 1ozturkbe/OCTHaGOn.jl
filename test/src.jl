@@ -58,6 +58,14 @@ function test_expressions()
 
     # Testing vars_from_constraint as well
     @test all([var in [x[1], x[2], x[3], x[4], y[1], y[2], z] for var in vars_from_constraint(con)])
+    m = pool1(false)
+    l_constrs, nl_constrs = classify_constraints(m)
+    l_vars = vars_from_constraint.(l_constrs)
+    @test length.(l_vars) == [4,4,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+    nl_vars = vars_from_constraint.(nl_constrs)
+    @test length.(nl_vars) == [3,3,3,2]
+    g_fns = gradientify.(nl_constrs, nl_vars)
+    @test g_fns[1](ones(length(nl_vars[1]))) == [-1, 2, -8]
 end
 
 function test_variables()
@@ -301,7 +309,7 @@ function test_bbr()
     @test bbr.thresholds[end] == nothing
 
     # Full regression training
-    learn_constraint!(bbr, max_depth = 1)
+    learn_constraint!(bbr, max_depth = 0)
     lnr = bbr.learners[end]
     @test lnr isa IAI.OptimalTreeRegressor
     all_leaves = find_leaves(lnr)
@@ -330,7 +338,6 @@ function test_bbr()
     update_tree_constraints!(gm, bbr, 3) # Replacing regressor with a regressor
     # No upper and lower bounding, just regressor here
     @test all(sign.(collect(keys(bbr.leaf_variables))) .== 1) &&
-        length(bbr.leaf_variables) + 1 == length(bbr.mi_constraints) &&
             bbr.active_trees == Dict(3 => bbr.thresholds[3])
 
     update_tree_constraints!(gm, bbr, 4) # Replacing regressor with lower bound

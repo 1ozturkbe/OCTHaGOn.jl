@@ -41,3 +41,7 @@ include(OCT.BARON_DIR * "minlp.jl");
 include(OCT.BARON_DIR * "nlp1.jl");
 
 include(OCT.BARON_DIR * "nlp2.jl");
+
+include(OCT.BARON_DIR * "nlp3.jl");
+
+include(OCT.BARON_DIR * "pool1.jl");
