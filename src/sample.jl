@@ -233,7 +233,7 @@ function feasibility_sample(bbc::BlackBoxClassifier, n_samples::Int64 = get_para
         eval!(bbc, DataFrame(X, string.(bbc.vars)))
     end    
     if bbc.feas_ratio >= get_param(bbc, :threshold_feasibility)
-        @info("BBC $(bbc.name) has passed threshold feasibility, " * 
+        @info("BBC $(bbc.name) has passed threshold feasibility $(round(get_param(bbc, :threshold_feasibility), sigdigits=3)), " * 
               "from $(round(orig_feasratio, sigdigits=3)) to $(round(bbc.feas_ratio, sigdigits=3)).")
     elseif bbc.feas_ratio > orig_feasratio
         @info("BBC $(bbc.name) has improved feasibility from $(round(orig_feasratio, sigdigits=3)) to $(round(bbc.feas_ratio, sigdigits=3)), " * 
