@@ -332,5 +332,3 @@ function update_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier, idx 
     add_tree_constraints!(gm, bbc, idx)
     return
 end
-        
-    

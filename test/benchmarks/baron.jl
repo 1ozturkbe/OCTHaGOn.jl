@@ -8,7 +8,7 @@ function recipe(gm::GlobalModel)
     set_param(gm, :ignore_feasibility, true)
     for bbl in gm.bbls
         if bbl isa BlackBoxClassifier
-            learn_constraint!(bbl, get_param(gm, :ignore_feasibility))
+            learn_constraint!(bbl)
         else
             learn_constraint!(bbl, regression_sparsity = 0)
         end

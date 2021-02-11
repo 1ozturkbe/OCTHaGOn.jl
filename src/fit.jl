@@ -149,15 +149,14 @@ end
 Constructs a constraint tree from a BlackBoxLearner and dumps in bbo.learners.
 Arguments:
     bbl: OCT structs (GM, bbl, Array{bbl})
-    ignore_feas::Bool: Whether to ignore feasibility thresholds for BlackBoxClassifiers.
     kwargs: arguments for learners and fits.
 """
-function learn_constraint!(bbc::BlackBoxClassifier, ignore_feas::Bool = false; kwargs...)
+function learn_constraint!(bbc::BlackBoxClassifier; kwargs...)
     check_sampled(bbc)
     set_param(bbc, :reloaded, false) # Makes sure that we know trees are retrained. 
     lnr = base_classifier()
     IAI.set_params!(lnr; minbucket = length(bbc.vars) + 1, classifier_kwargs(; kwargs...)...)
-    if check_feasibility(bbc) || ignore_feas
+    if check_feasibility(bbc) || get_param(bbc, :ignore_feasibility)
         nl = learn_from_data!(bbc.X, bbc.Y .>= 0, lnr; fit_classifier_kwargs(; kwargs...)...)
         push!(bbc.learners, nl)
         push!(bbc.accuracies, IAI.score(nl, bbc.X, bbc.Y .>= 0)) # TODO: add ability to specify criterion. 
@@ -168,7 +167,7 @@ function learn_constraint!(bbc::BlackBoxClassifier, ignore_feas::Bool = false; k
     return
 end
 
-function learn_constraint!(bbr::BlackBoxRegressor, ignore_feas::Bool = false; kwargs...)
+function learn_constraint!(bbr::BlackBoxRegressor; kwargs...)
     check_sampled(bbr)
     get_param(bbr, :reloaded) && set_param(bbr, :reloaded, false) # Makes sure that we know trees are retrained. 
     if haskey(kwargs, :threshold)
@@ -203,14 +202,14 @@ function learn_constraint!(bbr::BlackBoxRegressor, ignore_feas::Bool = false; kw
     return
 end
 
-function learn_constraint!(bbl::Array, ignore_feas::Bool = false; kwargs...)
+function learn_constraint!(bbl::Array; kwargs...)
    for fn in bbl
-        learn_constraint!(fn, ignore_feas; kwargs...)
+        learn_constraint!(fn; kwargs...)
    end
 end
 
-learn_constraint!(gm::GlobalModel, ignore_feas::Bool = get_param(gm, :ignore_feasibility); kwargs...) = 
-    learn_constraint!(gm.bbls, ignore_feas; kwargs...)
+learn_constraint!(gm::GlobalModel; kwargs...) = 
+    learn_constraint!(gm.bbls; kwargs...)
 
 """
     save_fit(bbl::Union{GlobalModel, BlackBoxLearner, Array}, dir::String)

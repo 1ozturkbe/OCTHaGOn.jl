@@ -6,7 +6,7 @@ function test_refinement()
     uniform_sample_and_eval!(gm)
     for bbl in gm.bbls
         if bbl isa BlackBoxClassifier
-            learn_constraint!(bbl, get_param(gm, :ignore_feasibility))
+            learn_constraint!(bbl)
         else
             learn_constraint!(bbl, regression_sparsity = 0)
         end

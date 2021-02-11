@@ -45,7 +45,7 @@ Optional arguments:
     active_trees::Dict{Int64, Union{Nothing, Pair}} = Dict() # Currently active tree indices
     mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}() # and their corresponding MI constraints,
     leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their leaves and leaf variables
-    vexity::Dict = Dict{Int64, <:Real}()     # Convexity of leaves
+    vexity::Dict = Dict{Int64, Real}()     # Convexity of leaves
     knn_tree::Union{KDTree, Nothing} = nothing         # KNN tree
     params::Dict = bbr_defaults(length(vars))          # Relevant settings
 end
@@ -105,6 +105,17 @@ end
 function Base.show(io::IO, bbc::BlackBoxClassifier)
     println(io, "BlackBoxClassifier " * bbc.name * " with $(length(bbc.vars)) variables: ")
     println(io, "Sampled $(length(bbc.Y)) times, and has $(length(bbc.learners)) trained OCTs.")
+    if get_param(bbc, :ignore_feasibility)
+        if get_param(bbc, :ignore_accuracy)
+            println(io, "Ignores training accuracy and data_feasibility thresholds.")
+        else
+            println(io, "Ignores data feasibility thresholds.")
+        end
+    else
+        if get_param(bbc, :ignore_accuracy)
+            println("Ignores training accuracy thresholds.")
+        end
+    end
 end
 
 """ BBL type is for function definitions! """
