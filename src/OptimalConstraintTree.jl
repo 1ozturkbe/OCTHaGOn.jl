@@ -65,7 +65,8 @@ module OptimalConstraintTree
         # Functions on GlobalModel and BlackBoxLearners
         learn_from_data!, find_bounds!, find_linear_bounds!,
         add_nonlinear_constraint, add_nonlinear_or_compatible, determine_vars,
-        lh_sample, boundary_sample, leaf_sample,
+        lh_sample, boundary_sample, last_leaf_sample,
+        feasibility_sample, 
         feasibility, check_accuracy, check_feasibility, 
         check_bounds,  check_sampled, 
         solution, 

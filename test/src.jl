@@ -369,17 +369,17 @@ function test_bbr()
     optimize!(gm)
 
     # Testing leaf sampling
-    df = leaf_sample(bbr)
+    df = last_leaf_sample(bbr)
     active_tree_idxs = collect(keys(bbr.active_trees))
     @test sort(active_tree_idxs) == [1, 4]
     @test size(df, 1) == get_param(bbr, :n_samples)
     for bbc in bbcs
-        df = leaf_sample(bbc)
+        df = last_leaf_sample(bbc)
         @test size(df, 1) == get_param(bbc, :n_samples)
     end
     update_tree_constraints!(gm, bbr, 2)
-    @test_throws OCTException leaf_sample(bbr)
-    @test_throws OptimizeNotCalled leaf_sample(bbcs[1])
+    @test_throws OCTException last_leaf_sample(bbr)
+    @test_throws OptimizeNotCalled last_leaf_sample(bbcs[1])
 
     @test all(Array(gm.solution_history[:,"obj"]) .≈ gm.solution_history[1, "obj"])
 

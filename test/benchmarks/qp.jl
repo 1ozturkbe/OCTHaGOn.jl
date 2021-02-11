@@ -111,7 +111,7 @@ reltol = 1e-5
 set_param(gm, :reltol, reltol)
 while abs(bbr(solution(gm))[1] - bbr(DataFrame(gm.solution_history[end-1, :]))[1]) >= reltol*bbr(solution(gm))[1] && 
         iterations <= 5
-    df = leaf_sample(bbr);
+    df = last_leaf_sample(bbr);
     eval!(bbr, df);
     refine_thresholds(gm, bbr);
     optimize!(gm);
