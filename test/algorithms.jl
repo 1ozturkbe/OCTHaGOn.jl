@@ -55,6 +55,14 @@ function test_infeasibility_cuts()
     @test true
 end
 
+function test_feasibility_sample()
+    gm = speed_reducer()
+    uniform_sample_and_eval!(gm)
+    @test any(check_feasibility(gm) .!= 1)
+    feasibility_sample(gm)
+    @test all(check_feasibility(gm) .== 1)
+end
+
 test_baron_solve()
 
 test_speed_params()
@@ -62,3 +70,5 @@ test_speed_params()
 test_classify_gradients()
 
 test_infeasibility_cuts()
+
+test_feasibility_sample()
