@@ -327,28 +327,32 @@ function test_bbr()
     update_tree_constraints!(gm, bbr, 1) # Updating nothing with single upper bound
     @test bbr.active_trees == Dict(1 => bbr.thresholds[1]) && 
         all(sign.(collect(keys(bbr.mi_constraints))) .== -1)
+    @test_throws OCTException active_lower_tree(bbr)
 
     clear_tree_constraints!(gm, bbr)
     update_tree_constraints!(gm, bbr, 2) # Updating nothing with single regressor
     @test all(sign.(collect(keys(bbr.leaf_variables))) .== 1) &&
             2*length(bbr.leaf_variables) + 1 == length(bbr.mi_constraints) &&
                 bbr.active_trees == Dict(2 => bbr.thresholds[2])
+    @test active_lower_tree(bbr) == 2
     
-
     update_tree_constraints!(gm, bbr, 3) # Replacing regressor with a regressor
     # No upper and lower bounding, just regressor here
     @test all(sign.(collect(keys(bbr.leaf_variables))) .== 1) &&
             bbr.active_trees == Dict(3 => bbr.thresholds[3])
+    @test active_lower_tree(bbr) == 3
 
     update_tree_constraints!(gm, bbr, 4) # Replacing regressor with lower bound
     @test all(sign.(collect(keys(bbr.leaf_variables))) .== 1) && # since lower bounding
         length(bbr.leaf_variables) + 1 == length(bbr.mi_constraints) && 
             bbr.active_trees == Dict(4 => bbr.thresholds[4])
+    @test active_lower_tree(bbr) == 4
 
     update_tree_constraints!(gm, bbr, 1) # Adding upper bound to lower bound
     @test length(bbr.leaf_variables) + 2 == length(bbr.mi_constraints) && # checking leaf variables
         length(bbr.active_trees) == 2
     optimize!(gm)
+    @test active_lower_tree(bbr) == 4
 
     clear_tree_constraints!(gm, bbr)
     update_tree_constraints!(gm, bbr, 1)
@@ -356,6 +360,7 @@ function test_bbr()
     @test length(bbr.leaf_variables) + 2 == length(bbr.mi_constraints) && # checking leaf variables
         length(bbr.active_trees) == 2
     optimize!(gm)
+    @test active_lower_tree(bbr) == 4
 
     # Make sure that all solutions are the same. 
     update_tree_constraints!(gm, bbr, 4) 
@@ -364,17 +369,17 @@ function test_bbr()
     optimize!(gm)
 
     # Testing leaf sampling
-    df = leaf_sample(bbr)
+    df = last_leaf_sample(bbr)
     active_tree_idxs = collect(keys(bbr.active_trees))
     @test sort(active_tree_idxs) == [1, 4]
     @test size(df, 1) == get_param(bbr, :n_samples)
     for bbc in bbcs
-        df = leaf_sample(bbc)
+        df = last_leaf_sample(bbc)
         @test size(df, 1) == get_param(bbc, :n_samples)
     end
     update_tree_constraints!(gm, bbr, 2)
-    @test_throws OCTException leaf_sample(bbr)
-    @test_throws OptimizeNotCalled leaf_sample(bbcs[1])
+    @test_throws OCTException last_leaf_sample(bbr)
+    @test_throws OptimizeNotCalled last_leaf_sample(bbcs[1])
 
     @test all(Array(gm.solution_history[:,"obj"]) .≈ gm.solution_history[1, "obj"])
 

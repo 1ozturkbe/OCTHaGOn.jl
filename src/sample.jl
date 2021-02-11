@@ -170,21 +170,21 @@ uniform_sample_and_eval!(gm::GlobalModel; lh_iterations::Int64 = get_param(gm, :
         uniform_sample_and_eval!(gm.bbls; lh_iterations = lh_iterations, tighttol = get_param(gm, :tighttol))
 
 """
-    leaf_sample(bbl::BlackBoxLearner)
+    last_leaf_sample(bbl::BlackBoxLearner)
 
 Gets Latin Hypercube samples that fall in the leaf of the last solution.
 """
-function leaf_sample(bbc::BlackBoxClassifier)
+function last_leaf_sample(bbc::BlackBoxClassifier, n_samples = get_param(bbc, :n_samples))
     last_leaf = find_leaf_of_soln(bbc)
     idxs = findall(x -> x .>= 0.5, IAI.apply(bbc.learners[end], bbc.X) .== last_leaf)
     lbs = [minimum(col) for col in eachcol(bbc.X[idxs, :])]
     ubs = [maximum(col) for col in eachcol(bbc.X[idxs, :])]
-    plan, _ = LHCoptim(get_param(bbc, :n_samples), length(bbc.vars), 3);
+    plan, _ = LHCoptim(n_samples, length(bbc.vars), 3);
     X = scaleLHC(plan, [(lbs[i], ubs[i]) for i=1:length(lbs)]);
     return DataFrame(truncate_sigfigs(X), string.(bbc.vars))
 end
 
-function leaf_sample(bbr::BlackBoxRegressor)
+function last_leaf_sample(bbr::BlackBoxRegressor, n_samples = get_param(bbc, :n_samples))
     length(bbr.active_trees) == 2 || throw(OCTException("Can only leaf sample BBRs with upper/lower " *
                                                         "classifiers."))
     upper_leaf, lower_leaf = sort(find_leaf_of_soln(bbr))
@@ -204,7 +204,51 @@ function leaf_sample(bbr::BlackBoxRegressor)
     end
     lbs = [minimum(col) for col in eachcol(bbr.X[idxs, :])]
     ubs = [maximum(col) for col in eachcol(bbr.X[idxs, :])]
-    plan, _ = LHCoptim(get_param(bbr, :n_samples), length(bbr.vars), 3);
+    plan, _ = LHCoptim(n_samples, length(bbr.vars), 3);
     X = scaleLHC(plan, [(lbs[i], ubs[i]) for i=1:length(lbs)]);
     return DataFrame(truncate_sigfigs(X), string.(bbr.vars))
+end
+
+"""
+    feasibility_sample(gm::GlobalModel)
+    feasibility_sample(bbc::BlackBoxClassifier, n_samples::Int64 = get_param(bbc, :n_samples))
+
+Equally LH samples the leaves of BBC with not enough feasible samples. 
+"""
+function feasibility_sample(bbc::BlackBoxClassifier, n_samples::Int64 = get_param(bbc, :n_samples))
+    minbucket = minimum([Int64(bbc.feas_ratio .* size(bbc.X, 1)), Int64(floor(0.05*size(bbc.X, 1)))])
+    lnr = base_classifier()
+    IAI.set_params!(lnr, minbucket = minbucket)
+    lnr = learn_from_data!(bbc.X, bbc.Y .>= 0, lnr; fit_classifier_kwargs()...)
+    all_leaves = find_leaves(lnr)
+    feas_leaves = [i for i in all_leaves if Bool(IAI.get_classification_label(lnr, i))]
+    orig_feasratio = copy(bbc.feas_ratio)
+    leaf_idxs = IAI.apply(lnr, bbc.X)
+    for leaf in feas_leaves
+        idxs = findall(x -> x .>= 0.5, leaf_idxs .== leaf)
+        lbs = [minimum(col) for col in eachcol(bbc.X[idxs, :])]
+        ubs = [maximum(col) for col in eachcol(bbc.X[idxs, :])]
+        plan, _ = LHCoptim(Int64(ceil(n_samples / length(feas_leaves))), length(bbc.vars), 3);  
+        X = scaleLHC(plan, [(lbs[i], ubs[i]) for i=1:length(lbs)]);
+        eval!(bbc, DataFrame(X, string.(bbc.vars)))
+    end    
+    if bbc.feas_ratio >= get_param(bbc, :threshold_feasibility)
+        @info("BBC $(bbc.name) has passed threshold feasibility $(round(get_param(bbc, :threshold_feasibility), sigdigits=3)), " * 
+              "from $(round(orig_feasratio, sigdigits=3)) to $(round(bbc.feas_ratio, sigdigits=3)).")
+    elseif bbc.feas_ratio > orig_feasratio
+        @info("BBC $(bbc.name) has improved feasibility from $(round(orig_feasratio, sigdigits=3)) to $(round(bbc.feas_ratio, sigdigits=3)), " * 
+                "but still not over threshold $(round(get_param(bbc, :threshold_feasibility), sigdigits=3)).")
+    else
+        @info("BBC $(bbc.name) feasibility improvement failed! Please check your functions.")
+    end
+    return
+end
+
+function feasibility_sample(gm::GlobalModel)
+    for bbl in gm.bbls
+        if bbl isa BlackBoxClassifier && bbl.feas_ratio <= get_param(bbl, :threshold_feasibility)
+            feasibility_sample(bbl)
+        end
+    end
+    return
 end

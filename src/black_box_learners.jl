@@ -371,3 +371,30 @@ function all_mi_constraints(bbl::BlackBoxLearner, hypertype::Union{String, Nothi
     end
     return all_constraints
 end
+
+"""
+    active_lower_tree(bbr::BlackBoxRegressor)
+
+Returns the index of currently active lower bounding tree of BBR. 
+"""
+function active_lower_tree(bbr::BlackBoxRegressor)
+    if length(bbr.active_trees) == 1
+        if collect(values(bbr.active_trees))[1] isa Nothing
+            return collect(keys(bbr.active_trees))[1]
+        elseif collect(values(bbr.active_trees))[1].first == "lower"
+            return collect(keys(bbr.active_trees))[1]
+        else
+            throw(OCTException("Regressor $(bbr.name) does not have a lower bounding tree."))
+        end
+    elseif length(bbr.active_trees) == 2
+        tree_keys = collect(keys(bbr.active_trees))
+        tree_hypertypes = collect(values(bbr.active_trees))
+        if tree_hypertypes[1].first == "lower"
+            return tree_keys[1]
+        else
+            return tree_keys[2]
+        end
+    else
+        throw(OCTException("Regressor $(bbr.name) has no active trees."))
+    end
+end
