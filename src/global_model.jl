@@ -30,7 +30,13 @@ function Base.show(io::IO, gm::GlobalModel)
     end
 end
 
-set_param(gm::GlobalModel, key::Symbol, val) = set_param(gm.params, key, val)
+function set_param(gm::GlobalModel, key::Symbol, val) 
+    set_param(gm.params, key, val)
+    for bbl in gm.bbls
+        set_param(bbl.params, key, val, false)
+    end
+end
+
 get_param(gm::GlobalModel, key::Symbol) = get_param(gm.params, key)
 
 """

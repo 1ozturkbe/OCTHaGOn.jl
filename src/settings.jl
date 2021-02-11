@@ -9,6 +9,8 @@ end
 function bbc_defaults(n_vars::Int64 = 10; sample_coeff = 200)
     Dict(:threshold_accuracy => 0.95,                       # Minimum tree accuracy
         :threshold_feasibility => 0.15,                     # Minimum feasibility ratio
+        :ignore_feasibility => false,                       # Whether we should ignore feasibility checks
+        :ignore_accuracy => false,                          # Whether we should ignore accuracy checks 
         :n_samples => Int(ceil(sample_coeff*sqrt(n_vars))), # (0 if no sampling fn)
         :reloaded => false)                                 # Whether learners are reloaded  
 end
@@ -29,11 +31,14 @@ function gm_defaults()
 end
 
 """ Sets parameters within Dict. """
-function set_param(gm::Dict, key::Symbol, val)
+function set_param(gm::Dict, key::Symbol, val, checks = true)
     if haskey(gm, key) && val isa typeof(gm[key])
         gm[key] = val
-    else
+        return
+    elseif checks
         throw(OCTException("Parameter with key " * string(key) * " is invalid."))
+    else 
+        return
     end
 end
 
