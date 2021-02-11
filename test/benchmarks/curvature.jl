@@ -26,13 +26,12 @@ function test_curvature(gm::GlobalModel)
     return gm
 end
 
-
 gm = speed_reducer()
 set_param(gm, :ignore_feasibility, true)
 uniform_sample_and_eval!(gm)
-bbcs = [bbl for bbl in gm.bbls if bbl isa BlackBoxClassifier]
-learn_constraint!.(bbcs)
-[add_tree_constraints!(gm, bbc) for bbc in bbcs]
+bbcs = [bbl for bbl in gm.bbls if bbl isa BlackBoxClassifier];
+learn_constraint!.(bbcs);
+[add_tree_constraints!(gm, bbc) for bbc in bbcs];
 bbr = [bbl for bbl in gm.bbls if bbl isa BlackBoxRegressor][1]
 classify_curvature(bbr)
 classify_curvature.(bbcs)
@@ -42,8 +41,41 @@ update_tree_constraints!(gm, bbr)
 optimize!(gm)
 
 
-# Feasibility driven sampling
-if bbc.feas_ratio <= get_param(bbc, :threshold_feasibility)
+"""
+    active_lower_tree(bbr::BlackBoxRegressor)
+
+Returns the index of currently active lower bounding tree of BBR. 
+"""
+
+function active_lower_tree(bbr::BlackBoxRegressor)
+    if length(bbr.active_trees) == 1
+        return collect(keys(bbr.active_trees))[1]
+    elseif length(bbr.active_trees) == 2
+        tree_keys = collect(keys(bbr.active_trees))
+        tree_hypertypes = collect(values(bbr.active_trees))
+        if tree_hypertypes[1].first == "lower"
+            return tree_keys[1]
+        else
+            return tree_keys[2]
+        end
+    else
+        throw(OCTException("Regressor $(bbr.name) has no active trees"))
+    end
+end
+
+# function update_vexity(bbr::BlackBoxRegressor)
+#     idx = active_lower_tree(bbr)
+#     lnr = bbr.learners[idx]
+#     leaves = find_leaves(bbr.learners[end])
+
+
+#     bbr.vexity = Dict(key => nothing for (key, value) in bbr.ul_data if key <= 0)
+
+
+
+function feasibility_sample
+    
+    if bbc.feas_ratio <= get_param(bbc, :threshold_feasibility)
 
     function feasibility_sample(bbc::BlackBoxClassifier)
         lnr = learn_from_data!(bbc.X, bbc.Y .>= 0, base_classifier())
