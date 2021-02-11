@@ -151,5 +151,6 @@ function add_infeasibility_cuts!(gm::GlobalModel)
             push!(bbl.mi_constraints[sol_leaves[i]], 
                 @constraint(gm.model, sum(Array(cut_grad[1,:]) .* (bbl.vars .- Array(rel_vals))) + bbl(var_vals)[1] >= 0)) 
         end
+        # TODO: add infeasibility cuts for equalities as well. 
     end
 end

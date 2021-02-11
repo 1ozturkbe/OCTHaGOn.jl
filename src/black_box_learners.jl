@@ -45,6 +45,7 @@ Optional arguments:
     active_trees::Dict{Int64, Union{Nothing, Pair}} = Dict() # Currently active tree indices
     mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}() # and their corresponding MI constraints,
     leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their leaves and leaf variables
+    vexity::Dict = Dict{Int64, <:Real}()     # Convexity of leaves
     knn_tree::Union{KDTree, Nothing} = nothing         # KNN tree
     params::Dict = bbr_defaults(length(vars))          # Relevant settings
 end
