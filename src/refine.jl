@@ -147,9 +147,12 @@ function add_infeasibility_cuts!(gm::GlobalModel)
         if gm.bbls[i] isa BlackBoxClassifier && gm.feas_history[end][i] != 0 && !gm.bbls[i].equality
             bbl = gm.bbls[i]
             rel_vals = var_vals[:, string.(bbl.vars)]
-            cut_grad = evaluate_gradient(bbl, rel_vals)
+            eval!(bbl, rel_vals)
+            Y = bbl.Y[end]
+            update_gradients(bbl, size(bbl.X, 1))
+            cut_grad = bbl.gradients[end, :]
             push!(bbl.mi_constraints[sol_leaves[i]], 
-                @constraint(gm.model, sum(Array(cut_grad[1,:]) .* (bbl.vars .- Array(rel_vals))) + bbl(var_vals)[1] >= 0)) 
+                @constraint(gm.model, sum(Array(cut_grad) .* (bbl.vars .- Array(rel_vals))) + Y >= 0)) 
         end
         # TODO: add infeasibility cuts for equalities as well. 
     end
