@@ -149,7 +149,7 @@ function add_infeasibility_cuts!(gm::GlobalModel)
             rel_vals = var_vals[:, string.(bbl.vars)]
             eval!(bbl, rel_vals)
             Y = bbl.Y[end]
-            update_gradients(bbl, size(bbl.X, 1))
+            update_gradients(bbl, [size(bbl.X, 1)])
             cut_grad = bbl.gradients[end, :]
             push!(bbl.mi_constraints[sol_leaves[i]], 
                 @constraint(gm.model, sum(Array(cut_grad) .* (bbl.vars .- Array(rel_vals))) + Y >= 0)) 
