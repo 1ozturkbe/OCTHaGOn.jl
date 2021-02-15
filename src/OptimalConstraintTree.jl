@@ -68,7 +68,7 @@ module OptimalConstraintTree
         lh_sample, boundary_sample, last_leaf_sample,
         feasibility_sample, 
         feasibility, check_accuracy, check_feasibility, 
-        check_bounds,  check_sampled, check_local_convexity,
+        check_bounds,  check_sampled, update_local_convexity, update_vexity,
         solution, 
         evaluate_feasibility, evaluate_accuracy,
         feas_gap, 

@@ -2,7 +2,7 @@
 function bbr_defaults(n_vars::Int64 = 10; sample_coeff = 200)
     Dict(:n_samples => Int(ceil(sample_coeff*sqrt(n_vars))), # (0 if no sampling fn)
         :gradients => true,                                 # TODO: add option whether or not to use gradients
-        :locally_convex => false,
+        :local_convexity => 0.,
         :convex => false, 
         :reloaded => false)                                 # Whether learners are reloaded
 end
@@ -14,7 +14,7 @@ function bbc_defaults(n_vars::Int64 = 10; sample_coeff = 200)
         :ignore_feasibility => false,                       # Whether we should ignore feasibility checks
         :ignore_accuracy => false,                          # Whether we should ignore accuracy checks 
         :n_samples => Int(ceil(sample_coeff*sqrt(n_vars))), # (0 if no sampling fn)
-        :locally_convex => false,
+        :local_convexity => 0,
         :convex => false, 
         :reloaded => false)                                 # Whether learners are reloaded  
 end

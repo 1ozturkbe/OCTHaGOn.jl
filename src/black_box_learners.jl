@@ -401,25 +401,51 @@ function active_lower_tree(bbr::BlackBoxRegressor)
 end
 
 """ 
-    check_local_convexity(bbl::BlackBoxLearner)
+    update_local_convexity(bbl::BlackBoxLearner)
 
-Checks local_convexity of a function.
+Checks proportion of "neighbor convex" sample points of BBL. 
 """
-function check_local_convexity(bbl::BlackBoxLearner, threshold = 0.9)
+function update_local_convexity(bbl::BlackBoxLearner)
     classify_curvature(bbl)
-    if sum(bbl.curvatures .== 1) == size(bbl.X, 1)
-        set_param(bbl, :locally_convex, true)
+    set_param(bbl, :local_convexity, sum(bbl.curvatures .== 1) / size(bbl.X, 1))
+    return
+end
+
+""" 
+    update_vexity(bbl::BlackBoxLearner, threshold = 0.75)
+
+Checks whether a function is perhaps locally or globally convex.
+Threshold sets the border of being considered for convex regression. 
+"""
+function update_vexity(bbl::BlackBoxLearner, threshold = 0.75)
+    update_local_convexity(bbl)
+    if get_param(bbl, :local_convexity) >= threshold
+        if get_param(bbl, :local_convexity) == 1.0
+            # Checking against quasi_convexity with 5 random points
+            t = 5
+            cvx = true
+            test_idxs = Int64.(round.(rand(t) .* size(bbl.X, 1)))
+            diffs = [[Array(bbl.X[j, :]) - Array(bbl.X[i, :]) for i in test_idxs] for j in test_idxs]
+            for i=1:t, j=1:t
+                if i != j && !(bbl.Y[test_idxs[j]] >= bbl.Y[test_idxs[i]] - 
+                                sum(Array(bbl.gradients[test_idxs[i],:]) .* diffs[i][j]))
+                    cvx = false
+                    println(i, j)
+                    break
+                end
+            end
+            if cvx
+                set_param(bbl, :convex, true)
+            end
+        end
     end
     return
 end
 
-# """ 
-#     update_vexity(bbl::BlackBoxLearner)
 
-# Checks whether a function is perhaps locally or globally convex.
-# """
-# function update_vexity(bbl::BlackBoxLearner)
-#     classify_curvature(bbl)
+
+
+
 
 # function update_vexity(bbr::BlackBoxRegressor)
 #     idx = active_lower_tree(bbr)
