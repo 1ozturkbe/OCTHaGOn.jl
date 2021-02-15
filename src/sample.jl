@@ -184,7 +184,7 @@ function last_leaf_sample(bbc::BlackBoxClassifier, n_samples = get_param(bbc, :n
     return DataFrame(truncate_sigfigs(X), string.(bbc.vars))
 end
 
-function last_leaf_sample(bbr::BlackBoxRegressor, n_samples = get_param(bbc, :n_samples))
+function last_leaf_sample(bbr::BlackBoxRegressor, n_samples = get_param(bbr, :n_samples))
     length(bbr.active_trees) == 2 || throw(OCTException("Can only leaf sample BBRs with upper/lower " *
                                                         "classifiers."))
     upper_leaf, lower_leaf = sort(find_leaf_of_soln(bbr))

@@ -7,7 +7,6 @@ gms = [minlp(true), nlp1(true), nlp2(true), nlp3(true), gear(true), speed_reduce
 
 uniform_sample_and_eval!.(gms)
 
-learn_constraint!.(gms)
 
 # gm = minlp(true)
 
