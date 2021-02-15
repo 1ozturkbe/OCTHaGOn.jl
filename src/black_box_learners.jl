@@ -238,7 +238,8 @@ end
 Updates gradient information of selected points. 
 """
 function update_gradients(bbl::BlackBoxLearner, idxs::Array = collect(1:size(bbl.X,1)))
-    bbl.gradients[idxs, :] = evaluate_gradient(bbl, bbl.X[idxs, :])
+    empties = idxs[findall(idx -> any(ismissing.(values(bbl.gradients[idx,:]))), idxs)]
+    bbl.gradients[empties, :] = evaluate_gradient(bbl, bbl.X[empties, :])
     return
 end    
 
@@ -398,3 +399,79 @@ function active_lower_tree(bbr::BlackBoxRegressor)
         throw(OCTException("Regressor $(bbr.name) has no active trees."))
     end
 end
+
+""" 
+    update_local_convexity(bbl::BlackBoxLearner)
+
+Checks proportion of "neighbor convex" sample points of BBL. 
+"""
+function update_local_convexity(bbl::BlackBoxLearner)
+    classify_curvature(bbl)
+    set_param(bbl, :local_convexity, sum(bbl.curvatures .== 1) / size(bbl.X, 1))
+    return
+end
+
+""" 
+    update_vexity(bbl::BlackBoxLearner, threshold = 0.75)
+
+Checks whether a function is perhaps locally or globally convex.
+Threshold sets the border of being considered for convex regression. 
+"""
+function update_vexity(bbl::BlackBoxLearner, threshold = 0.75)
+    update_local_convexity(bbl)
+    if get_param(bbl, :local_convexity) >= threshold
+        if get_param(bbl, :local_convexity) == 1.0
+            # Checking against quasi_convexity with 5 random points
+            t = 5
+            cvx = true
+            test_idxs = Int64.(round.(rand(t) .* size(bbl.X, 1)))
+            diffs = [[Array(bbl.X[j, :]) - Array(bbl.X[i, :]) for i in test_idxs] for j in test_idxs]
+            for i=1:t, j=1:t
+                if i != j && !(bbl.Y[test_idxs[j]] >= bbl.Y[test_idxs[i]] - 
+                                sum(Array(bbl.gradients[test_idxs[i],:]) .* diffs[i][j]))
+                    cvx = false
+                    println(i, j)
+                    break
+                end
+            end
+            if cvx
+                set_param(bbl, :convex, true)
+            end
+        end
+    end
+    return
+end
+
+
+
+
+
+
+# function update_vexity(bbr::BlackBoxRegressor)
+#     idx = active_lower_tree(bbr)
+#     lnr = bbr.learners[idx]
+#     leaves = find_leaves(bbr.learners[end])
+
+
+#     bbr.vexity = Dict(key => nothing for (key, value) in bbr.ul_data if key <= 0)
+
+# if sum(bbr.curvatures .> 0 >= 0.5*size(bbr.X, 1)) # if some convex properties...
+#     if sum(bbr.curvatures .> 0.98 * size(bbr.X, 1))
+#         idxs = Int64.(round.(rand(10) .* size(bbr.X, 1)))
+#         thresh = (maximum(bbr.Y) - minimum(bbr.Y)) * 1e-10
+#         curvs = []
+#         diffs = [[Array(bbr.X[i, :]) - Array(bbr.X[j, :]) for j in idxs] for i in idxs]
+#         grads = bbr.gradients[idxs, :]
+#         under_offsets = [-dot(grads[i], diffs[i][j])]
+#             under_offsets = [-dot(center_grad, differ) for differ in diffs]
+#             actual_offsets = bbl.Y[knn_idxs[i]] .- bbl.Y[i]
+#             if all(actual_offsets - under_offsets .>= -thresh)
+#                 bbl.curvatures[i] = 1
+#             elseif all(actual_offsets - under_offsets .<= thresh)
+#                 bbl.curvatures[i] = -1
+#             else
+#                 bbl.curvatures[i] = 0
+#             end
+#         end
+# else
+# end

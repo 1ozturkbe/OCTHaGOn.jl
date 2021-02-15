@@ -38,33 +38,3 @@ convex_prop = [sum(bbc.curvatures .>= 0)/size(bbc.X, 1) for bbc in bbcs]
 learn_constraint!(bbr, regression_sparsity = 0, max_depth = 6)
 update_tree_constraints!(gm, bbr)
 optimize!(gm)
-
-
-# function update_vexity(bbr::BlackBoxRegressor)
-#     idx = active_lower_tree(bbr)
-#     lnr = bbr.learners[idx]
-#     leaves = find_leaves(bbr.learners[end])
-
-
-#     bbr.vexity = Dict(key => nothing for (key, value) in bbr.ul_data if key <= 0)
-
-# if sum(bbr.curvatures .> 0 >= 0.5*size(bbr.X, 1)) # if some convex properties...
-#     if sum(bbr.curvatures .> 0.98 * size(bbr.X, 1))
-#         idxs = Int64.(round.(rand(10) .* size(bbr.X, 1)))
-#         thresh = (maximum(bbr.Y) - minimum(bbr.Y)) * 1e-10
-#         curvs = []
-#         diffs = [[Array(bbr.X[i, :]) - Array(bbr.X[j, :]) for j in idxs] for i in idxs]
-#         grads = bbr.gradients[idxs, :]
-#         under_offsets = [-dot(grads[i], diffs[i][j])]
-#             under_offsets = [-dot(center_grad, differ) for differ in diffs]
-#             actual_offsets = bbl.Y[knn_idxs[i]] .- bbl.Y[i]
-#             if all(actual_offsets - under_offsets .>= -thresh)
-#                 bbl.curvatures[i] = 1
-#             elseif all(actual_offsets - under_offsets .<= thresh)
-#                 bbl.curvatures[i] = -1
-#             else
-#                 bbl.curvatures[i] = 0
-#             end
-#         end
-# else
-# end
