@@ -469,6 +469,8 @@ function test_gradients()
     update_gradients(bbl)
     hand_calcs = DataFrame(hcat([[6*x[1] + 2*x[2] + 1, 2*x[2] + 2*x[1] + 6] for x in eachrow(Matrix(bbl.X))]...)', string.(bbl.vars))
     @test all(all(Array(bbl.gradients[i,:]) .≈ Array(hand_calcs[i,:])) for i = 1:100)
+    check_local_convexity(bbl)
+    @test get_param(bbl, :locally_convex) == true
     
     # Testing adding gradient cuts
     constraints = []
