@@ -461,6 +461,7 @@ end
 
 function test_gradients()
     gm = test_gqp()
+    set_optimizer(gm, GUROBI_SILENT)
     bbl = gm.bbls[1]
     set_param(bbl, :n_samples, 100)
     uniform_sample_and_eval!(gm)
@@ -481,8 +482,38 @@ function test_gradients()
     end
     optimize!(gm)
     @test all(isapprox(Array(solution(gm))[i], [0.5, 1.0, 11.25][i], atol=0.15) for i=1:3)
-    [delete(gm.model, constraint) for constraint in constraints];
-    @test true
+    [delete(gm.model, constraint) for constraint in constraints[9:end]]; # Delete all but first 8 cuts
+    optimize!(gm)
+    @test gm.solution_history[1, "obj"] >= gm.solution_history[2, "obj"]    
+    bbr = bbl
+    tighttol = 1e-5
+    # cvx_cb = let bbr = bbr, gm = gm, tighttol = tighttol
+        function cvx_cb(cb_data)
+            status = JuMP.callback_node_status(cb_data, gm.model)
+            # if status == MOI.CALLBACK_NODE_STATUS_FRACTIONAL
+            #     return
+            # elseif status == MOI.CALLBACK_NODE_STATUS_INTEGER
+            # else
+            #     @assert status == MOI.CALLBACK_NODE_STATUS_UNKNOWN
+            # end
+            varvals = [JuMP.callback_value(cb_data, var) for var in bbr.vars]
+            # varvals = JuMP.getvalue.(bbr.vars)
+            dep_var = JuMP.callback_value(bbr.dependent_var)
+            # dep_var = JuMP.getvalue(bbr.dependent_var)
+            dat = DataFrame(string.(bbr.vars) .=> varvals)
+            val = bbr(dat)[1]
+            if dep_var <= 11. #val - tighttol
+                grad = Array(evaluate_gradient(bbr, dat))
+                con = @build_constraint(bbr.dependent_var >= bbr.Y[end]  + 
+                                         sum(grad .* (bbr.vars .- varvals)))
+                MOI.submit(gm.model, MOI.LazyConstraint(cb_data), con)
+            end
+            return
+        end
+    # end
+    MOI.set(gm.model, MOI.RawParameter("LazyConstraints"), 1)
+    MOI.set(gm.model, MOI.LazyConstraintCallback(), cvx_cb)
+    optimize!(gm)
 end
 
 test_expressions()

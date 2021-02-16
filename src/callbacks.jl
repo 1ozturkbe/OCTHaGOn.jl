@@ -1,5 +1,5 @@
 function add_convex_callback(gm::GlobalModel, bbc::BlackBoxClassifier, tighttol = get_param(gm, :tighttol))
-    cvx_cb = let bbc = bbc, gm = gm
+    cvx_cb = let bbc = bbc, gm = gm, tighttol = tighttol
         function cvx_callback(cb_data)
             varvals = [JuMP.callback_value(cb_data, var) for var in bbc.vars]
             eval!(bbc, DataFrame(varvals, string.(bbc.vars)))
@@ -7,15 +7,15 @@ function add_convex_callback(gm::GlobalModel, bbc::BlackBoxClassifier, tighttol 
                 update_gradients(bbc, [size(bbr.X,1)])
                 con = @build_constraint(0 >= bbc.Y[end]  - 
                                          sum(Array(bbc.gradients[end,:]) .* (bbc.vars .- varvals)))
-                MOI.submit(gm.model, MOI.LazyConstraint(cb_data), con)
+                MOI.submit(gm.model, MOI.UserCut(cb_data), con)
             end
         end
     end
-    MOI.set(gm.model, MOI.LazyConstraintCallback(), cvx_cb)
+    MOI.set(gm.model, MOI.UserCutCallback(), cvx_cb)
 end
 
 function add_convex_callback(gm::GlobalModel, bbr::BlackBoxRegressor, tighttol = get_param(gm, :tighttol))
-    cvx_cb = let bbr = bbr, gm = gm
+    cvx_cb = let bbr = bbr, gm = gm, tighttol = tighttol
         function cvx_callback(cb_data)
             varvals = [JuMP.callback_value(cb_data, var) for var in bbr.vars]
             dep_var = JuMP.callback_value(bbr.dependent_var)
@@ -24,9 +24,10 @@ function add_convex_callback(gm::GlobalModel, bbr::BlackBoxRegressor, tighttol =
                 update_gradients(bbr, [size(bbr.X,1)])
                 con = @build_constraint(bbr.dependent_var >= bbr.Y[end]  - 
                                          sum(Array(bbr.gradients[end,:]) .* (bbr.vars .- varvals)))
-                MOI.submit(gm.model, MOI.LazyConstraint(cb_data), con)
+                MOI.submit(gm.model, MOI.UserCut(cb_data), con)
             end
         end
     end
-    MOI.set(gm.model, MOI.LazyConstraintCallback(), cvx_cb)
+    MOI.set(gm.model, MOI.UserCutCallback(), cvx_cb)
 end
+

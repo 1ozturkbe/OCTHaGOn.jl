@@ -9,7 +9,7 @@ using DataFrames
 using JuMP
 using BARON
 using CPLEX
-# using Gurobi
+using Gurobi
 # using Ipopt
 using JLD
 using MathOptInterface
@@ -22,7 +22,7 @@ global OCT = OptimalConstraintTree
 global MOI = MathOptInterface
 global BARON_SILENT = with_optimizer(BARON.Optimizer, OutputFlag = 0)
 global CPLEX_SILENT = OCT.CPLEX_SILENT
-# global GUROBI_SILENT = with_optimizer(Gurobi.Optimizer, OutputFlag = 0, Gurobi.Env())
+global GUROBI_SILENT = with_optimizer(Gurobi.Optimizer, OutputFlag = 0, Gurobi.Env())
 Random.seed!(1);
 MOI.Silent() = true;
 
