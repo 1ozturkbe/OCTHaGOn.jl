@@ -156,7 +156,7 @@ function add_infeasibility_cuts!(gm::GlobalModel, M = 1e5)
                 @constraint(gm.model, sum(Array(cut_grad) .* (bbc.vars .- Array(rel_vals)')) + Y + 
                                       M*(1 - bbc.leaf_variables[sol_leaves[i]]) >= 0)) 
         # Convex Regressors
-        elseif gm.bbls[i] isa BlackBoxRegressor && gm.feas_history[end][i] <= get_param(gm, :tighttol) && get_param(gm.bbls[i], :convex) 
+        elseif gm.bbls[i] isa BlackBoxRegressor && gm.feas_history[end][i] <= get_param(gm, :tighttol) && bbr.convex 
             bbr = gm.bbls[i]
             rel_vals = var_vals[:, string.(bbr.vars)]
             eval!(bbr, rel_vals)

@@ -41,7 +41,7 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
     leaf_variables = Dict{Int64, JuMP.VariableRef}()
     if size(bbr.X, 1) == 0 && !get_param(bbr, :reloaded)
         throw(OCTException("Constraint " * string(bbr.name) * " has not been sampled yet, and is thus untrained."))
-    elseif get_param(bbr, :convex)
+    elseif bbr.convex
         mi_constraints = Dict(1 => [])
         for i = Int64.(floor.(size(bbr.X,1) .* rand(10)))
             push!(mi_constraints[1], @constraint(gm.model, bbr.dependent_var >= sum(Array(bbr.gradients[i,:]) .* (bbr.vars .- Array(bbr.X[i, :]))) + bbr.Y[i]))
