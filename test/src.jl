@@ -459,7 +459,7 @@ function test_basic_gm()
     @test true
 end
 
-function test_gradients()
+function test_convex_objective()
     gm = test_gqp()
     set_optimizer(gm, GUROBI_SILENT)
     bbl = gm.bbls[1]
@@ -470,9 +470,8 @@ function test_gradients()
     update_gradients(bbl)
     hand_calcs = DataFrame(hcat([[6*x[1] + 2*x[2] + 1, 2*x[2] + 2*x[1] + 6] for x in eachrow(Matrix(bbl.X))]...)', string.(bbl.vars))
     @test all(all(Array(bbl.gradients[i,:]) .≈ Array(hand_calcs[i,:])) for i = 1:100)
-    update_local_convexity(bbl)
-    @test get_param(bbl, :local_convexity) == 1.0
     update_vexity(bbl)
+    @test get_param(bbl, :local_convexity) == 1.0
     @test get_param(bbl, :convex) == true
     
     # Testing adding gradient cuts
@@ -487,32 +486,7 @@ function test_gradients()
     @test gm.solution_history[1, "obj"] >= gm.solution_history[2, "obj"]    
     bbr = bbl
     tighttol = 1e-5
-    # cvx_cb = let bbr = bbr, gm = gm, tighttol = tighttol
-        function cvx_cb(cb_data)
-            status = JuMP.callback_node_status(cb_data, gm.model)
-            # if status == MOI.CALLBACK_NODE_STATUS_FRACTIONAL
-            #     return
-            # elseif status == MOI.CALLBACK_NODE_STATUS_INTEGER
-            # else
-            #     @assert status == MOI.CALLBACK_NODE_STATUS_UNKNOWN
-            # end
-            varvals = [JuMP.callback_value(cb_data, var) for var in bbr.vars]
-            # varvals = JuMP.getvalue.(bbr.vars)
-            dep_var = JuMP.callback_value(bbr.dependent_var)
-            # dep_var = JuMP.getvalue(bbr.dependent_var)
-            dat = DataFrame(string.(bbr.vars) .=> varvals)
-            val = bbr(dat)[1]
-            if dep_var <= 11. #val - tighttol
-                grad = Array(evaluate_gradient(bbr, dat))
-                con = @build_constraint(bbr.dependent_var >= bbr.Y[end]  + 
-                                         sum(grad .* (bbr.vars .- varvals)))
-                MOI.submit(gm.model, MOI.LazyConstraint(cb_data), con)
-            end
-            return
-        end
-    # end
-    MOI.set(gm.model, MOI.RawParameter("LazyConstraints"), 1)
-    MOI.set(gm.model, MOI.LazyConstraintCallback(), cvx_cb)
+
     optimize!(gm)
 end
 
