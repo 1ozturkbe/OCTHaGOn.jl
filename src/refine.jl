@@ -140,7 +140,7 @@ end
 
 Adds cuts reducing infeasibility of BBC inequalities. 
 """
-function add_infeasibility_cuts!(gm::GlobalModel)
+function add_infeasibility_cuts!(gm::GlobalModel, M = 1e5)
     sol_leaves = find_leaf_of_soln.(gm.bbls)
     var_vals = solution(gm)
     for i=1:length(gm.bbls)
@@ -152,7 +152,8 @@ function add_infeasibility_cuts!(gm::GlobalModel)
             update_gradients(bbl, [size(bbl.X, 1)])
             cut_grad = bbl.gradients[end, :]
             push!(bbl.mi_constraints[sol_leaves[i]], 
-                @constraint(gm.model, sum(Array(cut_grad) .* (bbl.vars .- Array(rel_vals))) + Y >= 0)) 
+                @constraint(gm.model, sum(Array(cut_grad) .* (bbl.vars .- Array(rel_vals))) + Y + 
+                                      M*(1 - bbl.leaf_variables[sol_leaves[i]]) >= 0)) 
         end
         # TODO: add infeasibility cuts for equalities as well. 
     end
