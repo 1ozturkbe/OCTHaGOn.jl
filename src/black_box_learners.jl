@@ -405,41 +405,41 @@ function active_lower_tree(bbr::BlackBoxRegressor)
 end
 
 """ 
-    update_local_convexity(bbl::BlackBoxLearner)
+    update_local_convexity(bbr::BlackBoxRegressor)
 
-Checks proportion of "neighbor convex" sample points of BBL. 
+Checks proportion of "neighbor convex" sample points of BBR. 
 """
-function update_local_convexity(bbl::BlackBoxLearner)
-    classify_curvature(bbl)
-    bbl.local_convexity = sum(bbl.curvatures .== 1) / size(bbl.X, 1))
+function update_local_convexity(bbr::BlackBoxRegressor)
+    classify_curvature(bbr)
+    bbr.local_convexity = sum(bbr.curvatures .== 1) / size(bbr.X, 1)
     return
 end
 
 """ 
-    update_vexity(bbl::BlackBoxRegressor, threshold = 0.75)
+    update_vexity(bbr::BlackBoxRegressor, threshold = 0.75)
 
 Checks whether a function is perhaps locally or globally convex.
 Threshold sets the border of being considered for convex regression. 
 """
 function update_vexity(bbr::BlackBoxRegressor, threshold = 0.75)
-    update_local_convexity(bbl)
-    if bbl.local_convexity >= threshold
-        if bbl.local_convexity == 1.0
+    update_local_convexity(bbr)
+    if bbr.local_convexity >= threshold
+        if bbr.local_convexity == 1.0
             # Checking against quasi_convexity with 5 random points
             t = 5
             cvx = true
-            test_idxs = Int64.(round.(rand(t) .* size(bbl.X, 1)))
-            diffs = [[Array(bbl.X[j, :]) - Array(bbl.X[i, :]) for i in test_idxs] for j in test_idxs]
+            test_idxs = Int64.(round.(rand(t) .* size(bbr.X, 1)))
+            diffs = [[Array(bbr.X[j, :]) - Array(bbr.X[i, :]) for i in test_idxs] for j in test_idxs]
             for i=1:t, j=1:t
-                if i != j && !(bbl.Y[test_idxs[j]] >= bbl.Y[test_idxs[i]] - 
-                                sum(Array(bbl.gradients[test_idxs[i],:]) .* diffs[i][j]))
+                if i != j && !(bbr.Y[test_idxs[j]] >= bbr.Y[test_idxs[i]] - 
+                                sum(Array(bbr.gradients[test_idxs[i],:]) .* diffs[i][j]))
                     cvx = false
                     println(i, j)
                     break
                 end
             end
             if cvx
-                bbl.convex = true
+                bbr.convex = true
             end
         end
     end
