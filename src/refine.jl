@@ -144,17 +144,29 @@ function add_infeasibility_cuts!(gm::GlobalModel, M = 1e5)
     sol_leaves = find_leaf_of_soln.(gm.bbls)
     var_vals = solution(gm)
     for i=1:length(gm.bbls)
+        # Inequality Classifiers
         if gm.bbls[i] isa BlackBoxClassifier && gm.feas_history[end][i] != 0 && !gm.bbls[i].equality
-            bbl = gm.bbls[i]
-            rel_vals = var_vals[:, string.(bbl.vars)]
-            eval!(bbl, rel_vals)
-            Y = bbl.Y[end]
-            update_gradients(bbl, [size(bbl.X, 1)])
-            cut_grad = bbl.gradients[end, :]
-            push!(bbl.mi_constraints[sol_leaves[i]], 
-                @constraint(gm.model, sum(Array(cut_grad) .* (bbl.vars .- Array(rel_vals))) + Y + 
-                                      M*(1 - bbl.leaf_variables[sol_leaves[i]]) >= 0)) 
+            bbc = gm.bbls[i]
+            rel_vals = var_vals[:, string.(bbc.vars)]
+            eval!(bbc, rel_vals)
+            Y = bbc.Y[end]
+            update_gradients(bbc, [size(bbc.X, 1)])
+            cut_grad = bbc.gradients[end, :]
+            push!(bbc.mi_constraints[sol_leaves[i]], 
+                @constraint(gm.model, sum(Array(cut_grad) .* (bbc.vars .- Array(rel_vals)')) + Y + 
+                                      M*(1 - bbc.leaf_variables[sol_leaves[i]]) >= 0)) 
+        # Convex Regressors
+        elseif gm.bbls[i] isa BlackBoxRegressor && gm.feas_history[end][i] <= get_param(gm, :tighttol) && get_param(gm.bbls[i], :convex) 
+            bbr = gm.bbls[i]
+            rel_vals = var_vals[:, string.(bbr.vars)]
+            eval!(bbr, rel_vals)
+            Y = bbr.Y[end]
+            update_gradients(bbr, [size(bbr.X, 1)])
+            cut_grad = bbr.gradients[end, :]
+            push!(bbr.mi_constraints[1], 
+                @constraint(gm.model, bbr.dependent_var >= sum(Array(cut_grad) .* (bbr.vars .- Array(rel_vals)')) + Y )) 
         end
+        # TODO: add infeasibility cuts for Regressors that are locally convex. 
         # TODO: add infeasibility cuts for equalities as well. 
     end
 end

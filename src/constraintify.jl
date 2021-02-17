@@ -47,6 +47,7 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
             push!(mi_constraints[1], @constraint(gm.model, bbr.dependent_var >= sum(Array(bbr.gradients[i,:]) .* (bbr.vars .- Array(bbr.X[i, :]))) + bbr.Y[i]))
         end
         merge!(bbr.mi_constraints, mi_constraints)
+        return
     elseif isempty(bbr.learners)
         throw(OCTException("Constraint " * string(bbr.name) * " must be learned before tree constraints
                             can be generated."))

@@ -461,7 +461,6 @@ end
 
 function test_convex_objective()
     gm = test_gqp()
-    set_optimizer(gm, GUROBI_SILENT)
     bbl = gm.bbls[1]
     set_param(bbl, :n_samples, 100)
     uniform_sample_and_eval!(gm)
@@ -473,21 +472,22 @@ function test_convex_objective()
     update_vexity(bbl)
     @test get_param(bbl, :local_convexity) == 1.0
     @test get_param(bbl, :convex) == true
+
+    # "Learning" convex functions should not result in trees.
+    learn_constraint!(bbl)
+    @test isempty(bbl.learners)
+    add_tree_constraints!(gm, bbl)
+    @test length(bbl.mi_constraints[1]) >= 1
+    @test isempty(bbl.leaf_variables)
     
     # Testing adding gradient cuts
-    constraints = []
-    for i=1:size(bbl.X, 1)
-        push!(constraints, @constraint(gm.model, bbl.dependent_var >= sum(Array(bbl.gradients[i,:]) .* (bbl.vars .- Array(bbl.X[i, :]))) + bbl.Y[i]))
+    optimize!(gm)
+    @test find_leaf_of_soln.(gm.bbls) == [1]
+    for i=1:4
+        add_infeasibility_cuts!(gm)
+        optimize!(gm)
     end
-    optimize!(gm)
-    @test all(isapprox(Array(solution(gm))[i], [0.5, 1.0, 11.25][i], atol=0.15) for i=1:3)
-    [delete(gm.model, constraint) for constraint in constraints[9:end]]; # Delete all but first 8 cuts
-    optimize!(gm)
-    @test gm.solution_history[1, "obj"] >= gm.solution_history[2, "obj"]    
-    bbr = bbl
-    tighttol = 1e-5
-
-    optimize!(gm)
+    @test all([gm.solution_history[i, "obj"] < gm.solution_history[i+1, "obj"] for i=1:4]) 
 end
 
 test_expressions()
@@ -512,4 +512,4 @@ test_bbr()
 
 test_basic_gm()
 
-test_gradients()
+test_convex_objective()
