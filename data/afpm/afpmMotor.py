@@ -740,7 +740,7 @@ def simulate_dcts(dcts, filename=None, tol=1e-5):
 if __name__ == '__main__':
     dct = baseline()
     dct['mode'] = 0
-    res, opt = simulate_motor(dct, tol=1e-3) # Experiments show 1e-3 is sufficient
+    res, opt = simulate_motor(dct, tol=1e-3, skipfailure = True) # Experiments show 1e-3 is sufficient
 
     n_sims = 15000
     dcts, infeas_dcts = generate_dcts(n_sims, dct, input_ranges_coreless())
@@ -791,16 +791,16 @@ if __name__ == '__main__':
 
     # # Simulating optimized motors
     # # opt_inp = pd.read_csv("afpm_opt.csv")
-    bs = baseline()
+    # bs = baseline()
     # out = [12.5, 7.5, 0.5, 18, 12, 15, [1.02, 1.93]] # Cody's optimum
     # out = [12.54, 7.46, 0.5, 18, 12, 15, [1.01, 1.93]] # Cody's optimum
-    out = [10.33, 5.625, 0.75, 18, 15, 17, [1.05, 1.45]]   # Mass minimizing
+    # out = [10.33, 5.625, 0.75, 18, 15, 17, [1.05, 1.45]]   # Mass minimizing
     # out = [11.98, 5.625, 0.75, 18, 9, 17, [1.27, 2.41]]   # Efficiency maximizing
-    keys = ["D_out", "D_in", "D_sh", "N_coils", "TPC", "p", "wire_dimension"]
-    for i in range(len(keys)):
-        if keys[i] in ["N_coils", "TPC", "p"]:
-            bs[keys[i]] = out[i]
-        else:
-            bs[keys[i]] = bs[keys[i]].units * out[i]
+    # keys = ["D_out", "D_in", "D_sh", "N_coils", "TPC", "p", "wire_dimension"]
+    # for i in range(len(keys)):
+    #     if keys[i] in ["N_coils", "TPC", "p"]:
+    #         bs[keys[i]] = out[i]
+    #     else:
+    #         bs[keys[i]] = bs[keys[i]].units * out[i]
 
-    res, opt = simulate_motor(bs, tol=1e-3)
+    # res, opt = simulate_motor(bs, tol=1e-3)

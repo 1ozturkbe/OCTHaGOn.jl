@@ -45,7 +45,7 @@ Optional arguments:
     active_trees::Dict{Int64, Union{Nothing, Pair}} = Dict() # Currently active tree indices
     mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}() # and their corresponding MI constraints,
     leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their leaves and leaf variables
-    vexity::Dict = Dict{Int64, Real}()     # Convexity of leaves
+    vexity::Dict = Dict{Int64, Real}()                 # Convexity of leaves
     knn_tree::Union{KDTree, Nothing} = nothing         # KNN tree
     params::Dict = bbr_defaults(length(vars))          # Relevant settings
 end
@@ -323,7 +323,9 @@ end
 
 function find_leaf_of_soln(bbr::BlackBoxRegressor)
     leaf_in = 0
-    if length(bbr.active_trees) == 1
+    if get_param(bbr, :convex)
+        return 1
+    elseif length(bbr.active_trees) == 1
         for (leaf, var) in bbr.leaf_variables
             if isapprox(getvalue(var), 1; atol=1e-5)
                 leaf_in = leaf
@@ -441,37 +443,3 @@ function update_vexity(bbl::BlackBoxLearner, threshold = 0.75)
     end
     return
 end
-
-
-
-
-
-
-# function update_vexity(bbr::BlackBoxRegressor)
-#     idx = active_lower_tree(bbr)
-#     lnr = bbr.learners[idx]
-#     leaves = find_leaves(bbr.learners[end])
-
-
-#     bbr.vexity = Dict(key => nothing for (key, value) in bbr.ul_data if key <= 0)
-
-# if sum(bbr.curvatures .> 0 >= 0.5*size(bbr.X, 1)) # if some convex properties...
-#     if sum(bbr.curvatures .> 0.98 * size(bbr.X, 1))
-#         idxs = Int64.(round.(rand(10) .* size(bbr.X, 1)))
-#         thresh = (maximum(bbr.Y) - minimum(bbr.Y)) * 1e-10
-#         curvs = []
-#         diffs = [[Array(bbr.X[i, :]) - Array(bbr.X[j, :]) for j in idxs] for i in idxs]
-#         grads = bbr.gradients[idxs, :]
-#         under_offsets = [-dot(grads[i], diffs[i][j])]
-#             under_offsets = [-dot(center_grad, differ) for differ in diffs]
-#             actual_offsets = bbl.Y[knn_idxs[i]] .- bbl.Y[i]
-#             if all(actual_offsets - under_offsets .>= -thresh)
-#                 bbl.curvatures[i] = 1
-#             elseif all(actual_offsets - under_offsets .<= thresh)
-#                 bbl.curvatures[i] = -1
-#             else
-#                 bbl.curvatures[i] = 0
-#             end
-#         end
-# else
-# end

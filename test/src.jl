@@ -459,7 +459,7 @@ function test_basic_gm()
     @test true
 end
 
-function test_gradients()
+function test_convex_objective()
     gm = test_gqp()
     bbl = gm.bbls[1]
     set_param(bbl, :n_samples, 100)
@@ -469,20 +469,25 @@ function test_gradients()
     update_gradients(bbl)
     hand_calcs = DataFrame(hcat([[6*x[1] + 2*x[2] + 1, 2*x[2] + 2*x[1] + 6] for x in eachrow(Matrix(bbl.X))]...)', string.(bbl.vars))
     @test all(all(Array(bbl.gradients[i,:]) .≈ Array(hand_calcs[i,:])) for i = 1:100)
-    update_local_convexity(bbl)
-    @test get_param(bbl, :local_convexity) == 1.0
     update_vexity(bbl)
+    @test get_param(bbl, :local_convexity) == 1.0
     @test get_param(bbl, :convex) == true
+
+    # "Learning" convex functions should not result in trees.
+    learn_constraint!(bbl)
+    @test isempty(bbl.learners)
+    add_tree_constraints!(gm, bbl)
+    @test length(bbl.mi_constraints[1]) >= 1
+    @test isempty(bbl.leaf_variables)
     
     # Testing adding gradient cuts
-    constraints = []
-    for i=1:size(bbl.X, 1)
-        push!(constraints, @constraint(gm.model, bbl.dependent_var >= sum(Array(bbl.gradients[i,:]) .* (bbl.vars .- Array(bbl.X[i, :]))) + bbl.Y[i]))
-    end
     optimize!(gm)
-    @test all(isapprox(Array(solution(gm))[i], [0.5, 1.0, 11.25][i], atol=0.15) for i=1:3)
-    [delete(gm.model, constraint) for constraint in constraints];
-    @test true
+    @test find_leaf_of_soln.(gm.bbls) == [1]
+    for i=1:4
+        add_infeasibility_cuts!(gm)
+        optimize!(gm)
+    end
+    @test all([gm.solution_history[i, "obj"] < gm.solution_history[i+1, "obj"] for i=1:4]) 
 end
 
 test_expressions()
@@ -507,4 +512,4 @@ test_bbr()
 
 test_basic_gm()
 
-test_gradients()
+test_convex_objective()
