@@ -323,7 +323,9 @@ end
 
 function find_leaf_of_soln(bbr::BlackBoxRegressor)
     leaf_in = 0
-    if length(bbr.active_trees) == 1
+    if get_param(bbr, :convex)
+        return 1
+    elseif length(bbr.active_trees) == 1
         for (leaf, var) in bbr.leaf_variables
             if isapprox(getvalue(var), 1; atol=1e-5)
                 leaf_in = leaf
