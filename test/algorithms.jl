@@ -39,8 +39,8 @@ function test_classify_gradients()
     classify_curvature(bbr)
     @test all(bbr.curvatures .> 0)
     update_vexity(bbr)
-    @test get_param(bbr, :convex) == true
-    @test get_param(bbr, :local_convexity) == 1.
+    @test bbr.convex == true
+    @test bbr.local_convexity == 1.
 end
 
 function test_infeasibility_cuts()

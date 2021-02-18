@@ -378,7 +378,6 @@ function test_bbr()
         @test size(df, 1) == get_param(bbc, :n_samples)
     end
     update_tree_constraints!(gm, bbr, 2)
-    @test_throws OCTException last_leaf_sample(bbr)
     @test_throws OptimizeNotCalled last_leaf_sample(bbcs[1])
 
     @test all(Array(gm.solution_history[:,"obj"]) .≈ gm.solution_history[1, "obj"])
@@ -470,8 +469,8 @@ function test_convex_objective()
     hand_calcs = DataFrame(hcat([[6*x[1] + 2*x[2] + 1, 2*x[2] + 2*x[1] + 6] for x in eachrow(Matrix(bbl.X))]...)', string.(bbl.vars))
     @test all(all(Array(bbl.gradients[i,:]) .≈ Array(hand_calcs[i,:])) for i = 1:100)
     update_vexity(bbl)
-    @test get_param(bbl, :local_convexity) == 1.0
-    @test get_param(bbl, :convex) == true
+    @test bbl.local_convexity == 1.0
+    @test bbl.convex == true
 
     # "Learning" convex functions should not result in trees.
     learn_constraint!(bbl)

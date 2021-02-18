@@ -45,7 +45,9 @@ Optional arguments:
     active_trees::Dict{Int64, Union{Nothing, Pair}} = Dict() # Currently active tree indices
     mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}() # and their corresponding MI constraints,
     leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their leaves and leaf variables
-    vexity::Dict = Dict{Int64, Real}()                 # Convexity of leaves
+    convex::Bool = false
+    local_convexity::Float64 = 0.
+    vexity::Dict = Dict{Int64, Float64}()              # Convexity of leaves
     knn_tree::Union{KDTree, Nothing} = nothing         # KNN tree
     params::Dict = bbr_defaults(length(vars))          # Relevant settings
 end
@@ -323,7 +325,7 @@ end
 
 function find_leaf_of_soln(bbr::BlackBoxRegressor)
     leaf_in = 0
-    if get_param(bbr, :convex)
+    if bbr.convex
         return 1
     elseif length(bbr.active_trees) == 1
         for (leaf, var) in bbr.leaf_variables
@@ -403,41 +405,41 @@ function active_lower_tree(bbr::BlackBoxRegressor)
 end
 
 """ 
-    update_local_convexity(bbl::BlackBoxLearner)
+    update_local_convexity(bbr::BlackBoxRegressor)
 
-Checks proportion of "neighbor convex" sample points of BBL. 
+Checks proportion of "neighbor convex" sample points of BBR. 
 """
-function update_local_convexity(bbl::BlackBoxLearner)
-    classify_curvature(bbl)
-    set_param(bbl, :local_convexity, sum(bbl.curvatures .== 1) / size(bbl.X, 1))
+function update_local_convexity(bbr::BlackBoxRegressor)
+    classify_curvature(bbr)
+    bbr.local_convexity = sum(bbr.curvatures .== 1) / size(bbr.X, 1)
     return
 end
 
 """ 
-    update_vexity(bbl::BlackBoxLearner, threshold = 0.75)
+    update_vexity(bbr::BlackBoxRegressor, threshold = 0.75)
 
 Checks whether a function is perhaps locally or globally convex.
 Threshold sets the border of being considered for convex regression. 
 """
-function update_vexity(bbl::BlackBoxLearner, threshold = 0.75)
-    update_local_convexity(bbl)
-    if get_param(bbl, :local_convexity) >= threshold
-        if get_param(bbl, :local_convexity) == 1.0
+function update_vexity(bbr::BlackBoxRegressor, threshold = 0.75)
+    update_local_convexity(bbr)
+    if bbr.local_convexity >= threshold
+        if bbr.local_convexity == 1.0
             # Checking against quasi_convexity with 5 random points
             t = 5
             cvx = true
-            test_idxs = Int64.(round.(rand(t) .* size(bbl.X, 1)))
-            diffs = [[Array(bbl.X[j, :]) - Array(bbl.X[i, :]) for i in test_idxs] for j in test_idxs]
+            test_idxs = Int64.(round.(rand(t) .* size(bbr.X, 1)))
+            diffs = [[Array(bbr.X[j, :]) - Array(bbr.X[i, :]) for i in test_idxs] for j in test_idxs]
             for i=1:t, j=1:t
-                if i != j && !(bbl.Y[test_idxs[j]] >= bbl.Y[test_idxs[i]] - 
-                                sum(Array(bbl.gradients[test_idxs[i],:]) .* diffs[i][j]))
+                if i != j && !(bbr.Y[test_idxs[j]] >= bbr.Y[test_idxs[i]] - 
+                                sum(Array(bbr.gradients[test_idxs[i],:]) .* diffs[i][j]))
                     cvx = false
                     println(i, j)
                     break
                 end
             end
             if cvx
-                set_param(bbl, :convex, true)
+                bbr.convex = true
             end
         end
     end

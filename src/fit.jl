@@ -185,15 +185,17 @@ function learn_constraint!(bbr::BlackBoxRegressor; kwargs...)
             push!(bbr.learner_kwargs, Dict(kwargs))
             push!(bbr.thresholds, kwargs[:threshold])
             push!(bbr.ul_data, boundify(nl, bbr.X, bbr.Y, "lower"))
+        else
+            throw(OCTException("Thresholding of BBR $(bbr.name) must specify lower or upper bounding."))
         end        
         return 
     end
-    if get_param(bbr, :convex)
+    if bbr.convex
         return # If convex, don't train a tree!
     end
     lnr = base_regressor()
     IAI.set_params!(lnr; minbucket = length(bbr.vars) + 1, regressor_kwargs(; kwargs...)...)
-    if get_param(bbr, :local_convexity) >= 0.75  # Take advantage of local convexity
+    if bbr.local_convexity >= 0.75  # Take advantage of local convexity
         lnr = learn_from_data!(bbr.X, bbr.curvatures .> 0, lnr; fit_regressor_kwargs(; kwargs...)...)             
     else
         lnr = learn_from_data!(bbr.X, bbr.Y, lnr; fit_regressor_kwargs(; kwargs...)...)   
@@ -202,7 +204,7 @@ function learn_constraint!(bbr::BlackBoxRegressor; kwargs...)
     push!(bbr.learner_kwargs, Dict(kwargs))
     push!(bbr.thresholds, nothing)  
     if (haskey(kwargs, :regression_sparsity) && kwargs[:regression_sparsity] != :all) || 
-            (get_param(bbr, :local_convexity) >= 0.75)
+            (bbr.local_convexity >= 0.75)
         push!(bbr.ul_data, boundify(lnr, bbr.X, bbr.Y))
     else
         push!(bbr.ul_data, Dict())
