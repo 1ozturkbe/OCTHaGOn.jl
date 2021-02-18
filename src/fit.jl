@@ -185,6 +185,8 @@ function learn_constraint!(bbr::BlackBoxRegressor; kwargs...)
             push!(bbr.learner_kwargs, Dict(kwargs))
             push!(bbr.thresholds, kwargs[:threshold])
             push!(bbr.ul_data, boundify(nl, bbr.X, bbr.Y, "lower"))
+        else
+            throw(OCTException("Thresholding of BBR $(bbr.name) must specify lower or upper bounding."))
         end        
         return 
     end
