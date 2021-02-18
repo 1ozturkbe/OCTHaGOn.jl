@@ -378,7 +378,6 @@ function test_bbr()
         @test size(df, 1) == get_param(bbc, :n_samples)
     end
     update_tree_constraints!(gm, bbr, 2)
-    @test_throws OCTException last_leaf_sample(bbr)
     @test_throws OptimizeNotCalled last_leaf_sample(bbcs[1])
 
     @test all(Array(gm.solution_history[:,"obj"]) .≈ gm.solution_history[1, "obj"])
