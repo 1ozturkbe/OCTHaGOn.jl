@@ -185,28 +185,39 @@ function last_leaf_sample(bbc::BlackBoxClassifier, n_samples = get_param(bbc, :n
 end
 
 function last_leaf_sample(bbr::BlackBoxRegressor, n_samples = get_param(bbr, :n_samples))
-    length(bbr.active_trees) == 2 || throw(OCTException("Can only leaf sample BBRs with upper/lower " *
-                                                        "classifiers."))
-    upper_leaf, lower_leaf = sort(find_leaf_of_soln(bbr))
-    upper_leafneighbor = [];
-    lower_leafneighbor = [];
-    for (tree_idx, threshold) in bbr.active_trees
-        if threshold.first == "upper"
-            append!(upper_leafneighbor, IAI.apply(bbr.learners[tree_idx], bbr.X) .== -upper_leaf)
-        elseif threshold.first == "lower"
-            append!(lower_leafneighbor, IAI.apply(bbr.learners[tree_idx], bbr.X) .== lower_leaf)
+    if length(bbr.active_trees) == 2
+        upper_leaf, lower_leaf = sort(find_leaf_of_soln(bbr))
+        upper_leafneighbor = [];
+        lower_leafneighbor = [];
+        for (tree_idx, threshold) in bbr.active_trees
+            if threshold.first == "upper"
+                append!(upper_leafneighbor, IAI.apply(bbr.learners[tree_idx], bbr.X) .== -upper_leaf)
+            elseif threshold.first == "lower"
+                append!(lower_leafneighbor, IAI.apply(bbr.learners[tree_idx], bbr.X) .== lower_leaf)
+            end
         end
+        idxs =  findall(x -> x .>= 0.5, upper_leafneighbor .* lower_leafneighbor)
+        if length(idxs) == 0
+            @warn("No points in $(bbr.name) in the intersection of trees. Widening sampling. ")
+            idxs =  findall(x -> x .>= 0.5, upper_leafneighbor + lower_leafneighbor)
+        end
+        lbs = [minimum(col) for col in eachcol(bbr.X[idxs, :])]
+        ubs = [maximum(col) for col in eachcol(bbr.X[idxs, :])]
+        plan, _ = LHCoptim(n_samples, length(bbr.vars), 3);
+        X = scaleLHC(plan, [(lbs[i], ubs[i]) for i=1:length(lbs)]);
+        return DataFrame(truncate_sigfigs(X), string.(bbr.vars))
+    elseif length(bbr.active_trees) == 1
+        leaf = find_leaf_of_soln(bbr)
+        tree = bbr.learners[collect(keys(bbr.active_trees))[1]]
+        idxs = findall(x -> x .== leaf, IAI.apply(tree, bbr.X))
+        lbs = [minimum(col) for col in eachcol(bbr.X[idxs, :])]
+        ubs = [maximum(col) for col in eachcol(bbr.X[idxs, :])]
+        plan, _ = LHCoptim(n_samples, length(bbr.vars), 3);
+        X = scaleLHC(plan, [(lbs[i], ubs[i]) for i=1:length(lbs)]);
+        return DataFrame(truncate_sigfigs(X), string.(bbr.vars))
+    else 
+        throw(OCTException("No active trees found in BBR $(bbr.name) while attempting to leaf-sample."))
     end
-    idxs =  findall(x -> x .>= 0.5, upper_leafneighbor .* lower_leafneighbor)
-    if length(idxs) == 0
-        @warn("No points in $(bbr.name) in the intersection of trees. Widening sampling. ")
-        idxs =  findall(x -> x .>= 0.5, upper_leafneighbor + lower_leafneighbor)
-    end
-    lbs = [minimum(col) for col in eachcol(bbr.X[idxs, :])]
-    ubs = [maximum(col) for col in eachcol(bbr.X[idxs, :])]
-    plan, _ = LHCoptim(n_samples, length(bbr.vars), 3);
-    X = scaleLHC(plan, [(lbs[i], ubs[i]) for i=1:length(lbs)]);
-    return DataFrame(truncate_sigfigs(X), string.(bbr.vars))
 end
 
 """
