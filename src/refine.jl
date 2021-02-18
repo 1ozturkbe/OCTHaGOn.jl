@@ -75,8 +75,13 @@ function u_regress(X::DataFrame, Y::Array; solver = CPLEX_SILENT)
     @variable(m, α0)
     @constraint(m, [i=1:length(Y)], sum(Array{Float64}(X[i, :]).* α) + α0 >= Y[i])
     @objective(m, Min, sum(((Matrix(X) * α .+ α0 - Y).^2)))
-    optimize!(m)
-    return getvalue(α0), getvalue.(α)
+    try
+        optimize!(m)
+        return getvalue(α0), getvalue.(α)
+    catch
+        @warn("Infeasible u_regress, returning constant bounds.")
+        return maximum(Y), zeros(size(X,2))
+    end
 end
 
 """ 
@@ -94,8 +99,13 @@ function l_regress(X::DataFrame, Y::Array; solver = CPLEX_SILENT)
     @variable(m, β0)
     @constraint(m, [i=1:length(Y)], sum(Array{Float64}(X[i, :]).* β) + β0 <= Y[i])
     @objective(m, Min, sum(((Y - (Matrix(X) * β .+ β0)).^2)))
-    optimize!(m)
-    return getvalue(β0), getvalue.(β)
+    try
+        optimize!(m)
+        return getvalue(β0), getvalue.(β)
+    catch 
+        @warn("Infeasible l_regress, returning constant bounds.")
+        return minimum(Y), zeros(size(X,2))
+    end
 end
 
 """ 
