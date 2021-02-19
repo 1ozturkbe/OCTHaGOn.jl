@@ -45,6 +45,8 @@ Optional arguments:
     active_trees::Dict{Int64, Union{Nothing, Pair}} = Dict() # Currently active tree indices
     mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}() # and their corresponding MI constraints,
     leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their leaves and leaf variables
+    optima::Array = []
+    actuals::Array = []
     convex::Bool = false
     local_convexity::Float64 = 0.
     vexity::Dict = Dict{Int64, Float64}()              # Convexity of leaves
