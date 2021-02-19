@@ -397,8 +397,8 @@ function feas_gap(gm::GlobalModel)
         elseif bbl isa BlackBoxRegressor
             optimum = JuMP.getvalue(bbl.dependent_var)
             actual = bbl.Y[end]
-            push!(bbr.optima, optimum)
-            push!(bbr.actuals, actual)
+            push!(bbl.optima, optimum)
+            push!(bbl.actuals, actual)
             push!(feas, (optimum-actual) / (maximum(bbl.Y) - minimum(bbl.Y)))
         end
     end

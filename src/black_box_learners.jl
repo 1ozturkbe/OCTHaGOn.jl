@@ -107,7 +107,11 @@ Optional arguments:
 end
 
 function Base.show(io::IO, bbc::BlackBoxClassifier)
-    println(io, "BlackBoxClassifier " * bbc.name * " with $(length(bbc.vars)) variables: ")
+    if bbc.equality
+        println(io, "BlackBoxClassifier EQUALITY" * bbc.name * " with $(length(bbc.vars)) variables: ")
+    else
+        println(io, "BlackBoxClassifier inequality" * bbc.name * " with $(length(bbc.vars)) variables: ")
+    end
     println(io, "Sampled $(length(bbc.Y)) times, and has $(length(bbc.learners)) trained OCTs.")
     if get_param(bbc, :ignore_feasibility)
         if get_param(bbc, :ignore_accuracy)
@@ -120,6 +124,7 @@ function Base.show(io::IO, bbc::BlackBoxClassifier)
             println("Ignores training accuracy thresholds.")
         end
     end
+
 end
 
 """ BBL type is for function definitions! """
