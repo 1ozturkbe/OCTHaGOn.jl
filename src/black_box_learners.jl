@@ -428,7 +428,7 @@ function update_vexity(bbr::BlackBoxRegressor, threshold = 0.75)
             # Checking against quasi_convexity with 5 random points
             t = 5
             cvx = true
-            test_idxs = Int64.(round.(rand(t) .* size(bbr.X, 1)))
+            test_idxs = Int64.(ceil.(rand(t) .* size(bbr.X, 1)))
             diffs = [[Array(bbr.X[j, :]) - Array(bbr.X[i, :]) for i in test_idxs] for j in test_idxs]
             for i=1:t, j=1:t
                 if i != j && !(bbr.Y[test_idxs[j]] >= bbr.Y[test_idxs[i]] - 
