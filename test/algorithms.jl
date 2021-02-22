@@ -66,6 +66,24 @@ function test_feasibility_sample()
     @test all(check_feasibility(gm) .== 1)
 end
 
+function test_survey_method(gm::GlobalModel = minlp(true))
+    gm = minlp(true)
+    uniform_sample_and_eval!(gm)
+    surveysolve(gm)
+    bbcs = [bbl for bbl in gm.bbls if bbl isa BlackBoxClassifier]
+    bbc_idxs = [x isa BlackBoxClassifier for x in gm.bbls]
+    bbrs = [bbl for bbl in gm.bbls if bbl isa BlackBoxRegressor]
+    if !isempty(bbrs)
+        update_vexity.(bbrs)
+    end
+    add_infeasibility_cuts!(gm)
+    optimize!(gm)
+    while gm.cost[end] > gm.cost[end-1] 
+        add_infeasibility_cuts!(gm)
+        optimize!(gm)
+    end
+end
+
 test_baron_solve()
 
 test_speed_params()
@@ -75,3 +93,5 @@ test_classify_gradients()
 test_infeasibility_cuts()
 
 test_feasibility_sample()
+
+test_survey_method()
