@@ -108,9 +108,9 @@ end
 
 function Base.show(io::IO, bbc::BlackBoxClassifier)
     if bbc.equality
-        println(io, "BlackBoxClassifier EQUALITY" * bbc.name * " with $(length(bbc.vars)) variables: ")
+        println(io, "BlackBoxClassifier EQUALITY " * bbc.name * " with $(length(bbc.vars)) variables: ")
     else
-        println(io, "BlackBoxClassifier inequality" * bbc.name * " with $(length(bbc.vars)) variables: ")
+        println(io, "BlackBoxClassifier inequality " * bbc.name * " with $(length(bbc.vars)) variables: ")
     end
     println(io, "Sampled $(length(bbc.Y)) times, and has $(length(bbc.learners)) trained OCTs.")
     if get_param(bbc, :ignore_feasibility)
