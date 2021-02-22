@@ -350,27 +350,6 @@ function solution(m::JuMP.Model)
 end
 
 """ 
-evaluate_feasibility(gm::GlobalModel)
-
-Evaluates feasibility of constraints absolutely, and within tolerance for BBRs. 
-"""
-function evaluate_feasibility(gm::GlobalModel)
-    soln = solution(gm)
-    feas = []
-    for bbl in gm.bbls
-        eval!(bbl, soln)
-        if bbl isa BlackBoxClassifier
-            push!(feas, bbl.Y[end] >= 0)
-        elseif bbl isa BlackBoxRegressor
-            tighttol = get_param(gm, :tighttol)
-            push!(feas, bbl.Y[end] >= JuMP.getvalue(bbl.dependent_var) * (1-tighttol) && 
-                        bbl.Y[end] <=  JuMP.getvalue(bbl.dependent_var) * (1+tighttol))
-        end
-    end
-    return feas
-end
-
-""" 
     feas_gap(gm::GlobalModel)
 
 Evaluates relative feasibility gap at solution. 
@@ -385,15 +364,7 @@ function feas_gap(gm::GlobalModel)
     for bbl in gm.bbls
         eval!(bbl, soln)
         if bbl isa BlackBoxClassifier
-            if !bbl.equality
-                if bbl.Y[end] >= 0
-                    push!(feas, 0)
-                else
-                    push!(feas, bbl.Y[end] ./ (maximum(bbl.Y) - minimum(bbl.Y)))
-                end
-            else
-                push!(feas, bbl.Y[end] ./ (maximum(bbl.Y) - minimum(bbl.Y)))
-            end
+            push!(feas, bbl.Y[end] ./ (maximum(bbl.Y) - minimum(bbl.Y)))
         elseif bbl isa BlackBoxRegressor
             optimum = JuMP.getvalue(bbl.dependent_var)
             actual = bbl.Y[end]
