@@ -39,7 +39,6 @@ learn_constraint!(md);
 # Solving the model
 status = optimize!(md)
 OCT_vars = JuMP.getvalue.(md.vars);
-feas_bools = evaluate_feasibility(md);
 
 # Doing CBF stuff
 # cons_types = list_of_constraint_types(model)

@@ -151,11 +151,12 @@ end
 Adds cuts reducing infeasibility of BBC inequalities. 
 """
 function add_infeasibility_cuts!(gm::GlobalModel, M = 1e5)
+    #TODO: CHECK REGRESSION EQUALITIES.
     sol_leaves = find_leaf_of_soln.(gm.bbls)
     var_vals = solution(gm)
     for i=1:length(gm.bbls)
         # Inequality Classifiers
-        if gm.bbls[i] isa BlackBoxClassifier && gm.feas_history[end][i] != 0 && !gm.bbls[i].equality
+        if gm.bbls[i] isa BlackBoxClassifier && gm.feas_history[end][i] <= 0 && !gm.bbls[i].equality
             bbc = gm.bbls[i]
             rel_vals = var_vals[:, string.(bbc.vars)]
             eval!(bbc, rel_vals)
@@ -166,15 +167,21 @@ function add_infeasibility_cuts!(gm::GlobalModel, M = 1e5)
                 @constraint(gm.model, sum(Array(cut_grad) .* (bbc.vars .- Array(rel_vals)')) + Y + 
                                       M*(1 - bbc.leaf_variables[sol_leaves[i]]) >= 0)) 
         # Convex Regressors
-        elseif gm.bbls[i] isa BlackBoxRegressor && gm.feas_history[end][i] <= -get_param(gm, :tighttol) && gm.bbls[i].convex #TODO Check
+        elseif gm.bbls[i] isa BlackBoxRegressor && gm.feas_history[end][i] <= 0 
             bbr = gm.bbls[i]
             rel_vals = var_vals[:, string.(bbr.vars)]
             eval!(bbr, rel_vals)
             Y = bbr.Y[end]
             update_gradients(bbr, [size(bbr.X, 1)])
             cut_grad = bbr.gradients[end, :]
-            push!(bbr.mi_constraints[1], 
-                @constraint(gm.model, bbr.dependent_var >= sum(Array(cut_grad) .* (bbr.vars .- Array(rel_vals)')) + Y )) 
+            if gm.bbls[i].convex 
+                push!(bbr.mi_constraints[1], 
+                    @constraint(gm.model, bbr.dependent_var >= sum(Array(cut_grad) .* (bbr.vars .- Array(rel_vals)')) + Y )) 
+            # else
+            #     push!(bbr.mi_constraints[sol_leaves[i]], 
+            #     @constraint(gm.model, bbr.dependent_var + M*(1 - bbc.leaf_variables[sol_leaves[i]]) >= 
+            #         sum(Array(cut_grad) .* (bbr.vars .- Array(rel_vals)')) + Y )) 
+            end
         end
         # TODO: add infeasibility cuts for Regressors that are locally convex. 
         # TODO: add infeasibility cuts for equalities as well. 

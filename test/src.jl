@@ -488,7 +488,7 @@ function test_convex_objective()
     end
     @test all([gm.solution_history[i, "obj"] < gm.solution_history[i+1, "obj"] for i=1:4]) 
 end
-
+    
 test_expressions()
 
 test_variables()

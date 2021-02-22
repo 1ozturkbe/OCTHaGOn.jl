@@ -69,13 +69,13 @@ end
 function test_survey_method(gm::GlobalModel = minlp(true))
     gm = minlp(true)
     uniform_sample_and_eval!(gm)
+    bbrs = [bbl for bbl in gm.bbls if bbl isa BlackBoxRegressor]
+    if !isempty(bbrs)
+        update_vexity.(bbrs)  
+    end
     surveysolve(gm)
     bbcs = [bbl for bbl in gm.bbls if bbl isa BlackBoxClassifier]
     bbc_idxs = [x isa BlackBoxClassifier for x in gm.bbls]
-    bbrs = [bbl for bbl in gm.bbls if bbl isa BlackBoxRegressor]
-    if !isempty(bbrs)
-        update_vexity.(bbrs)
-    end
     add_infeasibility_cuts!(gm)
     optimize!(gm)
     while gm.cost[end] > gm.cost[end-1] 
@@ -83,6 +83,30 @@ function test_survey_method(gm::GlobalModel = minlp(true))
         optimize!(gm)
     end
 end
+
+# function update_uls(gm::GlobalModel, bbr::BlackBoxRegressor)
+#     if length(bbr.active_trees) == 1
+#         ub = maximum(bbr.actuals)
+#         lb = minimum(bbr.optima)
+#         learn_constraint!(bbr, threshold = "upper" => ub)
+#         update_tree_constraints!(gm, bbr)
+#         learn_constraint!(bbr, threshold = "lower" => lb)
+#         update_tree_constraints!(gm, bbr)
+
+#     while gm.cost[end] > gm.cost[end-1]
+#         add_infeasibility_cuts!(gm)
+#         optimize!(gm)
+#     end
+
+#     elseif length(bbr.active_trees) = 2
+#         ub = maximum(bbr.actuals)
+#         lb = minimum(bbr.optima)
+#         l_tree_idx = active_lower_tree(bbr)
+#         u_tree_idx = findall(x -> x != l_tree_idx, 
+#                             collect(keys(bbr.active_trees)))[1]
+#         if ub != u_tree_idx[]
+#     end
+# end
 
 test_baron_solve()
 
