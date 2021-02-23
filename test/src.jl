@@ -429,32 +429,16 @@ function test_basic_gm()
     # Saving fit for test_load_fits()
     save_fit(gm)
 
-    # Testing finding bounds of bounded model
-    @test isnothing(get_unbounds(gm.bbls))
-    @test isnothing(find_bounds!(gm))
-
-    # Test reloading
-    load_fit(gm)
-    @test all([get_param(bbl, :reloaded) == true for bbl in gm.bbls])
-    bbr = gm.bbls[1]
-    @test bbr.thresholds[end] == bbr.thresholds[end-1]
-    @test bbr.learner_kwargs[end] == bbr.learner_kwargs[end-1]
-    bbc = gm.bbls[2]
-    @test bbc.accuracies[end] == bbc.accuracies[end-1]
-    add_tree_constraints!(gm)
-    optimize!(gm)
-    final_leaves = [find_leaf_of_soln(bbl) for bbl in gm.bbls]
-    @test gm.solution_history[end, "obj"] ≈ gm.solution_history[end-1, "obj"] 
-
     # Testing clearing all data
     clear_data!(gm)
     @test all([size(bbl.X, 1) == 0 for bbl in gm.bbls])
     @test all([length(bbl.learners) == 0 for bbl in gm.bbls])
 
-    # Testing surveysolve
+    # Testing surveysolve, and add_infeasibility_cuts for 
     @test_throws OCTException surveysolve(gm) # no data error
     uniform_sample_and_eval!(gm)
     surveysolve(gm)
+    update_leaf_vexity(gm.bbls[1])
     @test true
 end
 

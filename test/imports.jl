@@ -58,6 +58,23 @@ function test_gams_to_GlobalModel()
     return true
 end
 
+fucntion test_load_fits()
+    gm = sagemark_to_GlobalModel(3; lse=false)
+    set_optimizer(gm, CPLEX_SILENT)
+    # Testing finding bounds of bounded model
+    @test isnothing(get_unbounds(gm.bbls))
+    @test isnothing(find_bounds!(gm))
+
+    # Test reloading
+    load_fit(gm)
+    @test all([get_param(bbl, :reloaded) == true for bbl in gm.bbls])
+    add_tree_constraints!(gm)
+    optimize!(gm) 
+    @test gm.cost[end] <= -120
+end
+
 @test test_sagemark_to_GlobalModel()
 
 @test test_gams_to_GlobalModel()
+
+@test test__load_fits()
