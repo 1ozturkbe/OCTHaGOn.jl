@@ -45,9 +45,11 @@ Optional arguments:
     active_trees::Dict{Int64, Union{Nothing, Pair}} = Dict() # Currently active tree indices
     mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}() # and their corresponding MI constraints,
     leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their leaves and leaf variables
+    optima::Array = []
+    actuals::Array = []
     convex::Bool = false
     local_convexity::Float64 = 0.
-    vexity::Dict = Dict{Int64, Float64}()              # Convexity of leaves
+    vexity::Dict = Dict{Int64, Tuple}()                # Size and convexity of leaves
     knn_tree::Union{KDTree, Nothing} = nothing         # KNN tree
     params::Dict = bbr_defaults(length(vars))          # Relevant settings
 end
@@ -105,7 +107,11 @@ Optional arguments:
 end
 
 function Base.show(io::IO, bbc::BlackBoxClassifier)
-    println(io, "BlackBoxClassifier " * bbc.name * " with $(length(bbc.vars)) variables: ")
+    if bbc.equality
+        println(io, "BlackBoxClassifier EQUALITY " * bbc.name * " with $(length(bbc.vars)) variables: ")
+    else
+        println(io, "BlackBoxClassifier inequality " * bbc.name * " with $(length(bbc.vars)) variables: ")
+    end
     println(io, "Sampled $(length(bbc.Y)) times, and has $(length(bbc.learners)) trained OCTs.")
     if get_param(bbc, :ignore_feasibility)
         if get_param(bbc, :ignore_accuracy)
@@ -118,6 +124,7 @@ function Base.show(io::IO, bbc::BlackBoxClassifier)
             println("Ignores training accuracy thresholds.")
         end
     end
+
 end
 
 """ BBL type is for function definitions! """
@@ -428,7 +435,7 @@ function update_vexity(bbr::BlackBoxRegressor, threshold = 0.75)
             # Checking against quasi_convexity with 5 random points
             t = 5
             cvx = true
-            test_idxs = Int64.(round.(rand(t) .* size(bbr.X, 1)))
+            test_idxs = Int64.(ceil.(rand(t) .* size(bbr.X, 1)))
             diffs = [[Array(bbr.X[j, :]) - Array(bbr.X[i, :]) for i in test_idxs] for j in test_idxs]
             for i=1:t, j=1:t
                 if i != j && !(bbr.Y[test_idxs[j]] >= bbr.Y[test_idxs[i]] - 
@@ -443,5 +450,34 @@ function update_vexity(bbr::BlackBoxRegressor, threshold = 0.75)
             end
         end
     end
+    return
+end
+
+"""
+    update_leaf_vexity(bbr::BlackBoxRegressor)
+
+Finds the local convexity of leaves (bbr.vexity) of the active lower bounding tree of BBL. 
+"""
+function update_leaf_vexity(bbr::BlackBoxRegressor)
+    if bbr.convex
+        bbr.vexity[1] = (size(bbr.X, 1), 1.0) # We only have a "root". 
+        return 
+    end
+    tree_idx = active_lower_tree(bbr)
+    lnr = bbr.learners[tree_idx]
+    leaf_idxs = IAI.apply(lnr, bbr.X)
+    all_leaves = find_leaves(lnr)
+    leaf_vexity = Dict()
+    if lnr isa BlackBoxClassifier
+        all_leaves = [i for i in all_leaves if Bool(IAI.get_classification_label(lnr, i))];
+    end
+    if any(ismissing.(bbr.curvatures))
+        classify_curvature(bbr)
+    end
+    for leaf in all_leaves
+        in_leaf_idxs = findall(x -> x == leaf, leaf_idxs)
+        leaf_vexity[leaf] = (length(in_leaf_idxs), sum(bbr.curvatures[in_leaf_idxs] .> 0) / length(in_leaf_idxs))
+    end
+    bbr.vexity = leaf_vexity
     return
 end
