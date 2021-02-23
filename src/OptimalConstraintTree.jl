@@ -69,6 +69,7 @@ module OptimalConstraintTree
         feasibility_sample, 
         feasibility, check_accuracy, check_feasibility, 
         check_bounds,  check_sampled, update_local_convexity, update_vexity,
+        update_leaf_vexity,
         solution, evaluate_accuracy,
         feas_gap, 
         nonlinearize!,

@@ -452,3 +452,31 @@ function update_vexity(bbr::BlackBoxRegressor, threshold = 0.75)
     end
     return
 end
+
+"""
+    update_leaf_vexity(bbr::BlackBoxRegressor)
+
+Finds the local convexity of leaves (bbr.vexity) of the active lower bounding tree of BBL. 
+"""
+function update_leaf_vexity(bbr::BlackBoxRegressor)
+    tree_idx = active_lower_tree(bbr)
+    lnr = bbr.learners[tree_idx]
+    leaf_idxs = IAI.apply(lnr, bbr.X)
+    all_leaves = find_leaves(lnr)
+    leaf_vexity = Dict()
+    if bbr.convex
+        bbr.vexity[1] = (size(bbr.X, 1), 1.0)# We only have a "root". 
+        return 
+    elseif lnr isa BlackBoxClassifier
+        all_leaves = [i for i in all_leaves if Bool(IAI.get_classification_label(lnr, i))];
+    end
+    if any(ismissing.(bbr.curvatures))
+        classify_curvature(bbr)
+    end
+    for leaf in all_leaves
+        in_leaf_idxs = findall(x -> x == leaf, leaf_idxs)
+        leaf_vexity[leaf] = (length(in_leaf_idxs), sum(bbr.curvatures[in_leaf_idxs] .> 0) / length(in_leaf_idxs))
+    end
+    bbr.vexity = leaf_vexity
+    return
+end
