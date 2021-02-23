@@ -474,7 +474,7 @@ function test_convex_objective()
     end
     @test all([gm.cost[i] < gm.cost[i+1] for i= 1:length(gm.cost)-1]) 
     update_leaf_vexity(gm.bbls[1])
-    @test gm.bbls[1].vexity[1][2] = 1.0
+    @test gm.bbls[1].vexity[1][2] == 1.0
 end
     
 test_expressions()

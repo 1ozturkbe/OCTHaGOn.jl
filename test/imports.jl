@@ -26,7 +26,7 @@ function test_sagemark_to_GlobalModel()
 
     # Checking OCTException for sampling unbounded model
     uniform_sample_and_eval!(gm)
-    return true
+    @test true
 end
 
 """ Testing that problems are correctly imported, with some random checking. """
@@ -55,16 +55,14 @@ function test_gams_to_GlobalModel()
     @test length(gm.vars) == 8
     @test all(bound == [0,100] for bound in values(get_bounds(Array{JuMP.VariableRef}(flat(gm.model[:x])))))
     @test length(gm.bbls) == 1
-    return true
 end
 
-fucntion test_load_fits()
+function test_load_fits()
     gm = sagemark_to_GlobalModel(3; lse=false)
     set_optimizer(gm, CPLEX_SILENT)
     # Testing finding bounds of bounded model
     @test isnothing(get_unbounds(gm.bbls))
     @test isnothing(find_bounds!(gm))
-
     # Test reloading
     load_fit(gm)
     @test all([get_param(bbl, :reloaded) == true for bbl in gm.bbls])
@@ -73,8 +71,8 @@ fucntion test_load_fits()
     @test gm.cost[end] <= -120
 end
 
-@test test_sagemark_to_GlobalModel()
+test_sagemark_to_GlobalModel()
 
-@test test_gams_to_GlobalModel()
+test_gams_to_GlobalModel()
 
-@test test__load_fits()
+test_load_fits()
