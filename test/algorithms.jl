@@ -67,7 +67,6 @@ function test_feasibility_sample()
 end
 
 function test_survey_method(gm::GlobalModel = minlp(true))
-    gm = minlp(true)
     uniform_sample_and_eval!(gm)
     bbrs = [bbl for bbl in gm.bbls if bbl isa BlackBoxRegressor]
     if !isempty(bbrs)
@@ -78,7 +77,7 @@ function test_survey_method(gm::GlobalModel = minlp(true))
     bbc_idxs = [x isa BlackBoxClassifier for x in gm.bbls]
     add_infeasibility_cuts!(gm)
     optimize!(gm)
-    while gm.cost[end] > gm.cost[end-1] 
+    while gm.cost[end] > gm.cost[end-1] .* (1 + get_param(gm, :tighttol))
         add_infeasibility_cuts!(gm)
         optimize!(gm)
     end

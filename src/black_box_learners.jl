@@ -49,7 +49,7 @@ Optional arguments:
     actuals::Array = []
     convex::Bool = false
     local_convexity::Float64 = 0.
-    vexity::Dict = Dict{Int64, Float64}()              # Convexity of leaves
+    vexity::Dict = Dict{Int64, Tuple}()                # Size and convexity of leaves
     knn_tree::Union{KDTree, Nothing} = nothing         # KNN tree
     params::Dict = bbr_defaults(length(vars))          # Relevant settings
 end
