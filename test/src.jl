@@ -250,7 +250,7 @@ end
 
 """ Tests various ways to train a regressor. """
 function test_bbr()
-    gm = minlp(true, 1e-6)
+    gm = minlp(true)
     set_optimizer(gm, CPLEX_SILENT)
     uniform_sample_and_eval!(gm)
     bbr = gm.bbls[3]
@@ -482,11 +482,15 @@ function test_convex_objective()
     # Testing adding gradient cuts
     optimize!(gm)
     @test find_leaf_of_soln.(gm.bbls) == [1]
-    for i=1:4
+    add_infeasibility_cuts!(gm)
+    optimize!(gm)
+    while gm.cost[end] > gm.cost[end-1] .* (1 + get_param(gm, :tighttol))
         add_infeasibility_cuts!(gm)
         optimize!(gm)
     end
-    @test all([gm.solution_history[i, "obj"] < gm.solution_history[i+1, "obj"] for i=1:4]) 
+    @test all([gm.cost[i] < gm.cost[i+1] for i= 1:length(gm.cost)-1]) 
+    update_leaf_vexity(gm.bbls[1])
+    @test gm.bbls[1].vexity[1][2] = 1.0
 end
     
 test_expressions()

@@ -82,6 +82,7 @@ function test_survey_method(gm::GlobalModel = minlp(true))
         add_infeasibility_cuts!(gm)
         optimize!(gm)
     end
+    @test true
 end
 
 # function update_uls(gm::GlobalModel, bbr::BlackBoxRegressor)
