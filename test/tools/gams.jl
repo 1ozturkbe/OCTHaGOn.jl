@@ -90,7 +90,10 @@ function GAMS_to_GlobalModel(GAMS_DIR::String, filename::String)
     GAMSFiles.parseconsts!(gams)
 
     vars = GAMSFiles.getvars(gams["variables"])
-    sets = gams["sets"]
+    sets = Dict{String, Any}()
+    if haskey(gams, "sets")
+        sets = gams["sets"]
+    end
     preexprs, bodyexprs = Expr[], Expr[]
     if haskey(gams, "parameters") && haskey(gams, "assignments")
         GAMSFiles.parseassignments!(preexprs, gams["assignments"], gams["parameters"], sets)
@@ -123,14 +126,26 @@ function GAMS_to_GlobalModel(GAMS_DIR::String, filename::String)
             end
             # Designate free variables
             varkeys = find_vars_in_eq(eq, vardict)
-            vars = Array{VariableRef}(flat([vardict[varkey] for varkey in varkeys]))
-            input = Symbol.(varkeys)
-            constr_fn = :(($(input...),) -> $(constr_expr))
-            if length(input) == 1
-                constr_fn = :($(input...) -> $(constr_expr))
+            if !(Symbol(gams["minimizing"]) in varkeys)
+                vars = Array{VariableRef}(flat([vardict[varkey] for varkey in varkeys]))
+                input = Symbol.(varkeys)
+                constr_fn = :(($(input...),) -> $(constr_expr))
+                if length(input) == 1
+                    constr_fn = :($(input...) -> $(constr_expr))
+                end
+                add_nonlinear_or_compatible(gm, constr_fn, vars = vars, expr_vars = [vardict[varkey] for varkey in varkeys],
+                                        equality = is_equality(eq), name = gm.name * "_" * GAMSFiles.getname(key))
+            else
+                varkeys = filter!(x -> x != Symbol(gams["minimizing"]), varkeys)
+                vars = Array{VariableRef}(flat([vardict[varkey] for varkey in varkeys]))
+                input = Symbol.(varkeys)
+                constr_fn = :(($(input...),) -> $(constr_expr))
+                if length(input) == 1
+                    constr_fn = :($(input...) -> $(constr_expr))
+                end
+                add_nonlinear_or_compatible(gm, constr_fn, vars = vars, expr_vars = [vardict[varkey] for varkey in varkeys],
+                    dependent_var = vardict[Symbol(gams["minimizing"])], equality = is_equality(eq), name = gm.name * "_" * GAMSFiles.getname(key))
             end
-            add_nonlinear_or_compatible(gm, constr_fn, vars = vars, expr_vars = [vardict[varkey] for varkey in varkeys],
-                                     equality = is_equality(eq), name = gm.name * "_" * GAMSFiles.getname(key))
         elseif key isa GAMSFiles.GArray
             axs = GAMSFiles.getaxes(key.indices, sets)
             idxs = collect(Base.product([collect(ax) for ax in axs]...))
