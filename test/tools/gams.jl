@@ -149,6 +149,8 @@ function GAMS_to_GlobalModel(GAMS_DIR::String, filename::String)
                 add_nonlinear_or_compatible(gm, constr_fn, vars = vars, expr_vars = [vardict[varkey] for varkey in varkeys],
                                         equality = is_equality(eq), name = gm.name * "_" * GAMSFiles.getname(key))
             else
+                constr_expr = substitute(constr_expr, :($(Symbol(gams["minimizing"]))) => 0)
+                #TODO: FIX ASSUMPTION THAT OBJVAR HAS POSITIVE COEFFICIENT!!!!
                 varkeys = filter!(x -> x != Symbol(gams["minimizing"]), varkeys)
                 vars = Array{VariableRef}(flat([vardict[varkey] for varkey in varkeys]))
                 input = Symbol.(varkeys)
