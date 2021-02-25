@@ -62,6 +62,19 @@ function generate_variables!(model::JuMP.Model, gams::Dict{String, Any})
                 model[Symbol(var)] = nv
                 vardict[Symbol(var)] = nv
             end
+            if vinfo.typ != "free"
+                if vinfo.typ == "positive"
+                    JuMP.set_lower_bound.(model[Symbol(var)], 0)
+                elseif vinfo.typ == "negative"
+                    JuMP.set_upper_bound.(model[Symbol(var)], 0)
+                elseif vinfo.typ == "binary"
+                    JuMP.set_binary.(model[Symbol(var)])
+                elseif vinfo.typ == "integer"
+                    JuMP.set_integer.(model[Symbol(var)])
+                else
+                    throw(OCTException("Type $(vinfo.typ) unknown for variable $(var)."))
+                end
+            end
             for (prop, val) in vinfo.assignments
                 inds = map(x->x.val, prop.indices)
                 nv = model[Symbol(var)][inds...]
