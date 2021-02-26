@@ -179,6 +179,8 @@ function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuM
             leaf = all_leaves[i]
             β0, β = pwlDict[leaf]
             if !isempty(ul_data) # Overwrite if we have a lower approximator
+                α0, α = ul_data[-leaf]
+                constraints[-leaf] = [@constraint(m, sum(α .* x) + α0 + M * (1 .- z[i]) >= y)] #TODO: could be problematic
                 β0, β = ul_data[leaf]
             end
             push!(constraints[leaf], @constraint(m, sum(β .* x) + β0 <= y + M * (1 .- z[i])))
