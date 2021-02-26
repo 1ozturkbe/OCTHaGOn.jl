@@ -76,15 +76,25 @@ function generate_variables!(model::JuMP.Model, gams::Dict{String, Any})
                 end
             end
             for (prop, val) in vinfo.assignments
-                inds = map(x->x.val, prop.indices)
-                nv = model[Symbol(var)][inds...]
-                if isa(prop, Union{GAMSFiles.GText, GAMSFiles.GArray})
+                if hasproperty(prop, :indices)
+                    inds = map(x->x.val, prop.indices)
+                    nv = model[Symbol(var)][inds...]
                     c = val.val
                     if prop.name ∈ ("l", "fx")
                         JuMP.set_start_value(nv, c)
                     elseif prop.name == "lo"
                         JuMP.set_lower_bound(nv, c)
                     elseif prop.name == "up"
+                        JuMP.set_upper_bound(nv, c)
+                    end
+                else
+                    nv = model[Symbol(var)]
+                    c = val.val
+                    if prop.text ∈ ("l", "fx")
+                        JuMP.set_start_value(nv, c)
+                    elseif prop.text == "lo"
+                        JuMP.set_lower_bound(nv, c)
+                    elseif prop.text == "up"
                         JuMP.set_upper_bound(nv, c)
                     end
                 end
