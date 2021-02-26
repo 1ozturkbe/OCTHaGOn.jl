@@ -37,6 +37,9 @@ end
 """ power function from gams """
 power(var, num) = var^num
 
+""" sqr function from gams. """
+sqr(var) = var^2
+
 """ Checks outer-boundedness of values of a Dict. """
 function check_bounds(bounds::Dict)
     if any(isinf.(Iterators.flatten(values(bounds))))
