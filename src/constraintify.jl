@@ -55,17 +55,9 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
         throw(OCTException("Constraint " * string(bbr.name) * " is a Regressor, 
         but doesn't have a ORT and/or OCT with upper/lower bounding approximators!"))
     end
-    if !isempty(bbr.ul_data[idx])
-        mi_constraints, leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
-                                                                   bbr.learners[idx], bbr.ul_data[idx];
-                                                                   M = M, equality = bbr.equality)
-    elseif bbr.learners[idx] isa IAI.OptimalTreeRegressor
-        mi_constraints, leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
-                                                                bbr.learners[idx];
+    mi_constraints, leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
+                                                                bbr.learners[idx], bbr.ul_data[idx];
                                                                 M = M, equality = bbr.equality)
-    else
-
-    end
     if bbr.thresholds[idx] isa Nothing
         isempty(bbr.leaf_variables) || throw(OCTException("Please clear previous tree constraints from $(gm.name) " *
                                                           "before adding new constraints."))
@@ -155,52 +147,6 @@ function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::I
 end
 
 """
-    add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuMP.VariableRef, lnr::IAI.OptimalTreeRegressor;
-                               M::Float64 = 1.e5, equality::Bool = false)
-
-Creates a set of MIO constraints from a OptimalTreeRegressor
-Arguments:
-    m:: JuMP Model
-    x:: independent JuMPVariable (features in lnr)
-    y:: dependent JuMPVariable (output of lnr)
-    lnr:: A fitted OptimalTreeRegressor
-    M:: coefficient in bigM formulation
-"""
-function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuMP.VariableRef, lnr::IAI.OptimalTreeRegressor;
-                               M::Float64 = 1.e5, equality::Bool = false)
-    check_if_trained(lnr)
-    all_leaves = find_leaves(lnr)
-    # Add a binary variable for each leaf
-    constraints = Dict(leaf => JuMP.ConstraintRef[] for leaf in all_leaves)
-    constraints[1] = JuMP.ConstraintRef[]
-    z = @variable(m, [1:size(all_leaves, 1)], Bin)
-    leaf_variables = Dict{Int64, JuMP.VariableRef}(all_leaves .=> z)
-    push!(constraints[1], @constraint(m, sum(z) == 1))
-    # Getting lnr data
-    pwlDict = pwl_constraint_data(lnr, Symbol.(x))
-    upperDict, lowerDict = trust_region_data(lnr, Symbol.(x))
-    for i = 1:size(all_leaves, 1)
-        # ADDING CONSTRAINTS
-        leaf = all_leaves[i]
-        β0, β = pwlDict[leaf]
-        push!(constraints[leaf], @constraint(m, sum(β .* x) + β0 <= y + M * (1 .- z[i])))
-        if equality
-            push!(constraints[leaf], @constraint(m, sum(β .* x) + β0 + M * (1 .- z[i]) >= y))
-        end
-        # ADDING TRUST REGIONS
-        for region in upperDict[leaf]
-            threshold, α = region
-            push!(constraints[leaf], @constraint(m, threshold <= sum(α .* x) + M * (1 - z[i])))
-        end
-        for region in lowerDict[leaf]
-            threshold, α = region
-            push!(constraints[leaf], @constraint(m, threshold + M * (1 - z[i]) >= sum(α .* x)))
-        end
-    end
-    return constraints, leaf_variables
-end
-
-"""
     add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuMP.VariableRef, lnr::IAI.OptimalTreeClassifier, 
             ul_data::Dict;
             M::Float64 = 1.e5, equality::Bool = false)
@@ -216,22 +162,61 @@ Arguments:
 """
 function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuMP.VariableRef, lnr::IAI.OptimalTreeLearner, 
                                ul_data::Dict; M::Float64 = 1.e5, equality::Bool = false)
-    constraints, leaf_variables = add_feas_constraints!(m, x, lnr, M=M, equality=equality)
-    if all(keys(ul_data) .<= 0) && lnr isa IAI.OptimalTreeClassifier # means an upper bounding tree. 
-        constraints = Dict(-key => value for (key, value) in constraints) # hacky sign flipping for upkeep. 
-        leaf_variables = Dict(-key => value for (key, value) in leaf_variables) # TODO: could be buggy
-    end
-    for leaf in collect(keys(ul_data))
-        γ0, γ = ul_data[leaf]
-        if !haskey(constraints, leaf) && lnr isa IAI.OptimalTreeRegressor # occurs with ORTS with bounding hyperplanes
-            constraints[leaf] = [@constraint(m, y <= γ0 + sum(γ .* x) + M * (1 .- leaf_variables[-leaf]))]
-        elseif leaf <= 0
-            push!(constraints[leaf], @constraint(m, y <= γ0 + sum(γ .* x) + M * (1 .- leaf_variables[leaf])))
-        else
-            push!(constraints[leaf], @constraint(m, y + M * (1 .- leaf_variables[leaf]) >= γ0 + sum(γ .* x)))
+    if lnr isa OptimalTreeRegressor                
+        check_if_trained(lnr)
+        all_leaves = find_leaves(lnr)
+        # Add a binary variable for each leaf
+        constraints = Dict(leaf => JuMP.ConstraintRef[] for leaf in all_leaves)
+        constraints[1] = JuMP.ConstraintRef[]
+        z = @variable(m, [1:size(all_leaves, 1)], Bin)
+        leaf_variables = Dict{Int64, JuMP.VariableRef}(all_leaves .=> z)
+        push!(constraints[1], @constraint(m, sum(z) == 1))
+        # Getting lnr data
+        pwlDict = pwl_constraint_data(lnr, Symbol.(x))
+        upperDict, lowerDict = trust_region_data(lnr, Symbol.(x))
+        for i = 1:size(all_leaves, 1)
+            # ADDING CONSTRAINTS
+            leaf = all_leaves[i]
+            β0, β = pwlDict[leaf]
+            if !isempty(ul_data) # Overwrite if we have a lower approximator
+                α0, α = ul_data[-leaf]
+                constraints[-leaf] = [@constraint(m, sum(α .* x) + α0 + M * (1 .- z[i]) >= y)] #TODO: could be problematic
+                β0, β = ul_data[leaf]
+            end
+            push!(constraints[leaf], @constraint(m, sum(β .* x) + β0 <= y + M * (1 .- z[i])))
+            if equality
+                push!(constraints[leaf], @constraint(m, sum(β .* x) + β0 + M * (1 .- z[i]) >= y))
+            end
+            # ADDING TRUST REGIONS
+            for region in upperDict[leaf]
+                threshold, α = region
+                push!(constraints[leaf], @constraint(m, threshold <= sum(α .* x) + M * (1 - z[i])))
+            end
+            for region in lowerDict[leaf]
+                threshold, α = region
+                push!(constraints[leaf], @constraint(m, threshold + M * (1 - z[i]) >= sum(α .* x)))
+            end
         end
+        return constraints, leaf_variables
+    elseif lnr isa OptimalTreeClassifier
+        @assert !isempty(ul_data)
+        constraints, leaf_variables = add_feas_constraints!(m, x, lnr, M=M, equality=equality)
+        if all(keys(ul_data) .<= 0) && lnr isa IAI.OptimalTreeClassifier # means an upper bounding tree. 
+            constraints = Dict(-key => value for (key, value) in constraints) # hacky sign flipping for upkeep. 
+            leaf_variables = Dict(-key => value for (key, value) in leaf_variables) # TODO: could be buggy
+        end
+        for leaf in collect(keys(ul_data))
+            γ0, γ = ul_data[leaf]
+            if !haskey(constraints, leaf) && lnr isa IAI.OptimalTreeRegressor # occurs with ORTS with bounding hyperplanes
+                constraints[leaf] = [@constraint(m, y <= γ0 + sum(γ .* x) + M * (1 .- leaf_variables[-leaf]))]
+            elseif leaf <= 0
+                push!(constraints[leaf], @constraint(m, y <= γ0 + sum(γ .* x) + M * (1 .- leaf_variables[leaf])))
+            else
+                push!(constraints[leaf], @constraint(m, y + M * (1 .- leaf_variables[leaf]) >= γ0 + sum(γ .* x)))
+            end
+        end
+        return constraints, leaf_variables
     end
-    return constraints, leaf_variables
 end
 
 """ 

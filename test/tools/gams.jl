@@ -62,16 +62,39 @@ function generate_variables!(model::JuMP.Model, gams::Dict{String, Any})
                 model[Symbol(var)] = nv
                 vardict[Symbol(var)] = nv
             end
+            if vinfo.typ != "free"
+                if vinfo.typ == "positive"
+                    JuMP.set_lower_bound.(model[Symbol(var)], 0)
+                elseif vinfo.typ == "negative"
+                    JuMP.set_upper_bound.(model[Symbol(var)], 0)
+                elseif vinfo.typ == "binary"
+                    JuMP.set_binary.(model[Symbol(var)])
+                elseif vinfo.typ == "integer"
+                    JuMP.set_integer.(model[Symbol(var)])
+                else
+                    throw(OCTException("Type $(vinfo.typ) unknown for variable $(var)."))
+                end
+            end
             for (prop, val) in vinfo.assignments
-                inds = map(x->x.val, prop.indices)
-                nv = model[Symbol(var)][inds...]
-                if isa(prop, Union{GAMSFiles.GText, GAMSFiles.GArray})
+                if hasproperty(prop, :indices)
+                    inds = map(x->x.val, prop.indices)
+                    nv = model[Symbol(var)][inds...]
                     c = val.val
                     if prop.name ∈ ("l", "fx")
                         JuMP.set_start_value(nv, c)
                     elseif prop.name == "lo"
                         JuMP.set_lower_bound(nv, c)
                     elseif prop.name == "up"
+                        JuMP.set_upper_bound(nv, c)
+                    end
+                else
+                    nv = model[Symbol(var)]
+                    c = val.val
+                    if prop.text ∈ ("l", "fx")
+                        JuMP.set_start_value(nv, c)
+                    elseif prop.text == "lo"
+                        JuMP.set_lower_bound(nv, c)
+                    elseif prop.text == "up"
                         JuMP.set_upper_bound(nv, c)
                     end
                 end
@@ -90,7 +113,10 @@ function GAMS_to_GlobalModel(GAMS_DIR::String, filename::String)
     GAMSFiles.parseconsts!(gams)
 
     vars = GAMSFiles.getvars(gams["variables"])
-    sets = gams["sets"]
+    sets = Dict{String, Any}()
+    if haskey(gams, "sets")
+        sets = gams["sets"]
+    end
     preexprs, bodyexprs = Expr[], Expr[]
     if haskey(gams, "parameters") && haskey(gams, "assignments")
         GAMSFiles.parseassignments!(preexprs, gams["assignments"], gams["parameters"], sets)
@@ -123,14 +149,28 @@ function GAMS_to_GlobalModel(GAMS_DIR::String, filename::String)
             end
             # Designate free variables
             varkeys = find_vars_in_eq(eq, vardict)
-            vars = Array{VariableRef}(flat([vardict[varkey] for varkey in varkeys]))
-            input = Symbol.(varkeys)
-            constr_fn = :(($(input...),) -> $(constr_expr))
-            if length(input) == 1
-                constr_fn = :($(input...) -> $(constr_expr))
+            if !(Symbol(gams["minimizing"]) in varkeys)
+                vars = Array{VariableRef}(flat([vardict[varkey] for varkey in varkeys]))
+                input = Symbol.(varkeys)
+                constr_fn = :(($(input...),) -> $(constr_expr))
+                if length(input) == 1
+                    constr_fn = :($(input...) -> $(constr_expr))
+                end
+                add_nonlinear_or_compatible(gm, constr_fn, vars = vars, expr_vars = [vardict[varkey] for varkey in varkeys],
+                                        equality = is_equality(eq), name = gm.name * "_" * GAMSFiles.getname(key))
+            else
+                constr_expr = substitute(constr_expr, :($(Symbol(gams["minimizing"]))) => 0)
+                #TODO: FIX ASSUMPTION THAT OBJVAR HAS POSITIVE COEFFICIENT!!!!
+                varkeys = filter!(x -> x != Symbol(gams["minimizing"]), varkeys)
+                vars = Array{VariableRef}(flat([vardict[varkey] for varkey in varkeys]))
+                input = Symbol.(varkeys)
+                constr_fn = :(($(input...),) -> $(constr_expr))
+                if length(input) == 1
+                    constr_fn = :($(input...) -> $(constr_expr))
+                end
+                add_nonlinear_or_compatible(gm, constr_fn, vars = vars, expr_vars = [vardict[varkey] for varkey in varkeys],
+                    dependent_var = vardict[Symbol(gams["minimizing"])], equality = is_equality(eq), name = gm.name * "_" * GAMSFiles.getname(key))
             end
-            add_nonlinear_or_compatible(gm, constr_fn, vars = vars, expr_vars = [vardict[varkey] for varkey in varkeys],
-                                     equality = is_equality(eq), name = gm.name * "_" * GAMSFiles.getname(key))
         elseif key isa GAMSFiles.GArray
             axs = GAMSFiles.getaxes(key.indices, sets)
             idxs = collect(Base.product([collect(ax) for ax in axs]...))

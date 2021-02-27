@@ -16,7 +16,13 @@ function normalized_data(bbl::BlackBoxLearner)
     vks = string.(bbl.vars)
     lbs = [minimum(bounds[key]) for key in bbl.vars]
     ubs = [maximum(bounds[key]) for key in bbl.vars]
-    normalized_X = reduce(hcat,[(bbl.X[:, vks[i]] .- lbs[i]) ./(ubs[i] - lbs[i]) for i=1:length(lbs)]);
+    divisor = ones(length(lbs))
+    for i = 1:length(lbs)
+        if ubs[i] - lbs[i] != 0
+            divisor[i] =  ubs[i] - lbs[i] 
+        end
+    end
+    normalized_X = reduce(hcat,[(bbl.X[:, vks[i]] .- lbs[i]) ./divisor[i] for i=1:length(lbs)]);
     return normalized_X
 end
 

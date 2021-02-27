@@ -111,6 +111,6 @@ module OptimalConstraintTree
         # Small scripts
         vars_from_expr, vars_from_constraint, get_varmap, get_var_ranges, get_datamap,
         deconstruct, flat,
-        zeroarray, substitute, power, normalized_data, truncate_sigfigs
+        zeroarray, substitute, power, sqr, normalized_data, truncate_sigfigs
 end
 

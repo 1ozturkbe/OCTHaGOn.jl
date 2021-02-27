@@ -25,7 +25,8 @@ function gm_defaults()
          :sample_coeff => 200,
          :sample_density => 1e-5,
          :tighttol => 1e-5,
-         :reltol => 1e-3)
+         :reltol => 1e-3,
+         :convex_constrs => false)
 end
 
 """ Sets parameters within Dict. """
