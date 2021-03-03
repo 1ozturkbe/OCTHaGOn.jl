@@ -15,32 +15,6 @@ Y_feas = Y[feas_idxs, :];
 out_ranges = Dict(key => [minimum((Y_feas[!, Symbol(key)])), maximum((Y_feas[!, Symbol(key)]))] for key in outputs[idxs]);
 bound!(m, ranges);
 
-# Geometry constraints (in logspace)
-D_out, D_in, N_coils, wire_w = inputs[1], inputs[2], inputs[4], inputs[7]
-@constraint(m, D_out >= D_in)
-@constraint(m, log(pi) + D_in >= log(0.2) + wire_w + N_coils) #pi*D_in >= 2*0.1*wire_w*N_coils
-
-N_coils_range = log.(unique(X_feas[!, "N_coils"]));
-int = @variable(m, [1:length(N_coils_range)], Bin)
-@constraint(m, sum(int) == 1)
-@constraint(m, N_coils == sum(N_coils_range .* int))
-
-p_range = log.(unique(X_feas[!, "p"]))
-int = @variable(m, [1:length(p_range)], Bin)
-@constraint(m, sum(int) == 1)
-@constraint(m, p == sum(p_range .* int))
-@constraint(m, N_coils >= p + 1e-3) # motor type 2
-
-TPC_range = log.(unique(X_feas[!, "TPC"]))
-int = @variable(m, [1:length(TPC_range)], Bin)
-@constraint(m, sum(int) == 1)
-@constraint(m, TPC == sum(TPC_range .* int))
-
-# Objectives and FOMs
-output_idxs = [1, 4, 6, 8, 10, 12];
-P_shaft, Torque, Rotational_Speed, Efficiency, Mass, Mass_Specific_Power = [outputs[idx] for idx in idxs]
-set_upper_bound(Efficiency, 1)
-
 # Fitting power closure, and creating a global model
 feasmap = zeros(size(Y, 1)); feasmap[feas_idxs] .= 1;
 # simulation = DataConstraint(xvars = inputs, yvars = nothing)
