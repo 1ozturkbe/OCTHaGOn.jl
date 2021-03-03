@@ -77,11 +77,11 @@ function test_survey_method(gm::GlobalModel = minlp(true))
     bbc_idxs = [x isa BlackBoxClassifier for x in gm.bbls]
     add_infeasibility_cuts!(gm)
     optimize!(gm)
-    while gm.cost[end] > gm.cost[end-1] .* (1 + get_param(gm, :tighttol))
+    while gm.cost[end] > gm.cost[end-1] .* (1 + get_param(gm, :tighttol)) && size(gm.solution_history, 1) <= 50
         add_infeasibility_cuts!(gm)
         optimize!(gm)
-    end #TODO RESOLVE OVERLOAD. 
-    @test true
+    end #TODO RESOLVE WHILE LOOP OVERRUN. 
+    return gm
 end
 
 # function update_uls(gm::GlobalModel, bbr::BlackBoxRegressor)

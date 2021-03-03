@@ -57,10 +57,15 @@ function boundary_sample(vars::Array{JuMP.VariableRef, 1}; n_samples::Int64 = 10
     vks = string.(vars);
     lbs = DataFrame(Dict(string(key) => minimum(val) for (key, val) in bounds))
     ubs = DataFrame(Dict(string(key) => maximum(val) for (key, val) in bounds))
-    n_comb = sum(choose(n_vars, i) for i=0:n_vars);
+    n_comb = 0
+    if n_vars <= 12
+        n_comb = sum(choose(n_vars, i) for i=0:n_vars);
+    else
+        n_comb = 1e6
+    end
     nX = DataFrame([Float64 for i in vks], vks)
     sample_indices = [];
-    if n_comb >= fraction*n_samples
+    if n_comb >= fraction*n_samples 
         @warn("Can't exhaustively sample the boundary of Constraint " * string(warn_string) * ".")
         n_comb = 2*n_vars+2; # Everything is double because we choose min's and max's
         choosing = 1;

@@ -19,6 +19,7 @@ __pycache__
 *.inp
 *.out
 *.log
+*.log*
 *.lst
 *.lxi
 *.tree
