@@ -21,11 +21,11 @@ function add_variables_from_data!(m::JuMP.Model,
             push!(data_vars, Symbol(key))
         end
     end
-    count != 0 && @info("Added $(length(data_vars)) variables from data: " * string(data_vars))
-    return
+    length(data_vars) != 0 && @info("Added $(length(data_vars)) variables from data: " * string(data_vars))
+    return vars
 end
 
-add_variables_from_data(gm::GlobalModel, X) = add_variables_from_data(gm.model, X)
+add_variables_from_data!(gm::GlobalModel, X::DataFrame) = add_variables_from_data!(gm.model, X)
 
 
 """ 
@@ -47,7 +47,7 @@ function bound_to_data!(m::JuMP.Model,
     return
 end
     
-bound_to_data!(gm::GlobalModel, X::DataFrame) = bound_to_data(gm.model, X)
+bound_to_data!(gm::GlobalModel, X::DataFrame) = bound_to_data!(gm.model, X)
 
 """
     restrict_to_set(var::JuMP.VariableRef, s::Union{Set, Array})
@@ -61,35 +61,43 @@ function restrict_to_set(var::JuMP.VariableRef, s::Union{Set, Array})
     return
 end
 
-# """
-#  Adds a data-driven constraint to GlobalModel. Data driven BBLs
-# do not allow of resampling. 
-# """
-# function add_datadriven_constraint(gm::GlobalModel,
-#                      X::DataFrame, Y::Union{Array, DataFrame};
-#                      vars::Union{Nothing, Array{JuMP.VariableRef, 1}} = nothing,
-#                      dependent_var::Union{Nothing, JuMP.VariableRef} = nothing,
-#                      name::String = "bbl" * string(length(gm.bbls) + 1),
-#                      equality::Bool = false)
-#     if isnothing(vars)
+"""
 
-    
-#     if isnothing(dependent_var)
-#         new_bbl = BlackBoxClassifier(constraint = constraint, vars = vars, expr_vars = expr_vars,
-#                                         equality = equality, name = name)
-#         push!(gm.bbls, new_bbl)
-#         return
-#     else
-#         new_bbl = BlackBoxRegressor(constraint = constraint, vars = vars, expr_vars = expr_vars,
-#                                     dependent_var = dependent_var, equality = equality, name = name)
-#         push!(gm.bbls, new_bbl)
-#         return
-#     end
-# end
+ Adds a data-driven constraint to GlobalModel. Data driven BBLs
+do not allow of resampling. 
+"""
+function add_datadriven_constraint(gm::GlobalModel,
+                     X::DataFrame, Y::Array;
+                     constraint::Union{Nothing, JuMP.ConstraintRef, Expr} = nothing, 
+                     vars::Union{Nothing, Array{JuMP.VariableRef, 1}} = nothing,
+                     dependent_var::Union{Nothing, JuMP.VariableRef} = nothing,
+                     name::String = "bbl" * string(length(gm.bbls) + 1),
+                     equality::Bool = false)
+    if isnothing(vars)
+        vars = add_variables_from_data!(gm, X)
+    else
+        @assert size(X, 2) == length(vars)
+    end
+    expr_vars = vars
+    if isnothing(dependent_var)
+        new_bbl = BlackBoxClassifier(constraint = constraint, vars = vars, expr_vars = expr_vars,
+                                        equality = equality, name = name)
+        add_data!(new_bbl, X, Y)
+        push!(gm.bbls, new_bbl)
+        return
+    else
+        new_bbl = BlackBoxRegressor(constraint = constraint, vars = vars, expr_vars = expr_vars,
+                                    dependent_var = dependent_var, equality = equality, name = name)
+        add_data!(new_bbl, X, Y)
+        push!(gm.bbls, new_bbl)
+        return
+    end
+end
 
-""" Creates an axial flux motor model. """
-function test_afpm()
-    m = Model(with_optimizer(CPLEX_SILENT))
+# """ Creates an axial flux motor model. """
+# function test_afpm()
+
+
 
     # Data preprocessing
     X = log.(CSV.read("data/afpm/afpm_inputs.csv", DataFrame,
@@ -100,17 +108,18 @@ function test_afpm()
     X_infeas = select!(X_infeas, Not(:Column1));
 
     Y = CSV.read("data/afpm/afpm_outputs.csv", DataFrame, copycols=true, delim=","); # log taken later
-    Y = select!(Y, Not(:Column1));
+    foms = ["P_shaft", "Torque", "Rotational Speed", "Efficiency", "Mass", "Mass Specific Power"]
+    Y = select!(Y, foms);
 
     feas_idxs = findall(x -> !ismissing(x) && x .>= 0.5, Y.Efficiency);
     X_feas = X[feas_idxs, :]
-    Y_feas = Y[feas_idxs, :]
+    Y_feas = log.(Y[feas_idxs, :])
  
     # Creating model with relevant variables, and geometry constraints
     m = Model(with_optimizer(CPLEX_SILENT))
     add_variables_from_data!(m, X)
     add_variables_from_data!(m, Y)
-    @test length(all_variables(m)) == 26
+    @test length(all_variables(m)) == 15
     N_coils, TPC, p = m[:N_coils], m[:TPC], m[:p]
 
     [JuMP.set_integer(var) for var in [N_coils, TPC, p]]
@@ -121,19 +130,31 @@ function test_afpm()
     @constraint(m, log(pi) + D_in >= log(0.2) + wire_w + N_coils) #pi*D_in >= 2*0.1*wire_w*N_coils
     @constraint(m, N_coils >= p + 1e-3) # motor type 2
 
+    # Objectives and FOMs
+    P_shaft, Torque, Rotational_Speed, Efficiency, Mass, Mass_Specific_Power = [m[Symbol(fom)] for fom in foms]
+    set_upper_bound(Efficiency, 0)
+    @constraint(m, log(7900) <= Rotational_Speed <= 8100)
+    @constraint(m, log(9800) <= P_shaft <= 10200)
+    @objective(m, Min, Mass)
+
+    gm = GlobalModel(model = m)
+
     # Integer constraints (in logspace)
     restrict_to_set(N_coils, unique(X_feas[!, "N_coils"]));
     restrict_to_set(p, unique(X_feas[!, "p"]))
     restrict_to_set(TPC, unique(X_feas[!, "TPC"]))
 
-    # Objectives and FOMs
-    foms = ["P_shaft", "Torque", "Rotational Speed", "Efficiency", "Mass", "Mass Specific Power"]
-    P_shaft, Torque, Rotational_Speed, Efficiency, Mass, Mass_Specific_Power = [m[Symbol(fom)] for fom in foms]
-    set_upper_bound(Efficiency, 1)
-    
-    @test true
-end
+    # Feasibility constraint
+    add_datadriven_constraint(gm, X, Int64.([!ismissing(y) && y .>= 0.5 for y in Array(Y.Efficiency)]) .* 2 .- 1)
+    # FOM regressions
+    for fom in foms
+        add_datadriven_constraint(gm, X_feas, Array(Y_feas[!, Symbol(fom)]), dependent_var = m[Symbol(fom)])
+    end
 
 
-test_afpm()
+#     return gm
+# end
+
+
+# gm = test_afpm()
 

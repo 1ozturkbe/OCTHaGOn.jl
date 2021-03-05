@@ -251,6 +251,8 @@ function gradientify(con::JuMP.ConstraintRef, expr_vars::Array)
     end
 end
 
+gradientify(con::Nothing, expr_vars::Array) = nothing
+
 """
     linearize_objective!(model::JuMP.Model)
 Makes sure that the objective function is affine.
