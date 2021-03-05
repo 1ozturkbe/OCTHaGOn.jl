@@ -198,6 +198,7 @@ Evaluates constraint violation on data in the variables, and returns distance fr
         Note that the keys of the Dict have to be uniform.
 """
 function evaluate(bbl::BlackBoxLearner, data::Union{Dict, DataFrame})
+    @assert !isnothing(bbl.constraint)
     clean_data = data_to_DataFrame(data);
     if isnothing(bbl.f)
         constr_obj = constraint_object(bbl.constraint)
@@ -239,6 +240,7 @@ Evaluates gradient of function through ForwardDiff.
 TODO: speed-ups!. 
 """
 function evaluate_gradient(bbl::BlackBoxLearner, data::DataFrame)
+    @assert !isnothing(bbl.constraint)
     @assert(size(data, 2) == length(bbl.vars))
     if bbl.constraint isa JuMP.ConstraintRef
         return DataFrame(hcat([bbl.g(Array(row)) 
