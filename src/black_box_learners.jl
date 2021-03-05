@@ -6,14 +6,19 @@ To be added to GlobalModel.bbls using functions:
     add_nonlinear_constraints
     add_nonlinear_or_compatible
 
-Mandatory arguments:
-    constraint::Union{JuMP.ConstraintRef, Expr}
-        A function
-    vars::Array{JuMP.VariableRef,1}, 
-    expr_vars::Array
-    dependent_var::JuMP.VariableRef
+    Mandatory arguments are:
+        vars::Array{JuMP.VariableRef,1}
+        dependent_var::JuMP.VariableRef
+
+Other arguments may be necessary for proper functioning:
+    For data-driven constraints, need:
+        X::DataFrame
+        Y:: Array
+    For constraint functions, need :
+        constraint::Union{JuMP.ConstraintRef, Expr}
 
 Optional arguments:
+    expr_vars::Union{Array, Nothing}
         JuMP variables as function arguments (i.e. vars rolled up into vector forms).
         vars ⋐ flat(expr_vars)
     name::String
@@ -21,7 +26,7 @@ Optional arguments:
         Specifies whether function should be satisfied to an equality
 """
 @with_kw mutable struct BlackBoxRegressor
-    constraint::Union{JuMP.ConstraintRef, Expr}        # The "raw" constraint
+    constraint::Union{Nothing, JuMP.ConstraintRef, Expr}        # The "raw" constraint
     vars::Array{JuMP.VariableRef,1}                    # JuMP variables (flat)
     dependent_var::JuMP.VariableRef                    # Dependent variable
     name::String = ""                                  # Function name
@@ -67,10 +72,15 @@ To be added to GlobalModel.bbls using functions:
     add_nonlinear_constraints
     add_nonlinear_or_compatible
 
-Mandatory arguments:
-    constraint::Union{JuMP.ConstraintRef, Expr}
-        A function
+Mandatory arguments are:
     vars::Array{JuMP.VariableRef,1}
+
+Other arguments may be necessary for proper functioning:
+    For data-driven constraints, need:
+        X::DataFrame
+        Y:: Array
+    For constraint functions, need :
+        constraint::Union{JuMP.ConstraintRef, Expr}
 
 Optional arguments:
     expr_vars::Union{Array, Nothing}
@@ -81,7 +91,7 @@ Optional arguments:
         Specifies whether function should be satisfied to an equality
 """
 @with_kw mutable struct BlackBoxClassifier
-    constraint::Union{JuMP.ConstraintRef, Expr}        # The "raw" constraint
+    constraint::Union{Nothing, JuMP.ConstraintRef, Expr} # The "raw" constraint
     vars::Array{JuMP.VariableRef,1}                    # JuMP variables (flat)
     name::String = ""                                  # Function name
     expr_vars::Array                                   # Function inputs (nonflat JuMP variables)
