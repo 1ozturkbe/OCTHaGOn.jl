@@ -66,7 +66,7 @@ function boundary_sample(vars::Array{JuMP.VariableRef, 1}; n_samples::Int64 = 10
     nX = DataFrame([Float64 for i in vks], vks)
     sample_indices = [];
     if n_comb >= fraction*n_samples 
-        @warn("Can't exhaustively sample the boundary of Constraint " * string(warn_string) * ".")
+        @info("Can't exhaustively sample the boundary of Constraint " * string(warn_string) * ".")
         n_comb = 2*n_vars+2; # Everything is double because we choose min's and max's
         choosing = 1;
         while n_comb <= fraction*n_samples
@@ -150,7 +150,7 @@ function uniform_sample_and_eval!(bbl::BlackBoxLearner;
     eval!(bbl, df);
     if bbl isa BlackBoxClassifier
         if bbl.feas_ratio == 1.0
-            @warn(string(bbl.name) * " was not KNN sampled since it has no infeasible samples.")
+            @info(string(bbl.name) * " was not KNN sampled since it has no infeasible samples.")
         elseif bbl.feas_ratio == 0.0
             throw(OCTException(string(bbl.name) * " has zero feasible samples. " *
                                "Please find at least one feasible sample, seed the data and KNN sample."))
@@ -203,7 +203,7 @@ function last_leaf_sample(bbr::BlackBoxRegressor, n_samples = get_param(bbr, :n_
         end
         idxs =  findall(x -> x .>= 0.5, upper_leafneighbor .* lower_leafneighbor)
         if length(idxs) == 0
-            @warn("No points in $(bbr.name) in the intersection of trees. Widening sampling. ")
+            @info("No points in $(bbr.name) in the intersection of trees. Widening sampling. ")
             idxs =  findall(x -> x .>= 0.5, upper_leafneighbor + lower_leafneighbor)
         end
         lbs = [minimum(col) for col in eachcol(bbr.X[idxs, :])]
