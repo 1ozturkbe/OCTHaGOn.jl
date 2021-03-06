@@ -29,7 +29,7 @@ add_variables_from_data!(gm::GlobalModel, X::DataFrame) = add_variables_from_dat
 
 
 """ 
-    bound_to_data(gm::Union{JuMP.Model, GlobalModel},
+    bound_to_data!(gm::Union{JuMP.Model, GlobalModel},
                   X::DataFrame)
 
 Constrains the domain of relevant variables to the box interval defined by X.
@@ -118,11 +118,11 @@ end
     # Creating model with relevant variables, and geometry constraints
     m = Model(with_optimizer(CPLEX_SILENT))
     add_variables_from_data!(m, X)
+    bound_to_data!(m, X_feas)
     add_variables_from_data!(m, Y)
+    bound_to_data!(m, Y_feas)
     @test length(all_variables(m)) == 15
     N_coils, TPC, p = m[:N_coils], m[:TPC], m[:p]
-
-    [JuMP.set_integer(var) for var in [N_coils, TPC, p]]
 
     # Geometry constraints (in logspace)
     D_out, D_in, N_coils, wire_w = m[:D_out], m[:D_in], m[:N_coils], m[:wire_w]
@@ -132,24 +132,31 @@ end
 
     # Objectives and FOMs
     P_shaft, Torque, Rotational_Speed, Efficiency, Mass, Mass_Specific_Power = [m[Symbol(fom)] for fom in foms]
-    set_upper_bound(Efficiency, 0)
-    @constraint(m, log(7900) <= Rotational_Speed <= 8100)
-    @constraint(m, log(9800) <= P_shaft <= 10200)
+    @constraint(m, log(7900) <= Rotational_Speed <= log(8100))
+    @constraint(m, log(9.8) <= P_shaft <= log(10.2))
     @objective(m, Min, Mass)
 
     gm = GlobalModel(model = m)
+    optimize!(gm)
 
     # Integer constraints (in logspace)
     restrict_to_set(N_coils, unique(X_feas[!, "N_coils"]));
-    restrict_to_set(p, unique(X_feas[!, "p"]))
-    restrict_to_set(TPC, unique(X_feas[!, "TPC"]))
+    # restrict_to_set(p, unique(X_feas[!, "p"]))
+    # restrict_to_set(TPC, unique(X_feas[!, "TPC"]))
+
+    # Confirm feasibility by optimizing!
+    optimize!(gm)
 
     # Feasibility constraint
     add_datadriven_constraint(gm, X, Int64.([!ismissing(y) && y .>= 0.5 for y in Array(Y.Efficiency)]) .* 2 .- 1)
     # FOM regressions
     for fom in foms
-        add_datadriven_constraint(gm, X_feas, Array(Y_feas[!, Symbol(fom)]), dependent_var = m[Symbol(fom)])
+        add_datadriven_constraint(gm, X_feas, Array(Y_feas[!, Symbol(fom)]), dependent_var = m[Symbol(fom)], equality=true)
     end
+
+
+    # Learning
+    # surveysolve(gm)
 
 
 #     return gm
