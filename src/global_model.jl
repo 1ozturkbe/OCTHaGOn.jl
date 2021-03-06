@@ -366,10 +366,11 @@ function feas_gap(gm::GlobalModel)
     soln = solution(gm)
     feas = []
     for bbl in gm.bbls
-        eval!(bbl, soln)
         if bbl isa BlackBoxClassifier && !isnothing(bbl.constraint)
+            eval!(bbl, soln)
             push!(feas, bbl.Y[end] ./ (maximum(bbl.Y) - minimum(bbl.Y)))
         elseif bbl isa BlackBoxRegressor && !isnothing(bbl.constraint)
+            eval!(bbl, soln)
             optimum = JuMP.getvalue(bbl.dependent_var)
             actual = bbl.Y[end]
             push!(bbl.optima, optimum)
@@ -378,6 +379,8 @@ function feas_gap(gm::GlobalModel)
         elseif bbl isa BlackBoxClassifier && isnothing(bbl.constraint)
             push!(feas, 0) # data constraints are always feasible
         elseif bbr isa BlackBoxRegressor && isnothing(bbl.constraint)
+            optimum = JuMP.getvalue(bbl.dependent_var)
+            push!(bbl.optima, optimum)
             push!(feas, 0) # data constraints are always feasible
         end
     end
