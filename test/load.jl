@@ -9,6 +9,7 @@ using DataFrames
 using JuMP
 using BARON
 using CPLEX
+using CSV
 using Gurobi
 # using Ipopt
 using JLD
@@ -34,14 +35,16 @@ include(OCT.PROJECT_ROOT * "/test/tools/models.jl")
 
 include(OCT.DATA_DIR * "speed_reducer.jl")
 
-include(OCT.BARON_DIR * "gear.jl");
+include(OCT.DATA_DIR * "afpm.jl")
 
-include(OCT.BARON_DIR * "minlp.jl");
+include(OCT.BARON_DIR * "gear.jl")
 
-include(OCT.BARON_DIR * "nlp1.jl");
+include(OCT.BARON_DIR * "minlp.jl")
 
-include(OCT.BARON_DIR * "nlp2.jl");
+include(OCT.BARON_DIR * "nlp1.jl")
 
-include(OCT.BARON_DIR * "nlp3.jl");
+include(OCT.BARON_DIR * "nlp2.jl")
 
-include(OCT.BARON_DIR * "pool1.jl");
+include(OCT.BARON_DIR * "nlp3.jl")
+
+include(OCT.BARON_DIR * "pool1.jl")
