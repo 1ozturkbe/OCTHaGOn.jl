@@ -378,7 +378,7 @@ function feas_gap(gm::GlobalModel)
             push!(feas, (optimum-actual) / (maximum(bbl.Y) - minimum(bbl.Y)))
         elseif bbl isa BlackBoxClassifier && isnothing(bbl.constraint)
             push!(feas, 0) # data constraints are always feasible
-        elseif bbr isa BlackBoxRegressor && isnothing(bbl.constraint)
+        elseif bbl isa BlackBoxRegressor && isnothing(bbl.constraint)
             optimum = JuMP.getvalue(bbl.dependent_var)
             push!(bbl.optima, optimum)
             push!(feas, 0) # data constraints are always feasible
