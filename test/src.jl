@@ -109,6 +109,10 @@ end
 function test_sets()
     sets = [MOI.GreaterThan(2), MOI.EqualTo(0), MOI.SecondOrderCone(3), MOI.GeometricMeanCone(2), MOI.SOS1([1,2,3])]
     @test get_constant.(sets) == [2, 0, nothing, nothing, nothing]
+
+    model, x, y, z, a = test_model()
+    restrict_to_set(x[3], [1,2,3])
+    @test length(all_variables(model)) == 18
 end
 
 function test_linearize()
