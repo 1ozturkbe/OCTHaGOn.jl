@@ -95,10 +95,7 @@ function add_datadriven_constraint(gm::GlobalModel,
 end
 
 # """ Creates an axial flux motor model. """
-# function test_afpm()
-
-
-
+function test_afpm()
     # Data preprocessing
     X = log.(CSV.read("data/afpm/afpm_inputs.csv", DataFrame,
                  copycols=true, delim=","));
@@ -141,8 +138,8 @@ end
 
     # Integer constraints (in logspace)
     restrict_to_set(N_coils, unique(X_feas[!, "N_coils"]));
-    # restrict_to_set(p, unique(X_feas[!, "p"]))
-    # restrict_to_set(TPC, unique(X_feas[!, "TPC"]))
+    restrict_to_set(p, unique(X_feas[!, "p"]))
+    restrict_to_set(TPC, unique(X_feas[!, "TPC"]))
 
     # Confirm feasibility by optimizing!
     optimize!(gm)
@@ -154,14 +151,10 @@ end
         add_datadriven_constraint(gm, X_feas, Array(Y_feas[!, Symbol(fom)]), dependent_var = m[Symbol(fom)], equality=true)
     end
 
-
     # Learning
-    # surveysolve(gm)
+    surveysolve(gm)
+    return gm
+end
 
-
-#     return gm
-# end
-
-
-# gm = test_afpm()
+gm = test_afpm()
 
