@@ -480,6 +480,21 @@ function test_convex_objective()
     update_leaf_vexity(gm.bbls[1])
     @test gm.bbls[1].vexity[1][2] == 1.0
 end
+
+function test_data_driven()
+    model, x, y, z, a = test_model()
+    rand_data = DataFrame("d" => [1,2,3])
+    @test_throws OCTException bound_to_data!(model, rand_data)
+    add_variables_from_data!(model, rand_data)
+    @test model[:d] isa JuMP.VariableRef
+    bound_to_data!(model, rand_data)
+    @test get_bounds(model)[model[:d]] == [1,3]
+
+    # Testing more complex constraints from afpm_model
+    gm = afpm_model()
+    @test length(gm.vars) == 15
+    @test isnothing(get_unbounds(gm))
+end
     
 test_expressions()
 
@@ -504,3 +519,5 @@ test_bbr()
 test_basic_gm()
 
 test_convex_objective()
+
+test_data_driven()
