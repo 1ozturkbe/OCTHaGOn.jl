@@ -26,7 +26,8 @@ function afpm_model()
     N_coils, TPC, p = m[:N_coils], m[:TPC], m[:p]
 
     # Geometry constraints (in logspace)
-    D_out, D_in, N_coils, wire_w = m[:D_out], m[:D_in], m[:N_coils], m[:wire_w]
+    D_out, D_in, N_coils, wire_w, wire_A, wire_h = m[:D_out], m[:D_in], m[:N_coils], 
+                                                   m[:wire_w], m[:wire_A], m[:wire_h]
     @constraint(m, D_out >= D_in)
     @constraint(m, log(pi) + D_in >= log(0.2) + wire_w + N_coils) #pi*D_in >= 2*0.1*wire_w*N_coils
     @constraint(m, wire_A == wire_h + wire_w)
