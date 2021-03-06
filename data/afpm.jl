@@ -29,6 +29,7 @@ function afpm_model()
     D_out, D_in, N_coils, wire_w = m[:D_out], m[:D_in], m[:N_coils], m[:wire_w]
     @constraint(m, D_out >= D_in)
     @constraint(m, log(pi) + D_in >= log(0.2) + wire_w + N_coils) #pi*D_in >= 2*0.1*wire_w*N_coils
+    @constraint(m, wire_A == wire_h + wire_w)
     @constraint(m, N_coils >= p + 1e-3) # motor type 2
 
     # Objectives and FOMs

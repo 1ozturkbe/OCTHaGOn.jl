@@ -53,7 +53,7 @@ e(j).. abs(  (x('1') + x('2')*t(j) + x('3')*power(t(j),2)) /
       ( 1 + x('4')*t(j) + x('5')*power(t(j),2) ) -
       a(j)
       ) - y(j) =E= 0;
-e1.. smax(j,y(j)) - objvar =E= 0;
+e1.. smax(j,y(j)) =L= objvar;
 
 x.l('1') = 0;
 x.l('2') = -1;

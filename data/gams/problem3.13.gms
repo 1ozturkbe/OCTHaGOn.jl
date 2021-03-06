@@ -71,8 +71,7 @@ ftwo..      f =g= y;
 
 e1..   sum(i,d(i)*power(x(i),3)) +
        sum(i,sum(ii,C(i,ii)*x(i)*x(ii))) +
-       sum(i,e(i)*x(i)) + 50*f
-       - objvar =E= 0;
+       sum(i,e(i)*x(i)) + 50*f =L= objvar;
 
 x.l('1') = 0;
 x.l('2') = 0;

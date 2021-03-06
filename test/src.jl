@@ -484,7 +484,7 @@ end
 function test_data_driven()
     model, x, y, z, a = test_model()
     rand_data = DataFrame("d" => [1,2,3])
-    @test_throws OCTException bound_to_data!(model, rand_data)
+    @test_throws UnderVarError bound_to_data!(model, rand_data)
     add_variables_from_data!(model, rand_data)
     @test model[:d] isa JuMP.VariableRef
     bound_to_data!(model, rand_data)

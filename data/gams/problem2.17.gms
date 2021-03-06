@@ -47,7 +47,7 @@ Equations  e(j)
 e(j).. abs(  x('1')*exp(-x('2')*t(j))*cos(x('3')*t(j) + x('4')) +
        x('5')*exp(-x('6')*t(j)) - a(j)
       ) - y(j) =E= 0;
-e1.. smax(j,y(j)) - objvar =E= 0;
+e1.. smax(j,y(j)) =L= objvar;
 
 *x.l('1') = 2;
 *x.l('2') = 2;
