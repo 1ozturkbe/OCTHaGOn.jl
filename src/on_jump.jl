@@ -326,3 +326,15 @@ function bound!(model::JuMP.Model, bounds::Dict)
         bound!(model, bd)
     end
 end
+
+"""
+    restrict_to_set(var::JuMP.VariableRef, s::Union{Set, Array})
+
+Restricts variable to a set s. Useful for non-integer sets or when taking log of integer variables. 
+"""
+function restrict_to_set(var::JuMP.VariableRef, s::Union{Set, Array})
+    int = @variable(var.model, [1:length(s)], Bin)
+    @constraint(var.model, sum(int) == 1)
+    @constraint(var.model, var == sum(s .* int))
+    return
+end

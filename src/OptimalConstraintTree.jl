@@ -89,7 +89,7 @@ module OptimalConstraintTree
         # Functions on JuMP objects
         fetch_variable, get_bounds, get_unbounds,
         linearize_objective!, classify_constraints,
-        bound!,
+        bound!, restrict_to_set,
         data_to_DataFrame, data_to_Dict,
         distance_to_set, get_constant, 
         add_feas_constraints!, add_regr_constraints!,
