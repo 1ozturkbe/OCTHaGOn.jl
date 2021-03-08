@@ -186,4 +186,5 @@ function add_infeasibility_cuts!(gm::GlobalModel, M = 1e5)
         # TODO: add infeasibility cuts for Regressors that are locally convex. 
         # TODO: add infeasibility cuts for equalities as well. 
     end
+    return 
 end
