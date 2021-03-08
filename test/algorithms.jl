@@ -51,7 +51,7 @@ function test_infeasibility_cuts()
     add_tree_constraints!(gm)
     optimize!(gm)
     bbc_idxs = [bbl isa BlackBoxClassifier for bbl in gm.bbls]
-    while any(gm.feas_history[end] .* bbc_idxs .!= 0)
+    while any(gm.feas_history[end] .* bbc_idxs .!= 0) && size(gm.solution_history, 1) <= 20
         add_infeasibility_cuts!(gm)
         optimize!(gm)
     end
@@ -77,11 +77,11 @@ function test_survey_method(gm::GlobalModel = minlp(true))
     bbc_idxs = [x isa BlackBoxClassifier for x in gm.bbls]
     add_infeasibility_cuts!(gm)
     optimize!(gm)
-    while gm.cost[end] > gm.cost[end-1] .* (1 + get_param(gm, :tighttol)) && size(gm.solution_history, 1) <= 50
+    while gm.cost[end] > gm.cost[end-1] .* (1 + get_param(gm, :tighttol)) && size(gm.solution_history, 1) <= 20
         add_infeasibility_cuts!(gm)
         optimize!(gm)
     end #TODO RESOLVE WHILE LOOP OVERRUN. 
-    return gm
+    @test true
 end
 
 # function update_uls(gm::GlobalModel, bbr::BlackBoxRegressor)

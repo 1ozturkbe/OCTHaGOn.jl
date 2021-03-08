@@ -123,7 +123,7 @@ e(j).. abs( x('9')*sqrt(
          power( (1 - x('8'))*auxsin(j),2) )  )
         - auxy(j)
       ) - y(j) =E= 0;
-e1.. smax(j,y(j)) - objvar =E= 0;
+e1.. smax(j,y(j)) =L= objvar;
 
 x.l('1') = 0;
 x.l('2') = 1;

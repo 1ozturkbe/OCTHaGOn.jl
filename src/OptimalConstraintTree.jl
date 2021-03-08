@@ -1,6 +1,7 @@
 module OptimalConstraintTree
     using Combinatorics
     using CPLEX
+    using CSV
     using DataFrames
     using ForwardDiff
     using JLD
@@ -43,6 +44,8 @@ module OptimalConstraintTree
     include("iai_wrappers.jl")
 
     include("global_model.jl")
+    
+    include("data_driven.jl")
 
     include("sample.jl")
 
@@ -89,7 +92,7 @@ module OptimalConstraintTree
         # Functions on JuMP objects
         fetch_variable, get_bounds, get_unbounds,
         linearize_objective!, classify_constraints,
-        bound!,
+        bound!, restrict_to_set,
         data_to_DataFrame, data_to_Dict,
         distance_to_set, get_constant, 
         add_feas_constraints!, add_regr_constraints!,
@@ -98,6 +101,8 @@ module OptimalConstraintTree
         fit_regressor_kwargs, fit_classifier_kwargs, 
         regressor_kwargs, classifier_kwargs,
         functionify, gradientify, 
+        # Data driven constraints
+        bound_to_data!, add_variables_from_data!, add_datadriven_constraint,
         # Other approximators, 
         ridge_regress, u_regress, l_regress, boundify, svm, reweight,
         add_infeasibility_cuts!,

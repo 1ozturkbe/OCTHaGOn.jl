@@ -109,6 +109,10 @@ end
 function test_sets()
     sets = [MOI.GreaterThan(2), MOI.EqualTo(0), MOI.SecondOrderCone(3), MOI.GeometricMeanCone(2), MOI.SOS1([1,2,3])]
     @test get_constant.(sets) == [2, 0, nothing, nothing, nothing]
+
+    model, x, y, z, a = test_model()
+    restrict_to_set(x[3], [1,2,3])
+    @test length(all_variables(model)) == 18
 end
 
 function test_linearize()
@@ -476,6 +480,21 @@ function test_convex_objective()
     update_leaf_vexity(gm.bbls[1])
     @test gm.bbls[1].vexity[1][2] == 1.0
 end
+
+function test_data_driven()
+    model, x, y, z, a = test_model()
+    rand_data = DataFrame("d" => [1,2,3])
+    @test_throws UndefVarError bound_to_data!(model, rand_data)
+    add_variables_from_data!(model, rand_data)
+    @test model[:d] isa JuMP.VariableRef
+    bound_to_data!(model, rand_data)
+    @test get_bounds(model)[model[:d]] == [1,3]
+
+    # Testing more complex constraints from afpm_model
+    gm = afpm_model()
+    @test length(gm.vars) == 15
+    @test isnothing(get_unbounds(gm))
+end
     
 test_expressions()
 
@@ -500,3 +519,5 @@ test_bbr()
 test_basic_gm()
 
 test_convex_objective()
+
+test_data_driven()

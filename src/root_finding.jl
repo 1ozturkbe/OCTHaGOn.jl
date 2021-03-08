@@ -90,7 +90,7 @@ function classify_curvature(bbl::BlackBoxLearner, idxs = collect(1:size(bbl.X, 1
     build_knn_tree(bbl);
     knn_idxs, dists = find_knn(bbl, k=length(bbl.vars) + 1);
     if any(ismissing.(bbl.gradients[idxs,1])) # Only need to check the first element
-        @warn("Missing gradient information was updated.")
+        @info("Missing gradient information was updated.")
         miss_idxs = [idx for idx in idxs if ismissing(bbl.gradients[idx,1])]
         update_gradients(bbl, miss_idxs)
     end

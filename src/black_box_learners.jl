@@ -6,14 +6,19 @@ To be added to GlobalModel.bbls using functions:
     add_nonlinear_constraints
     add_nonlinear_or_compatible
 
-Mandatory arguments:
-    constraint::Union{JuMP.ConstraintRef, Expr}
-        A function
-    vars::Array{JuMP.VariableRef,1}, 
-    expr_vars::Array
-    dependent_var::JuMP.VariableRef
+    Mandatory arguments are:
+        vars::Array{JuMP.VariableRef,1}
+        dependent_var::JuMP.VariableRef
+
+Other arguments may be necessary for proper functioning:
+    For data-driven constraints, need:
+        X::DataFrame
+        Y:: Array
+    For constraint functions, need :
+        constraint::Union{JuMP.ConstraintRef, Expr}
 
 Optional arguments:
+    expr_vars::Union{Array, Nothing}
         JuMP variables as function arguments (i.e. vars rolled up into vector forms).
         vars ⋐ flat(expr_vars)
     name::String
@@ -21,7 +26,7 @@ Optional arguments:
         Specifies whether function should be satisfied to an equality
 """
 @with_kw mutable struct BlackBoxRegressor
-    constraint::Union{JuMP.ConstraintRef, Expr}        # The "raw" constraint
+    constraint::Union{Nothing, JuMP.ConstraintRef, Expr}        # The "raw" constraint
     vars::Array{JuMP.VariableRef,1}                    # JuMP variables (flat)
     dependent_var::JuMP.VariableRef                    # Dependent variable
     name::String = ""                                  # Function name
@@ -55,7 +60,8 @@ Optional arguments:
 end
 
 function Base.show(io::IO, bbr::BlackBoxRegressor)
-    println(io, "BlackBoxRegressor " * bbr.name * " with $(length(bbr.vars)) independent variables: ")
+    println(io, "BlackBoxRegressor " * bbr.name * " with $(length(bbr.vars)) independent variables, ")
+    println(io, "and dependent variable $(bbr.dependent_var).")
     println(io, "Sampled $(length(bbr.Y)) times, and has $(length(bbr.learners)) trained ORTs.")
 end
 
@@ -67,10 +73,15 @@ To be added to GlobalModel.bbls using functions:
     add_nonlinear_constraints
     add_nonlinear_or_compatible
 
-Mandatory arguments:
-    constraint::Union{JuMP.ConstraintRef, Expr}
-        A function
+Mandatory arguments are:
     vars::Array{JuMP.VariableRef,1}
+
+Other arguments may be necessary for proper functioning:
+    For data-driven constraints, need:
+        X::DataFrame
+        Y:: Array
+    For constraint functions, need :
+        constraint::Union{JuMP.ConstraintRef, Expr}
 
 Optional arguments:
     expr_vars::Union{Array, Nothing}
@@ -81,7 +92,7 @@ Optional arguments:
         Specifies whether function should be satisfied to an equality
 """
 @with_kw mutable struct BlackBoxClassifier
-    constraint::Union{JuMP.ConstraintRef, Expr}        # The "raw" constraint
+    constraint::Union{Nothing, JuMP.ConstraintRef, Expr} # The "raw" constraint
     vars::Array{JuMP.VariableRef,1}                    # JuMP variables (flat)
     name::String = ""                                  # Function name
     expr_vars::Array                                   # Function inputs (nonflat JuMP variables)
@@ -188,6 +199,7 @@ Evaluates constraint violation on data in the variables, and returns distance fr
         Note that the keys of the Dict have to be uniform.
 """
 function evaluate(bbl::BlackBoxLearner, data::Union{Dict, DataFrame})
+    @assert !isnothing(bbl.constraint)
     clean_data = data_to_DataFrame(data);
     if isnothing(bbl.f)
         constr_obj = constraint_object(bbl.constraint)
@@ -229,6 +241,7 @@ Evaluates gradient of function through ForwardDiff.
 TODO: speed-ups!. 
 """
 function evaluate_gradient(bbl::BlackBoxLearner, data::DataFrame)
+    @assert !isnothing(bbl.constraint)
     @assert(size(data, 2) == length(bbl.vars))
     if bbl.constraint isa JuMP.ConstraintRef
         return DataFrame(hcat([bbl.g(Array(row)) 
