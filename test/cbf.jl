@@ -39,26 +39,3 @@ learn_constraint!(md);
 # Solving the model
 status = optimize!(md)
 OCT_vars = JuMP.getvalue.(md.vars);
-
-# Doing CBF stuff
-# cons_types = list_of_constraint_types(model)
-#
-# for (expr, type) in cons_types
-#     cons = all_constraints(model, expr, type)
-#     for consref in cons
-#         one_constr = constraint_object(cons)
-#     end
-# end
-
-#
-# num_constraints(model, VariableRef, MOI.GreaterThan{Float64})
-#
-# num_constraints(model, VariableRef, MOI.ZeroOne)
-#
-# num_constraints(model, AffExpr, MOI.LessThan{Float64})
-#
-# constraint_object(con_ref::ConstraintRef)
-#
-#     F = MOI.get(model, MOI.ObjectiveFunctionType())
-#
-# MOI.get(model, MOI.ListOfConstraintIndices{F, S}())
