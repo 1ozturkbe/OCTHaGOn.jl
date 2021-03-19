@@ -322,9 +322,13 @@ function test_bbr()
 
     # Lower regression training
     learn_constraint!(bbr,  threshold = "lower" => 5.)
-    lnr = bbr.learners[end]
-    @test all(sign.(collect(keys(bbr.ul_data))) .== 1)
+    @test all(sign.(collect(keys(bbr.ul_data[end]))) .== 1)
     @test bbr.thresholds[end] == ("lower" => 5.)
+
+    # Upperlower regression training (sets an upper bound, but lower bounds in leaves)
+    learn_constraint!(bbr, threshold = "upperlower" => 10.)
+    lnr = bbr.learners[end]
+    @test sum(collect(keys(bbr.ul_data[end]))) == 0
 
     # Checking all possible update scenarios
     # Note: [1] => upper bounds, [2,3] => regressors, [4] => lower bounds
@@ -366,7 +370,13 @@ function test_bbr()
     optimize!(gm)
     @test active_lower_tree(bbr) == 4
 
+    update_tree_constraints!(gm, bbr, 5) # Replace separate u/l bounds with upperlower
+    @test length(bbr.leaf_variables)*2 + 2 == length(bbr.mi_constraints) &&
+        length(bbr.active_trees) == 1
+    @test active_lower_tree(bbr) == 5
+
     # Make sure that all solutions are the same. 
+    update_tree_constraints!(gm, bbr, 1)
     update_tree_constraints!(gm, bbr, 4) 
     optimize!(gm)
     update_tree_constraints!(gm, bbr, 1)
@@ -387,7 +397,7 @@ function test_bbr()
     @test all(Array(gm.solution_history[:,"obj"]) .≈ gm.solution_history[1, "obj"])
 
     # Checking proper storage
-    @test all(length.([bbr.ul_data, bbr.thresholds, bbr.learners, bbr.learner_kwargs]) .== 4)
+    @test all(length.([bbr.ul_data, bbr.thresholds, bbr.learners, bbr.learner_kwargs]) .== 5)
     clear_tree_data!(bbr)
     @test all(length.([bbr.ul_data, bbr.thresholds, bbr.learners, bbr.learner_kwargs]) .== 0)
     @test !isempty(bbr.mi_constraints) && !isempty(bbr.leaf_variables)
