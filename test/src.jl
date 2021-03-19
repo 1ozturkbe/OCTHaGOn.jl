@@ -348,19 +348,20 @@ function test_bbr()
     # No upper and lower bounding, just regressor here
     @test all(sign.(collect(keys(bbr.leaf_variables))) .== 1) &&
             bbr.active_trees == Dict(3 => bbr.thresholds[3])
-    @test active_lower_tree(bbr) == 3
+    @test active_lower_tree(bbr) == 3 && active_upper_tree(bbr) == 3
 
     update_tree_constraints!(gm, bbr, 4) # Replacing regressor with lower bound
     @test all(sign.(collect(keys(bbr.leaf_variables))) .== 1) && # since lower bounding
         length(bbr.leaf_variables) + 1 == length(bbr.mi_constraints) && 
             bbr.active_trees == Dict(4 => bbr.thresholds[4])
     @test active_lower_tree(bbr) == 4
+    @test_throws OCTException active_upper_tree(bbr)
 
     update_tree_constraints!(gm, bbr, 1) # Adding upper bound to lower bound
     @test length(bbr.leaf_variables) + 2 == length(bbr.mi_constraints) && # checking leaf variables
         length(bbr.active_trees) == 2
     optimize!(gm)
-    @test active_lower_tree(bbr) == 4
+    @test active_lower_tree(bbr) == 4 && active_upper_tree(bbr) == 1
 
     clear_tree_constraints!(gm, bbr)
     update_tree_constraints!(gm, bbr, 1)
@@ -368,12 +369,12 @@ function test_bbr()
     @test length(bbr.leaf_variables) + 2 == length(bbr.mi_constraints) && # checking leaf variables
         length(bbr.active_trees) == 2
     optimize!(gm)
-    @test active_lower_tree(bbr) == 4
+    @test active_lower_tree(bbr) == 4 && active_upper_tree(bbr) == 1
 
     update_tree_constraints!(gm, bbr, 5) # Replace separate u/l bounds with upperlower
     @test length(bbr.leaf_variables)*2 + 2 == length(bbr.mi_constraints) &&
         length(bbr.active_trees) == 1
-    @test active_lower_tree(bbr) == 5
+    @test active_lower_tree(bbr) == 5 && active_upper_tree(bbr) == 5
 
     # Make sure that all solutions are the same. 
     update_tree_constraints!(gm, bbr, 1)
