@@ -58,7 +58,7 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
     mi_constraints, leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
                                                                 bbr.learners[idx], bbr.ul_data[idx];
                                                                 M = M, equality = bbr.equality)
-    if bbr.thresholds[idx] isa Nothing
+    if bbr.thresholds[idx] isa Nothing || bbr.thresholds[idx].first == "upperlower"
         isempty(bbr.leaf_variables) || throw(OCTException("Please clear previous tree constraints from $(gm.name) " *
                                                           "before adding new constraints."))
     elseif bbr.thresholds[idx].first == "upper"
@@ -207,7 +207,7 @@ function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuM
         end
         for leaf in collect(keys(ul_data))
             γ0, γ = ul_data[leaf]
-            if !haskey(constraints, leaf) && lnr isa IAI.OptimalTreeRegressor # occurs with ORTS with bounding hyperplanes
+            if !haskey(constraints, leaf) # occurs with ORTS with bounding hyperplanes or "upperlower" bounding scheme
                 constraints[leaf] = [@constraint(m, y <= γ0 + sum(γ .* x) + M * (1 .- leaf_variables[-leaf]))]
             elseif leaf <= 0
                 push!(constraints[leaf], @constraint(m, y <= γ0 + sum(γ .* x) + M * (1 .- leaf_variables[leaf])))
@@ -270,7 +270,8 @@ function update_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx =
         new_threshold = bbr.thresholds[idx]
         active_idx = collect(keys(bbr.active_trees))[1]
         last_threshold = bbr.active_trees[active_idx]
-        if new_threshold isa Nothing || last_threshold isa Nothing # i.e. an ORT
+        if new_threshold isa Nothing || last_threshold isa Nothing || 
+                new_threshold.first == "upperlower" || last_threshold.first == "upperlower" # i.e. an ORT
             clear_tree_constraints!(gm, bbr)
             add_tree_constraints!(gm, bbr, idx)
             return
@@ -283,9 +284,9 @@ function update_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx =
             return
         end
     elseif length(bbr.active_trees) == 2 # two sets of mi_constraints
-        if bbr.thresholds[idx] isa Nothing # if replacing with an ORT, can delete everything. 
-            clear_tree_constraints!(gm, bbr)
-            add_tree_constraints!(gm, bbr, idx)
+        if bbr.thresholds[idx] isa Nothing || bbr.thresholds[idx].first == "upperlower" # if replacing with an ORT, 
+            clear_tree_constraints!(gm, bbr)                                            # or adding an upperlower model,
+            add_tree_constraints!(gm, bbr, idx)                                         # can delete everything.     
             return
         end
         hypertype = bbr.thresholds[idx].first # otherwise, check approximation type
