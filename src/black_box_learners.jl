@@ -426,6 +426,35 @@ function active_lower_tree(bbr::BlackBoxRegressor)
     end
 end
 
+"""
+    active_upper_tree(bbr::BlackBoxRegressor)
+
+Returns the index of currently active active_upper_tree bounding tree of BBR. 
+"""
+function active_upper_tree(bbr::BlackBoxRegressor)
+    if length(bbr.active_trees) == 1
+        if collect(values(bbr.active_trees))[1] isa Nothing
+            return collect(keys(bbr.active_trees))[1]
+        elseif collect(values(bbr.active_trees))[1].first == "upper"
+            return collect(keys(bbr.active_trees))[1]
+        elseif collect(values(bbr.active_trees))[1].first == "upperlower"
+            return collect(keys(bbr.active_trees))[1]
+        else
+            throw(OCTException("Regressor $(bbr.name) does not have an upper bounding tree."))
+        end
+    elseif length(bbr.active_trees) == 2
+        tree_keys = collect(keys(bbr.active_trees))
+        tree_hypertypes = collect(values(bbr.active_trees))
+        if tree_hypertypes[1].first == "upper"
+            return tree_keys[1]
+        else
+            return tree_keys[2]
+        end
+    else
+        throw(OCTException("Regressor $(bbr.name) has no active trees."))
+    end
+end
+
 """ 
     update_local_convexity(bbr::BlackBoxRegressor)
 
