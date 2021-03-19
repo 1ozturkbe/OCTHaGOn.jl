@@ -58,10 +58,17 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
     mi_constraints, leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
                                                                 bbr.learners[idx], bbr.ul_data[idx];
                                                                 M = M, equality = bbr.equality)
-    if bbr.thresholds[idx] isa Nothing || bbr.thresholds[idx].first == "upperlower"
+    if bbr.thresholds[idx] isa Nothing
         isempty(bbr.leaf_variables) || throw(OCTException("Please clear previous tree constraints from $(gm.name) " *
                                                           "before adding new constraints."))
-        push!(mi_constraints[-1], @constraint(gm.model, bbr.dependent_var <= bbr.thresholds[idx].second))
+    elseif bbr.thresholds[idx].first == "upperlower"
+        isempty(bbr.leaf_variables) || throw(OCTException("Please clear previous tree constraints from $(gm.name) " *
+        "before adding new constraints."))
+        if haskey(mi_constraints, -1)
+            push!(mi_constraints[-1], @constraint(gm.model, bbr.dependent_var <= bbr.thresholds[idx].second))
+        else
+            mi_constraints[-1] = [@constraint(gm.model, bbr.dependent_var <= bbr.thresholds[idx].second)]
+        end
     elseif bbr.thresholds[idx].first == "upper"
         all(collect(keys(bbr.mi_constraints)) .>= 0)  || throw(OCTException("Please clear previous upper tree constraints from $(gm.name) " *
                                                           "before adding new constraints."))
