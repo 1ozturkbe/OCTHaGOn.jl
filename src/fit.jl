@@ -193,6 +193,21 @@ function learn_constraint!(bbr::BlackBoxRegressor; kwargs...)
             ul_data = boundify(nl, bbr.X, bbr.Y, "lower")
             merge!(ul_data, boundify(nl, bbr.X, bbr.Y, "upper"))
             push!(bbr.ul_data, ul_data)
+        elseif kwargs[:thresholds].first == "upperclass" # Note this method trains TWO trees. Both are needed for constraints.
+            nl = learn_from_data!(bbr.X, bbr.Y .<= kwargs[:threshold].second, lnr; fit_classifier_kwargs(; kwargs...)...)
+            push!(bbr.learners, nl);
+            push!(bbr.learner_kwargs, Dict(kwargs))
+            push!(bbr.thresholds, kwargs[:threshold])
+            push!(bbr.ul_data, Dict())
+            idxs = findall(y -> y <= kwargs[:threshold].second, bbr.Y) 
+            # TODO: kwargs might throw errors here, since they are used for both classifiers and regressors. 
+            lnr = base_regressor()
+            IAI.set_params!(lnr; minbucket = length(bbr.vars) + 1, regressor_kwargs(; kwargs...)...)
+            nl = learn_from_data!(bbr.X[idxs, :], bbr.Y[idxs], base_regressor(); fit_regressor_kwargs(; kwargs...)...)
+            push!(bbr.learners, nl);
+            push!(bbr.learner_kwargs, Dict(kwargs))
+            push!(bbr.thresholds, "upperreg" => kwargs[:threshold].second)
+            push!(bbr.ul_data, boundify(nl, bbr.X, bbr.Y))
         else
             throw(OCTException("Thresholding of BBR $(bbr.name) must specify lower or upper bounding."))
         end        
