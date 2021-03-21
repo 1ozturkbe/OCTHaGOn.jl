@@ -310,7 +310,7 @@ function test_bbr()
     all_leaves = find_leaves(lnr)
     @test lnr isa IAI.OptimalTreeRegressor
     @test length(bbr.ul_data[end]) == length(all_leaves) * 2 # double since contains lower and upper data
-    @test bbr.thresholds[end] == "reg" => nothing
+    @test bbr.thresholds[end] == Pair("reg", nothing)
 
     # Full regression training
     learn_constraint!(bbr, max_depth = 0)
@@ -318,7 +318,7 @@ function test_bbr()
     @test lnr isa IAI.OptimalTreeRegressor
     all_leaves = find_leaves(lnr)
     @test isempty(bbr.ul_data[end])
-    @test bbr.thresholds[end] = "reg" => nothing
+    @test bbr.thresholds[end] == Pair("reg", nothing)
 
     # Lower regression training
     learn_constraint!(bbr,  threshold = "lower" => 5.)

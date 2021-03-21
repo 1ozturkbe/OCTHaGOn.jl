@@ -290,7 +290,7 @@ function update_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx =
         new_threshold = bbr.thresholds[idx]
         active_idx = collect(keys(bbr.active_trees))[1]
         last_threshold = bbr.active_trees[active_idx]
-        if new_threshold == "reg" => nothing || last_threshold == "reg" => nothing 
+        if new_threshold == Pair("reg", nothing) || last_threshold == Pair("reg", nothing)
             clear_tree_constraints!(gm, bbr)
             add_tree_constraints!(gm, bbr, idx)
             return
@@ -304,7 +304,7 @@ function update_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx =
             return
         end
     elseif length(bbr.active_trees) == 2 # two sets of mi_constraints
-        if bbr.thresholds[idx] == "reg" => nothing 
+        if bbr.thresholds[idx] == Pair("reg", nothing)
             clear_tree_constraints!(gm, bbr)                                                  
             add_tree_constraints!(gm, bbr, idx)                                               
             return
