@@ -277,20 +277,20 @@ Updates the MI constraints associated with a BBL.
 For BBRs, makes sure to replace the appropriate lower/upper/regressor approximations. 
 """
 function update_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = length(bbr.learners))
-    valid_singles = ["reg"]
-    valid_lowers = ["reg", "lower"]
+    valid_lowers = ["reg", "lower", "upperreg"]
     valid_uppers = ["upper", "upperclass"]
     valid_pairs = ["lower" => "upper",
                    "upper" => "lower",
-                   "reg" => "upperclass", # with some threshold.second
-                   "upperclass" => "reg"] # with some threshold.second
+                   "reg" => "upperclass", # reg with some threshold.second
+                   "upperclass" => "reg"] #  reg with some threshold.second
     if length(bbr.active_trees) == 0 # no mi constraints yet. 
         add_tree_constraints!(gm, bbr, idx)
     elseif length(bbr.active_trees) == 1 # one set of mi_constraints
         new_threshold = bbr.thresholds[idx]
         active_idx = collect(keys(bbr.active_trees))[1]
         last_threshold = bbr.active_trees[active_idx]
-        if new_threshold == Pair("reg", nothing) || last_threshold == Pair("reg", nothing)
+        if new_threshold == Pair("reg", nothing) || last_threshold == Pair("reg", nothing) || 
+            last_threshold.first == "upperreg" || new_threshold.first == "upperreg"
             clear_tree_constraints!(gm, bbr)
             add_tree_constraints!(gm, bbr, idx)
             return

@@ -404,7 +404,9 @@ Returns the index of currently active lower bounding tree of BBR.
 """
 function active_lower_tree(bbr::BlackBoxRegressor)
     valid_lowers = ["reg", "lower", "upperreg"]
-    if length(bbr.active_trees) == 1
+    if length(bbr.active_trees) > 2
+        throw(OCTException("Regressor $(bbr.name) has too many active trees. There is a bug in the update. "))
+    elseif length(bbr.active_trees) == 1
         if collect(values(bbr.active_trees))[1].first in valid_lowers
             return collect(keys(bbr.active_trees))[1]
         else
@@ -429,7 +431,7 @@ end
 Returns the index of currently active active_upper_tree bounding tree of BBR. 
 """
 function active_upper_tree(bbr::BlackBoxRegressor)
-    valid_uppers = ["reg", "upper", "upperclass"]
+    valid_uppers = ["reg", "upper", "upperclass", "upperreg"]
     if length(bbr.active_trees) == 1
         if collect(values(bbr.active_trees))[1].first in valid_uppers
             return collect(keys(bbr.active_trees))[1]
