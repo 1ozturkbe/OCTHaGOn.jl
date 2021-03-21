@@ -403,12 +403,9 @@ end
 Returns the index of currently active lower bounding tree of BBR. 
 """
 function active_lower_tree(bbr::BlackBoxRegressor)
+    valid_lowers = ["reg", "lower", "upperreg"]
     if length(bbr.active_trees) == 1
-        if collect(values(bbr.active_trees))[1] isa Nothing
-            return collect(keys(bbr.active_trees))[1]
-        elseif collect(values(bbr.active_trees))[1].first == "lower"
-            return collect(keys(bbr.active_trees))[1]
-        elseif collect(values(bbr.active_trees))[1].first == "upperreg"
+        if collect(values(bbr.active_trees))[1].first in valid_lowers
             return collect(keys(bbr.active_trees))[1]
         else
             throw(OCTException("Regressor $(bbr.name) does not have a lower bounding tree."))
@@ -416,7 +413,7 @@ function active_lower_tree(bbr::BlackBoxRegressor)
     elseif length(bbr.active_trees) == 2
         tree_keys = collect(keys(bbr.active_trees))
         tree_hypertypes = collect(values(bbr.active_trees))
-        if tree_hypertypes[1].first == "lower"
+        if tree_hypertypes[1].first in valid_lowers
             return tree_keys[1]
         else
             return tree_keys[2]
@@ -432,12 +429,9 @@ end
 Returns the index of currently active active_upper_tree bounding tree of BBR. 
 """
 function active_upper_tree(bbr::BlackBoxRegressor)
+    valid_uppers = ["reg", "upper", "upperclass"]
     if length(bbr.active_trees) == 1
-        if collect(values(bbr.active_trees))[1] isa Nothing
-            return collect(keys(bbr.active_trees))[1]
-        elseif collect(values(bbr.active_trees))[1].first == "upper"
-            return collect(keys(bbr.active_trees))[1]
-        elseif collect(values(bbr.active_trees))[1].first == "upperreg"
+        if collect(values(bbr.active_trees))[1].first in valid_uppers
             return collect(keys(bbr.active_trees))[1]
         else
             throw(OCTException("Regressor $(bbr.name) does not have an upper bounding tree."))
@@ -445,7 +439,7 @@ function active_upper_tree(bbr::BlackBoxRegressor)
     elseif length(bbr.active_trees) == 2
         tree_keys = collect(keys(bbr.active_trees))
         tree_hypertypes = collect(values(bbr.active_trees))
-        if tree_hypertypes[1].first == "upper"
+        if tree_hypertypes[1].first in valid_uppers
             return tree_keys[1]
         else
             return tree_keys[2]
