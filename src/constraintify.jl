@@ -304,14 +304,14 @@ function update_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx =
             return
         end
     elseif length(bbr.active_trees) == 2 # two sets of mi_constraints
-        if bbr.thresholds[idx] == Pair("reg", nothing)
+        if bbr.thresholds[idx] == Pair("reg", nothing) || bbr.thresholds[idx].first == "upperreg"
             clear_tree_constraints!(gm, bbr)                                                  
             add_tree_constraints!(gm, bbr, idx)                                               
             return
         end
         hypertype = bbr.thresholds[idx].first # otherwise, check approximation type
         constraints_for_removal = all_mi_constraints(bbr, hypertype)
-        leaf_sign = (hypertype == "lower") * 2 - 1
+        leaf_sign = (hypertype in valid_lowers) * 2 - 1
         for constraint in constraints_for_removal # removing relevant mi constraints from JuMP.Model
             if is_valid(gm.model, constraint)
                 delete(gm.model, constraint)
