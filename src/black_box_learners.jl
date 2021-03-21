@@ -408,7 +408,7 @@ function active_lower_tree(bbr::BlackBoxRegressor)
             return collect(keys(bbr.active_trees))[1]
         elseif collect(values(bbr.active_trees))[1].first == "lower"
             return collect(keys(bbr.active_trees))[1]
-        elseif collect(values(bbr.active_trees))[1].first == "upperlower"
+        elseif collect(values(bbr.active_trees))[1].first == "upperreg"
             return collect(keys(bbr.active_trees))[1]
         else
             throw(OCTException("Regressor $(bbr.name) does not have a lower bounding tree."))
@@ -437,7 +437,7 @@ function active_upper_tree(bbr::BlackBoxRegressor)
             return collect(keys(bbr.active_trees))[1]
         elseif collect(values(bbr.active_trees))[1].first == "upper"
             return collect(keys(bbr.active_trees))[1]
-        elseif collect(values(bbr.active_trees))[1].first == "upperlower"
+        elseif collect(values(bbr.active_trees))[1].first == "upperreg"
             return collect(keys(bbr.active_trees))[1]
         else
             throw(OCTException("Regressor $(bbr.name) does not have an upper bounding tree."))

@@ -325,8 +325,8 @@ function test_bbr()
     @test all(sign.(collect(keys(bbr.ul_data[end]))) .== 1)
     @test bbr.thresholds[end] == ("lower" => 5.)
 
-    # Upperlower regression training (sets an upper bound, but lower bounds in leaves)
-    learn_constraint!(bbr, threshold = "upperlower" => 10.)
+    # upperreg regression training (sets an upper bound, but lower bounds in leaves)
+    learn_constraint!(bbr, threshold = "upperreg" => 10.)
     lnr = bbr.learners[end]
     @test sum(collect(keys(bbr.ul_data[end]))) == 0
 
@@ -371,7 +371,7 @@ function test_bbr()
     optimize!(gm)
     @test active_lower_tree(bbr) == 4 && active_upper_tree(bbr) == 1
 
-    update_tree_constraints!(gm, bbr, 5) # Replace separate u/l bounds with upperlower
+    update_tree_constraints!(gm, bbr, 5) # Replace separate u/l bounds with upperreg
     @test length(bbr.leaf_variables)*2 + 2 == length(bbr.mi_constraints) &&
         length(bbr.active_trees) == 1
     @test active_lower_tree(bbr) == 5 && active_upper_tree(bbr) == 5
