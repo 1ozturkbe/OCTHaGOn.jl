@@ -336,14 +336,15 @@ function test_bbr()
     @test bbr.active_trees == Dict(1 => bbr.thresholds[1]) && 
         all(sign.(collect(keys(bbr.mi_constraints))) .== -1)
     @test_throws OCTException active_lower_tree(bbr)
+    @test active_upper_tree(bbr) == 1
 
     clear_tree_constraints!(gm, bbr)
     update_tree_constraints!(gm, bbr, 2) # Updating nothing with single regressor
     @test all(sign.(collect(keys(bbr.leaf_variables))) .== 1) &&
             2*length(bbr.leaf_variables) + 1 == length(bbr.mi_constraints) &&
                 bbr.active_trees == Dict(2 => bbr.thresholds[2])
-    @test active_lower_tree(bbr) == 2
-    
+    @test active_lower_tree(bbr) == 2 && active_upper_tree(bbr) == 2
+
     update_tree_constraints!(gm, bbr, 3) # Replacing regressor with a regressor
     # No upper and lower bounding, just regressor here
     @test all(sign.(collect(keys(bbr.leaf_variables))) .== 1) &&
@@ -372,7 +373,7 @@ function test_bbr()
     @test active_lower_tree(bbr) == 4 && active_upper_tree(bbr) == 1
 
     update_tree_constraints!(gm, bbr, 5) # Replace separate u/l bounds with upperreg
-    @test length(bbr.leaf_variables)*2 + 2 == length(bbr.mi_constraints) &&
+    @test length(bbr.leaf_variables)*2 + 1 == length(bbr.mi_constraints) &&
         length(bbr.active_trees) == 1
     @test active_lower_tree(bbr) == 5 && active_upper_tree(bbr) == 5
 
