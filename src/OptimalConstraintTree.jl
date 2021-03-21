@@ -69,7 +69,7 @@ module OptimalConstraintTree
         learn_from_data!, find_bounds!, find_linear_bounds!,
         add_nonlinear_constraint, add_nonlinear_or_compatible, determine_vars,
         lh_sample, boundary_sample, last_leaf_sample,
-        feasibility_sample, 
+        feasibility_sample, upper_bound_sample,
         feasibility, check_accuracy, check_feasibility, 
         check_bounds,  check_sampled, update_local_convexity, update_vexity,
         update_leaf_vexity,
