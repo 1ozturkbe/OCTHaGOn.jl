@@ -58,16 +58,15 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
     mi_constraints, leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
                                                                 bbr.learners[idx], bbr.ul_data[idx];
                                                                 M = M, equality = bbr.equality)
-    if bbr.thresholds[idx] isa Nothing
-        isempty(bbr.leaf_variables) || throw(OCTException("Please clear previous tree constraints from $(gm.name) " *
-                                                          "before adding new constraints."))
-    elseif bbr.thresholds[idx].first == "upperreg"
+    if bbr.thresholds[idx].first == "reg"
         isempty(bbr.leaf_variables) || throw(OCTException("Please clear previous tree constraints from $(gm.name) " *
         "before adding new constraints."))
-        if haskey(mi_constraints, -1)
-            push!(mi_constraints[-1], @constraint(gm.model, bbr.dependent_var <= bbr.thresholds[idx].second))
-        else
-            mi_constraints[-1] = [@constraint(gm.model, bbr.dependent_var <= bbr.thresholds[idx].second)]
+        if !isnothing(bbr.thresholds[idx].second)
+            if haskey(mi_constraints, -1)
+                push!(mi_constraints[-1], @constraint(gm.model, bbr.dependent_var <= bbr.thresholds[idx].second))
+            else
+                mi_constraints[-1] = [@constraint(gm.model, bbr.dependent_var <= bbr.thresholds[idx].second)]
+            end
         end
     elseif bbr.thresholds[idx].first == "upper"
         all(collect(keys(bbr.mi_constraints)) .>= 0)  || throw(OCTException("Please clear previous upper tree constraints from $(gm.name) " *
@@ -81,10 +80,7 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
         all(collect(keys(bbr.mi_constraints)) .>= 0)  || throw(OCTException("Please clear previous upper tree constraints from $(gm.name) " *
         "before adding new constraints."))
         push!(mi_constraints[-1], @constraint(gm.model, bbr.dependent_var <= bbr.thresholds[idx].second))
-    elseif bbr.thresholds[idx].first == "lowerreg"
-        all(collect(keys(bbr.mi_constraints)) .<= 0) || throw(OCTException("Please clear previous lower tree constraints from $(gm.name) " *
-        "before adding new constraints."))
-    end    
+    end
     merge!(bbr.mi_constraints, mi_constraints)
     merge!(bbr.leaf_variables, leaf_variables)
     bbr.active_trees[idx] = bbr.thresholds[idx]
@@ -281,18 +277,25 @@ Updates the MI constraints associated with a BBL.
 For BBRs, makes sure to replace the appropriate lower/upper/regressor approximations. 
 """
 function update_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = length(bbr.learners))
+    valid_singles = ["reg"]
+    valid_lowers = ["reg", "lower"]
+    valid_uppers = ["upper", "upperclass"]
+    valid_pairs = ["lower" => "upper",
+                   "upper" => "lower",
+                   "reg" => "upperclass", # with some threshold.second
+                   "upperclass" => "reg"] # with some threshold.second
     if length(bbr.active_trees) == 0 # no mi constraints yet. 
         add_tree_constraints!(gm, bbr, idx)
     elseif length(bbr.active_trees) == 1 # one set of mi_constraints
         new_threshold = bbr.thresholds[idx]
         active_idx = collect(keys(bbr.active_trees))[1]
         last_threshold = bbr.active_trees[active_idx]
-        if new_threshold isa Nothing || last_threshold isa Nothing || 
-                new_threshold.first == "upperreg" || last_threshold.first == "upperreg" # i.e. an ORT
+        if new_threshold == "reg" => nothing || last_threshold == "reg" => nothing 
             clear_tree_constraints!(gm, bbr)
             add_tree_constraints!(gm, bbr, idx)
             return
-        elseif last_threshold.first != new_threshold.first # replacing an existing threshold
+        elseif last_threshold.first in valid_uppers && new_threshold.first in valid_lowers || 
+            last_threshold.first in valid_lowers && new_threshold.first in valid_uppers
             add_tree_constraints!(gm, bbr, idx)
             return
         else # updating a lower or upper threshold
@@ -301,9 +304,9 @@ function update_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx =
             return
         end
     elseif length(bbr.active_trees) == 2 # two sets of mi_constraints
-        if bbr.thresholds[idx] isa Nothing || bbr.thresholds[idx].first == "upperreg" # if replacing with an ORT, 
-            clear_tree_constraints!(gm, bbr)                                            # or adding an upperreg model,
-            add_tree_constraints!(gm, bbr, idx)                                         # can delete everything.     
+        if bbr.thresholds[idx] == "reg" => nothing 
+            clear_tree_constraints!(gm, bbr)                                                  
+            add_tree_constraints!(gm, bbr, idx)                                               
             return
         end
         hypertype = bbr.thresholds[idx].first # otherwise, check approximation type
