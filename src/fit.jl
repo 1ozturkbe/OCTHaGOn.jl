@@ -225,7 +225,7 @@ function learn_constraint!(bbr::BlackBoxRegressor; kwargs...)
     end
     push!(bbr.learners, lnr);
     push!(bbr.learner_kwargs, Dict(kwargs))
-    push!(bbr.thresholds, nothing)  
+    push!(bbr.thresholds, "reg" => nothing) 
     if (haskey(kwargs, :regression_sparsity) && kwargs[:regression_sparsity] != :all) || 
             (bbr.local_convexity >= 0.75)
         push!(bbr.ul_data, boundify(lnr, bbr.X, bbr.Y))

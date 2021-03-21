@@ -45,7 +45,7 @@ Optional arguments:
     equality::Bool = false                             # Equality check
     learners::Array{Union{IAI.OptimalTreeRegressor, IAI.OptimalTreeClassifier}} = []     # Learners...
     learner_kwargs = []                                # and their kwargs... 
-    thresholds::Array{Union{Nothing, Pair}} = []       # For thresholding. 
+    thresholds::Array{Pair} = []                       # For thresholding. 
     ul_data::Array{Dict} = Dict[]                      # Upper/lower bounding data
     active_trees::Dict{Int64, Union{Nothing, Pair}} = Dict() # Currently active tree indices
     mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}() # and their corresponding MI constraints,
