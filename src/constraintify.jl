@@ -77,6 +77,13 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
         all(collect(keys(bbr.mi_constraints)) .<= 0) || throw(OCTException("Please clear previous lower tree constraints from $(gm.name) " *
                                                             "before adding new constraints."))
         push!(mi_constraints[1], @constraint(gm.model, bbr.dependent_var >= bbr.thresholds[idx].second))
+    elseif bbr.thresholds[idx].first == "upperclass"
+        all(collect(keys(bbr.mi_constraints)) .>= 0)  || throw(OCTException("Please clear previous upper tree constraints from $(gm.name) " *
+        "before adding new constraints."))
+        push!(mi_constraints[-1], @constraint(gm.model, bbr.dependent_var <= bbr.thresholds[idx].second))
+    elseif bbr.thresholds[idx].first == "lowerreg"
+        all(collect(keys(bbr.mi_constraints)) .<= 0) || throw(OCTException("Please clear previous lower tree constraints from $(gm.name) " *
+        "before adding new constraints."))
     end    
     merge!(bbr.mi_constraints, mi_constraints)
     merge!(bbr.leaf_variables, leaf_variables)
