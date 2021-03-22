@@ -167,7 +167,7 @@ function learn_constraint!(bbc::BlackBoxClassifier; kwargs...)
     return
 end
 
-function learn_constraint!(bbr::BlackBoxRegressor; kwargs...)
+function learn_constraint!(bbr::BlackBoxRegressor, threshold::Pair = Pair("reg", nothing);  kwargs...)
     classifications = ["upper", "lower", "upperreg", "upperclass"]
     check_sampled(bbr)
     get_param(bbr, :reloaded) && set_param(bbr, :reloaded, false) # Makes sure that we know trees are retrained. 
@@ -219,9 +219,6 @@ function learn_constraint!(bbr::BlackBoxRegressor; kwargs...)
             throw(OCTException("$(kwargs[:threshold].first) is not a valid learner type for" *
                 " thresholded learning of BBR $(bbr.name)."))
         end    
-    else 
-        learn_constraint!(bbr, threshold = Pair("reg", nothing); kwargs...)
-        return
     end
 end
 

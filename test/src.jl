@@ -268,7 +268,7 @@ function test_bbr()
     end
     
     # Threshold training
-    learn_constraint!(bbr, threshold = "upper" => 20.)
+    learn_constraint!(bbr, "upper" => 20.)
     lnr = bbr.learners[end]
     @test lnr isa IAI.OptimalTreeClassifier
     all_leaves = find_leaves(lnr)
@@ -321,12 +321,12 @@ function test_bbr()
     @test bbr.thresholds[end] == Pair("reg", nothing)
 
     # Lower regression training
-    learn_constraint!(bbr,  threshold = "lower" => 5.)
+    learn_constraint!(bbr, "lower" => 5.)
     @test all(sign.(collect(keys(bbr.ul_data[end]))) .== 1)
     @test bbr.thresholds[end] == ("lower" => 5.)
 
     # upperreg regression training (sets an upper bound, but lower bounds in leaves)
-    learn_constraint!(bbr, threshold = "upperreg" => 10.)
+    learn_constraint!(bbr, "upperreg" => 10.)
     lnr = bbr.learners[end]
     @test sum(collect(keys(bbr.ul_data[end]))) == 0
 

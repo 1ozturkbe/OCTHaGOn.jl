@@ -34,9 +34,9 @@ function refine_thresholds(gm::GlobalModel, bbr::BlackBoxRegressor)
     if length(bbr.active_trees) == 1
         best_lower = getvalue(bbr.dependent_var)
         best_upper = bbr(solution(gm))[1]
-        learn_constraint!(bbr, threshold = "upper" => best_upper)
+        learn_constraint!(bbr, "upper" => best_upper)
         update_tree_constraints!(gm, bbr)
-        learn_constraint!(bbr, threshold = "lower" =>best_lower)
+        learn_constraint!(bbr, "lower" => best_lower)
         update_tree_constraints!(gm, bbr)
         return
     elseif length(bbr.active_trees) == 2
@@ -47,23 +47,23 @@ function refine_thresholds(gm::GlobalModel, bbr::BlackBoxRegressor)
         new_upper = bbr(solution(gm))[1]
         # Updating upper bounds
         if new_upper <= old_upper
-            learn_constraint!(bbr, threshold = "upper" => new_upper)
+            learn_constraint!(bbr, "upper" => new_upper)
             update_tree_constraints!(gm, bbr)
         else
-            learn_constraint!(bbr, threshold = "upper" => old_upper) #TODO add warmstarts here. 
+            learn_constraint!(bbr, "upper" => old_upper) #TODO add warmstarts here. 
             update_tree_constraints!(gm, bbr)
         end
         # Updating lower bounds
-        learn_constraint!(bbr, threshold = "lower" => (maximum([old_lower, new_lower]) + minimum([new_upper, old_upper]))/2)
+        learn_constraint!(bbr, "lower" => (maximum([old_lower, new_lower]) + minimum([new_upper, old_upper]))/2)
         update_tree_constraints!(gm, bbr)
         return
         # if new_lower >= old_lower
-        #     learn_constraint!(bbr, threshold = "lower" => (new_lower + minimum([new_upper, old_upper])/2)
+        #     learn_constraint!(bbr, "lower" => (new_lower + minimum([new_upper, old_upper])/2)
         #     update_tree_constraints!(gm, bbr)
         #     return 
         # else
         #     learn_constraint!(bbr, # binary reduce the lower bound
-        #         threshold = "lower" => (new_lower + old_lower)/2)
+        #         "lower" => (new_lower + old_lower)/2)
         #     update_tree_constraints!(gm, bbr)
         #     return
         # return 
