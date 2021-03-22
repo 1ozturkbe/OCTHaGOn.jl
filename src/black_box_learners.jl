@@ -377,8 +377,6 @@ Returns all JuMP.ConstraintRefs associated with BBL.
 """
 function all_mi_constraints(bbl::BlackBoxLearner, hypertype::Union{String, Nothing} = nothing)
     all_constraints = []
-    valid_lowers = ["reg", "lower", "upperreg"]
-    valid_uppers = ["reg", "upper", "upperclass"]
     if hypertype == nothing
         for (leaf, constraints) in bbl.mi_constraints
             push!(all_constraints, constraints...)
@@ -406,7 +404,6 @@ end
 Returns the index of currently active lower bounding tree of BBR. 
 """
 function active_lower_tree(bbr::BlackBoxRegressor)
-    valid_lowers = ["reg", "lower", "upperreg"]
     if length(bbr.active_trees) > 2
         throw(OCTException("Regressor $(bbr.name) has too many active trees. There is a bug in the update. "))
     elseif length(bbr.active_trees) == 1
@@ -434,7 +431,6 @@ end
 Returns the index of currently active active_upper_tree bounding tree of BBR. 
 """
 function active_upper_tree(bbr::BlackBoxRegressor)
-    valid_uppers = ["reg", "upper", "upperclass"]
     if length(bbr.active_trees) == 1
         if collect(values(bbr.active_trees))[1].first in valid_uppers
             return collect(keys(bbr.active_trees))[1]
