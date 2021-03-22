@@ -173,53 +173,51 @@ function learn_constraint!(bbr::BlackBoxRegressor, threshold::Pair = Pair("reg",
     get_param(bbr, :reloaded) && set_param(bbr, :reloaded, false) # Makes sure that we know trees are retrained. 
     if bbr.convex
         return # If convex, don't train a tree!
-    elseif haskey(kwargs, :threshold)
-        if threshold.first in classifications
-            lnr = base_classifier()
-            IAI.set_params!(lnr; minbucket = length(bbr.vars) + 1, classifier_kwargs(; kwargs...)...)
-            ul_data = Dict()
-            if threshold.first == "upper"
-                lnr = learn_from_data!(bbr.X, bbr.Y .<= threshold.second, lnr; fit_classifier_kwargs(; kwargs...)...)
-                merge!(ul_data, boundify(lnr, bbr.X, bbr.Y, "upper"))
-            elseif threshold.first == "lower"
-                lnr = learn_from_data!(bbr.X, bbr.Y .>= threshold.second, lnr; fit_classifier_kwargs(; kwargs...)...)
-                merge!(ul_data, boundify(lnr, bbr.X, bbr.Y, "lower"))
-            elseif threshold.first == "upperreg"
-                lnr = learn_from_data!(bbr.X, bbr.Y .<= threshold.second, lnr; fit_classifier_kwargs(; kwargs...)...)
-                merge!(ul_data, boundify(lnr, bbr.X, bbr.Y, "lower"))
-                merge!(ul_data, boundify(lnr, bbr.X, bbr.Y, "upper"))
-            elseif threshold.first == "upperclass" # Note that upperclass and lowerreg trees need to be active together. 
-                lnr = learn_from_data!(bbr.X, bbr.Y .<= threshold.second, lnr; fit_classifier_kwargs(; kwargs...)...)
-            end
-            push!(bbr.learners, lnr);
-            push!(bbr.learner_kwargs, Dict(kwargs))
-            push!(bbr.thresholds, threshold)
-            push!(bbr.ul_data, ul_data)
-            return 
-        elseif threshold.first == "reg"
-            lnr = base_regressor()
-            IAI.set_params!(lnr; minbucket = length(bbr.vars) + 1, regressor_kwargs(; kwargs...)...)
-            if threshold.second == nothing && bbr.local_convexity < 0.75
-                lnr = learn_from_data!(bbr.X, bbr.Y, lnr; fit_regressor_kwargs(; kwargs...)...)   
-            elseif threshold.second == nothing && bbr.local_convexity >= 0.75
-                lnr = learn_from_data!(bbr.X, bbr.curvatures .> 0, lnr; fit_regressor_kwargs(; kwargs...)...)             
-            elseif bbr.local_convexity < 0.75
-                idxs = findall(y -> y <= threshold.second, bbr.Y) 
-                lnr = learn_from_data!(bbr.X[idxs, :], bbr.Y[idxs], base_regressor(); fit_regressor_kwargs(; kwargs...)...)
-            elseif bbr.local_convexity >= 0.75
-                idxs = findall(y -> y <= threshold.second, bbr.Y) 
-                lnr = learn_from_data!(bbr.X[idxs, :], bbr.curvatures[idxs] .> 0, base_regressor(); fit_regressor_kwargs(; kwargs...)...)
-            end
-            push!(bbr.learners, lnr);
-            push!(bbr.learner_kwargs, Dict(kwargs))
-            push!(bbr.thresholds, threshold)
-            push!(bbr.ul_data, boundify(lnr, bbr.X, bbr.Y))
-            return
-        else
-            throw(OCTException("$(threshold.first) is not a valid learner type for" *
-                " thresholded learning of BBR $(bbr.name)."))
-        end    
-    end
+    elseif threshold.first in classifications
+        lnr = base_classifier()
+        IAI.set_params!(lnr; minbucket = length(bbr.vars) + 1, classifier_kwargs(; kwargs...)...)
+        ul_data = Dict()
+        if threshold.first == "upper"
+            lnr = learn_from_data!(bbr.X, bbr.Y .<= threshold.second, lnr; fit_classifier_kwargs(; kwargs...)...)
+            merge!(ul_data, boundify(lnr, bbr.X, bbr.Y, "upper"))
+        elseif threshold.first == "lower"
+            lnr = learn_from_data!(bbr.X, bbr.Y .>= threshold.second, lnr; fit_classifier_kwargs(; kwargs...)...)
+            merge!(ul_data, boundify(lnr, bbr.X, bbr.Y, "lower"))
+        elseif threshold.first == "upperreg"
+            lnr = learn_from_data!(bbr.X, bbr.Y .<= threshold.second, lnr; fit_classifier_kwargs(; kwargs...)...)
+            merge!(ul_data, boundify(lnr, bbr.X, bbr.Y, "lower"))
+            merge!(ul_data, boundify(lnr, bbr.X, bbr.Y, "upper"))
+        elseif threshold.first == "upperclass" # Note that upperclass and lowerreg trees need to be active together. 
+            lnr = learn_from_data!(bbr.X, bbr.Y .<= threshold.second, lnr; fit_classifier_kwargs(; kwargs...)...)
+        end
+        push!(bbr.learners, lnr);
+        push!(bbr.learner_kwargs, Dict(kwargs))
+        push!(bbr.thresholds, threshold)
+        push!(bbr.ul_data, ul_data)
+        return 
+    elseif threshold.first == "reg"
+        lnr = base_regressor()
+        IAI.set_params!(lnr; minbucket = length(bbr.vars) + 1, regressor_kwargs(; kwargs...)...)
+        if threshold.second == nothing && bbr.local_convexity < 0.75
+            lnr = learn_from_data!(bbr.X, bbr.Y, lnr; fit_regressor_kwargs(; kwargs...)...)   
+        elseif threshold.second == nothing && bbr.local_convexity >= 0.75
+            lnr = learn_from_data!(bbr.X, bbr.curvatures .> 0, lnr; fit_regressor_kwargs(; kwargs...)...)             
+        elseif bbr.local_convexity < 0.75
+            idxs = findall(y -> y <= threshold.second, bbr.Y) 
+            lnr = learn_from_data!(bbr.X[idxs, :], bbr.Y[idxs], base_regressor(); fit_regressor_kwargs(; kwargs...)...)
+        elseif bbr.local_convexity >= 0.75
+            idxs = findall(y -> y <= threshold.second, bbr.Y) 
+            lnr = learn_from_data!(bbr.X[idxs, :], bbr.curvatures[idxs] .> 0, base_regressor(); fit_regressor_kwargs(; kwargs...)...)
+        end
+        push!(bbr.learners, lnr);
+        push!(bbr.learner_kwargs, Dict(kwargs))
+        push!(bbr.thresholds, threshold)
+        push!(bbr.ul_data, boundify(lnr, bbr.X, bbr.Y))
+        return
+    else
+        throw(OCTException("$(threshold.first) is not a valid learner type for" *
+            " thresholded learning of BBR $(bbr.name)."))
+    end    
 end
 
 function learn_constraint!(bbl::Array; kwargs...)
