@@ -317,7 +317,7 @@ function test_bbr()
     lnr = bbr.learners[end]
     @test lnr isa IAI.OptimalTreeRegressor
     all_leaves = find_leaves(lnr)
-    @test isempty(bbr.ul_data[end])
+    @test length(bbr.ul_data[end]) == length(all_leaves) * 2
     @test bbr.thresholds[end] == Pair("reg", nothing)
 
     # Lower regression training

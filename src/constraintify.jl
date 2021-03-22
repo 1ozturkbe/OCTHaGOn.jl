@@ -212,20 +212,21 @@ function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuM
         end
         return constraints, leaf_variables
     elseif lnr isa OptimalTreeClassifier
-        @assert !isempty(ul_data)
         constraints, leaf_variables = add_feas_constraints!(m, x, lnr, M=M, equality=equality)
-        if all(keys(ul_data) .<= 0) && lnr isa IAI.OptimalTreeClassifier # means an upper bounding tree. 
-            constraints = Dict(-key => value for (key, value) in constraints) # hacky sign flipping for upkeep. 
-            leaf_variables = Dict(-key => value for (key, value) in leaf_variables) # TODO: could be buggy
-        end
-        for leaf in collect(keys(ul_data))
-            γ0, γ = ul_data[leaf]
-            if !haskey(constraints, leaf) # occurs with ORTS with bounding hyperplanes or "upperreg" bounding scheme
-                constraints[leaf] = [@constraint(m, y <= γ0 + sum(γ .* x) + M * (1 .- leaf_variables[-leaf]))]
-            elseif leaf <= 0
-                push!(constraints[leaf], @constraint(m, y <= γ0 + sum(γ .* x) + M * (1 .- leaf_variables[leaf])))
-            else
-                push!(constraints[leaf], @constraint(m, y + M * (1 .- leaf_variables[leaf]) >= γ0 + sum(γ .* x)))
+        if !isempty(ul_data)
+            if all(keys(ul_data) .<= 0) && lnr isa IAI.OptimalTreeClassifier # means an upper bounding tree. 
+                constraints = Dict(-key => value for (key, value) in constraints) # hacky sign flipping for upkeep. 
+                leaf_variables = Dict(-key => value for (key, value) in leaf_variables) # TODO: could be buggy
+            end
+            for leaf in collect(keys(ul_data))
+                γ0, γ = ul_data[leaf]
+                if !haskey(constraints, leaf) # occurs with ORTS with bounding hyperplanes or "upperreg" bounding scheme
+                    constraints[leaf] = [@constraint(m, y <= γ0 + sum(γ .* x) + M * (1 .- leaf_variables[-leaf]))]
+                elseif leaf <= 0
+                    push!(constraints[leaf], @constraint(m, y <= γ0 + sum(γ .* x) + M * (1 .- leaf_variables[leaf])))
+                else
+                    push!(constraints[leaf], @constraint(m, y + M * (1 .- leaf_variables[leaf]) >= γ0 + sum(γ .* x)))
+                end
             end
         end
         return constraints, leaf_variables

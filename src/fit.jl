@@ -183,7 +183,7 @@ function learn_constraint!(bbr::BlackBoxRegressor; kwargs...)
                 merge!(ul_data, boundify(lnr, bbr.X, bbr.Y, "upper"))
             elseif kwargs[:threshold].first == "lower"
                 lnr = learn_from_data!(bbr.X, bbr.Y .>= kwargs[:threshold].second, lnr; fit_classifier_kwargs(; kwargs...)...)
-                merge!(ul_data, boundify(lnr, bbr.X, bbr.Y, "upper"))
+                merge!(ul_data, boundify(lnr, bbr.X, bbr.Y, "lower"))
             elseif kwargs[:threshold].first == "upperreg"
                 lnr = learn_from_data!(bbr.X, bbr.Y .<= kwargs[:threshold].second, lnr; fit_classifier_kwargs(; kwargs...)...)
                 merge!(ul_data, boundify(lnr, bbr.X, bbr.Y, "lower"))
@@ -213,14 +213,14 @@ function learn_constraint!(bbr::BlackBoxRegressor; kwargs...)
             push!(bbr.learners, lnr);
             push!(bbr.learner_kwargs, Dict(kwargs))
             push!(bbr.thresholds, kwargs[:threshold])
-            push!(bbr.ul_data, boundify(nl, bbr.X, bbr.Y))
+            push!(bbr.ul_data, boundify(lnr, bbr.X, bbr.Y))
             return
         else
             throw(OCTException("$(kwargs[:threshold].first) is not a valid learner type for" *
                 " thresholded learning of BBR $(bbr.name)."))
         end    
     else 
-        learn_constraint!(bbr, threshold = Pair("reg", nothing))
+        learn_constraint!(bbr, threshold = Pair("reg", nothing); kwargs...)
         return
     end
 end
