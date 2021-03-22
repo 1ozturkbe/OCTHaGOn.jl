@@ -59,8 +59,9 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
                                                                 bbr.learners[idx], bbr.ul_data[idx];
                                                                 M = M, equality = bbr.equality)
     if bbr.thresholds[idx].first == "reg"
-        isempty(bbr.leaf_variables) || throw(OCTException("Please clear previous tree constraints from $(gm.name) " *
-        "before adding new constraints."))
+        (isempty(bbr.leaf_variables) || !isnothing(bbr.thresholds[idx].second)) ||
+            throw(OCTException("Please clear previous tree constraints from $(gm.name) " *
+                "before adding an unthresholded regression constraints."))
         if !isnothing(bbr.thresholds[idx].second)
             if haskey(mi_constraints, -1)
                 push!(mi_constraints[-1], @constraint(gm.model, bbr.dependent_var <= bbr.thresholds[idx].second))
@@ -79,7 +80,11 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
     elseif bbr.thresholds[idx].first == "upperclass"
         all(collect(keys(bbr.mi_constraints)) .>= 0)  || throw(OCTException("Please clear previous upper tree constraints from $(gm.name) " *
         "before adding new constraints."))
-        push!(mi_constraints[-1], @constraint(gm.model, bbr.dependent_var <= bbr.thresholds[idx].second))
+        if haskey(mi_constraints, -1)
+            push!(mi_constraints[-1], @constraint(gm.model, bbr.dependent_var <= bbr.thresholds[idx].second))
+        else
+            mi_constraints[-1] = [@constraint(gm.model, bbr.dependent_var <= bbr.thresholds[idx].second)]
+        end
     end
     merge!(bbr.mi_constraints, mi_constraints)
     merge!(bbr.leaf_variables, leaf_variables)

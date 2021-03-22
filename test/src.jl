@@ -278,7 +278,6 @@ function test_bbr()
     @test sort(-1 .*collect(keys(bbr.ul_data[end]))) == sort(feas_leaves) # upper bounding leaves have negative idxs
     @test bbr.thresholds[end] == ("upper" => 20.)
     
-
     # Check adding of upper bounding constraint to empty model
     types = JuMP.list_of_constraint_types(gm.model)
     init_constraints = sum(length(all_constraints(gm.model, type[1], type[2])) for type in types)
