@@ -204,10 +204,10 @@ function learn_constraint!(bbr::BlackBoxRegressor, threshold::Pair = Pair("reg",
             lnr = learn_from_data!(bbr.X, bbr.curvatures .> 0, lnr; fit_regressor_kwargs(; kwargs...)...)             
         elseif bbr.local_convexity < 0.75
             idxs = findall(y -> y <= threshold.second, bbr.Y) 
-            lnr = learn_from_data!(bbr.X[idxs, :], bbr.Y[idxs], base_regressor(); fit_regressor_kwargs(; kwargs...)...)
+            lnr = learn_from_data!(bbr.X[idxs, :], bbr.Y[idxs], lnr; fit_regressor_kwargs(; kwargs...)...)
         elseif bbr.local_convexity >= 0.75
             idxs = findall(y -> y <= threshold.second, bbr.Y) 
-            lnr = learn_from_data!(bbr.X[idxs, :], bbr.curvatures[idxs] .> 0, base_regressor(); fit_regressor_kwargs(; kwargs...)...)
+            lnr = learn_from_data!(bbr.X[idxs, :], bbr.curvatures[idxs] .> 0, lnr; fit_regressor_kwargs(; kwargs...)...)
         end
         push!(bbr.learners, lnr);
         push!(bbr.learner_kwargs, Dict(kwargs))
