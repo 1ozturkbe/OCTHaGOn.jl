@@ -268,3 +268,29 @@ function feasibility_sample(gm::GlobalModel)
     end
     return
 end
+
+""" 
+    upper_bound_sample(bbr::BlackBoxRegressor)
+
+Samples within the feasible regions of the active tree, with the best upper bound. 
+"""
+function upper_bound_sample(bbr::BlackBoxRegressor)
+    @assert !isempty(bbr.active_trees) # We must have optimized at least once over the old tree. 
+    active_upper_idx = active_upper_tree(bbr)
+    lnr = bbr.learners[active_upper_idx]
+    @assert lnr isa IAI.OptimalTreeClassifier
+    all_leaves = find_leaves(lnr)
+    feas_leaves = [i for i in all_leaves if Bool(IAI.get_classification_label(lnr, i))]
+    leaf_idxs = IAI.apply(lnr, bbr.X)
+    n_samples = get_param(bbr, :n_samples)
+    for leaf in feas_leaves
+        idxs = findall(x -> x == leaf, leaf_idxs)
+        lbs = [minimum(col) for col in eachcol(bbr.X[idxs, :])]
+        ubs = [maximum(col) for col in eachcol(bbr.X[idxs, :])]
+        plan, _ = LHCoptim(Int64(ceil(n_samples / length(feas_leaves))), length(bbr.vars), 3);  
+        X = scaleLHC(plan, [(lbs[i], ubs[i]) for i=1:length(lbs)]);
+        eval!(bbr, DataFrame(X, string.(bbr.vars)))
+    end    
+    return
+end
+

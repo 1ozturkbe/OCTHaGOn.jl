@@ -75,37 +75,6 @@ function refine_thresholds(gm::GlobalModel, bbr::BlackBoxRegressor)
 end
 
 
-# Initializing, and solving via Ipopt
-using StatsBase
-Random.seed!(121)
-m = random_qp(5,3,4)
-# m = random_qp(2,1,2)
-
-optimize!(m)
-mcost = JuMP.getobjectivevalue(m)
-msol = getvalue.(m[:x])
-push!(msol, mcost)
-
-# Trying thresholding method 
-gm = gmify_random_qp(m)
-msol = DataFrame(string.(all_variables(gm)) .=> msol)
-
-bbr = gm.bbls[1]
-uniform_sample_and_eval!(gm)
-learn_constraint!(bbr, threshold = "upper" => quantile(bbr.Y, 0.5))
-update_tree_constraints!(gm, bbr)
-learn_constraint!(bbr, threshold = "lower" => minimum(bbr.Y))
-update_tree_constraints!(gm, bbr)
-optimize!(gm)
-
-
-refine_thresholds(gm, bbr)
-optimize!(gm)
-
-bds = Dict(collect(values(bbr.active_trees))); # TODO: have a cleaner system for this. 
-old_lower = bds["lower"]
-old_upper = bds["upper"]
-
 iterations = 0
 reltol = 1e-5
 set_param(gm, :reltol, reltol)

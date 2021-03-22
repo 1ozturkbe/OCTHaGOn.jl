@@ -310,21 +310,25 @@ function test_bbr()
     all_leaves = find_leaves(lnr)
     @test lnr isa IAI.OptimalTreeRegressor
     @test length(bbr.ul_data[end]) == length(all_leaves) * 2 # double since contains lower and upper data
-    @test bbr.thresholds[end] == nothing
+    @test bbr.thresholds[end] == Pair("reg", nothing)
 
     # Full regression training
     learn_constraint!(bbr, max_depth = 0)
     lnr = bbr.learners[end]
     @test lnr isa IAI.OptimalTreeRegressor
     all_leaves = find_leaves(lnr)
-    @test isempty(bbr.ul_data[end])
-    @test isnothing(bbr.thresholds[end])
+    @test length(bbr.ul_data[end]) == length(all_leaves) * 2
+    @test bbr.thresholds[end] == Pair("reg", nothing)
 
     # Lower regression training
     learn_constraint!(bbr,  threshold = "lower" => 5.)
-    lnr = bbr.learners[end]
-    @test all(sign.(collect(keys(bbr.ul_data))) .== 1)
+    @test all(sign.(collect(keys(bbr.ul_data[end]))) .== 1)
     @test bbr.thresholds[end] == ("lower" => 5.)
+
+    # upperreg regression training (sets an upper bound, but lower bounds in leaves)
+    learn_constraint!(bbr, threshold = "upperreg" => 10.)
+    lnr = bbr.learners[end]
+    @test sum(collect(keys(bbr.ul_data[end]))) == 0
 
     # Checking all possible update scenarios
     # Note: [1] => upper bounds, [2,3] => regressors, [4] => lower bounds
@@ -332,31 +336,33 @@ function test_bbr()
     @test bbr.active_trees == Dict(1 => bbr.thresholds[1]) && 
         all(sign.(collect(keys(bbr.mi_constraints))) .== -1)
     @test_throws OCTException active_lower_tree(bbr)
+    @test active_upper_tree(bbr) == 1
 
     clear_tree_constraints!(gm, bbr)
     update_tree_constraints!(gm, bbr, 2) # Updating nothing with single regressor
     @test all(sign.(collect(keys(bbr.leaf_variables))) .== 1) &&
             2*length(bbr.leaf_variables) + 1 == length(bbr.mi_constraints) &&
                 bbr.active_trees == Dict(2 => bbr.thresholds[2])
-    @test active_lower_tree(bbr) == 2
-    
+    @test active_lower_tree(bbr) == 2 && active_upper_tree(bbr) == 2
+
     update_tree_constraints!(gm, bbr, 3) # Replacing regressor with a regressor
     # No upper and lower bounding, just regressor here
     @test all(sign.(collect(keys(bbr.leaf_variables))) .== 1) &&
             bbr.active_trees == Dict(3 => bbr.thresholds[3])
-    @test active_lower_tree(bbr) == 3
+    @test active_lower_tree(bbr) == 3 && active_upper_tree(bbr) == 3
 
     update_tree_constraints!(gm, bbr, 4) # Replacing regressor with lower bound
     @test all(sign.(collect(keys(bbr.leaf_variables))) .== 1) && # since lower bounding
         length(bbr.leaf_variables) + 1 == length(bbr.mi_constraints) && 
             bbr.active_trees == Dict(4 => bbr.thresholds[4])
     @test active_lower_tree(bbr) == 4
+    @test_throws OCTException active_upper_tree(bbr)
 
     update_tree_constraints!(gm, bbr, 1) # Adding upper bound to lower bound
     @test length(bbr.leaf_variables) + 2 == length(bbr.mi_constraints) && # checking leaf variables
         length(bbr.active_trees) == 2
     optimize!(gm)
-    @test active_lower_tree(bbr) == 4
+    @test active_lower_tree(bbr) == 4 && active_upper_tree(bbr) == 1
 
     clear_tree_constraints!(gm, bbr)
     update_tree_constraints!(gm, bbr, 1)
@@ -364,9 +370,15 @@ function test_bbr()
     @test length(bbr.leaf_variables) + 2 == length(bbr.mi_constraints) && # checking leaf variables
         length(bbr.active_trees) == 2
     optimize!(gm)
-    @test active_lower_tree(bbr) == 4
+    @test active_lower_tree(bbr) == 4 && active_upper_tree(bbr) == 1
+
+    update_tree_constraints!(gm, bbr, 5) # Replace separate u/l bounds with upperreg
+    @test length(bbr.leaf_variables)*2 + 1 == length(bbr.mi_constraints) &&
+        length(bbr.active_trees) == 1
+    @test active_lower_tree(bbr) == 5 && active_upper_tree(bbr) == 5
 
     # Make sure that all solutions are the same. 
+    update_tree_constraints!(gm, bbr, 1)
     update_tree_constraints!(gm, bbr, 4) 
     optimize!(gm)
     update_tree_constraints!(gm, bbr, 1)
@@ -387,7 +399,7 @@ function test_bbr()
     @test all(Array(gm.solution_history[:,"obj"]) .≈ gm.solution_history[1, "obj"])
 
     # Checking proper storage
-    @test all(length.([bbr.ul_data, bbr.thresholds, bbr.learners, bbr.learner_kwargs]) .== 4)
+    @test all(length.([bbr.ul_data, bbr.thresholds, bbr.learners, bbr.learner_kwargs]) .== 5)
     clear_tree_data!(bbr)
     @test all(length.([bbr.ul_data, bbr.thresholds, bbr.learners, bbr.learner_kwargs]) .== 0)
     @test !isempty(bbr.mi_constraints) && !isempty(bbr.leaf_variables)

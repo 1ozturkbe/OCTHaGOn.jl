@@ -45,7 +45,7 @@ Optional arguments:
     equality::Bool = false                             # Equality check
     learners::Array{Union{IAI.OptimalTreeRegressor, IAI.OptimalTreeClassifier}} = []     # Learners...
     learner_kwargs = []                                # and their kwargs... 
-    thresholds::Array{Union{Nothing, Pair}} = []       # For thresholding. 
+    thresholds::Array{Pair} = []                       # For thresholding. 
     ul_data::Array{Dict} = Dict[]                      # Upper/lower bounding data
     active_trees::Dict{Int64, Union{Nothing, Pair}} = Dict() # Currently active tree indices
     mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}() # and their corresponding MI constraints,
@@ -403,10 +403,11 @@ end
 Returns the index of currently active lower bounding tree of BBR. 
 """
 function active_lower_tree(bbr::BlackBoxRegressor)
-    if length(bbr.active_trees) == 1
-        if collect(values(bbr.active_trees))[1] isa Nothing
-            return collect(keys(bbr.active_trees))[1]
-        elseif collect(values(bbr.active_trees))[1].first == "lower"
+    valid_lowers = ["reg", "lower", "upperreg"]
+    if length(bbr.active_trees) > 2
+        throw(OCTException("Regressor $(bbr.name) has too many active trees. There is a bug in the update. "))
+    elseif length(bbr.active_trees) == 1
+        if collect(values(bbr.active_trees))[1].first in valid_lowers
             return collect(keys(bbr.active_trees))[1]
         else
             throw(OCTException("Regressor $(bbr.name) does not have a lower bounding tree."))
@@ -414,7 +415,33 @@ function active_lower_tree(bbr::BlackBoxRegressor)
     elseif length(bbr.active_trees) == 2
         tree_keys = collect(keys(bbr.active_trees))
         tree_hypertypes = collect(values(bbr.active_trees))
-        if tree_hypertypes[1].first == "lower"
+        if tree_hypertypes[1].first in valid_lowers
+            return tree_keys[1]
+        else
+            return tree_keys[2]
+        end
+    else
+        throw(OCTException("Regressor $(bbr.name) has no active trees."))
+    end
+end
+
+"""
+    active_upper_tree(bbr::BlackBoxRegressor)
+
+Returns the index of currently active active_upper_tree bounding tree of BBR. 
+"""
+function active_upper_tree(bbr::BlackBoxRegressor)
+    valid_uppers = ["reg", "upper", "upperclass", "upperreg"]
+    if length(bbr.active_trees) == 1
+        if collect(values(bbr.active_trees))[1].first in valid_uppers
+            return collect(keys(bbr.active_trees))[1]
+        else
+            throw(OCTException("Regressor $(bbr.name) does not have an upper bounding tree."))
+        end
+    elseif length(bbr.active_trees) == 2
+        tree_keys = collect(keys(bbr.active_trees))
+        tree_hypertypes = collect(values(bbr.active_trees))
+        if tree_hypertypes[1].first in valid_uppers
             return tree_keys[1]
         else
             return tree_keys[2]
