@@ -27,6 +27,16 @@ module OptimalConstraintTree
     const TREE_DIR = PROJECT_ROOT * "\\data\\trees\\"
     const CPLEX_SILENT = with_optimizer(CPLEX.Optimizer, CPX_PARAM_SCRIND = 0)
 
+    const valid_lowers = ["reg", "lower", "upperreg"]
+    const valid_uppers = ["reg", "upper", "upperclass", "upperreg"]
+    const valid_singles = ["reg", "upperreg"]
+    const valid_pairs =  ["lower" => "upper",
+                          "upper" => "lower",
+                          "lower" => "upperclass",
+                          "upperclass" => "lower",
+                          "reg" => "upperclass", # reg with some threshold.second
+                          "upperclass" => "reg"] # reg with some threshold.second
+
     include("small_scripts.jl")
 
     include("on_jump.jl")
