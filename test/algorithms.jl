@@ -96,7 +96,6 @@ function test_concave_regressors(gm::GlobalModel = gear(true))
     # Checking number of constraints
     types = JuMP.list_of_constraint_types(gm.model)
     init_constraints = sum(length(all_constraints(gm.model, type[1], type[2])) for type in types)
-
     surveysolve(gm) # 1st tree (ORT)
     actual = bbr.actuals[end]
     optim = bbr.optima[end]
@@ -111,6 +110,13 @@ function test_concave_regressors(gm::GlobalModel = gear(true))
             update_tree_constraints!(gm, bbr, j)
             for k = 1:length(bbr.learners)
                 update_tree_constraints!(gm, bbr, k)
+                treekeys = collect(keys(bbr.active_trees))
+                treevalues = collect(values(bbr.active_trees))
+                if length(treevalues) >= 2
+                    @test Pair(treevalues[1].first, treevalues[2].first) in OCT.valid_pairs
+                elseif length(treevalues) == 1
+                    @test treevalues[1].first in OCT.valid_singles || treevalues[1].first == "upperclass"
+                end
                 clear_tree_constraints!(gm)
                 n_constraints = sum(length(all_constraints(gm.model, type[1], type[2])) for type in JuMP.list_of_constraint_types(gm.model))
                 @test n_constraints == init_constraints
@@ -119,6 +125,8 @@ function test_concave_regressors(gm::GlobalModel = gear(true))
     end
     update_tree_constraints!(gm, bbr, 2)
     update_tree_constraints!(gm, bbr, 3)
+    @test active_lower_tree(bbr) == 3
+    @test active_upper_tree(bbr) == 2    
     optimize!(gm)
     @test true
 end
