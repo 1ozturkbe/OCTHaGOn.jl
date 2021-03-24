@@ -69,9 +69,6 @@ end
 function test_survey_method(gm::GlobalModel = minlp(true))
     uniform_sample_and_eval!(gm)
     bbrs = [bbl for bbl in gm.bbls if bbl isa BlackBoxRegressor]
-    if !isempty(bbrs)
-        update_vexity.(bbrs)  
-    end
     surveysolve(gm)
     bbcs = [bbl for bbl in gm.bbls if bbl isa BlackBoxClassifier]
     bbc_idxs = [x isa BlackBoxClassifier for x in gm.bbls]
@@ -80,7 +77,7 @@ function test_survey_method(gm::GlobalModel = minlp(true))
     while gm.cost[end] > gm.cost[end-1] .* (1 + get_param(gm, :tighttol)) && size(gm.solution_history, 1) <= 20
         add_infeasibility_cuts!(gm)
         optimize!(gm)
-    end #TODO RESOLVE WHILE LOOP OVERRUN. 
+    end
     @test true
 end
 

@@ -1,11 +1,5 @@
 """ Very coarse solution for gm to check for feasibility and an initial starting point. """
 function surveysolve(gm::GlobalModel)
-    for bbl in gm.bbls 
-        size(bbl.X,1) > 0 || throw(OCTException("$(bbl) has not been sampled yet!"))
-        if get_param(bbl, :gradients) && !bbl.equality
-            update_vexity(bbl)
-        end
-    end
     bbcs = [bbl for bbl in gm.bbls if bbl isa BlackBoxClassifier]
     if !isempty(bbcs)
         for bbc in bbcs

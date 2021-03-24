@@ -75,4 +75,4 @@ test_sagemark_to_GlobalModel()
 
 test_gams_to_GlobalModel()
 
-test_load_fits()
+# test_load_fits()
