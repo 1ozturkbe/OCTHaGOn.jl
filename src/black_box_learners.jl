@@ -38,9 +38,8 @@ Optional arguments:
     X::DataFrame = DataFrame([Float64 
                  for i=1:length(vars)], string.(vars)) # Function samples
     Y::Array = []                                                           # Function values
-    gradients::DataFrame = DataFrame([Union{Missing, Float64} 
-                 for i=1:length(vars)], string.(vars)) # Gradients
-    curvatures::Array = []                             # Curvature around the points
+    gradients::Union{Nothing, DataFrame} = nothing     # Gradients 
+    curvatures::Union{Nothing, Array} = nothing        # Curvature around the points
     infeas_X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Infeasible samples, if any
     equality::Bool = false                             # Equality check
     learners::Array{Union{IAI.OptimalTreeRegressor, IAI.OptimalTreeClassifier}} = []     # Learners...
@@ -103,9 +102,8 @@ Optional arguments:
     X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars))
                                                        # Function samples
     Y::Array = []                                      # Function values
-    gradients::DataFrame = DataFrame([Union{Missing, Float64} 
-                 for i=1:length(vars)], string.(vars)) # Gradients
-    curvatures::Array = []                             # Curvature around the points
+    gradients::Union{Nothing, DataFrame} = nothing     # Gradients
+    curvatures::Union{Nothing, Array} = nothing        # Curvature around the points
     feas_ratio::Float64 = 0.                           # Feasible sample proportion
     convex::Bool = false
     local_convexity::Float64 = 0.
@@ -161,6 +159,9 @@ function add_data!(bbc::BlackBoxClassifier, X::DataFrame, Y::Array)
     else
         bbc.feas_ratio = (bbc.feas_ratio*size(bbc.X,1) + sum(Y .>= 0))/(size(bbc.X, 1) + length(Y))
     end
+    if (isnothing(bbc.gradients) && get_param(bbc, :gradients)) 
+            bbc.gradients = DataFrame([Union{Missing, Float64} for i=1:length(bbc.vars)], string.(bbc.vars)) 
+    end
     append!(bbc.gradients, DataFrame(missings(size(X, 1), 
                             length(bbc.vars)), string.(bbc.vars)), cols=:intersect)
     append!(bbc.curvatures, missings(size(X,1)))    
@@ -177,17 +178,24 @@ Adds data to BlackBoxRegressor.
 function add_data!(bbr::BlackBoxRegressor, X::DataFrame, Y::Array)
     @assert length(Y) == size(X, 1)
     infeas_idxs = findall(x -> isinf(x), Y)
+    if (isnothing(bbr.gradients) && get_param(bbr, :gradients)) # gradient DataFrame updated here.
+        bbr.gradients = DataFrame([Union{Missing, Float64} for i=1:length(bbr.vars)], string.(bbr.vars)) 
+    end 
     if !isempty(infeas_idxs)
         append!(bbr.infeas_X, X[infeas_idxs, :], cols=:intersect)
         clean_X = delete!(X, infeas_idxs)
-        append!(bbr.gradients, DataFrame(missings(size(clean_X, 1), 
-                               length(bbr.vars)), string.(bbr.vars)), cols=:intersect)
+        if !isnothing(bbr.gradients)
+            append!(bbr.gradients, DataFrame(missings(size(clean_X, 1), 
+                                length(bbr.vars)), string.(bbr.vars)), cols=:intersect)
+        end
         append!(bbr.curvatures, missings(size(clean_X,1)))
         append!(bbr.X, clean_X, cols=:intersect)
         append!(bbr.Y, deleteat!(Y, infeas_idxs))
     else
-        append!(bbr.gradients, DataFrame(missings(size(X, 1), 
+        if !isnothing(bbr.gradients)
+            append!(bbr.gradients, DataFrame(missings(size(X, 1), 
                                length(bbr.vars)), string.(bbr.vars)), cols=:intersect)
+        end
         append!(bbr.curvatures, missings(size(X,1)))
         append!(bbr.X, X, cols=:intersect)
         append!(bbr.Y, Y)
@@ -244,6 +252,7 @@ Evaluates gradient of function through ForwardDiff.
 TODO: speed-ups!. 
 """
 function evaluate_gradient(bbl::BlackBoxLearner, data::DataFrame)
+    @assert get_param(bbl, :gradients)
     @assert !isnothing(bbl.constraint)
     @assert(size(data, 2) == length(bbl.vars))
     if bbl.constraint isa JuMP.ConstraintRef
@@ -287,6 +296,8 @@ end
 function clear_data!(bbc::BlackBoxClassifier)
     bbc.X = DataFrame([Float64 for i=1:length(bbc.vars)], string.(bbc.vars))
     bbc.Y = [];
+    bbc.gradients = nothing
+    bbc.curvatures = nothing
     bbc.feas_ratio = 0
     bbc.learners = [];
     bbc.learner_kwargs = []                            
@@ -295,9 +306,11 @@ end
 
 function clear_data!(bbr::BlackBoxRegressor)
     bbr.X = DataFrame([Float64 for i=1:length(bbr.vars)], string.(bbr.vars))
-    bbr.Y = [];
+    bbr.Y = []
+    bbr.gradients = nothing
+    bbr.curvatures = nothing
     bbr.infeas_X = DataFrame([Float64 for i=1:length(bbr.vars)], string.(bbr.vars));
-    bbr.learners = [];
+    bbr.learners = []
     bbr.learner_kwargs = []   
     bbr.thresholds = []                         
     bbr.ul_data = Dict[]                          
