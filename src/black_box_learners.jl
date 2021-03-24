@@ -107,6 +107,9 @@ Optional arguments:
                  for i=1:length(vars)], string.(vars)) # Gradients
     curvatures::Array = []                             # Curvature around the points
     feas_ratio::Float64 = 0.                           # Feasible sample proportion
+    convex::Bool = false
+    local_convexity::Float64 = 0.
+    vexity::Dict = Dict{Int64, Tuple}()                # Size and convexity of leaves
     equality::Bool = false                             # Equality check
     learners::Array{IAI.OptimalTreeClassifier} = []    # Learners...
     learner_kwargs = []                                # And their kwargs... 
@@ -451,41 +454,41 @@ function active_upper_tree(bbr::BlackBoxRegressor)
 end
 
 """ 
-    update_local_convexity(bbr::BlackBoxRegressor)
+    update_local_convexity(bbl::BlackBoxLearner)
 
-Checks proportion of "neighbor convex" sample points of BBR. 
+Checks proportion of "neighbor convex" sample points of BBL. 
 """
-function update_local_convexity(bbr::BlackBoxRegressor)
-    classify_curvature(bbr)
-    bbr.local_convexity = sum(bbr.curvatures .== 1) / size(bbr.X, 1)
+function update_local_convexity(bbl::BlackBoxLearner)
+    classify_curvature(bbl)
+    bbl.local_convexity = sum(bbl.curvatures .== 1) / size(bbl.X, 1)
     return
 end
 
 """ 
-    update_vexity(bbr::BlackBoxRegressor, threshold = 0.75)
+    update_vexity(bbl::BlackBoxRegressor, threshold = 0.75)
 
 Checks whether a function is perhaps locally or globally convex.
 Threshold sets the border of being considered for convex regression. 
 """
-function update_vexity(bbr::BlackBoxRegressor, threshold = 0.75)
-    update_local_convexity(bbr)
-    if bbr.local_convexity >= threshold
-        if bbr.local_convexity == 1.0
+function update_vexity(bbl::BlackBoxLearner, threshold = 0.75)
+    update_local_convexity(bbl)
+    if bbl.local_convexity >= threshold
+        if bbl.local_convexity == 1.0
             # Checking against quasi_convexity with 5 random points
             t = 5
             cvx = true
-            test_idxs = Int64.(ceil.(rand(t) .* size(bbr.X, 1)))
-            diffs = [[Array(bbr.X[j, :]) - Array(bbr.X[i, :]) for i in test_idxs] for j in test_idxs]
+            test_idxs = Int64.(ceil.(rand(t) .* size(bbl.X, 1)))
+            diffs = [[Array(bbl.X[j, :]) - Array(bbl.X[i, :]) for i in test_idxs] for j in test_idxs]
             for i=1:t, j=1:t
-                if i != j && !(bbr.Y[test_idxs[j]] >= bbr.Y[test_idxs[i]] - 
-                                sum(Array(bbr.gradients[test_idxs[i],:]) .* diffs[i][j]))
+                if i != j && !(bbl.Y[test_idxs[j]] >= bbl.Y[test_idxs[i]] - 
+                                sum(Array(bbl.gradients[test_idxs[i],:]) .* diffs[i][j]))
                     cvx = false
                     println(i, j)
                     break
                 end
             end
             if cvx
-                bbr.convex = true
+                bbl.convex = true
             end
         end
     end
@@ -493,30 +496,29 @@ function update_vexity(bbr::BlackBoxRegressor, threshold = 0.75)
 end
 
 """
-    update_leaf_vexity(bbr::BlackBoxRegressor)
+    update_leaf_vexity(bbl::BlackBoxLearner)
 
-Finds the local convexity of leaves (bbr.vexity) of the active lower bounding tree of BBL. 
+Finds the local convexity of leaves (bbl.vexity) of the active lower bounding tree of BBL. 
 """
-function update_leaf_vexity(bbr::BlackBoxRegressor)
-    if bbr.convex
-        bbr.vexity[1] = (size(bbr.X, 1), 1.0) # We only have a "root". 
+function update_leaf_vexity(bbl::BlackBoxLearner)
+    if bbl.convex
+        bbl.vexity[1] = (size(bbl.X, 1), 1.0) # We only have a "root". 
         return 
     end
-    tree_idx = active_lower_tree(bbr)
-    lnr = bbr.learners[tree_idx]
-    leaf_idxs = IAI.apply(lnr, bbr.X)
+    lnr = bbl.learners[end] # last tree is always the active tree...
+    leaf_idxs = IAI.apply(lnr, bbl.X)
     all_leaves = find_leaves(lnr)
     leaf_vexity = Dict()
     if lnr isa BlackBoxClassifier
         all_leaves = [i for i in all_leaves if Bool(IAI.get_classification_label(lnr, i))];
     end
-    if any(ismissing.(bbr.curvatures))
-        classify_curvature(bbr)
+    if any(ismissing.(bbl.curvatures))
+        classify_curvature(bbl)
     end
     for leaf in all_leaves
         in_leaf_idxs = findall(x -> x == leaf, leaf_idxs)
-        leaf_vexity[leaf] = (length(in_leaf_idxs), sum(bbr.curvatures[in_leaf_idxs] .> 0) / length(in_leaf_idxs))
+        leaf_vexity[leaf] = (length(in_leaf_idxs), sum(bbl.curvatures[in_leaf_idxs] .> 0) / length(in_leaf_idxs))
     end
-    bbr.vexity = leaf_vexity
+    bbl.vexity = leaf_vexity
     return
 end
