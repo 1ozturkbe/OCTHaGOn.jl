@@ -272,7 +272,7 @@ end
 """ 
     upper_bound_sample(bbr::BlackBoxRegressor)
 
-Samples within the feasible regions of the active tree, with the best upper bound. 
+Samples within the feasible regions of the active upper bounding tree.
 """
 function upper_bound_sample(bbr::BlackBoxRegressor)
     @assert !isempty(bbr.active_trees) # We must have optimized at least once over the old tree. 
@@ -290,7 +290,7 @@ function upper_bound_sample(bbr::BlackBoxRegressor)
         plan, _ = LHCoptim(Int64(ceil(n_samples / length(feas_leaves))), length(bbr.vars), 3);  
         X = scaleLHC(plan, [(lbs[i], ubs[i]) for i=1:length(lbs)]);
         eval!(bbr, DataFrame(X, string.(bbr.vars)))
-    end    
+    end
     return
 end
 

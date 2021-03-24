@@ -38,9 +38,8 @@ Optional arguments:
     X::DataFrame = DataFrame([Float64 
                  for i=1:length(vars)], string.(vars)) # Function samples
     Y::Array = []                                                           # Function values
-    gradients::DataFrame = DataFrame([Union{Missing, Float64} 
-                 for i=1:length(vars)], string.(vars)) # Gradients
-    curvatures::Array = []                             # Curvature around the points
+    gradients::Union{Nothing, DataFrame} = nothing     # Gradients 
+    curvatures::Union{Nothing, Array} = nothing        # Curvature around the points
     infeas_X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Infeasible samples, if any
     equality::Bool = false                             # Equality check
     learners::Array{Union{IAI.OptimalTreeRegressor, IAI.OptimalTreeClassifier}} = []     # Learners...
@@ -103,10 +102,12 @@ Optional arguments:
     X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars))
                                                        # Function samples
     Y::Array = []                                      # Function values
-    gradients::DataFrame = DataFrame([Union{Missing, Float64} 
-                 for i=1:length(vars)], string.(vars)) # Gradients
-    curvatures::Array = []                             # Curvature around the points
+    gradients::Union{Nothing, DataFrame} = nothing     # Gradients
+    curvatures::Union{Nothing, Array} = nothing        # Curvature around the points
     feas_ratio::Float64 = 0.                           # Feasible sample proportion
+    convex::Bool = false
+    local_convexity::Float64 = 0.
+    vexity::Dict = Dict{Int64, Tuple}()                # Size and convexity of leaves
     equality::Bool = false                             # Equality check
     learners::Array{IAI.OptimalTreeClassifier} = []    # Learners...
     learner_kwargs = []                                # And their kwargs... 
@@ -158,9 +159,15 @@ function add_data!(bbc::BlackBoxClassifier, X::DataFrame, Y::Array)
     else
         bbc.feas_ratio = (bbc.feas_ratio*size(bbc.X,1) + sum(Y .>= 0))/(size(bbc.X, 1) + length(Y))
     end
-    append!(bbc.gradients, DataFrame(missings(size(X, 1), 
-                            length(bbc.vars)), string.(bbc.vars)), cols=:intersect)
-    append!(bbc.curvatures, missings(size(X,1)))    
+    if isnothing(bbc.gradients) && get_param(bbc, :gradients) # TODO: improve the gradient DF init. 
+        bbc.gradients = DataFrame([Union{Missing, Float64} for i=1:length(bbc.vars)], string.(bbc.vars)) 
+        bbc.curvatures = Union{Missing, Float64}[]
+    end
+    if !isnothing(bbc.gradients)
+        append!(bbc.gradients, DataFrame(missings(size(X, 1), 
+                                length(bbc.vars)), string.(bbc.vars)), cols=:intersect)
+        append!(bbc.curvatures, missings(size(X,1)))   
+    end    
     append!(bbc.X, X, cols=:intersect)
     append!(bbc.Y, Y)
     return
@@ -174,18 +181,26 @@ Adds data to BlackBoxRegressor.
 function add_data!(bbr::BlackBoxRegressor, X::DataFrame, Y::Array)
     @assert length(Y) == size(X, 1)
     infeas_idxs = findall(x -> isinf(x), Y)
+    if isnothing(bbr.gradients) && get_param(bbr, :gradients) # TODO: improve the gradient DF init. 
+        bbr.gradients = DataFrame([Union{Missing, Float64} for i=1:length(bbr.vars)], string.(bbr.vars)) 
+        bbr.curvatures = Union{Missing, Float64}[]
+    end 
     if !isempty(infeas_idxs)
         append!(bbr.infeas_X, X[infeas_idxs, :], cols=:intersect)
         clean_X = delete!(X, infeas_idxs)
-        append!(bbr.gradients, DataFrame(missings(size(clean_X, 1), 
-                               length(bbr.vars)), string.(bbr.vars)), cols=:intersect)
-        append!(bbr.curvatures, missings(size(clean_X,1)))
+        if !isnothing(bbr.gradients)
+            append!(bbr.gradients, DataFrame(missings(size(clean_X, 1), 
+                                length(bbr.vars)), string.(bbr.vars)), cols=:intersect)
+            append!(bbr.curvatures, missings(size(clean_X,1)))
+        end
         append!(bbr.X, clean_X, cols=:intersect)
         append!(bbr.Y, deleteat!(Y, infeas_idxs))
     else
-        append!(bbr.gradients, DataFrame(missings(size(X, 1), 
+        if !isnothing(bbr.gradients)
+            append!(bbr.gradients, DataFrame(missings(size(X, 1), 
                                length(bbr.vars)), string.(bbr.vars)), cols=:intersect)
-        append!(bbr.curvatures, missings(size(X,1)))
+            append!(bbr.curvatures, missings(size(X,1)))
+        end
         append!(bbr.X, X, cols=:intersect)
         append!(bbr.Y, Y)
     end
@@ -241,6 +256,7 @@ Evaluates gradient of function through ForwardDiff.
 TODO: speed-ups!. 
 """
 function evaluate_gradient(bbl::BlackBoxLearner, data::DataFrame)
+    @assert get_param(bbl, :gradients)
     @assert !isnothing(bbl.constraint)
     @assert(size(data, 2) == length(bbl.vars))
     if bbl.constraint isa JuMP.ConstraintRef
@@ -260,6 +276,7 @@ end
 Updates gradient information of selected points. 
 """
 function update_gradients(bbl::BlackBoxLearner, idxs::Array = collect(1:size(bbl.X,1)))
+    @assert get_param(bbl, :gradients)
     empties = idxs[findall(idx -> any(ismissing.(values(bbl.gradients[idx,:]))), idxs)]
     bbl.gradients[empties, :] = evaluate_gradient(bbl, bbl.X[empties, :])
     return
@@ -284,6 +301,8 @@ end
 function clear_data!(bbc::BlackBoxClassifier)
     bbc.X = DataFrame([Float64 for i=1:length(bbc.vars)], string.(bbc.vars))
     bbc.Y = [];
+    bbc.gradients = nothing
+    bbc.curvatures = nothing
     bbc.feas_ratio = 0
     bbc.learners = [];
     bbc.learner_kwargs = []                            
@@ -292,9 +311,11 @@ end
 
 function clear_data!(bbr::BlackBoxRegressor)
     bbr.X = DataFrame([Float64 for i=1:length(bbr.vars)], string.(bbr.vars))
-    bbr.Y = [];
+    bbr.Y = []
+    bbr.gradients = nothing
+    bbr.curvatures = nothing
     bbr.infeas_X = DataFrame([Float64 for i=1:length(bbr.vars)], string.(bbr.vars));
-    bbr.learners = [];
+    bbr.learners = []
     bbr.learner_kwargs = []   
     bbr.thresholds = []                         
     bbr.ul_data = Dict[]                          
@@ -451,41 +472,41 @@ function active_upper_tree(bbr::BlackBoxRegressor)
 end
 
 """ 
-    update_local_convexity(bbr::BlackBoxRegressor)
+    update_local_convexity(bbl::BlackBoxLearner)
 
-Checks proportion of "neighbor convex" sample points of BBR. 
+Checks proportion of "neighbor convex" sample points of BBL. 
 """
-function update_local_convexity(bbr::BlackBoxRegressor)
-    classify_curvature(bbr)
-    bbr.local_convexity = sum(bbr.curvatures .== 1) / size(bbr.X, 1)
+function update_local_convexity(bbl::BlackBoxLearner)
+    classify_curvature(bbl)
+    bbl.local_convexity = sum(bbl.curvatures .== 1) / size(bbl.X, 1)
     return
 end
 
 """ 
-    update_vexity(bbr::BlackBoxRegressor, threshold = 0.75)
+    update_vexity(bbl::BlackBoxRegressor, threshold = 0.75)
 
 Checks whether a function is perhaps locally or globally convex.
 Threshold sets the border of being considered for convex regression. 
 """
-function update_vexity(bbr::BlackBoxRegressor, threshold = 0.75)
-    update_local_convexity(bbr)
-    if bbr.local_convexity >= threshold
-        if bbr.local_convexity == 1.0
+function update_vexity(bbl::BlackBoxLearner, threshold = 0.75)
+    update_local_convexity(bbl)
+    if bbl.local_convexity >= threshold
+        if bbl.local_convexity == 1.0
             # Checking against quasi_convexity with 5 random points
             t = 5
             cvx = true
-            test_idxs = Int64.(ceil.(rand(t) .* size(bbr.X, 1)))
-            diffs = [[Array(bbr.X[j, :]) - Array(bbr.X[i, :]) for i in test_idxs] for j in test_idxs]
+            test_idxs = Int64.(ceil.(rand(t) .* size(bbl.X, 1)))
+            diffs = [[Array(bbl.X[j, :]) - Array(bbl.X[i, :]) for i in test_idxs] for j in test_idxs]
             for i=1:t, j=1:t
-                if i != j && !(bbr.Y[test_idxs[j]] >= bbr.Y[test_idxs[i]] - 
-                                sum(Array(bbr.gradients[test_idxs[i],:]) .* diffs[i][j]))
+                if i != j && !(bbl.Y[test_idxs[j]] >= bbl.Y[test_idxs[i]] - 
+                                sum(Array(bbl.gradients[test_idxs[i],:]) .* diffs[i][j]))
                     cvx = false
                     println(i, j)
                     break
                 end
             end
             if cvx
-                bbr.convex = true
+                bbl.convex = true
             end
         end
     end
@@ -493,30 +514,29 @@ function update_vexity(bbr::BlackBoxRegressor, threshold = 0.75)
 end
 
 """
-    update_leaf_vexity(bbr::BlackBoxRegressor)
+    update_leaf_vexity(bbl::BlackBoxLearner)
 
-Finds the local convexity of leaves (bbr.vexity) of the active lower bounding tree of BBL. 
+Finds the local convexity of leaves (bbl.vexity) of the active lower bounding tree of BBL. 
 """
-function update_leaf_vexity(bbr::BlackBoxRegressor)
-    if bbr.convex
-        bbr.vexity[1] = (size(bbr.X, 1), 1.0) # We only have a "root". 
+function update_leaf_vexity(bbl::BlackBoxLearner)
+    if bbl.convex
+        bbl.vexity[1] = (size(bbl.X, 1), 1.0) # We only have a "root". 
         return 
     end
-    tree_idx = active_lower_tree(bbr)
-    lnr = bbr.learners[tree_idx]
-    leaf_idxs = IAI.apply(lnr, bbr.X)
+    lnr = bbl.learners[end] # last tree is always the active tree...
+    leaf_idxs = IAI.apply(lnr, bbl.X)
     all_leaves = find_leaves(lnr)
     leaf_vexity = Dict()
     if lnr isa BlackBoxClassifier
         all_leaves = [i for i in all_leaves if Bool(IAI.get_classification_label(lnr, i))];
     end
-    if any(ismissing.(bbr.curvatures))
-        classify_curvature(bbr)
+    if any(ismissing.(bbl.curvatures))
+        classify_curvature(bbl)
     end
     for leaf in all_leaves
         in_leaf_idxs = findall(x -> x == leaf, leaf_idxs)
-        leaf_vexity[leaf] = (length(in_leaf_idxs), sum(bbr.curvatures[in_leaf_idxs] .> 0) / length(in_leaf_idxs))
+        leaf_vexity[leaf] = (length(in_leaf_idxs), sum(bbl.curvatures[in_leaf_idxs] .> 0) / length(in_leaf_idxs))
     end
-    bbr.vexity = leaf_vexity
+    bbl.vexity = leaf_vexity
     return
 end

@@ -156,7 +156,7 @@ function add_infeasibility_cuts!(gm::GlobalModel, M = 1e5)
     var_vals = solution(gm)
     for i=1:length(gm.bbls)
         # Inequality Classifiers
-        if gm.bbls[i] isa BlackBoxClassifier && gm.feas_history[end][i] <= 0 && !gm.bbls[i].equality
+        if get_param(gm.bbls[i], :gradients) && gm.bbls[i] isa BlackBoxClassifier && gm.feas_history[end][i] <= 0 && !gm.bbls[i].equality
             bbc = gm.bbls[i]
             rel_vals = var_vals[:, string.(bbc.vars)]
             eval!(bbc, rel_vals)
@@ -167,7 +167,7 @@ function add_infeasibility_cuts!(gm::GlobalModel, M = 1e5)
                 @constraint(gm.model, sum(Array(cut_grad) .* (bbc.vars .- Array(rel_vals)')) + Y + 
                                       M*(1 - bbc.leaf_variables[sol_leaves[i]]) >= 0)) 
         # Convex Regressors
-        elseif gm.bbls[i] isa BlackBoxRegressor && gm.feas_history[end][i] <= 0 
+        elseif get_param(gm.bbls[i], :gradients) && gm.bbls[i] isa BlackBoxRegressor && gm.feas_history[end][i] <= 0
             bbr = gm.bbls[i]
             rel_vals = var_vals[:, string.(bbr.vars)]
             eval!(bbr, rel_vals)
