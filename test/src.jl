@@ -442,7 +442,7 @@ function test_basic_gm()
     @test all([!is_valid(gm.model, var) for var in values(gm.bbls[1].leaf_variables)])
 
     # Saving fit for test_load_fits()
-    save_fit(gm)
+    # save_fit(gm)
 
     # Testing clearing all data
     clear_data!(gm)
