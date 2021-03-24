@@ -159,12 +159,15 @@ function add_data!(bbc::BlackBoxClassifier, X::DataFrame, Y::Array)
     else
         bbc.feas_ratio = (bbc.feas_ratio*size(bbc.X,1) + sum(Y .>= 0))/(size(bbc.X, 1) + length(Y))
     end
-    if (isnothing(bbc.gradients) && get_param(bbc, :gradients)) 
-            bbc.gradients = DataFrame([Union{Missing, Float64} for i=1:length(bbc.vars)], string.(bbc.vars)) 
+    if isnothing(bbc.gradients) && get_param(bbc, :gradients) # TODO: improve the gradient DF init. 
+        bbc.gradients = DataFrame([Union{Missing, Float64} for i=1:length(bbc.vars)], string.(bbc.vars)) 
+        bbc.curvatures = Union{Missing, Float64}[]
     end
-    append!(bbc.gradients, DataFrame(missings(size(X, 1), 
-                            length(bbc.vars)), string.(bbc.vars)), cols=:intersect)
-    append!(bbc.curvatures, missings(size(X,1)))    
+    if !isnothing(bbc.gradients)
+        append!(bbc.gradients, DataFrame(missings(size(X, 1), 
+                                length(bbc.vars)), string.(bbc.vars)), cols=:intersect)
+        append!(bbc.curvatures, missings(size(X,1)))   
+    end    
     append!(bbc.X, X, cols=:intersect)
     append!(bbc.Y, Y)
     return
@@ -178,8 +181,9 @@ Adds data to BlackBoxRegressor.
 function add_data!(bbr::BlackBoxRegressor, X::DataFrame, Y::Array)
     @assert length(Y) == size(X, 1)
     infeas_idxs = findall(x -> isinf(x), Y)
-    if (isnothing(bbr.gradients) && get_param(bbr, :gradients)) # gradient DataFrame updated here.
+    if isnothing(bbr.gradients) && get_param(bbr, :gradients) # TODO: improve the gradient DF init. 
         bbr.gradients = DataFrame([Union{Missing, Float64} for i=1:length(bbr.vars)], string.(bbr.vars)) 
+        bbr.curvatures = Union{Missing, Float64}[]
     end 
     if !isempty(infeas_idxs)
         append!(bbr.infeas_X, X[infeas_idxs, :], cols=:intersect)
@@ -187,16 +191,16 @@ function add_data!(bbr::BlackBoxRegressor, X::DataFrame, Y::Array)
         if !isnothing(bbr.gradients)
             append!(bbr.gradients, DataFrame(missings(size(clean_X, 1), 
                                 length(bbr.vars)), string.(bbr.vars)), cols=:intersect)
+            append!(bbr.curvatures, missings(size(clean_X,1)))
         end
-        append!(bbr.curvatures, missings(size(clean_X,1)))
         append!(bbr.X, clean_X, cols=:intersect)
         append!(bbr.Y, deleteat!(Y, infeas_idxs))
     else
         if !isnothing(bbr.gradients)
             append!(bbr.gradients, DataFrame(missings(size(X, 1), 
                                length(bbr.vars)), string.(bbr.vars)), cols=:intersect)
+            append!(bbr.curvatures, missings(size(X,1)))
         end
-        append!(bbr.curvatures, missings(size(X,1)))
         append!(bbr.X, X, cols=:intersect)
         append!(bbr.Y, Y)
     end

@@ -82,7 +82,7 @@ function secant_method(X::DataFrame, Y::Array)
 end
 
 """ 
-    classify_curvature(bbl::BlackBoxRegressor, idxs = collect(1:size(bbl.X, 1)))
+    classify_curvature(bbl::BlackBoxLearner, idxs = collect(1:size(bbl.X, 1)))
 
 Classify curvature of KNN patches, over given point indices. 
 """
