@@ -436,7 +436,11 @@ function active_lower_tree(bbr::BlackBoxRegressor)
     elseif length(bbr.active_trees) == 2
         tree_keys = collect(keys(bbr.active_trees))
         tree_hypertypes = collect(values(bbr.active_trees))
-        if tree_hypertypes[1].first in valid_lowers
+        if tree_hypertypes[1].first == "lower"
+            return tree_keys[1]
+        elseif tree_hypertypes[2].first == "lower"
+            return tree_keys[2]
+        elseif tree_hypertypes[1].first in valid_lowers
             return tree_keys[1]
         else
             return tree_keys[2]
@@ -461,7 +465,11 @@ function active_upper_tree(bbr::BlackBoxRegressor)
     elseif length(bbr.active_trees) == 2
         tree_keys = collect(keys(bbr.active_trees))
         tree_hypertypes = collect(values(bbr.active_trees))
-        if tree_hypertypes[1].first in valid_uppers
+        if tree_hypertypes[1].first == "upper"
+            return tree_keys[1]
+        elseif tree_hypertypes[2].first == "upper"
+            return tree_keys[2]
+        elseif tree_hypertypes[1].first in valid_uppers
             return tree_keys[1]
         else
             return tree_keys[2]
