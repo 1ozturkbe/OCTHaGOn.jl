@@ -27,15 +27,13 @@ module OptimalConstraintTree
     const TREE_DIR = PROJECT_ROOT * "\\data\\trees\\"
     const CPLEX_SILENT = with_optimizer(CPLEX.Optimizer, CPX_PARAM_SCRIND = 0)
 
-    const valid_lowers = ["reg", "lower", "upperreg"]
-    const valid_uppers = ["reg", "upper", "upperclass", "upperreg"]
-    const valid_singles = ["reg", "upperreg"]
+    const valid_lowers = ["reg", "lower", "upperlower"]
+    const valid_uppers = ["reg", "upper", "upperlower"]
+    const valid_singles = ["reg", "upperlower"]
     const valid_pairs =  ["lower" => "upper",
                           "upper" => "lower",
-                          "lower" => "upperclass",
-                          "upperclass" => "lower",
-                          "reg" => "upperclass", # reg with some threshold.second
-                          "upperclass" => "reg"] # reg with some threshold.second
+                          "reg" => "upper", # reg with some threshold.second
+                          "upper" => "reg"] # reg with some threshold.second
 
     include("small_scripts.jl")
 
@@ -107,6 +105,7 @@ module OptimalConstraintTree
         distance_to_set, get_constant, 
         add_feas_constraints!, add_regr_constraints!,
         add_tree_constraints!, clear_tree_constraints!, update_tree_constraints!,
+        clear_lower_constraints!, clear_upper_constraints!,
         base_regressor, base_classifier,
         fit_regressor_kwargs, fit_classifier_kwargs, 
         regressor_kwargs, classifier_kwargs,

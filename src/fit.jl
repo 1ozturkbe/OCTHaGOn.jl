@@ -168,7 +168,7 @@ function learn_constraint!(bbc::BlackBoxClassifier; kwargs...)
 end
 
 function learn_constraint!(bbr::BlackBoxRegressor, threshold::Pair = Pair("reg", nothing);  kwargs...)
-    classifications = ["upper", "lower", "upperreg", "upperclass"]
+    classifications = ["upper", "lower", "upperlower"]
     check_sampled(bbr)
     get_param(bbr, :reloaded) && set_param(bbr, :reloaded, false) # Makes sure that we know trees are retrained. 
     if bbr.convex
@@ -177,18 +177,16 @@ function learn_constraint!(bbr::BlackBoxRegressor, threshold::Pair = Pair("reg",
         lnr = base_classifier()
         IAI.set_params!(lnr; minbucket = length(bbr.vars) + 1, classifier_kwargs(; kwargs...)...)
         ul_data = Dict()
-        if threshold.first == "upper"
+        if threshold.first == "upper" # Upper bounding classifier with upper bounds in leaves
             lnr = learn_from_data!(bbr.X, bbr.Y .<= threshold.second, lnr; fit_classifier_kwargs(; kwargs...)...)
             merge!(ul_data, boundify(lnr, bbr.X, bbr.Y, "upper"))
-        elseif threshold.first == "lower"
+        elseif threshold.first == "lower" # Lower bounding classifier with lower bounds in leaves
             lnr = learn_from_data!(bbr.X, bbr.Y .>= threshold.second, lnr; fit_classifier_kwargs(; kwargs...)...)
             merge!(ul_data, boundify(lnr, bbr.X, bbr.Y, "lower"))
-        elseif threshold.first == "upperreg"
+        elseif threshold.first == "upperlower" # Upper bounding classifier with bounds in each leaf
             lnr = learn_from_data!(bbr.X, bbr.Y .<= threshold.second, lnr; fit_classifier_kwargs(; kwargs...)...)
             merge!(ul_data, boundify(lnr, bbr.X, bbr.Y, "lower"))
             merge!(ul_data, boundify(lnr, bbr.X, bbr.Y, "upper"))
-        elseif threshold.first == "upperclass" # Note that upperclass and lowerreg trees need to be active together. 
-            lnr = learn_from_data!(bbr.X, bbr.Y .<= threshold.second, lnr; fit_classifier_kwargs(; kwargs...)...)
         end
         push!(bbr.learners, lnr);
         push!(bbr.learner_kwargs, Dict(kwargs))
