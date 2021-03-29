@@ -63,11 +63,9 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
             throw(OCTException("Please clear previous tree constraints from $(gm.name) " *
                 "before adding an unthresholded regression constraints."))
         if !isnothing(bbr.thresholds[idx].second)
-            if haskey(mi_constraints, -1)
-                push!(mi_constraints[-1], @constraint(gm.model, bbr.dependent_var <= bbr.thresholds[idx].second))
-            else
-                mi_constraints[-1] = [@constraint(gm.model, bbr.dependent_var <= bbr.thresholds[idx].second)]
-            end
+            bbr.thresholds[bbr.active_trees[1]].second == bbr.thresholds[idx].second || 
+                throw(OCTException("Upper-thresholded regressors must be preceeded by upper classifiers " * 
+                                    "of the same threshold for $(bbr.name)."))
         end
     elseif bbr.thresholds[idx].first == "upper"
         all(collect(keys(bbr.mi_constraints)) .>= 0)  || throw(OCTException("Please clear previous upper tree constraints from $(gm.name) " *
@@ -273,6 +271,17 @@ function clear_tree_constraints!(gm::GlobalModel, bbls::Array{BlackBoxLearner})
 end
 
 clear_tree_constraints!(gm::GlobalModel) = clear_tree_constraints!(gm, gm.bbls)
+
+function clear_upper_constraints!(gm, bbr::BlackBoxRegressor)
+    for (leaf_key, leaf_constrs) in bbr.mi_constraints
+        while !isempty(leaf_constrs)
+            constr = pop!(leaf_constrs)
+            if isvalid(gm.model, constr)
+                delete(gm.model, constr)
+            else
+                push!(leaf_constrs, constr)
+                throw(OCTConstraintException)
+
 
 
 """
