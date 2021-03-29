@@ -107,6 +107,7 @@ module OptimalConstraintTree
         distance_to_set, get_constant, 
         add_feas_constraints!, add_regr_constraints!,
         add_tree_constraints!, clear_tree_constraints!, update_tree_constraints!,
+        clear_lower_constraints!, clear_upper_constraints!,
         base_regressor, base_classifier,
         fit_regressor_kwargs, fit_classifier_kwargs, 
         regressor_kwargs, classifier_kwargs,

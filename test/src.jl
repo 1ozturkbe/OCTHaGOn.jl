@@ -334,7 +334,7 @@ function test_bbr()
     update_tree_constraints!(gm, bbr, 1) # Updating nothing with single upper bound
     @test bbr.active_trees == Dict(1 => bbr.thresholds[1]) && 
         all(sign.(collect(keys(bbr.mi_constraints))) .== -1)
-    @test_throws OCTException active_lower_tree(bbr)
+    @test isnothing(active_lower_tree(bbr))
     @test active_upper_tree(bbr) == 1
 
     clear_tree_constraints!(gm, bbr)
@@ -355,7 +355,7 @@ function test_bbr()
         length(bbr.leaf_variables) + 1 == length(bbr.mi_constraints) && 
             bbr.active_trees == Dict(4 => bbr.thresholds[4])
     @test active_lower_tree(bbr) == 4
-    @test_throws OCTException active_upper_tree(bbr)
+    @test isnothing(active_upper_tree(bbr))
 
     update_tree_constraints!(gm, bbr, 1) # Adding upper bound to lower bound
     @test length(bbr.leaf_variables) + 2 == length(bbr.mi_constraints) && # checking leaf variables

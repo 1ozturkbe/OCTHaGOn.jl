@@ -241,7 +241,7 @@ function clear_upper_constraints!(gm, bbr::BlackBoxRegressor)
         if leaf_key <= 0
             while !isempty(leaf_constrs)
                 constr = pop!(leaf_constrs)
-                if isvalid(gm.model, constr)
+                if is_valid(gm.model, constr)
                     delete(gm.model, constr)
                 else
                     push!(leaf_constrs, constr) # make sure to put the constraint back. 
@@ -254,7 +254,7 @@ function clear_upper_constraints!(gm, bbr::BlackBoxRegressor)
     end
     for (leaf_key, leaf_var) in bbr.leaf_variables
         if leaf_key <= 0
-            if isvalid(gm.model, leaf_var)
+            if is_valid(gm.model, leaf_var)
                 delete(gm.model, leaf_var)
                 delete!(bbr.leaf_variables, leaf_key)
             else
@@ -273,7 +273,7 @@ function clear_lower_constraints!(gm, bbr::BlackBoxRegressor)
         if leaf_key >= 0
             while !isempty(leaf_constrs)
                 constr = pop!(leaf_constrs)
-                if isvalid(gm.model, constr)
+                if is_valid(gm.model, constr)
                     delete(gm.model, constr)
                 else
                     push!(leaf_constrs, constr) # make sure to put the constraint back. 
@@ -286,7 +286,7 @@ function clear_lower_constraints!(gm, bbr::BlackBoxRegressor)
     end
     for (leaf_key, leaf_var) in bbr.leaf_variables
         if leaf_key >= 0
-            if isvalid(gm.model, leaf_var)
+            if is_valid(gm.model, leaf_var)
                 delete(gm.model, leaf_var)
                 delete!(bbr.leaf_variables, leaf_key)
             else
@@ -313,7 +313,7 @@ function clear_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier)
     for (leaf_key, leaf_constrs) in bbc.mi_constraints
         while !isempty(leaf_constrs)
             constr = pop!(leaf_constrs)
-            if isvalid(gm.model, constr)
+            if is_valid(gm.model, constr)
                 delete(gm.model, constr)
             else
                 push!(leaf_constrs, constr) # make sure to put the constraint back. 
@@ -324,7 +324,7 @@ function clear_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier)
         delete!(bbc.mi_constraints, leaf_key)
     end
     for (leaf_key, leaf_var) in bbc.leaf_variables
-        if isvalid(gm.model, leaf_var)
+        if is_valid(gm.model, leaf_var)
             delete(gm.model, leaf_var)
             delete!(bbc.leaf_variables, leaf_key)
         else
