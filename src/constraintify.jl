@@ -274,13 +274,67 @@ clear_tree_constraints!(gm::GlobalModel) = clear_tree_constraints!(gm, gm.bbls)
 
 function clear_upper_constraints!(gm, bbr::BlackBoxRegressor)
     for (leaf_key, leaf_constrs) in bbr.mi_constraints
-        while !isempty(leaf_constrs)
-            constr = pop!(leaf_constrs)
-            if isvalid(gm.model, constr)
-                delete(gm.model, constr)
+        if leaf_key <= 0
+            while !isempty(leaf_constrs)
+                constr = pop!(leaf_constrs)
+                if isvalid(gm.model, constr)
+                    delete(gm.model, constr)
+                else
+                    push!(leaf_constrs, constr) # make sure to put the constraint back. 
+                    throw(OCTException("Constraints in BlackBoxRegressor $(bbr.name) " * 
+                                    " could not be removed."))
+                end
+            end
+            delete!(bbr.mi_constraints, leaf_key)
+        end
+    end
+    for (leaf_key, leaf_var) in bbr.leaf_variables
+        if leaf_key <= 0
+            if isvalid(gm.model, leaf_var)
+                delete(gm.model, leaf_var)
+                delete!(bbr.leaf_variables, leaf_key)
             else
-                push!(leaf_constrs, constr)
-                throw(OCTConstraintException)
+                throw(OCTException("Variables in BlackBoxRegressor $(bbr.name) " * 
+                " could not be removed."))
+            end
+        end
+    end
+    idx = active_upper_tree(bbr)
+    delete!(bbr.active_trees, idx)
+    return
+end
+
+function clear_lower_constraints!(gm, bbr::BlackBoxRegressor)
+    for (leaf_key, leaf_constrs) in bbr.mi_constraints
+        if leaf_key >= 0
+            while !isempty(leaf_constrs)
+                constr = pop!(leaf_constrs)
+                if isvalid(gm.model, constr)
+                    delete(gm.model, constr)
+                else
+                    push!(leaf_constrs, constr) # make sure to put the constraint back. 
+                    throw(OCTException("Constraints in BlackBoxRegressor $(bbr.name) " * 
+                                    " could not be removed."))
+                end
+            end
+            delete!(bbr.mi_constraints, leaf_key)
+        end
+    end
+    for (leaf_key, leaf_var) in bbr.leaf_variables
+        if leaf_key >= 0
+            if isvalid(gm.model, leaf_var)
+                delete(gm.model, leaf_var)
+                delete!(bbr.leaf_variables, leaf_key)
+            else
+                throw(OCTException("Variables in BlackBoxRegressor $(bbr.name) " * 
+                " could not be removed."))
+            end
+        end
+    end
+    idx = active_lower_tree(bbr)
+    delete!(bbr.active_trees, idx)
+    return
+end
 
 
 
