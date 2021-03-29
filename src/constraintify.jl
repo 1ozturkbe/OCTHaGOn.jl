@@ -55,29 +55,38 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
         throw(OCTException("Constraint " * string(bbr.name) * " is a Regressor, 
         but doesn't have a ORT and/or OCT with upper/lower bounding approximators!"))
     end
-    mi_constraints, leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
-                                                                bbr.learners[idx], bbr.ul_data[idx];
-                                                                M = M, equality = bbr.equality)
     if bbr.thresholds[idx].first == "reg"
         (isempty(bbr.leaf_variables) || !isnothing(bbr.thresholds[idx].second)) ||
             throw(OCTException("Please clear previous tree constraints from $(gm.name) " *
                 "before adding an unthresholded regression constraints."))
-        if !isnothing(bbr.thresholds[idx].second)
-            bbr.thresholds[bbr.active_trees[1]].second == bbr.thresholds[idx].second || 
+        if !isnothing(bbr.thresholds[idx].second) && !isempty(bbr.active_trees)
+            bbr.thresholds[active_upper_tree(bbr)].second == bbr.thresholds[idx].second || 
                 throw(OCTException("Upper-thresholded regressors must be preceeded by upper classifiers " * 
                                     "of the same threshold for $(bbr.name)."))
         end
     elseif bbr.thresholds[idx].first == "upper"
         all(collect(keys(bbr.mi_constraints)) .>= 0)  || throw(OCTException("Please clear previous upper tree constraints from $(gm.name) " *
                                                           "before adding new constraints."))
-        push!(mi_constraints[-1], @constraint(gm.model, bbr.dependent_var <= bbr.thresholds[idx].second))
     elseif bbr.thresholds[idx].first == "lower"
         all(collect(keys(bbr.mi_constraints)) .<= 0) || throw(OCTException("Please clear previous lower tree constraints from $(gm.name) " *
                                                             "before adding new constraints."))
-        push!(mi_constraints[1], @constraint(gm.model, bbr.dependent_var >= bbr.thresholds[idx].second))
     elseif bbr.thresholds[idx].first == "upperclass"
         all(collect(keys(bbr.mi_constraints)) .>= 0)  || throw(OCTException("Please clear previous upper tree constraints from $(gm.name) " *
         "before adding new constraints."))
+        if !isempty(bbr.active_trees)
+            bbr.thresholds[active_lower_tree(bbr)].second == bbr.thresholds[idx].second || 
+                throw(OCTException("Upper-thresholding classifiers must be preceeded by regressors " * 
+                                    "of the same threshold for $(bbr.name)."))
+        end
+    end
+    mi_constraints, leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
+                                                                bbr.learners[idx], bbr.ul_data[idx];
+                                                                M = M, equality = bbr.equality)
+    if bbr.thresholds[idx].first == "upper"
+        push!(mi_constraints[-1], @constraint(gm.model, bbr.dependent_var <= bbr.thresholds[idx].second))
+    elseif bbr.thresholds[idx].first == "lower"
+        push!(mi_constraints[1], @constraint(gm.model, bbr.dependent_var >= bbr.thresholds[idx].second))
+    elseif bbr.thresholds[idx].first == "upperclass"
         if haskey(mi_constraints, -1)
             push!(mi_constraints[-1], @constraint(gm.model, bbr.dependent_var <= bbr.thresholds[idx].second))
         else
