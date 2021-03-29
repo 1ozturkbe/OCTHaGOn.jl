@@ -236,42 +236,6 @@ function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuM
     end
 end
 
-""" 
-    clear_tree_constraints!(gm::GlobalModel, bbl::BlackBoxLearner)
-    clear_tree_constraints!(gm::GlobalModel, bbls::Array{BlackBoxLearner})
-    clear_tree_constraints!(gm::GlobalModel)
-
-Clears the constraints bbl.mi_constraints 
-as well as bbl.leaf_variables in GlobalModel. 
-"""
-function clear_tree_constraints!(gm::GlobalModel, bbl::BlackBoxLearner)
-    for constraint in all_mi_constraints(bbl)
-        if is_valid(gm.model, constraint)
-            delete(gm.model, constraint)
-        end
-    end
-    bbl.mi_constraints = Dict{Int64, Array{JuMP.ConstraintRef}}()
-    for (leaf, variable) in bbl.leaf_variables
-        if is_valid(gm.model, variable)
-            delete(gm.model, variable)
-        end
-    end
-    bbl.leaf_variables = Dict{Int64, JuMP.VariableRef}()
-    if bbl isa BlackBoxRegressor
-        bbl.active_trees = Dict()
-    end
-    return
-end
-
-function clear_tree_constraints!(gm::GlobalModel, bbls::Array{BlackBoxLearner})
-    for bbl in bbls
-        clear_tree_constraints!(gm, bbl)
-    end
-    return
-end
-
-clear_tree_constraints!(gm::GlobalModel) = clear_tree_constraints!(gm, gm.bbls)
-
 function clear_upper_constraints!(gm, bbr::BlackBoxRegressor)
     for (leaf_key, leaf_constrs) in bbr.mi_constraints
         if leaf_key <= 0
@@ -336,7 +300,55 @@ function clear_lower_constraints!(gm, bbr::BlackBoxRegressor)
     return
 end
 
+""" 
+    clear_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier)
+    clear_tree_constraints!(gm::GlobalModel, bbc::BlackBoxRegressor)
+    clear_tree_constraints!(gm::GlobalModel, bbls::Array{BlackBoxLearner})
+    clear_tree_constraints!(gm::GlobalModel)
 
+Clears the constraints bbl.mi_constraints 
+as well as bbl.leaf_variables in GlobalModel. 
+"""
+function clear_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier)
+    for (leaf_key, leaf_constrs) in bbc.mi_constraints
+        while !isempty(leaf_constrs)
+            constr = pop!(leaf_constrs)
+            if isvalid(gm.model, constr)
+                delete(gm.model, constr)
+            else
+                push!(leaf_constrs, constr) # make sure to put the constraint back. 
+                throw(OCTException("Constraints in BlackBoxClassifier $(bbr.name) " * 
+                                " could not be removed."))
+            end
+        end
+        delete!(bbc.mi_constraints, leaf_key)
+    end
+    for (leaf_key, leaf_var) in bbc.leaf_variables
+        if isvalid(gm.model, leaf_var)
+            delete(gm.model, leaf_var)
+            delete!(bbc.leaf_variables, leaf_key)
+        else
+            throw(OCTException("Variables in BlackBoxClassifier $(bbr.name) " * 
+            " could not be removed."))
+        end
+    end
+    return
+end
+
+function clear_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor)
+    clear_lower_constraints!(gm, bbr)
+    clear_upper_constraints!(gm, bbr)
+    return 
+end
+
+function clear_tree_constraints!(gm::GlobalModel, bbls::Array{BlackBoxLearner})
+    for bbl in bbls
+        clear_tree_constraints!(gm, bbl)
+    end
+    return
+end
+
+clear_tree_constraints!(gm::GlobalModel) = clear_tree_constraints!(gm, gm.bbls)
 
 """
     update_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = length(bbr.learners))
