@@ -66,7 +66,7 @@ end
 Finds upper regressors of data that are conservative. 
 """
 function u_regress(X::DataFrame, Y::Array; solver = CPLEX_SILENT)
-    if size(X, 1) <= 2*size(X, 2)
+    if size(X, 1) < 2*size(X, 2)
         @warn("Upper regression doesn't have enough data, thus returning constant bounds. ")
         return maximum(Y), zeros(size(X,2))
     end
@@ -90,7 +90,7 @@ end
 Finds lower regressors of data that are conservative. 
 """
 function l_regress(X::DataFrame, Y::Array; solver = CPLEX_SILENT)
-    if size(X, 1) <= 2*size(X, 2)
+    if size(X, 1) < 2*size(X, 2)
         @warn("Lower regression doesn't have enough data, thus returning constant bounds. ")
         return minimum(Y), zeros(size(X,2))
     end
