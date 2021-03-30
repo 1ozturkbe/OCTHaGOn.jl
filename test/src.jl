@@ -31,9 +31,9 @@ function test_expressions()
 
     # Testing "flattening of expressions" for nonlinearization
     expr_vars = vars_from_expr(expr, model)
-    @test get_var_ranges(expr_vars) == [(1:5),(6:8),9]
-    @test zeroarray([(1:5),(6:8),9]) == [zeros(5), zeros(3), 0]
-    flat_expr = :((x...) -> $(expr)([x[i] for i in $(get_var_ranges(expr_vars))]...))
+    @test OCT.get_var_ranges(expr_vars) == [(1:5),(6:8),9]
+    @test OCT.zeroarray([(1:5),(6:8),9]) == [zeros(5), zeros(3), 0]
+    flat_expr = :((x...) -> $(expr)([x[i] for i in $(OCT.get_var_ranges(expr_vars))]...))
     fn = functionify(flat_expr)
     @test Base.invokelatest(fn, [1,2,3,4,1,5,-6,-7,7]...) == Base.invokelatest(f, ([1,2,3,4,1], [5,-6,-7], 7)...)
     @test Base.invokelatest(fn, flat(expr_vars)...) == res
@@ -41,8 +41,8 @@ function test_expressions()
     # Testing proper mapping for expressions
     flatvars = flat([y[2], z, x[1:4]])
     vars = vars_from_expr(expr, model)
-    @test get_varmap(vars, flatvars) == [(2,2), (3,0), (1,1), (1, 2), (1,3), (1,4)]
-    @test get_datamap(vars, flatvars) == [7, 9, 1, 2, 3, 4]
+    @test OCT.get_varmap(vars, flatvars) == [(2,2), (3,0), (1,1), (1, 2), (1,3), (1,4)]
+    @test OCT.get_datamap(vars, flatvars) == [7, 9, 1, 2, 3, 4]
     
     # Testing gradientify
     grad = gradientify(expr, vars_from_expr(expr, model))

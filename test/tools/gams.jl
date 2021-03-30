@@ -145,7 +145,7 @@ function GAMS_to_GlobalModel(GAMS_DIR::String, filename::String)
             constkeys = find_vars_in_eq(eq, constdict)
             const_pairs = Dict(constkey => model[constkey] for constkey in constkeys)
             for (constkey, constval) in const_pairs
-                constr_expr = substitute(constr_expr, :($constkey) => constval)
+                constr_expr = OCT.substitute(constr_expr, :($constkey) => constval)
             end
             # Designate free variables
             varkeys = find_vars_in_eq(eq, vardict)
@@ -159,7 +159,7 @@ function GAMS_to_GlobalModel(GAMS_DIR::String, filename::String)
                 add_nonlinear_or_compatible(gm, constr_fn, vars = vars, expr_vars = [vardict[varkey] for varkey in varkeys],
                                         equality = is_equality(eq), name = gm.name * "_" * GAMSFiles.getname(key))
             else
-                constr_expr = substitute(constr_expr, :($(Symbol(gams["minimizing"]))) => 0)
+                constr_expr = OCT.substitute(constr_expr, :($(Symbol(gams["minimizing"]))) => 0)
                 # ASSUMPTION: objvar has positive coefficient, and is on the greater size. 
                 op = GAMSFiles.eqops[GAMSFiles.getname(eq)]
                 if !(op in [:<, :>])
@@ -185,7 +185,7 @@ function GAMS_to_GlobalModel(GAMS_DIR::String, filename::String)
             constkeys = find_vars_in_eq(eq, constdict)
             const_pairs = Dict(Symbol(constkey) => model[constkey] for constkey in constkeys)
             for (constkey, constval) in const_pairs
-                constr_expr = substitute(constr_expr, :($constkey) => constval)
+                constr_expr = OCT.substitute(constr_expr, :($constkey) => constval)
             end
             # Designate free variables
             varkeys = find_vars_in_eq(eq, vardict)
@@ -199,7 +199,7 @@ function GAMS_to_GlobalModel(GAMS_DIR::String, filename::String)
             for idx in idxs
                 new_fn = copy(constr_fn)
                 for ax_number in 1:length(axs)
-                    new_fn = substitute(new_fn, Symbol(key.indices[ax_number].text) => idx[ax_number]);
+                    new_fn = OCT.substitute(new_fn, Symbol(key.indices[ax_number].text) => idx[ax_number]);
                 end
                 push!(constr_fns, new_fn)
             end
