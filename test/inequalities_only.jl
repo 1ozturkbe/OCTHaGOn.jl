@@ -50,8 +50,8 @@ function test_refinement()
             leaf_var = bbl.leaf_variables[leaves[end]]
             M = 1e5
             gfn = x -> ForwardDiff.gradient(bbl.f, x)
-            varmap = get_varmap(bbl.expr_vars, bbl.vars)        
-            inp = deconstruct(solution(gm), bbl.vars, bbl.expr_vars, varmap)
+            varmap = OCT.get_varmap(bbl.expr_vars, bbl.vars)        
+            inp = OCT.deconstruct(solution(gm), bbl.vars, bbl.expr_vars, varmap)
             grad = gfn(inp[1]...)    
             grad = [grad[v[2]] for v in varmap]
             constr = @constraint(gm.model, 0 <= sum(grad .* bbl.vars) + M * (1 - leaf_var))
