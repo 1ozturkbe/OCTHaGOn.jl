@@ -483,7 +483,7 @@ function test_convex_objective()
     @test find_leaf_of_soln.(gm.bbls) == [1]
     add_infeasibility_cuts!(gm)
     optimize!(gm)
-    while gm.cost[end] > gm.cost[end-1] .* (1 + get_param(gm, :tighttol))
+    while abs(gm.cost[end] - gm.cost[end-1]) >  get_param(gm, :abstol)
         add_infeasibility_cuts!(gm)
         optimize!(gm)
     end
