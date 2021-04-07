@@ -37,7 +37,7 @@ function test_solution_method(gm::GlobalModel = minlp(true))
             add_infeasibility_cuts!(gm)
             optimize!(gm)
         end
-        while minimum(bbr.optima) < bbr.thresholds[active_lower_tree(bbr)].second
+        while minimum(bbr.actuals) < bbr.thresholds[active_lower_tree(bbr)].second
             for bbc in bbcs # to clear already present cuts
                 clear_tree_constraints!(gm, bbc)
                 add_tree_constraints!(gm, bbc) 
