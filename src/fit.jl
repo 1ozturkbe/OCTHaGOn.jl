@@ -155,6 +155,9 @@ function learn_constraint!(bbc::BlackBoxClassifier; kwargs...)
     check_sampled(bbc)
     set_param(bbc, :reloaded, false) # Makes sure that we know trees are retrained. 
     lnr = base_classifier()
+    if bbc.equality # Equalities are approximated more aggressively.
+        IAI.set_params!(lnr; max_depth = 6, ls_num_tree_restarts = 30, fast_num_support_restarts = 15)
+    end
     IAI.set_params!(lnr; minbucket =  2*length(bbc.vars), classifier_kwargs(; kwargs...)...)
     if check_feasibility(bbc) || get_param(bbc, :ignore_feasibility)
         nl = learn_from_data!(bbc.X, bbc.Y .>= 0, lnr; fit_classifier_kwargs(; kwargs...)...)
