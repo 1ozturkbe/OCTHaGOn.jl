@@ -108,13 +108,6 @@ end
 # gm = GAMS_to_GlobalModel(OCT.GAMS_DIR, filename)
 # gm = gear(true)
 gm = speed_reducer()
-gm = nlp3(true)
-set_optimizer(gm, CPLEX_SILENT)
-for bbl in gm.bbls
-    if bbl isa BlackBoxRegressor
-        bbl.equality=false
-    end
-end
 set_param(gm, :ignore_feasibility, true)
 set_param(gm, :ignore_accuracy, true)
 
