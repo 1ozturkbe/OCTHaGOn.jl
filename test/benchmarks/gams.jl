@@ -1,4 +1,22 @@
+function find_optimal_iteration(gm::GlobalModel)
+    if any(bbl.equality == true for bbl in gm.bbls)
+        @warn "GlobalModel $(gm.name) has equalities. These aren't guaranteed to be feasible. "
+    end
+    noteqs = [bbl.equality == false for bbl in gm.bbls]
+    bbcs = [bbl isa BlackBoxClassifier for bbl in gm.bbls]
+    for i = Iterators.reverse(1:length(gm.feas_history))
+        feas = gm.feas_history[i] .* noteqs .* bbcs
+        if !any(feas .<= -1e-10)
+            @info "Iteration $(i) was optimal."
+            return i
+        end
+    end
+    @info "None of the solutions fit the feasibility criteria. "
+    return
+end
+
 function test_solution_method(gm::GlobalModel = minlp(true))
+    t1 = time()
     uniform_sample_and_eval!(gm)
     bbrs = [bbl for bbl in gm.bbls if bbl isa BlackBoxRegressor]
     bbcs = [bbl for bbl in gm.bbls if bbl isa BlackBoxClassifier]
@@ -48,14 +66,30 @@ function test_solution_method(gm::GlobalModel = minlp(true))
             learn_constraint!(bbr, "reg" => minimum(bbr.actuals), regression_sparsity = 0, max_depth = 5)
             update_tree_constraints!(gm, bbr)
             update_leaf_vexity(bbr)
-            optimize!(gm)
+            try
+                optimize!(gm)
+            catch 
+                break
+            end
             while abs(gm.cost[end] - gm.cost[end-1]) > get_param(gm, :abstol)
                 add_infeasibility_cuts!(gm)
-                optimize!(gm)
+                try
+                    optimize!(gm)
+                catch 
+                    break
+                end
             end
         end 
+        @info "Optimization terminated."
+        it = find_optimal_iteration(gm)
+        @info "Elapsed time: $(round(time()-t1, sigdigits=5)) seconds."
+        @info "Optimal cost: $(round(bbr.actuals[it], sigdigits = 7))"
+    else
+        @info "Optimization terminated."
+        @info "Elapsed time: $(round(time()-t1, sigdigits=5)) seconds."
+        @info "Optimal cost: $(round(getobjectivevalue(gm.model), sigdigits = 7))"
     end
-    return gm
+    return
 end
 
 # filename = "weapons.gms"
@@ -82,6 +116,4 @@ end
 
 t1 = time()
 find_bounds!(gm)
-gm = test_solution_method(gm)
-println("Elapsed time: ", time() - t1)
-println("Optimal cost: $(gm.cost[end])")
+test_solution_method(gm)
