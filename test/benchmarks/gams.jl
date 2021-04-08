@@ -4,11 +4,22 @@ function find_optimal_iteration(gm::GlobalModel)
     end
     noteqs = [bbl.equality == false for bbl in gm.bbls]
     bbcs = [bbl isa BlackBoxClassifier for bbl in gm.bbls]
-    for i = Iterators.reverse(1:length(gm.feas_history))
-        feas = gm.feas_history[i] .* noteqs .* bbcs
-        if !any(feas .<= -1e-10)
-            @info "Iteration $(i) was optimal."
-            return i
+    bbrs = [bbl for bbl in gm.bbls if bbl isa BlackBoxRegressor]
+    if isempty(bbrs)
+        for i = sortperm(gm.cost)
+            feas = gm.feas_history[i] .* noteqs .* bbcs
+            if !any(feas .<= -1e-10)
+                @info "Iteration $(i) was optimal."
+                return i
+            end
+        end
+    else
+        for i = sortperm(bbrs[1].actuals)
+            feas = gm.feas_history[i] .* noteqs .* bbcs
+            if !any(feas .<= -1e-10)
+                @info "Iteration $(i) was optimal."
+                return i
+            end
         end
     end
     @info "None of the solutions fit the feasibility criteria. "
@@ -86,8 +97,9 @@ function test_solution_method(gm::GlobalModel = minlp(true))
         @info "Optimal cost: $(round(bbr.actuals[it], sigdigits = 7))"
     else
         @info "Optimization terminated."
+        it = find_optimal_iteration(gm)
         @info "Elapsed time: $(round(time()-t1, sigdigits=5)) seconds."
-        @info "Optimal cost: $(round(getobjectivevalue(gm.model), sigdigits = 7))"
+        @info "Optimal cost: $(round(gm.cost[it], sigdigits = 7))"
     end
     return
 end
@@ -96,6 +108,7 @@ end
 # gm = GAMS_to_GlobalModel(OCT.GAMS_DIR, filename)
 # gm = gear(true)
 gm = speed_reducer()
+gm = nlp3(true)
 set_optimizer(gm, CPLEX_SILENT)
 for bbl in gm.bbls
     if bbl isa BlackBoxRegressor
@@ -114,6 +127,5 @@ elseif gm.name == "himmel16.gms"
     JuMP.set_lower_bound.(gm.vars, -ones(length(gm.vars))) # himmel16
 end
 
-t1 = time()
 find_bounds!(gm)
 test_solution_method(gm)
