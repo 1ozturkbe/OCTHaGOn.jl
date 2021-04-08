@@ -155,7 +155,10 @@ function learn_constraint!(bbc::BlackBoxClassifier; kwargs...)
     check_sampled(bbc)
     set_param(bbc, :reloaded, false) # Makes sure that we know trees are retrained. 
     lnr = base_classifier()
-    IAI.set_params!(lnr; minbucket = length(bbc.vars) + 1, classifier_kwargs(; kwargs...)...)
+    if bbc.equality # Equalities are approximated more aggressively.
+        IAI.set_params!(lnr; max_depth = 6, ls_num_tree_restarts = 30, fast_num_support_restarts = 15)
+    end
+    IAI.set_params!(lnr; minbucket =  2*length(bbc.vars), classifier_kwargs(; kwargs...)...)
     if check_feasibility(bbc) || get_param(bbc, :ignore_feasibility)
         nl = learn_from_data!(bbc.X, bbc.Y .>= 0, lnr; fit_classifier_kwargs(; kwargs...)...)
         push!(bbc.learners, nl)
@@ -175,7 +178,7 @@ function learn_constraint!(bbr::BlackBoxRegressor, threshold::Pair = Pair("reg",
         return # If convex, don't train a tree!
     elseif threshold.first in classifications
         lnr = base_classifier()
-        IAI.set_params!(lnr; minbucket = length(bbr.vars) + 1, classifier_kwargs(; kwargs...)...)
+        IAI.set_params!(lnr; minbucket = 2*length(bbr.vars), classifier_kwargs(; kwargs...)...)
         ul_data = Dict()
         if threshold.first == "upper" # Upper bounding classifier with upper bounds in leaves
             lnr = learn_from_data!(bbr.X, bbr.Y .<= threshold.second, lnr; fit_classifier_kwargs(; kwargs...)...)
@@ -195,7 +198,7 @@ function learn_constraint!(bbr::BlackBoxRegressor, threshold::Pair = Pair("reg",
         return 
     elseif threshold.first == "reg"
         lnr = base_regressor()
-        IAI.set_params!(lnr; minbucket = length(bbr.vars) + 1, regressor_kwargs(; kwargs...)...)
+        IAI.set_params!(lnr; minbucket = 2*length(bbr.vars), regressor_kwargs(; kwargs...)...)
         if threshold.second == nothing && bbr.local_convexity < 0.75
             lnr = learn_from_data!(bbr.X, bbr.Y, lnr; fit_regressor_kwargs(; kwargs...)...)   
         elseif threshold.second == nothing && bbr.local_convexity >= 0.75

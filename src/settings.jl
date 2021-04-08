@@ -25,6 +25,7 @@ function gm_defaults()
          :lh_iterations => 5,
          :sample_coeff => 200,
          :sample_density => 1e-5,
+         :abstol => 1e-3,
          :tighttol => 1e-5,
          :reltol => 1e-3,
          :convex_constrs => false)
