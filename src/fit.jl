@@ -66,19 +66,20 @@ Returns:
     lnr: Fitted Learner corresponding to the data
 NOTE: kwargs get unpacked here, all the way from learn_constraint!.
 """
-function learn_from_data!(X::DataFrame, Y::AbstractArray, lnr::IAI.OptimalTreeLearner, 
+function learn_from_data!(X::DataFrame, Y::AbstractArray, lnr::Union{IAI.OptimalTreeLearner, 
+                                                                     IAI.Heuristics.RandomForestRegressor}, 
                           idxs::Union{Nothing, Array}=nothing; kwargs...)
     n_samples, n_features = size(X);
     @assert n_samples == length(Y);
     # Making sure that we only consider relevant features.
     if !isnothing(idxs)
         IAI.set_params!(lnr, split_features = idxs)
-        if typeof(lnr) == IAI.OptimalTreeRegressor
+        if typeof(lnr) in [IAI.OptimalTreeRegressor, IAI.RandomForestRegressor]
             IAI.set_params!(lnr, regression_features = idxs)
         end
     else
         IAI.set_params!(lnr, split_features = All())
-        if typeof(lnr) == IAI.OptimalTreeRegressor
+        if typeof(lnr) in [IAI.OptimalTreeRegressor, IAI.RandomForestRegressor]
             IAI.set_params!(lnr, regression_features = All())
         end
     end
@@ -141,6 +142,21 @@ function boundify(lnr::IAI.OptimalTreeClassifier, X::DataFrame, Y, hypertype::St
         end
     end
     return data
+end
+
+""" 
+    get_random_trees(lnr::IAI.Heuristics.RandomForestLearner)
+Returns one of the trees of RandomForestLearner. 
+"""
+function get_random_trees(lnr::IAI.Heuristics.RandomForestLearner)
+    trees = []
+    for i = 1:lnr.num_trees
+        tree = IAI.clone(lnr.inner)
+        tree.prb_ = lnr.prb_
+        tree.tree_ = lnr.forest_.trees[i]
+        push!(trees, tree)
+    end
+    return trees
 end
 
 """
