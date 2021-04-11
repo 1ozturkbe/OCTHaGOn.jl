@@ -42,7 +42,8 @@ Optional arguments:
     curvatures::Union{Nothing, Array} = nothing        # Curvature around the points
     infeas_X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Infeasible samples, if any
     equality::Bool = false                             # Equality check
-    learners::Array{Union{IAI.OptimalTreeRegressor, IAI.OptimalTreeClassifier}} = []     # Learners...
+    learners::Array{Union{IAI.OptimalTreeRegressor, IAI.OptimalTreeClassifier,
+                          IAI.heuristics.RandomForestRegressor}} = []     # Learners...
     learner_kwargs = []                                # and their kwargs... 
     thresholds::Array{Pair} = []                       # For thresholding. 
     ul_data::Array{Dict} = Dict[]                      # Upper/lower bounding data
@@ -109,7 +110,8 @@ Optional arguments:
     local_convexity::Float64 = 0.
     vexity::Dict = Dict{Int64, Tuple}()                # Size and convexity of leaves
     equality::Bool = false                             # Equality check
-    learners::Array{IAI.OptimalTreeClassifier} = []    # Learners...
+    learners::Array{Union{IAI.OptimalTreeClassifier,
+                          IAI.Heuristics.RandomForestClassifier}} = []    # Learners...
     learner_kwargs = []                                # And their kwargs... 
     mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}() # and their corresponding MI constraints,
     leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their binary leaves and associated variables,

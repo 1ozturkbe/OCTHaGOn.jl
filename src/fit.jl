@@ -212,6 +212,7 @@ Arguments:
 function learn_constraint!(bbc::BlackBoxClassifier; kwargs...)
     check_sampled(bbc)
     set_param(bbc, :reloaded, false) # Makes sure that we know trees are retrained. 
+    lnr = base_classifier()
     if bbc.equality # Equalities are approximated more aggressively.
         IAI.set_params!(lnr; max_depth = 6, ls_num_tree_restarts = 30, fast_num_support_restarts = 15)
     end
@@ -253,13 +254,8 @@ function learn_constraint!(bbr::BlackBoxRegressor, threshold::Pair = Pair("reg",
         push!(bbr.thresholds, threshold)
         push!(bbr.ul_data, ul_data)
         return 
-    elseif threshold.first in ["reg", "rfreg"]
+    elseif threshold.first == "reg"
         lnr = base_regressor()
-        if threshold.first == "rfreg" 
-            lnr = base_rf_regressor()
-            bbr.local_convexity < 0.75 || throw(OCTException("Cannot use RandomForestRegressor " *
-            "on BBR $(bbr.name) since it is almost convex."))
-        end
         IAI.set_params!(lnr; minbucket = 2*length(bbr.vars), regressor_kwargs(; kwargs...)...)
         if threshold.second == nothing && bbr.local_convexity < 0.75
             lnr = learn_from_data!(bbr.X, bbr.Y, lnr; fit_regressor_kwargs(; kwargs...)...)   
@@ -271,6 +267,22 @@ function learn_constraint!(bbr::BlackBoxRegressor, threshold::Pair = Pair("reg",
         elseif bbr.local_convexity >= 0.75
             idxs = findall(y -> y <= threshold.second, bbr.Y) 
             lnr = learn_from_data!(bbr.X[idxs, :], bbr.curvatures[idxs] .> 0, lnr; fit_regressor_kwargs(; kwargs...)...)
+        end
+        push!(bbr.learners, lnr);
+        push!(bbr.learner_kwargs, Dict(kwargs))
+        push!(bbr.thresholds, threshold)
+        push!(bbr.ul_data, boundify(lnr, bbr.X, bbr.Y))
+        return
+    elseif threshold.first == "rfreg"
+        lnr = base_rf_regressor()
+        bbr.local_convexity < 0.75 || throw(OCTException("Cannot use RandomForestRegressor " *
+        "on BBR $(bbr.name) since it is almost convex."))
+        IAI.set_params!(lnr; minbucket = 2*length(bbr.vars), regressor_kwargs(; kwargs...)...)
+        if threshold.second == nothing
+            lnr = learn_from_data!(bbr.X, bbr.Y, lnr; fit_regressor_kwargs(; kwargs...)...)   
+        else
+            idxs = findall(y -> y <= threshold.second, bbr.Y) 
+            lnr = learn_from_data!(bbr.X[idxs, :], bbr.Y[idxs], lnr; fit_regressor_kwargs(; kwargs...)...)
         end
         push!(bbr.learners, lnr);
         push!(bbr.learner_kwargs, Dict(kwargs))

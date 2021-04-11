@@ -31,7 +31,7 @@ function base_rf_regressor()
     IAI.Heuristics.RandomForestRegressor(
         num_trees = 20,
         hyperplane_config = (sparsity = :all,),
-        regression_sparsity = :all,
+        regression_sparsity = 0,
         regression_weighted_betas = true,
         random_seed = 1,
         max_depth = 3,
