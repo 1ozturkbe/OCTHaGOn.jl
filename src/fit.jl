@@ -67,19 +67,19 @@ Returns:
 NOTE: kwargs get unpacked here, all the way from learn_constraint!.
 """
 function learn_from_data!(X::DataFrame, Y::AbstractArray, lnr::Union{IAI.OptimalTreeLearner, 
-                                                                     IAI.Heuristics.RandomForestRegressor}, 
+                                                                     IAI.Heuristics.RandomForestLearner}, 
                           idxs::Union{Nothing, Array}=nothing; kwargs...)
     n_samples, n_features = size(X);
     @assert n_samples == length(Y);
     # Making sure that we only consider relevant features.
     if !isnothing(idxs)
         IAI.set_params!(lnr, split_features = idxs)
-        if typeof(lnr) in [IAI.OptimalTreeRegressor, IAI.RandomForestRegressor]
+        if typeof(lnr) in [IAI.OptimalTreeRegressor, IAI.Heuristics.RandomForestRegressor]
             IAI.set_params!(lnr, regression_features = idxs)
         end
     else
         IAI.set_params!(lnr, split_features = All())
-        if typeof(lnr) in [IAI.OptimalTreeRegressor, IAI.RandomForestRegressor]
+        if typeof(lnr) in [IAI.OptimalTreeRegressor, IAI.Heuristics.RandomForestRegressor]
             IAI.set_params!(lnr, regression_features = All())
         end
     end
@@ -111,9 +111,24 @@ function check_sampled(bbl::BlackBoxLearner)
 end
 
 """ 
-    boundify(lnr::OptimalTreeRegressor, X::DataFrame, Y; solver = CPLEX_SILENT)
-    boundify(lnr::OptimalTreeClassifier, X::DataFrame, Y, hypertype::String = "lower"; solver = CPLEX_SILENT)
+    get_random_trees(lnr::IAI.Heuristics.RandomForestLearner)
+Returns one of the trees of RandomForestLearner. 
+"""
+function get_random_trees(lnr::IAI.Heuristics.RandomForestLearner)
+    trees = []
+    for i = 1:lnr.num_trees
+        tree = IAI.clone(lnr.inner)
+        tree.prb_ = lnr.prb_
+        tree.tree_ = lnr.forest_.trees[i]
+        push!(trees, tree)
+    end
+    return trees
+end
 
+""" 
+    boundify(lnr::OptimalTreeRegressor, X::DataFrame, Y; solver = CPLEX_SILENT)
+    boundify(lnr::IAI.Heuristics.RandomForestRegressor, X::DataFrame, Y; solver = CPLEX_SILENT)
+    boundify(lnr::OptimalTreeClassifier, X::DataFrame, Y, hypertype::String = "lower"; solver = CPLEX_SILENT)
 Returns bounding hyperplanes of an OptimalTreeLearner.
 """
 function boundify(lnr::IAI.OptimalTreeRegressor, X::DataFrame, Y; solver = CPLEX_SILENT)
@@ -144,19 +159,46 @@ function boundify(lnr::IAI.OptimalTreeClassifier, X::DataFrame, Y, hypertype::St
     return data
 end
 
-""" 
-    get_random_trees(lnr::IAI.Heuristics.RandomForestLearner)
-Returns one of the trees of RandomForestLearner. 
-"""
-function get_random_trees(lnr::IAI.Heuristics.RandomForestLearner)
-    trees = []
-    for i = 1:lnr.num_trees
-        tree = IAI.clone(lnr.inner)
-        tree.prb_ = lnr.prb_
-        tree.tree_ = lnr.forest_.trees[i]
-        push!(trees, tree)
+function boundify(lnr::IAI.Heuristics.RandomForestRegressor,
+                  X::DataFrame, Y; solver = CPLEX_SILENT)
+    trees = get_random_trees(lnr)
+    data = Dict()
+    for i=1:length(trees)
+        ul_data = Dict()
+        tree = trees[i]
+        all_leaves = find_leaves(tree)
+        leaf_idx = IAI.apply(tree, X)
+        for leaf in all_leaves
+            idx = findall(x -> x == leaf, leaf_idx)
+            ul_data[-leaf] = u_regress(X[idx,:], Y[idx]; solver = solver) # negative leaf shows upper bounding
+            ul_data[leaf] = l_regress(X[idx,:], Y[idx]; solver = solver)
+        end
+        data[i] = ul_data
     end
-    return trees
+    return data
+end
+
+function boundify(lnr::IAI.Heuristics.RandomForestClassifier,
+                    X::DataFrame, Y, hypertype::String = "lower"; solver = CPLEX_SILENT)
+    trees = get_random_trees(lnr)
+    data = Dict()
+    for i=1:length(trees)
+        ul_data = Dict()
+        tree = trees[i]
+        all_leaves = find_leaves(tree)
+        leaf_idx = IAI.apply(tree, X)
+        feas_leaves = [j for j in all_leaves if Bool(IAI.get_classification_label(tree, j))]
+        for leaf in feas_leaves
+            idx = findall(x -> x == leaf, leaf_idx)
+            if hypertype == "upper"
+                ul_data[-leaf] = u_regress(X[idx,:], Y[idx]; solver = solver)
+            elseif hypertype == "lower"
+                ul_data[leaf] = l_regress(X[idx,:], Y[idx]; solver = solver)
+            end
+        end 
+        data[i] = ul_data
+    end
+    return data
 end
 
 """
@@ -170,7 +212,6 @@ Arguments:
 function learn_constraint!(bbc::BlackBoxClassifier; kwargs...)
     check_sampled(bbc)
     set_param(bbc, :reloaded, false) # Makes sure that we know trees are retrained. 
-    lnr = base_classifier()
     if bbc.equality # Equalities are approximated more aggressively.
         IAI.set_params!(lnr; max_depth = 6, ls_num_tree_restarts = 30, fast_num_support_restarts = 15)
     end
