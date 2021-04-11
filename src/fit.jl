@@ -253,8 +253,13 @@ function learn_constraint!(bbr::BlackBoxRegressor, threshold::Pair = Pair("reg",
         push!(bbr.thresholds, threshold)
         push!(bbr.ul_data, ul_data)
         return 
-    elseif threshold.first == "reg"
+    elseif threshold.first in ["reg", "rfreg"]
         lnr = base_regressor()
+        if threshold.first == "rfreg" 
+            lnr = base_rf_regressor()
+            bbr.local_convexity < 0.75 || throw(OCTException("Cannot use RandomForestRegressor " *
+            "on BBR $(bbr.name) since it is almost convex."))
+        end
         IAI.set_params!(lnr; minbucket = 2*length(bbr.vars), regressor_kwargs(; kwargs...)...)
         if threshold.second == nothing && bbr.local_convexity < 0.75
             lnr = learn_from_data!(bbr.X, bbr.Y, lnr; fit_regressor_kwargs(; kwargs...)...)   
