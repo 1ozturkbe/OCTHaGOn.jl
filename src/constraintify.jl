@@ -64,6 +64,12 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
                 throw(OCTException("Upper-thresholded regressors must be preceeded by upper classifiers " * 
                                     "of the same threshold for $(bbr.name)."))
         end
+    elseif bbr.thresholds[idx] == "rfreg"
+        isempty(bbr.leaf_variables) ||
+            throw(OCTException("Please clear previous tree constraints from $(gm.name) " *
+            "before adding an random forest regressor constraints."))
+        isnothing(bbr.thresholds[idx].second) ||
+            throw(OCTException("RandomForestRegressors are not allowed upper bounds."))
     elseif bbr.thresholds[idx].first == "upper"
         all(collect(keys(bbr.mi_constraints)) .>= 0)  || throw(OCTException("Please clear previous upper tree constraints from $(gm.name) " *
                                                           "before adding new constraints."))
@@ -71,17 +77,31 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
         all(collect(keys(bbr.mi_constraints)) .<= 0) || throw(OCTException("Please clear previous lower tree constraints from $(gm.name) " *
                                                             "before adding new constraints."))
     end
-    mi_constraints, leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
-                                                                bbr.learners[idx], bbr.ul_data[idx];
-                                                                M = M, equality = bbr.equality)
-    if bbr.thresholds[idx].first == "upper"
-        push!(mi_constraints[-1], @constraint(gm.model, bbr.dependent_var <= bbr.thresholds[idx].second))
-    elseif bbr.thresholds[idx].first == "lower"
-        push!(mi_constraints[1], @constraint(gm.model, bbr.dependent_var >= bbr.thresholds[idx].second))
+    if bbr.thresholds[idx].first != "rfref"
+        mi_constraints, leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
+                                                                    bbr.learners[idx], bbr.ul_data[idx];
+                                                                    M = M, equality = bbr.equality)
+        if bbr.thresholds[idx].first == "upper"
+            push!(mi_constraints[-1], @constraint(gm.model, bbr.dependent_var <= bbr.thresholds[idx].second))
+        elseif bbr.thresholds[idx].first == "lower"
+            push!(mi_constraints[1], @constraint(gm.model, bbr.dependent_var >= bbr.thresholds[idx].second))
+        end
+        merge!(bbr.mi_constraints, mi_constraints)
+        merge!(bbr.leaf_variables, leaf_variables)
+        bbr.active_trees[idx] = bbr.thresholds[idx]
+    else
+        trees = get_random_trees(bbr.learners[idx])
+        for i=1:length(trees)
+            mic, miv = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
+                                                trees[i], bbr.ul_data[idx][i];
+                                                M = M, equality = bbr.equality)
+            merge!(mi_constraints, mic)
+            merge!(leaf_variables, miv)
+        end
+        merge!(bbr.mi_constraints, mi_constraints)
+        merge!(bbr.leaf_variables, leaf_variables)
+        bbr.active_trees[idx] = bbr.thresholds[idx]    
     end
-    merge!(bbr.mi_constraints, mi_constraints)
-    merge!(bbr.leaf_variables, leaf_variables)
-    bbr.active_trees[idx] = bbr.thresholds[idx]
     return
 end
 
@@ -171,7 +191,8 @@ Arguments:
     ul_data:: Upper and lower bounding hyperplanes for data in leaves of lnr
     M:: coefficient in bigM formulation
 """
-function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuMP.VariableRef, lnr::IAI.OptimalTreeLearner, 
+function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuMP.VariableRef, 
+                               lnr::IAI.OptimalTreeLearner,
                                ul_data::Dict; M::Float64 = 1.e5, equality::Bool = false)
     if lnr isa OptimalTreeRegressor                
         check_if_trained(lnr)
