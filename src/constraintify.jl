@@ -64,7 +64,7 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
                 throw(OCTException("Upper-thresholded regressors must be preceeded by upper classifiers " * 
                                     "of the same threshold for $(bbr.name)."))
         end
-    elseif bbr.thresholds[idx] == "rfreg"
+    elseif bbr.thresholds[idx].first == "rfreg"
         isempty(bbr.leaf_variables) ||
             throw(OCTException("Please clear previous tree constraints from $(gm.name) " *
             "before adding an random forest regressor constraints."))
@@ -77,7 +77,7 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
         all(collect(keys(bbr.mi_constraints)) .<= 0) || throw(OCTException("Please clear previous lower tree constraints from $(gm.name) " *
                                                             "before adding new constraints."))
     end
-    if bbr.thresholds[idx].first != "rfref"
+    if bbr.thresholds[idx].first != "rfreg"
         mi_constraints, leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
                                                                     bbr.learners[idx], bbr.ul_data[idx];
                                                                     M = M, equality = bbr.equality)
@@ -94,7 +94,7 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
         for i=1:length(trees)
             mic, miv = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
                                                 trees[i], bbr.ul_data[idx][i];
-                                                M = M, equality = bbr.equality)
+                                                M = M, equality = bbr.equality)                                     
             merge!(mi_constraints, mic)
             merge!(leaf_variables, miv)
         end
@@ -374,7 +374,7 @@ Updates the MI constraints associated with a BBL.
 For BBRs, makes sure to replace the appropriate lower/upper/regressor approximations. 
 """
 function update_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = length(bbr.learners))
-    if length(bbr.active_trees) == 0 # no mi constraints yet. 
+    if isempty(bbr.active_trees) # no mi constraints yet. 
         add_tree_constraints!(gm, bbr, idx)
     elseif length(bbr.active_trees) == 1 # one set of mi_constraints
         new_threshold = bbr.thresholds[idx]
