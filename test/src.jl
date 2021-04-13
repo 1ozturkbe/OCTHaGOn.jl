@@ -506,6 +506,28 @@ function test_data_driven()
     @test length(gm.vars) == 15
     @test isnothing(get_unbounds(gm))
 end
+
+function test_rfs()
+    gm = minlp(true)
+    init_constraints = sum(length(all_constraints(gm.model, type[1], type[2])) 
+                            for type in JuMP.list_of_constraint_types(gm.model))
+    set_optimizer(gm, CPLEX_SILENT)
+    uniform_sample_and_eval!(gm)
+    bbr = gm.bbls[3]
+    for bbl in gm.bbls
+        if bbl isa BlackBoxClassifier
+            learn_constraint!(bbl)
+            add_tree_constraints!(gm, bbl)
+        elseif bbl isa BlackBoxRegressor
+            learn_constraint!(bbr, "rfreg" => nothing)
+            add_tree_constraints!(gm, bbr)
+        end
+    end
+    optimize!(gm)
+    clear_tree_constraints!(gm)
+    @test init_constraints == sum(length(all_constraints(gm.model, type[1], type[2])) 
+    for type in JuMP.list_of_constraint_types(gm.model))
+end
     
 test_expressions()
 
