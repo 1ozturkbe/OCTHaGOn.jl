@@ -519,14 +519,14 @@ function test_rfs()
             learn_constraint!(bbl)
             add_tree_constraints!(gm, bbl)
         elseif bbl isa BlackBoxRegressor
-            learn_constraint!(bbr, "rfreg" => nothing)
-            add_tree_constraints!(gm, bbr)
+            learn_constraint!(bbl, "rfreg" => nothing)
+            add_tree_constraints!(gm, bbl)
         end
     end
     optimize!(gm)
     clear_tree_constraints!(gm)
     @test init_constraints == sum(length(all_constraints(gm.model, type[1], type[2])) 
-    for type in JuMP.list_of_constraint_types(gm.model))
+                                    for type in JuMP.list_of_constraint_types(gm.model))
 end
     
 test_expressions()
