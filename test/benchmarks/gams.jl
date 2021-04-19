@@ -107,7 +107,8 @@ end
 # filename = "weapons.gms"
 # gm = GAMS_to_GlobalModel(OCT.GAMS_DIR, filename)
 # gm = gear(true)
-gm = speed_reducer()
+# gm = speed_reducer()
+gm = minlp(true)
 set_param(gm, :ignore_feasibility, true)
 set_param(gm, :ignore_accuracy, true)
 

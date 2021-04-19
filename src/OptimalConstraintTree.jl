@@ -106,7 +106,7 @@ module OptimalConstraintTree
 
         # Learning 
         learn_constraint!, 
-        base_regressor, base_classifier,
+        base_regressor, base_classifier, base_rf_regressor, base_rf_classifier,
         fit_regressor_kwargs, fit_classifier_kwargs, 
         regressor_kwargs, classifier_kwargs,
 
@@ -117,7 +117,7 @@ module OptimalConstraintTree
 
         # BlackBoxLearner helpers
         show_trees, all_mi_constraints, active_lower_tree, active_upper_tree,
-        find_leaf_of_soln, find_leaves, 
+        find_leaf_of_soln, find_leaves, get_random_trees,
 
         # Algorithms
         add_infeasibility_cuts!, boundify, surveysolve,

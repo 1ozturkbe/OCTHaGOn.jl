@@ -66,19 +66,20 @@ Returns:
     lnr: Fitted Learner corresponding to the data
 NOTE: kwargs get unpacked here, all the way from learn_constraint!.
 """
-function learn_from_data!(X::DataFrame, Y::AbstractArray, lnr::IAI.OptimalTreeLearner, 
+function learn_from_data!(X::DataFrame, Y::AbstractArray, lnr::Union{IAI.OptimalTreeLearner, 
+                                                                     IAI.Heuristics.RandomForestLearner}, 
                           idxs::Union{Nothing, Array}=nothing; kwargs...)
     n_samples, n_features = size(X);
     @assert n_samples == length(Y);
     # Making sure that we only consider relevant features.
     if !isnothing(idxs)
         IAI.set_params!(lnr, split_features = idxs)
-        if typeof(lnr) == IAI.OptimalTreeRegressor
+        if typeof(lnr) in [IAI.OptimalTreeRegressor, IAI.Heuristics.RandomForestRegressor]
             IAI.set_params!(lnr, regression_features = idxs)
         end
     else
         IAI.set_params!(lnr, split_features = All())
-        if typeof(lnr) == IAI.OptimalTreeRegressor
+        if typeof(lnr) in [IAI.OptimalTreeRegressor, IAI.Heuristics.RandomForestRegressor]
             IAI.set_params!(lnr, regression_features = All())
         end
     end
@@ -110,9 +111,24 @@ function check_sampled(bbl::BlackBoxLearner)
 end
 
 """ 
-    boundify(lnr::OptimalTreeRegressor, X::DataFrame, Y; solver = CPLEX_SILENT)
-    boundify(lnr::OptimalTreeClassifier, X::DataFrame, Y, hypertype::String = "lower"; solver = CPLEX_SILENT)
+    get_random_trees(lnr::IAI.Heuristics.RandomForestLearner)
+Returns one of the trees of RandomForestLearner. 
+"""
+function get_random_trees(lnr::IAI.Heuristics.RandomForestLearner)
+    trees = []
+    for i = 1:lnr.num_trees
+        tree = IAI.clone(lnr.inner)
+        tree.prb_ = lnr.prb_
+        tree.tree_ = lnr.forest_.trees[i]
+        push!(trees, tree)
+    end
+    return trees
+end
 
+""" 
+    boundify(lnr::OptimalTreeRegressor, X::DataFrame, Y; solver = CPLEX_SILENT)
+    boundify(lnr::IAI.Heuristics.RandomForestRegressor, X::DataFrame, Y; solver = CPLEX_SILENT)
+    boundify(lnr::OptimalTreeClassifier, X::DataFrame, Y, hypertype::String = "lower"; solver = CPLEX_SILENT)
 Returns bounding hyperplanes of an OptimalTreeLearner.
 """
 function boundify(lnr::IAI.OptimalTreeRegressor, X::DataFrame, Y; solver = CPLEX_SILENT)
@@ -139,6 +155,48 @@ function boundify(lnr::IAI.OptimalTreeClassifier, X::DataFrame, Y, hypertype::St
         elseif hypertype == "lower"
             data[leaf] = l_regress(X[idx,:], Y[idx]; solver = solver)
         end
+    end
+    return data
+end
+
+function boundify(lnr::IAI.Heuristics.RandomForestRegressor,
+                  X::DataFrame, Y; solver = CPLEX_SILENT)
+    trees = get_random_trees(lnr)
+    data = Dict()
+    for i=1:length(trees)
+        ul_data = Dict()
+        tree = trees[i]
+        all_leaves = find_leaves(tree)
+        leaf_idx = IAI.apply(tree, X)
+        for leaf in all_leaves
+            idx = findall(x -> x == leaf, leaf_idx)
+            ul_data[-leaf] = u_regress(X[idx,:], Y[idx]; solver = solver) # negative leaf shows upper bounding
+            ul_data[leaf] = l_regress(X[idx,:], Y[idx]; solver = solver)
+        end
+        data[i] = ul_data
+    end
+    return data
+end
+
+function boundify(lnr::IAI.Heuristics.RandomForestClassifier,
+                    X::DataFrame, Y, hypertype::String = "lower"; solver = CPLEX_SILENT)
+    trees = get_random_trees(lnr)
+    data = Dict()
+    for i=1:length(trees)
+        ul_data = Dict()
+        tree = trees[i]
+        all_leaves = find_leaves(tree)
+        leaf_idx = IAI.apply(tree, X)
+        feas_leaves = [j for j in all_leaves if Bool(IAI.get_classification_label(tree, j))]
+        for leaf in feas_leaves
+            idx = findall(x -> x == leaf, leaf_idx)
+            if hypertype == "upper"
+                ul_data[-leaf] = u_regress(X[idx,:], Y[idx]; solver = solver)
+            elseif hypertype == "lower"
+                ul_data[leaf] = l_regress(X[idx,:], Y[idx]; solver = solver)
+            end
+        end 
+        data[i] = ul_data
     end
     return data
 end
@@ -209,6 +267,22 @@ function learn_constraint!(bbr::BlackBoxRegressor, threshold::Pair = Pair("reg",
         elseif bbr.local_convexity >= 0.75
             idxs = findall(y -> y <= threshold.second, bbr.Y) 
             lnr = learn_from_data!(bbr.X[idxs, :], bbr.curvatures[idxs] .> 0, lnr; fit_regressor_kwargs(; kwargs...)...)
+        end
+        push!(bbr.learners, lnr);
+        push!(bbr.learner_kwargs, Dict(kwargs))
+        push!(bbr.thresholds, threshold)
+        push!(bbr.ul_data, boundify(lnr, bbr.X, bbr.Y))
+        return
+    elseif threshold.first == "rfreg"
+        lnr = base_rf_regressor()
+        bbr.local_convexity < 0.75 || throw(OCTException("Cannot use RandomForestRegressor " *
+        "on BBR $(bbr.name) since it is almost convex."))
+        IAI.set_params!(lnr; minbucket = 2*length(bbr.vars), regressor_kwargs(; kwargs...)...)
+        if threshold.second == nothing
+            lnr = learn_from_data!(bbr.X, bbr.Y, lnr; fit_regressor_kwargs(; kwargs...)...)   
+        else
+            idxs = findall(y -> y <= threshold.second, bbr.Y) 
+            lnr = learn_from_data!(bbr.X[idxs, :], bbr.Y[idxs], lnr; fit_regressor_kwargs(; kwargs...)...)
         end
         push!(bbr.learners, lnr);
         push!(bbr.learner_kwargs, Dict(kwargs))
