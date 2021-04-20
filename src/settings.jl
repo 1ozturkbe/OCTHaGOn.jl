@@ -13,7 +13,9 @@ function bbc_defaults(n_vars::Int64 = 10; sample_coeff = 200)
         :ignore_accuracy => false,                          # Whether we should ignore accuracy checks 
         :n_samples => Int(ceil(sample_coeff*sqrt(n_vars))), # (0 if no sampling fn)
         :gradients => true,
-        :reloaded => false)                                 # Whether learners are reloaded  
+        :reloaded => false,                                 # Whether learners are reloaded  
+        :linking => false,
+        :linked_vars => [])
 end
 
 """

@@ -528,6 +528,13 @@ function test_rfs()
     @test init_constraints == sum(length(all_constraints(gm.model, type[1], type[2])) 
                                     for type in JuMP.list_of_constraint_types(gm.model))
 end
+
+function test_linking()
+    model, x, y, z, a = test_model()
+    gm = GlobalModel(model = model)
+    add_pm
+    return true
+end
     
 test_expressions()
 
