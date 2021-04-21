@@ -1,23 +1,81 @@
-function oos()
-    rE = 6378137 # radius of Earth (m)
-    mu = 3.986e14 # gravitational constant
+using JuMP, Gurobi
 
-    n_sats = 11 # number of satellites
-    n_sers = 1 # number of services
-    true_anomalies = collect(1:nsats).*2*pi/n_sats
-    phasing_ratios = (2pi .- true_anomalies) ./ (2pi)
+# function oos()
+g = 9.81
+rE = 6378137 # radius of Earth (m)
+m_empty = 500 # empty mass of satellite((kg))
+mu = 3.986e14 # gravitational constant
+Isp = 230     # Specific impulse
 
-    alt_sat = 780e3 # altitude of satellites (m)
-    r_sat = rE + alt_sat
-    period_sat = 2pi*sqrt(r_sat^3/mu)
+n_sats = 11 # number of satellites
+n = n_sats
+n_sers = 1 # number of services
+true_anomalies = collect(1:n_sats).*2*pi/n_sats
+phasing_ratios = (2pi .- true_anomalies) ./ (2pi)
 
-    maximum_time = 10*3600*24*365 # 10 years in seconds
+alt_sat = 780e3 # altitude of satellites (m)
+r_sat = rE + alt_sat
+period_sat = 2pi*sqrt(r_sat^3/mu)
 
-    m = Model(Ipopt.Optimizer)
-    @variable(m, r_orbit[1:n_sats] >= rE)
-    @variable(m, period_orbit[1:n_sats] >= 0)
-    @variable(m, dt_orbit[1:n_sats] >= 0)
-    @variable(m, N_orbit[1:n_sats] >= 0)
+potential_orbits = rE .+ 1e3collect(600:20:760)  
+n_orbits = length(potential_orbits)
+orbital_periods = [2pi*sqrt(r^3/mu) for r in potential_orbits]
+orbital_deltav_entry = [sqrt(mu/r)*(sqrt(2r_sat/(r_sat + r)) -1) for r in potential_orbits]
+orbital_deltav_exit = [sqrt(mu/r_sat)*(1 - sqrt(2r/(r_sat + r))) for r in potential_orbits]
+transfer_time = [2*pi*sqrt((r_sat + r)^3/(8*mu)) for r in potential_orbits]
+maximum_time = 10*3600*24*365 # 10 years in seconds
 
-    @NLconstraint(m, [i=1:n_sats], period_orbit[i] == 2pi*sqrt(r_orbit[i]^3 / mu))
-    @NLconstraint(m, )
+m = Model(Gurobi.Optimizer)
+
+# Fuel consumption
+@variable(m, end_mass[1:n_sats] >= m_empty)
+@variable(m, wet_mass >= m_empty)
+@variable(m, fuel_consump[1:n_sats] >= 0)
+@variable(m, dv_entry[1:n_sats] >= 0)
+@variable(m, dv_exit[1:n_sats] >= 0)
+
+@constraint(m, end_mass[1] + fuel_consump[1] == wet_mass)
+@constraint(m, [i=2:n], end_mass[i] + fuel_consump[i] == end_mass[i-1])
+@constraint(m, end_mass[n] == m_empty)
+# Nonlinear versions
+# @NLconstraint(m, fuel_consump[1] >= g*Isp*log(wet_mass / end_mass[1]))
+# @NLconstraint(m, [i=2:n], fuel_consump[i] >= g*Isp*log(end_mass[i] / end_mass[i-1]))
+
+# Orbit choice, and time and fuel cost
+@variable(m, y[i=1:n_sats, j=1:n_orbits], Bin) # i is the satellite, j is the orbit choice 
+@constraint(m, [i=1:n], sum(y[i, :]) == 1)
+@constraint(m, [i=1:n], fuel_consump[i] >= 1/(g*Isp) * (sum(y[i,:] .* orbital_deltav_entry) + 
+                                                        sum(y[i,:] .* orbital_deltav_exit)))
+
+@variable(m, t_maneuver[1:n_sats] >= 0) # Maneuvering time (s)
+@constraint(m, [i=1:n], t_maneuver[i] == sum(y[i,:] .* transfer_time))
+
+@objective(m, Min, sum(t_maneuver))
+
+
+
+
+
+    # @variable(m, period_orbit[1:n_sats] >= 0)
+    # @variable(m, dt_orbit[1:n_sats] >= 0)
+    # @variable(m, N_orbit[1:n_sats] >= 0)
+
+    # @variable(m, x[1:n_sats, 1:n_sats], Bin) # order of servicing, ith sat in jth order
+    # @variable(m, ta[1:n_sats]) # Actual true anomalies
+    # @variable(m, dt[1:n_sats] >= 0) # Actual period time differences (s)
+
+    # @variable(m, t_maneuver[1:n_sats] >= 0) # Maneuvering time (s)
+    # @NLconstraint(m, [i=1:n_sats], period_orbit[i] == 2pi*sqrt(r_orbit[i]^3 / mu))
+    # @constraint(m, [i=1:n], N_orbit[i] == dt_orbit)
+    # @NLconstraint(m, [i=1:n_sats], t_maneuver[i] >= 
+    #                 2pi*sqrt((r_orbit + r_sat)^3/ (8mu)) + N_orbit[i] * dt_orbit[i])
+    # @constraint(m, sum(t_maneuver) <= maximum_time)
+
+    # @variable(m, m[1:n_sats] >= m_empty)
+
+    # @constraint(m, [i = 1:n], sum(x[:, i]) == 1)
+    # @constraint(m, [i = 1:n], sum(x[i, :]) == 1)
+    # @constraint(m, [j=1:n], ta[j] == sum(true_anomalies .* x[:, j]))
+    # @constraint(m, [j=1:n], dt_orbit[j] == period_sat * (1 - ta[j]/(2pi)))
+
+    # @NLconstraint(m, )
