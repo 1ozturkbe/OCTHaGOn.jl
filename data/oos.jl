@@ -34,62 +34,75 @@ for r in potential_orbits
 end
 
 transfer_time = [2*pi*sqrt((r_sat + r)^3/(8*mu)) for r in potential_orbits]
-maximum_time = 10*3600*24*365 # 10 years in seconds
+maximum_time = 2*3600*24*365 # 2 years in seconds
 
 m = Model(Gurobi.Optimizer)
 set_optimizer_attribute(m, "NonConvex", 2)
 
 # Transfers xx
+max_idx = findall(x -> x == maximum(fuel_required), fuel_required)
 @variable(m, xx[1:n-1, 1:n_sats], Bin)        # transfer occurs from row index to column index
 @constraint(m, [i=1:n-1], xx[i, i] == 0)      # Cannot self transfer
 @constraint(m, [i=1:n-1], sum(xx[i, :]) == 1) # Exactly one transfer every time (same as each satellite visited once)
 @constraint(m, [i=1:n], sum(xx[:, i]) <= 1)   # At most one transfer to each satellite
+@constraint(m, sum(xx[:, max_idx[1]]) == 0)
 @variable(m, pi >= ta[1:n-1] >= -pi)            # true anomalies
-max_idx = findall(x -> x == maximum(fuel_required), fuel_required)
-@constraint(m, [i=1:n-1], ta[i] == sum(circshift(true_anomalies, i-1) .* xx[i, :]))
+@constraint(m, [i=1:n-1], ta[i] == sum(circshift(true_anomalies, i-1) .* xx[i, :])) #TODO fix true anomaly
 
 # Fuel consumption
-@variable(m, masses[1:n_sats, 1:5] >= m_empty)
+@variable(m, masses[1:n_sats-1, 1:5] >= m_empty)
 @variable(m, wet_mass >= m_empty)
+
 # Nonlinear versions
 # @NLconstraint(m, fuel_consump[1] >= g*Isp*log(wet_mass / end_mass[1]))
 # @NLconstraint(m, [i=2:n], fuel_consump[i] >= g*Isp*log(end_mass[i] / end_mass[i-1]))
 
 # Orbit choice, and time and fuel cost
-@variable(m, y[i=1:n_sats, j=1:n_orbits], Bin) # i is the satellite, j is the orbit choice 
-@constraint(m, [i=1:n], sum(y[i, :]) == 1)
-@variable(m, fractional_dmasses[1:n_sats, j=1:5] >= 0) # reduction in masses in maneuvers
+@variable(m, y[i=1:n_sats-1, j=1:n_orbits], Bin) # i is the maneuver order, j is the orbit choice 
+@constraint(m, [i=1:n-1], sum(y[i, :]) == 1)
+@variable(m, fractional_dmasses[1:n_sats-1, j=1:5] >= 0) # reduction in masses in maneuvers
 
-@constraint(m, [i=1:n], fractional_dmasses[i, 1] == (sum(y[i,:] .* dmass_entry)))  
-@constraint(m, [i=1:n], fractional_dmasses[i, 2] == (sum(y[i,:] .* dmass_exit))) 
-@constraint(m, [i=1:n], fractional_dmasses[i, 3] == 0)
-@constraint(m, [i=1:n], fractional_dmasses[i, 4] == (sum(y[i,:] .* dmass_exit))) 
-@constraint(m, [i=1:n], fractional_dmasses[i, 5] == (sum(y[i,:] .* dmass_entry))) 
+@constraint(m, [i=1:n-1], fractional_dmasses[i, 1] == (sum(y[i,:] .* dmass_entry)))  
+@constraint(m, [i=1:n-1], fractional_dmasses[i, 2] == (sum(y[i,:] .* dmass_exit))) 
+@constraint(m, [i=1:n-1], fractional_dmasses[i, 3] == 0)
+@constraint(m, [i=1:n-1], fractional_dmasses[i, 4] == (sum(y[i,:] .* dmass_exit))) 
+@constraint(m, [i=1:n-1], fractional_dmasses[i, 5] == (sum(y[i,:] .* dmass_entry))) 
 
+# Computing required fuel depending on transfer schedule
 @variable(m, fuel_needed[1:n])
 @constraint(m, fuel_needed[1] == maximum(fuel_required))
 @constraint(m, [i=2:n], fuel_needed[i] == sum(xx[i-1, :] .* fuel_required))
 
-@constraint(m, wet_mass >= masses[1, 1] * fractional_dmasses[1,1])
-for i=1:n_sats
+# Mass conservation constraints (bilinear)
+@constraint(m, wet_mass >= maximum(fuel_required) + masses[1, 1] * fractional_dmasses[1,1])
+for i=1:n_sats-1
     @constraint(m, masses[i, 1] >= masses[i, 2] * fractional_dmasses[i, 2])
     @constraint(m, masses[i, 2] >= masses[i, 3] + fuel_needed[i])
     @constraint(m, masses[i, 3] >= masses[i, 4] * fractional_dmasses[i, 4])
     @constraint(m, masses[i, 4] >= masses[i, 5] * fractional_dmasses[i, 5])
 end
-@constraint(m, [i=1:n_sats-1], masses[i, 5] >= masses[i+1, 1] * fractional_dmasses[i+1,1])
+@constraint(m, [i=1:n_sats-2], masses[i, 5] >= masses[i+1, 1] * fractional_dmasses[i+1,1])
 
-@variable(m, t_maneuver[1:n_sats] >= 0) # Maneuvering time (s)
-@constraint(m, [i=1:n], t_maneuver[i] == sum(y[i,:] .* transfer_time))
+# Maneuver time constraints
+# @variable(m, N_orbit[1:n_sats] >= 0)
+@variable(m, dt_orbit[1:n_sats-1])
+@constraint(m, [i=1:n-1], dt_orbit[i] == sum(y[i, :] .* orbital_periods) - period_sat)
+# @constraint(m, [i=1:n], N_orbit[i]*dt_orbit[i] >= ta[i] * period_sat)
+# @constraint(m, [i=1:n], N_orbit[i]*dt_orbit[i] >= -ta[i] * period_sat)
+
+@variable(m, t_maneuver[1:n_sats-1] >= 0) # Maneuvering time (s)
+@constraint(m, [i=1:n-1], t_maneuver[i] >= sum(y[i,:] .* transfer_time) + ta[i] * period_sat)
+@constraint(m, [i=1:n-1], t_maneuver[i] >= sum(y[i,:] .* transfer_time) - ta[i] * period_sat)
+
+@constraint(m, sum(t_maneuver) <= maximum_time)
 
 @objective(m, Min, sum(t_maneuver)/10 + wet_mass)
 
 optimize!(m)
 
 println("Orbit altitudes (km) : $([(sum(getvalue.(y)[i,:] .* potential_orbits) - rE)/1e3 for i=1:n_orbits])")
-
-# @variable(m, dt_orbit[1:n_sats] >= 0)
-# @variable(m, N_orbit[1:n_sats] >= 0)
+println("Satellite order: $(append!(max_idx, getvalue.(xx) * collect(1:n)))")
+println("Orbital revolutions: $(abs.(period_sat .* getvalue.(ta) ./ getvalue.(dt_orbit)))")
 
 
 
