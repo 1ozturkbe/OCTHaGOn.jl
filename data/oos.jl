@@ -12,7 +12,7 @@ n = n_sats
 n_sers = 1 # number of services
 true_anomalies = circshift(collect(1:n_sats).*2*pi/n_sats .- 2pi*6/n_sats, Int((n_sats-1)/2)+1)
 
-fuel_needed = circshift(collect(10 .+ range(-20, stop=40, length=n_sats)), 4) # dummy example 
+fuel_required = circshift(collect(100 .+ range(-20, stop=40, length=n_sats)), 4) # dummy example 
 
 alt_sat = 780e3 # altitude of satellites (m)
 r_sat = rE + alt_sat
@@ -40,12 +40,12 @@ m = Model(Gurobi.Optimizer)
 set_optimizer_attribute(m, "NonConvex", 2)
 
 # Transfers xx
-max_idx = findall(x -> x == maximum(fuel_needed), fuel_needed)
 @variable(m, xx[1:n-1, 1:n_sats], Bin)        # transfer occurs from row index to column index
 @constraint(m, [i=1:n-1], xx[i, i] == 0)      # Cannot self transfer
 @constraint(m, [i=1:n-1], sum(xx[i, :]) == 1) # Exactly one transfer every time (same as each satellite visited once)
+@constraint(m, [i=1:n], sum(xx[:, i]) <= 1)   # At most one transfer to each satellite
 @variable(m, pi >= ta[1:n-1] >= -pi)            # true anomalies
-max_idx = findall(x -> x == maximum(fuel_needed), fuel_needed)
+max_idx = findall(x -> x == maximum(fuel_required), fuel_required)
 @constraint(m, [i=1:n-1], ta[i] == sum(circshift(true_anomalies, i-1) .* xx[i, :]))
 
 # Fuel consumption
@@ -66,6 +66,9 @@ max_idx = findall(x -> x == maximum(fuel_needed), fuel_needed)
 @constraint(m, [i=1:n], fractional_dmasses[i, 4] == (sum(y[i,:] .* dmass_exit))) 
 @constraint(m, [i=1:n], fractional_dmasses[i, 5] == (sum(y[i,:] .* dmass_entry))) 
 
+@variable(m, fuel_needed[1:n])
+@constraint(m, fuel_needed[1] == maximum(fuel_required))
+@constraint(m, [i=2:n], fuel_needed[i] == sum(xx[i-1, :] .* fuel_required))
 
 @constraint(m, wet_mass >= masses[1, 1] * fractional_dmasses[1,1])
 for i=1:n_sats
@@ -79,7 +82,7 @@ end
 @variable(m, t_maneuver[1:n_sats] >= 0) # Maneuvering time (s)
 @constraint(m, [i=1:n], t_maneuver[i] == sum(y[i,:] .* transfer_time))
 
-@objective(m, Min, sum(t_maneuver)/100 + wet_mass)
+@objective(m, Min, sum(t_maneuver)/10 + wet_mass)
 
 optimize!(m)
 
