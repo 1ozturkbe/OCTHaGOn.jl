@@ -19,7 +19,7 @@ alt_sat = 780e3 # altitude of satellites (m)
 r_sat = rE + alt_sat
 period_sat = 2pi*sqrt(r_sat^3/mu)
 
-potential_orbits = rE .+ 1e3 .* collect(680:10:800)
+potential_orbits = rE .+ 1e3 .* collect(680:10:880)
 potential_orbits = filter!(r -> r != r_sat, potential_orbits)  
 n_orbits = length(potential_orbits)
 orbital_periods = [2pi*sqrt(r^3/mu) for r in potential_orbits]
@@ -36,7 +36,7 @@ for r in potential_orbits
 end
 
 transfer_time = [2*pi*sqrt((r_sat + r)^3/(8*mu)) for r in potential_orbits]
-maximum_time = 2*3600*24*365 # 2 years in seconds
+maximum_time = 10*3600*24*365 # 10 years in seconds
 
 m = Model(Gurobi.Optimizer)
 set_optimizer_attribute(m, "NonConvex", 2)
@@ -44,21 +44,21 @@ set_optimizer_attribute(m, "NonConvex", 2)
 # Transfers xx
 # Always start by fueling the satellite that needs most fuel
 max_idx = findall(x -> x == maximum(fuel_required), fuel_required) 
-@variable(m, sat_order[i=1:n])
+@variable(m, n_sats >= sat_order[i=1:n] >= 1)
 @variable(m, xx[1:n-1, 1:n_sats], Bin)        # transfer occurs from row index to column index
 
 # Program can pick the best starting satellite as well. 
-# @constraint(m, sat_order[1] == max_idx[1])
+@constraint(m, sat_order[1] == max_idx[1])
 @constraint(m, [i=2:n], sat_order[i] == sum(xx[i-1, :] .* collect(1:n)))
-@constraint(m, [i=1:n-1], xx[i, i] == 0)      # Cannot self transfer
 @constraint(m, [i=1:n-1], sum(xx[i, :]) == 1) # Exactly one transfer every time (same as each satellite visited once)
 @constraint(m, [i=1:n], sum(xx[:, i]) <= 1)   # At most one transfer to each satellite
-# @constraint(m, sum(xx[:, max_idx[1]]) == 0)
+@constraint(m, sum(xx[:, max_idx[1]]) == 0)
 
 # # True anomaly computation from satellite order
 @variable(m, ta[1:n-1])
-@variable(m, -1 <= dummy[1:n-1] <= 1, Int)
-@constraint(m, [i=1:n-1], ta[i] == (sat_order[i+1] - sat_order[i] + dummy[i] * n_sats) *2pi/n_sats)
+@variable(m, rotdummy[1:n-1], Int) # for rotations
+@constraint(m, [i=1:n-1], ta[i] == (sat_order[i+1] - sat_order[i] + 
+                                    rotdummy[i] * n_sats)*2pi/n_sats)
 
 # Fuel consumption
 @variable(m, masses[1:n_sats-1, 1:5] >= m_empty)
@@ -104,7 +104,7 @@ end
 @constraint(m, [i=1:n-1], N_orbit[i]*dt_orbit[i] >= -ta[i] * period_sat)
 
 @variable(m, t_maneuver[1:n_sats-1] >= 0) # Maneuvering time (s)
-@constraint(m, [i=1:n-1], t_maneuver[i] >= sum(y[i,:] .* transfer_time) + N_orbit[i] * period_orbit[i])
+@constraint(m, [i=1:n-1], t_maneuver[i] == sum(y[i,:] .* transfer_time) + N_orbit[i] * period_orbit[i])
 
 @constraint(m, sum(t_maneuver) <= maximum_time)
 
@@ -114,9 +114,11 @@ optimize!(m)
 
 println("Orbit altitudes (km) : $(round.([(sum(getvalue.(y)[i,:] .* potential_orbits) - rE)/1e3 for i=1:n_sats-1], sigdigits=5))")
 println("Satellite order: $(Int.(round.(getvalue.(sat_order))))")
-println("True anomalies (radians): $(round.(getvalue.(ta), sigdigits=5))")
+println("True anomalies (radians): $(round.(getvalue.(ta), sigdigits=3))")
 println("Orbital revolutions: $(round.(abs.(period_sat .* getvalue.(ta) ./ getvalue.(dt_orbit)), sigdigits=5)))")
-println("Time for maneuvers (days): $(round.(getvalue.(t_maneuver)./(24*3600), sigdigits=5))")
+println("Time for maneuvers (days): $(round.(getvalue.(t_maneuver)./(24*3600), sigdigits=3))")
+println("Total mission time (years): $(sum(getvalue.(t_maneuver))/(24*3600*365))")
+
 
 # Transfer debugging
 # m = Model(Gurobi.Optimizer)
