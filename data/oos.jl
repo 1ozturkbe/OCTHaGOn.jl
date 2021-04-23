@@ -7,8 +7,9 @@ m_empty = 500 # empty mass of satellite((kg))
 mu = 3.986e14 # gravitational constant
 Isp = 230     # Specific impulse
 
-n_sats = 11 # number of satellites
+n_sats = 11 # number of satellites (must be odd for this case)
 n = n_sats
+halfpoint = Int((n_sats-1)/2)
 n_sers = 1 # number of services
 true_anomalies = circshift(collect(1:n_sats).*2*pi/n_sats .- 2pi*6/n_sats, Int((n_sats-1)/2)+1)
 
@@ -55,25 +56,8 @@ max_idx = findall(x -> x == maximum(fuel_required), fuel_required)
 
 # # True anomaly computation from satellite order
 @variable(m, ta[1:n-1])
-# @variable(m, tapos[1:n-1], Bin) # whether or not true anomaly is positive. 
-# @constraint(m, [i=1:n-1], tapos)
-
-# @variable(m, tax[1:n-1, 1:n], Bin)    
-# @constraint(m, [i=1:n-1], ta[i] == sum(tax[i,:] .* true_anomalies))
-# positive_shifts = collect(1:Int((n_sats-1)/2))
-# for j=1:n
-#     if j-max_idx[1] in positive_shifts || j-max_idx < -n_sats/2
-#         @constraint(m, tax[1,j] <= )
-# end
-# for i=2:n-1
-#     for j=1:n
-#         if j-i in positive_shifts || j-i < -n_sats/2
-#             @constraint(m, tax[i,j] <= )
-# end
-
-@constraint(m, ta[1] == true_anomalies[max_idx[1]] - sum(true_anomalies .* xx[1, :]))                   # true anomalies
-@constraint(m, [i=2:n-1], ta[i] == sum(true_anomalies .* xx[i-1, :]) - 
-                                    sum(true_anomalies .* xx[i, :])) #TODO fix true anomaly
+@variable(m, -1 <= dummy[1:n-1] <= 1, Int)
+@constraint(m, [i=1:n-1], ta[i] == (sat_order[i+1] - sat_order[i] + dummy[i] * n_sats) *2pi/n_sats)
 
 # Fuel consumption
 @variable(m, masses[1:n_sats-1, 1:5] >= m_empty)
@@ -122,7 +106,7 @@ end
 
 @constraint(m, sum(t_maneuver) <= maximum_time)
 
-@objective(m, Min, sum(t_maneuver)/10 + wet_mass)
+@objective(m, Min, sum(t_maneuver)/100 + wet_mass)
 
 optimize!(m)
 
