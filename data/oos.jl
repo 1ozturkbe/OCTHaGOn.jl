@@ -19,7 +19,7 @@ alt_sat = 780e3 # altitude of satellites (m)
 r_sat = rE + alt_sat
 period_sat = 2pi*sqrt(r_sat^3/mu)
 
-potential_orbits = rE .+ 1e3 .* collect(680:10:880)
+potential_orbits = rE .+ 1e3 .* collect(680:10:800)
 potential_orbits = filter!(r -> r != r_sat, potential_orbits)  
 n_orbits = length(potential_orbits)
 orbital_periods = [2pi*sqrt(r^3/mu) for r in potential_orbits]
@@ -47,12 +47,13 @@ max_idx = findall(x -> x == maximum(fuel_required), fuel_required)
 @variable(m, sat_order[i=1:n])
 @variable(m, xx[1:n-1, 1:n_sats], Bin)        # transfer occurs from row index to column index
 
-@constraint(m, sat_order[1] == max_idx[1])
+# Program can pick the best starting satellite as well. 
+# @constraint(m, sat_order[1] == max_idx[1])
 @constraint(m, [i=2:n], sat_order[i] == sum(xx[i-1, :] .* collect(1:n)))
 @constraint(m, [i=1:n-1], xx[i, i] == 0)      # Cannot self transfer
 @constraint(m, [i=1:n-1], sum(xx[i, :]) == 1) # Exactly one transfer every time (same as each satellite visited once)
 @constraint(m, [i=1:n], sum(xx[:, i]) <= 1)   # At most one transfer to each satellite
-@constraint(m, sum(xx[:, max_idx[1]]) == 0)
+# @constraint(m, sum(xx[:, max_idx[1]]) == 0)
 
 # # True anomaly computation from satellite order
 @variable(m, ta[1:n-1])
@@ -94,50 +95,28 @@ end
 @constraint(m, [i=1:n_sats-2], masses[i, 5] >= masses[i+1, 1] * fractional_dmasses[i+1,1])
 
 # Maneuver time constraints
-# @variable(m, N_orbit[1:n_sats] >= 0)
+@variable(m, N_orbit[1:n_sats-1] >= 0)
 @variable(m, dt_orbit[1:n_sats-1])
-@constraint(m, [i=1:n-1], dt_orbit[i] == sum(y[i, :] .* orbital_periods) - period_sat)
-# @constraint(m, [i=1:n], N_orbit[i]*dt_orbit[i] >= ta[i] * period_sat)
-# @constraint(m, [i=1:n], N_orbit[i]*dt_orbit[i] >= -ta[i] * period_sat)
+@variable(m, period_orbit[1:n_sats-1] >= 0)
+@constraint(m, [i=1:n-1], period_orbit[i] == sum(y[i, :] .* orbital_periods))
+@constraint(m, [i=1:n-1], dt_orbit[i] == period_orbit[i] - period_sat)
+@constraint(m, [i=1:n-1], N_orbit[i]*dt_orbit[i] >= ta[i] * period_sat)
+@constraint(m, [i=1:n-1], N_orbit[i]*dt_orbit[i] >= -ta[i] * period_sat)
 
 @variable(m, t_maneuver[1:n_sats-1] >= 0) # Maneuvering time (s)
-@constraint(m, [i=1:n-1], t_maneuver[i] >= sum(y[i,:] .* transfer_time) + ta[i] * period_sat)
-@constraint(m, [i=1:n-1], t_maneuver[i] >= sum(y[i,:] .* transfer_time) - ta[i] * period_sat)
+@constraint(m, [i=1:n-1], t_maneuver[i] >= sum(y[i,:] .* transfer_time) + N_orbit[i] * period_orbit[i])
 
 @constraint(m, sum(t_maneuver) <= maximum_time)
 
-@objective(m, Min, sum(t_maneuver)/100 + wet_mass)
+@objective(m, Min, wet_mass)
 
 optimize!(m)
 
 println("Orbit altitudes (km) : $(round.([(sum(getvalue.(y)[i,:] .* potential_orbits) - rE)/1e3 for i=1:n_sats-1], sigdigits=5))")
 println("Satellite order: $(Int.(round.(getvalue.(sat_order))))")
-println("True anomalies: $(round.(getvalue.(ta), sigdigits=5))")
-println("Orbital revolutions: $(round.(abs.(period_sat .* getvalue.(ta) ./ getvalue.(dt_orbit)), sigdigits=5))")
-
-
-
-# @variable(m, dt[1:n_sats-1] >= 0)
-# @constraint(m, [i=1:n_sats-1], dt[i] >= ta[i])
-# @constraint(m, [i=1:n_sats-1], dt[i] >= -ta[i])
-# @objective(m, Min, sum(dt))
-
-# @variable(m, t_maneuver[1:n_sats] >= 0) # Maneuvering time (s)
-# @NLconstraint(m, [i=1:n_sats], period_orbit[i] == 2pi*sqrt(r_orbit[i]^3 / mu))
-# @constraint(m, [i=1:n], N_orbit[i] == dt_orbit)
-# @NLconstraint(m, [i=1:n_sats], t_maneuver[i] >= 
-#                 2pi*sqrt((r_orbit + r_sat)^3/ (8mu)) + N_orbit[i] * dt_orbit[i])
-# @constraint(m, sum(t_maneuver) <= maximum_time)
-
-# @variable(m, m[1:n_sats] >= m_empty)
-
-# @constraint(m, [i = 1:n], sum(x[:, i]) == 1)
-# @constraint(m, [i = 1:n], sum(x[i, :]) == 1)
-# @constraint(m, [j=1:n], ta[j] == sum(true_anomalies .* x[:, j]))
-# @constraint(m, [j=1:n], dt_orbit[j] == period_sat * (1 - ta[j]/(2pi)))
-
-# @NLconstraint(m, )
-
+println("True anomalies (radians): $(round.(getvalue.(ta), sigdigits=5))")
+println("Orbital revolutions: $(round.(abs.(period_sat .* getvalue.(ta) ./ getvalue.(dt_orbit)), sigdigits=5)))")
+println("Time for maneuvers (days): $(round.(getvalue.(t_maneuver)./(24*3600), sigdigits=5))")
 
 # Transfer debugging
 # m = Model(Gurobi.Optimizer)
@@ -150,7 +129,3 @@ println("Orbital revolutions: $(round.(abs.(period_sat .* getvalue.(ta) ./ getva
 # @constraint(m, [i=1:n-1], ta[i] == sum(circshift(true_anomalies, i-1) .* xx[i, :]))
 # # @variable(m, dt[1:n_sats] >= 0) # Actual period time differences (s)
 
-# @variable(m, dt[1:n_sats-1] >= 0)
-# @constraint(m, [i=1:n_sats-1], dt[i] >= ta[i])
-# @constraint(m, [i=1:n_sats-1], dt[i] >= -ta[i])
-# @objective(m, Min, sum(dt))
