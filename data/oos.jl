@@ -15,13 +15,11 @@ using JuMP, Gurobi, Parameters
     r_orbits = rE .+ 1e3 .* collect(680:10:890)
     orbital_periods = [2pi*sqrt(r^3/mu) for r in r_orbits]
     transfer_time = [2*pi*sqrt((r_sat + r)^3/(8*mu)) for r in r_orbits]
-    maximum_time = 2*3600*24*365 # 2 years in seconds
+    maximum_time = 5*3600*24*365 # 5 years in seconds
 end
 
 function oos_optim!(op = oos_params())
     n = op.n_sats
-
-    halfpoint = Int((n-1)/2)
 
     # Making sure the orbits don't include the actual orbit of the satellite
     op.r_orbits = filter!(r -> r != op.r_sat, op.r_orbits)  
@@ -34,11 +32,15 @@ function oos_optim!(op = oos_params())
     dmass_exit = []
     for r in op.r_orbits
         if r >= op.r_sat
-            push!(dmass_entry, 1/exp(1/(op.g*op.Isp) * sqrt(op.mu/r)*(sqrt(2op.r_sat/(op.r_sat + r)) -1)))
-            push!(dmass_exit, 1/exp(1/(op.g*op.Isp) * sqrt(op.mu/op.r_sat)*(1 - sqrt(2r/(op.r_sat + r)))))
+            push!(dmass_entry, 1/exp(1/(op.g*op.Isp) * 
+                                sqrt(op.mu/r)*(sqrt(2op.r_sat/(op.r_sat + r)) -1)))
+            push!(dmass_exit, 1/exp(1/(op.g*op.Isp) * 
+                                sqrt(op.mu/op.r_sat)*(1 - sqrt(2r/(op.r_sat + r)))))
         else
-            push!(dmass_entry, exp(1/(op.g*op.Isp) * sqrt(op.mu/r)*(sqrt(2op.r_sat/(op.r_sat + r)) -1))) #TODO Check these, don't make sense.
-            push!(dmass_exit, exp(1/(op.g*op.Isp) * sqrt(op.mu/op.r_sat)*(1 - sqrt(2r/(op.r_sat + r)))))
+            push!(dmass_entry, exp(1/(op.g*op.Isp) * 
+                                sqrt(op.mu/r)*(sqrt(2op.r_sat/(op.r_sat + r)) -1))) #TODO Check these, don't make sense.
+            push!(dmass_exit, exp(1/(op.g*op.Isp) * 
+                                sqrt(op.mu/op.r_sat)*(1 - sqrt(2r/(op.r_sat + r)))))
         end
     end
 
@@ -46,18 +48,14 @@ function oos_optim!(op = oos_params())
     m = Model(Gurobi.Optimizer)
     set_optimizer_attribute(m, "NonConvex", 2)
 
-    # Transfers xx
-    # Always start by fueling the satellite that needs most fuel
-    max_idx = findall(x -> x == maximum(op.fuel_required), op.fuel_required) 
+    # Locations xx
     @variable(m, n >= sat_order[i=1:n] >= 1)
-    @variable(m, xx[1:n-1, 1:n], Bin)        # transfer occurs from row index to column index
+    @variable(m, xx[1:n, 1:n], Bin)        # transfer occurs from row index to column index
 
     # Program can pick the best starting satellite as well. 
-    @constraint(m, sat_order[1] == max_idx[1])
-    @constraint(m, [i=2:n], sat_order[i] == sum(xx[i-1, :] .* collect(1:n)))
-    @constraint(m, [i=1:n-1], sum(xx[i, :]) == 1) # Exactly one transfer every time (same as each satellite visited once)
-    @constraint(m, [i=1:n], sum(xx[:, i]) <= 1)   # At most one transfer to each satellite
-    @constraint(m, sum(xx[:, max_idx[1]]) == 0)
+    @constraint(m, [i=1:n], sat_order[i] == sum(xx[i, :] .* collect(1:n)))
+    @constraint(m, [i=1:n], sum(xx[i, :]) == 1) # Exactly one transfer every time (same as each satellite visited once)
+    @constraint(m, [i=1:n], sum(xx[:, i]) == 1)   # At most one transfer to each satellite
 
     # # True anomaly computation from satellite order
     @variable(m, ta[1:n-1])
@@ -82,8 +80,8 @@ function oos_optim!(op = oos_params())
 
     # Computing required fuel depending on transfer schedule
     @variable(m, fuel_needed[1:n])
-    @constraint(m, fuel_needed[1] == maximum(op.fuel_required))
-    @constraint(m, [i=2:n], fuel_needed[i] == sum(xx[i-1, :] .* op.fuel_required))
+    # @constraint(m, fuel_needed[1] == maximum(op.fuel_required))
+    @constraint(m, [i=1:n], fuel_needed[i] == sum(xx[i, :] .* op.fuel_required))
 
     # Mass conservation constraints (bilinear)
     @constraint(m, wet_mass >= maximum(op.fuel_required) + masses[1, 1] * fractional_dmasses[1,1])
