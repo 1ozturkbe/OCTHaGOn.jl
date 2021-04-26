@@ -227,6 +227,31 @@ function add_nonlinear_or_compatible(gm::GlobalModel,
 end
 
 """
+    add_linked_vars(bbc::BlackBoxClassifier, linked_vars::Array{JuMP.Variable})
+    add_linked_vars(bbr::BlackBoxRegressor, linked_vars::Array{JuMP.Variable}, linked_dependent::JuMP.Variable)
+
+Adds variables that obey the same constraint structure. 
+Use in case when a nonlinear constraint is repeated more than once, so that the underlying
+approximator is replicated without rebuilding the tree approximation. 
+"""
+function add_linked_vars(bbc::BlackBoxClassifier, vars::Array{JuMP.VariableRef})
+    length(linked_vars) == length(bbc.vars) || throw(OCTException("BBC $(bbc.name) does not" *
+    " have the same number of variables as linked variables $(vars)"))
+    !get_param(bbc, :linked) || set_param(bbc, :linked, true)
+    push!(bbc.params[:linked_vars], vars)
+    return
+end
+
+function add_linked_vars(bbr::BlackBoxRegressor, vars::Array{JuMP.VariableRef}, dependent_var::JuMP.VariableRef)
+    length(linked_vars) == length(bbr.vars) || throw(OCTException("BBR $(bbr.name) does not" *
+    " have the same number of variables as linked variables $(vars)"))
+    !get_param(bbr, :linked) || set_param(bbr, :linked, true)
+    push!(bbr.params[:linked_vars], vars)
+    push!(bbr.params[:linked_dependents], dependent_var)
+    return
+end
+
+"""
     nonlinearize!(gm::GlobalModel, bbls::Array{BlackBoxLearner})
     nonlinearize!(gm::GlobalModel)
 

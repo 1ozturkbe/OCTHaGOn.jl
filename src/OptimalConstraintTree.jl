@@ -77,6 +77,7 @@ module OptimalConstraintTree
 
         # Explicit constraints
         add_nonlinear_constraint, add_nonlinear_or_compatible, 
+        add_linked_vars,
 
         # Data driven constraints
         add_variables_from_data!, add_datadriven_constraint, bound_to_data!,
