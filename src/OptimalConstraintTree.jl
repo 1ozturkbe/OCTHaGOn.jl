@@ -68,7 +68,7 @@ module OptimalConstraintTree
     include("plot.jl")
         
         # STRUCTS
-    export GlobalModel, BlackBoxLearner, BlackBoxClassifier, BlackBoxRegressor,
+    export GlobalModel, BlackBoxLearner, BlackBoxClassifier, BlackBoxRegressor, JuMPContainer, 
 
     # JuMP.Model extensions to GlobalModel
         set_optimizer, optimize!,
