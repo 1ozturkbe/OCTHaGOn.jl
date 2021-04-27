@@ -529,35 +529,94 @@ function test_rfs()
                                     for type in JuMP.list_of_constraint_types(gm.model))
 end
 
-function test_linking()
-    model, x, y, z, a = test_model()
-    gm = GlobalModel(model = model)
-    add_pm
-    return true
-end
+# function test_linking()
+    # Fox and rabbit nonlinear population dynamics 
+    # Predator prey model with logistic function from http://www.math.lsa.umich.edu/~rauch/256/F2Lab5.pdf
+    using JuMP, Gurobi
     
-test_expressions()
+    m = Model(with_optimizer(Gurobi.Optimizer))
+    t = 50
+    r = 0.2
+    x1 = 0.6
+    y1 = 0.5
+    @variable(m, x[1:t] >= 0) # Note: Ipopt solution does not converge with an upper bound!!
+    @variable(m, dx[1:t-1])
+    @variable(m, y[1:t] >= 0)
+    @variable(m, dy[1:t-1])
+    @constraint(m, x[1] == x1)
+    @constraint(m, y[1] == y1)
+    @constraint(m, [i=2:t], x[i] == x[i-1] + dx[i-1])
+    @constraint(m, [i=2:t], y[i] == y[i-1] + dy[i-1])
 
-test_variables()
+    # NL dynamics solution using Ipopt
+    # @NLconstraint(m, [i=1:t-1], dx[i] == x[i]*(1-x[i]) - x[i]*y[i]/(x[i]+1/5))
+    # @NLconstraint(m, [i=1:t-1], dy[i] == r*y[i]*(1-y[i]/x[i]))
+    # optimize!(m)
 
-test_bounds()
+    # GlobalModel representation
+    set_upper_bound.(x, 1)
+    set_upper_bound.(dx, 1)
+    set_lower_bound.(dx, -1)
+    set_upper_bound.(y, 1)
+    set_upper_bound.(dy, 1)
+    set_lower_bound.(dy, -1)
 
-test_sets()
+    gm = GlobalModel(model = m, name = "foxes_rabbits")
 
-test_linearize()
+    add_nonlinear_constraint(gm, :((dx, x, y) -> dx[1] - x[1]*(1-x[1]) + x[1]*y[1]/(x[1]+1/5)), vars = [dx[1], x[1], y[1]], equality=true)
+    add_nonlinear_constraint(gm, :((dy, x, y) -> dy[1] - 0.2*y[1]*(1-y[1]/x[1])), vars = [dy[1], x[1], y[1]], equality=true)
+    for i = 2:t-1
+        add_linked_vars(gm.bbls[1], [dx[i], x[i], y[i]])
+        add_linked_vars(gm.bbls[2], [dy[i], x[i], y[i]])
+    end
 
-test_nonlinearize()
+    uniform_sample_and_eval!(gm)
 
-test_bbc()
+    # Usually would want to train the dynamics better, but for speed this is better!
+    learn_constraint!(gm, ls_num_tree_restarts = 10, ls_num_hyper_restarts = 10) 
+    
+    
+    add_tree_constraints!(gm)
 
-test_kwargs()
+    optimize!(gm)
 
-test_regress()
+    using Plots
+    plot(getvalue.(m[:x]))
+    plot!(getvbalue.(m[:y]))
 
-test_bbr()
 
-test_basic_gm()
 
-test_convex_objective()
 
-test_data_driven()
+    # plot(getvalue.(x), label = "Prey")
+    # plot!(getvalue.(y), label = "Predators")
+
+#     return true
+# end
+    
+# test_expressions()
+
+# test_variables()
+
+# test_bounds()
+
+# test_sets()
+
+# test_linearize()
+
+# test_nonlinearize()
+
+# test_bbc()
+
+# test_kwargs()
+
+# test_regress()
+
+# test_bbr()
+
+# test_basic_gm()
+
+# test_convex_objective()
+
+# test_data_driven()
+
+# test_linking()
