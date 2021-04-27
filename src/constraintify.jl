@@ -15,6 +15,14 @@ function add_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier, idx = l
     elseif get_param(bbc, :reloaded)
         mi_constraints, leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[idx];
                                             M=M, equality = bbc.equality)
+        if get_param(bbc, :linked)
+            for vars in get_param(bbc, :linked_vars)
+                mc, lv = add_feas_constraints!(gm.model, vars, bbc.learners[idx];
+                                        M=M, equality = bbc.equality)
+                merge!(append!, mi_constraints, mc)
+                merge!(append!, leaf_variables, lv)
+            end
+        end
         bbc.mi_constraints = mi_constraints
         bbc.leaf_variables = leaf_variables
     elseif size(bbc.X, 1) == 0
@@ -30,6 +38,14 @@ function add_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier, idx = l
     else
         mi_constraints, leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[idx];
                                             M=M, equality = bbc.equality);
+        if get_param(bbc, :linked)
+            for vars in get_param(bbc, :linked_vars)
+                mc, lv = add_feas_constraints!(gm.model, vars, bbc.learners[idx];
+                                        M=M, equality = bbc.equality)
+                merge!(append!, mi_constraints, mc)
+                merge!(append!, leaf_variables, lv)
+            end
+        end
         bbc.mi_constraints = mi_constraints
         bbc.leaf_variables = leaf_variables
     end
