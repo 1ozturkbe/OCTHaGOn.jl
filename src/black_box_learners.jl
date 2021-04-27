@@ -1,15 +1,3 @@
-""" Contains variables and constraints that belong to a JuMP.Model. """
-@with_kw mutable struct JuMPContainer
-    mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}()
-    leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}()
-end
-
-function merge!(jc1::JuMPContainer, jc2::JuMPContainer2)
-    keys(jc1.leaf_variables) == keys(jc2.leaf_variables) || 
-        throw(OCTException("Keys of two merged JuMPContainers don't match!"))
-    merge!(append!, jc1.mi_constraints, jc2.mi_constraints)
-end
-
 """
     @with_kw mutable struct BlackBoxRegressor
 
@@ -62,7 +50,6 @@ Optional arguments:
     active_trees::Dict{Int64, Union{Nothing, Pair}} = Dict() # Currently active tree indices
     mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}() # and their corresponding MI constraints,
     leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their leaves and leaf variables
-    JuMPContainers::Array{JuMP.Container} = []         # JuMPContainers with MI constraint and variable info for linking
     optima::Array = []
     actuals::Array = []
     convex::Bool = false
@@ -76,6 +63,18 @@ function Base.show(io::IO, bbr::BlackBoxRegressor)
     println(io, "BlackBoxRegressor " * bbr.name * " with $(length(bbr.vars)) independent variables, ")
     println(io, "and dependent variable $(bbr.dependent_var).")
     println(io, "Sampled $(length(bbr.Y)) times, and has $(length(bbr.learners)) trained ORTs.")
+end
+
+""" Contains data for a constraint that is repeated. """
+@with_kw mutable struct LinkedRegressor
+    vars::Array{JuMP.VariableRef,1}                    # JuMP variables (flat)
+    dependent_var::JuMP.VariableRef                    # Dependent variable
+    name::String = ""                                  # Function name
+    linking_ID::Int64                                  # Regressor we are linked to
+    mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}() # and their corresponding MI constraints,
+    leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their leaves and leaf variables
+    optima::Array = []
+    actuals::Array = []
 end
 
 """
@@ -128,7 +127,6 @@ Optional arguments:
     learner_kwargs = []                                # And their kwargs... 
     mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}() # and their corresponding MI constraints,
     leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their leaves and leaf variables
-    JuMPContainers::Array{JuMP.Container} = []         # JuMPContainers with MI constraint and variable info for linking. 
     accuracies::Array{Float64} = []                    # and the tree misclassification scores.
     knn_tree::Union{KDTree, Nothing} = nothing         # KNN tree
     params::Dict = bbc_defaults(length(vars))          # Relevant settings
@@ -152,7 +150,15 @@ function Base.show(io::IO, bbc::BlackBoxClassifier)
             println("Ignores training accuracy thresholds.")
         end
     end
+end
 
+""" Contains data for a constraint that is repeated. """
+@with_kw mutable struct LinkedClassifier
+    vars::Array{JuMP.VariableRef,1}                    # JuMP variables (flat)
+    name::String = ""                                  # Function name
+    linking_ID::Int64                                  # Classifier that we are linked to
+    mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}()
+    leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() 
 end
 
 """ BBL type is for function definitions! """
