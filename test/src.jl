@@ -201,7 +201,7 @@ function test_bbc()
     @test 0 <= evaluate_accuracy(bbl) <= 1
 
     # Training a model
-    mi_constraints, leaf_variables = add_feas_constraints!(model, bbl.vars, bbl.learners[1]);
+    jc = add_feas_constraints!(model, bbl.vars, bbl.learners[1]);
     @test true
 end
 
@@ -534,7 +534,7 @@ end
     # Predator prey model with logistic function from http://www.math.lsa.umich.edu/~rauch/256/F2Lab5.pdf
     using JuMP, Gurobi
     
-    m = Model(with_optimizer(Gurobi.Optimizer))
+    m = Model(with_optimizer(Ipopt.Optimizer))
     t = 50
     r = 0.2
     x1 = 0.6
@@ -549,9 +549,9 @@ end
     @constraint(m, [i=2:t], y[i] == y[i-1] + dy[i-1])
 
     # NL dynamics solution using Ipopt
-    # @NLconstraint(m, [i=1:t-1], dx[i] == x[i]*(1-x[i]) - x[i]*y[i]/(x[i]+1/5))
-    # @NLconstraint(m, [i=1:t-1], dy[i] == r*y[i]*(1-y[i]/x[i]))
-    # optimize!(m)
+    @NLconstraint(m, [i=1:t-1], dx[i] == x[i]*(1-x[i]) - x[i]*y[i]/(x[i]+1/5))
+    @NLconstraint(m, [i=1:t-1], dy[i] == r*y[i]*(1-y[i]/x[i]))
+    optimize!(m)
 
     # GlobalModel representation
     set_upper_bound.(x, 1)
@@ -581,14 +581,11 @@ end
     optimize!(gm)
 
     using Plots
-    plot(getvalue.(m[:x]))
-    plot!(getvbalue.(m[:y]))
-
-
-
-
-    # plot(getvalue.(x), label = "Prey")
-    # plot!(getvalue.(y), label = "Predators")
+    # Plotting temporal population data
+    plot(getvalue.(x), label = "Prey")
+    plot!(getvalue.(y), label = "Predators", xlabel = "Time", ylabel = "Normalized population")
+    # OR simultaneously in the population dimensions
+    plot(getvalue.(m[:x]), getvalue.(m[:y]), xlabel = "Prey", ylabel = "predators", label = 1:t, legend = false)
 
 #     return true
 # end

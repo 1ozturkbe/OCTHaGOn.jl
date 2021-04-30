@@ -8,6 +8,7 @@ nonlinear_model can contain JuMP.NonlinearConstraints.
     model::JuMP.Model                                            # Associated JuMP.Model
     name::String = "Model"                                       # Name
     bbls::Array{BlackBoxLearner} = BlackBoxLearner[]             # Constraints to be learned
+    lcs::Array{Union{LinkedClassifier, LinkedRegressor}} = []    # Linked constraints 
     vars::Array{JuMP.VariableRef} = JuMP.all_variables(model)    # JuMP variables
     solution_history::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Solution history
     feas_history::Array = []                                     # Constraint feasibility history
@@ -235,11 +236,14 @@ Use in case when a nonlinear constraint is repeated more than once, so that the 
 approximator is replicated without rebuilding the tree approximation. 
 Note that the bounds used for sampling are for the original variables!!
 """
-function add_linked_vars(bbc::BlackBoxClassifier, vars::Array{JuMP.VariableRef})
-    length(vars) == length(bbc.vars) || throw(OCTException("BBC $(bbc.name) does not" *
+function add_linked_constraint(gm, bbc_idx::Int64, vars::Array{JuMP.VariableRef})
+    bbc = gm.bbls[bbc_idx]
+    bbc isa BlackBoxClassifier || throw(OCTException("BBL $(bbc.name) of  type $(typeof(bbc)) failed " * 
+        "during addition of linked constraints. "))
+    length(vars) == length(bbcs.vars) || throw(OCTException("BBC $(gm.bbls[idx].name) does not" *
     " have the same number of variables as linked variables $(vars)"))
     get_param(bbc, :linked) || set_param(bbc, :linked, true)
-    push!(bbc.params[:linked_vars], vars)
+    push!(gm.lcs, 
     return
 end
 
