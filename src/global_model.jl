@@ -236,14 +236,14 @@ Use in case when a nonlinear constraint is repeated more than once, so that the 
 approximator is replicated without rebuilding the tree approximation. 
 Note that the bounds used for sampling are for the original variables!!
 """
-function add_linked_constraint(gm, bbc_idx::Int64, vars::Array{JuMP.VariableRef})
-    bbc = gm.bbls[bbc_idx]
+function add_linked_constraint(gm, bbc::BlackBoxClassifier, vars::Array{JuMP.VariableRef})
     bbc isa BlackBoxClassifier || throw(OCTException("BBL $(bbc.name) of  type $(typeof(bbc)) failed " * 
         "during addition of linked constraints. "))
-    length(vars) == length(bbcs.vars) || throw(OCTException("BBC $(gm.bbls[idx].name) does not" *
+    length(vars) == length(bbc.vars) || throw(OCTException("BBC $(gm.bbls[idx].name) does not" *
     " have the same number of variables as linked variables $(vars)"))
     get_param(bbc, :linked) || set_param(bbc, :linked, true)
-    push!(gm.lcs, 
+    push!(gm.lcs, LinkedClassifier(vars = vars,
+                                   linked_lnr = bbc))
     return
 end
 
@@ -251,8 +251,9 @@ function add_linked_vars(bbr::BlackBoxRegressor, vars::Array{JuMP.VariableRef}, 
     length(vars) == length(bbr.vars) || throw(OCTException("BBR $(bbr.name) does not" *
     " have the same number of variables as linked variables $(vars)"))
     get_param(bbr, :linked) || set_param(bbr, :linked, true)
-    push!(bbr.params[:linked_vars], vars)
-    push!(bbr.params[:linked_dependents], dependent_var)
+    push!(gm.lcs, LinkedClassifier(vars = vars,
+                                   dependent_var = dependent_var, 
+                                   linked_lnr = bbr))
     return
 end
 

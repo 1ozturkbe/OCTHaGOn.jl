@@ -69,8 +69,7 @@ end
 @with_kw mutable struct LinkedRegressor
     vars::Array{JuMP.VariableRef,1}                    # JuMP variables (flat)
     dependent_var::JuMP.VariableRef                    # Dependent variable
-    name::String = ""                                  # Function name
-    linking_ID::Int64                                  # Regressor we are linked to
+    linked_lnr::BlackBoxRegressor                      # Classifier that we are linked to
     mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}() # and their corresponding MI constraints,
     leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their leaves and leaf variables
     optima::Array = []
@@ -155,8 +154,7 @@ end
 """ Contains data for a constraint that is repeated. """
 @with_kw mutable struct LinkedClassifier
     vars::Array{JuMP.VariableRef,1}                    # JuMP variables (flat)
-    name::String = ""                                  # Function name
-    linking_ID::Int64                                  # Classifier that we are linked to
+    linked_lnr::BlackBoxClassifier                     # Classifier that we are linked to
     mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}()
     leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() 
 end
