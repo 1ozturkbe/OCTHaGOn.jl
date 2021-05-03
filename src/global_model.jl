@@ -242,6 +242,7 @@ function add_linked_constraint(gm::GlobalModel, bbc::BlackBoxClassifier, vars::A
     get_param(bbc, :linked) || set_param(bbc, :linked, true)
     push!(gm.lcs, LinkedClassifier(vars = vars,
                                    linked_lnr = bbc))
+    push!(bbc.params[:lcs], length(gm.lcs))
     return
 end
 
@@ -252,6 +253,7 @@ function add_linked_constraint(gm::GlobalModel, bbr::BlackBoxRegressor, vars::Ar
     push!(gm.lcs, LinkedRegressor(vars = vars,
                                    dependent_var = dependent_var, 
                                    linked_lnr = bbr))
+    push!(bbr.params[:lcs], length(gm.lcs))
     return
 end
 

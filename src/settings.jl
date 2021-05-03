@@ -4,9 +4,8 @@ function bbr_defaults(n_vars::Int64 = 10; sample_coeff = 200)
         :gradients => true,                                 # TODO: add option whether or not to use gradients
         :reloaded => false,                                  # Whether learners are reloaded
         :linked => false,
-        :linked_vars => [],
-        :linked_dependents => [])                                  
-end
+        :lcs => [])
+    end
 
 """ Returns default BlackBoxClassifier settings for approximation."""
 function bbc_defaults(n_vars::Int64 = 10; sample_coeff = 200)
@@ -18,7 +17,7 @@ function bbc_defaults(n_vars::Int64 = 10; sample_coeff = 200)
         :gradients => true,
         :reloaded => false,                                 # Whether learners are reloaded  
         :linked => false,
-        :linked_vars => [])
+        :lcs => [])
 end
 
 """
