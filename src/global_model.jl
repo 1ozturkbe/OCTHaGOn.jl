@@ -239,21 +239,26 @@ Note that the bounds used for sampling are for the original variables!!
 function add_linked_constraint(gm::GlobalModel, bbc::BlackBoxClassifier, vars::Array{JuMP.VariableRef})
     length(vars) == length(bbc.vars) || throw(OCTException("BBC $(bbc.name) does not" *
     " have the same number of variables as linked variables $(vars)"))
+    if !isempty(bbc.mi_constraints)
+        clear_tree_constraints!(gm, bbc)
+        @info "Cleared constraints from BBC $(bbc.name) since it was relinked."
+    end
     get_param(bbc, :linked) || set_param(bbc, :linked, true)
-    push!(gm.lcs, LinkedClassifier(vars = vars,
-                                   linked_lnr = bbc))
-    push!(bbc.params[:lcs], length(gm.lcs))
+    push!(bbc.params[:linked_vars], vars)
     return
 end
 
-function add_linked_constraint(gm::GlobalModel, bbr::BlackBoxRegressor, vars::Array{JuMP.VariableRef}, dependent_var::JuMP.VariableRef)
+function add_linked_constraint(gm::GlobalModel, bbr::BlackBoxRegressor, vars::Array{JuMP.VariableRef}, 
+                                dependent_var::JuMP.VariableRef)
     length(vars) == length(bbr.vars) || throw(OCTException("BBR $(bbr.name) does not" *
     " have the same number of variables as linked variables $(vars)"))
+    if !isempty(bbr.mi_constraints)
+        clear_tree_constraints!(gm, bbr)
+        @info "Cleared constraints from BBR $(bbr.name) since it was relinked."
+    end
     get_param(bbr, :linked) || set_param(bbr, :linked, true)
-    push!(gm.lcs, LinkedRegressor(vars = vars,
-                                   dependent_var = dependent_var, 
-                                   linked_lnr = bbr))
-    push!(bbr.params[:lcs], length(gm.lcs))
+    push!(bbr.params[:linked_vars], vars)
+    push!(bbr.params[:linked_dependents], dependent_var)
     return
 end
 
