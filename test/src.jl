@@ -566,8 +566,8 @@ end
     add_nonlinear_constraint(gm, :((dx, x, y) -> dx[1] - x[1]*(1-x[1]) + x[1]*y[1]/(x[1]+1/5)), vars = [dx[1], x[1], y[1]], equality=true)
     add_nonlinear_constraint(gm, :((dy, x, y) -> dy[1] - 0.2*y[1]*(1-y[1]/x[1])), vars = [dy[1], x[1], y[1]], equality=true)
     for i = 2:t-1
-        add_linked_vars(gm.bbls[1], [dx[i], x[i], y[i]])
-        add_linked_vars(gm.bbls[2], [dy[i], x[i], y[i]])
+        add_linked_constraint(gm, bbls[1], [dx[i], x[i], y[i]])
+        add_linked_constraint(gm.bbls[2], [dy[i], x[i], y[i]])
     end
 
     uniform_sample_and_eval!(gm)
