@@ -63,17 +63,9 @@ function Base.show(io::IO, bbr::BlackBoxRegressor)
     println(io, "BlackBoxRegressor " * bbr.name * " with $(length(bbr.vars)) independent variables, ")
     println(io, "and dependent variable $(bbr.dependent_var).")
     println(io, "Sampled $(length(bbr.Y)) times, and has $(length(bbr.learners)) trained ORTs.")
-end
-
-""" Contains data for a constraint that is repeated. """
-@with_kw mutable struct LinkedRegressor
-    vars::Array{JuMP.VariableRef,1}                    # JuMP variables (flat)
-    dependent_var::JuMP.VariableRef                    # Dependent variable
-    linked_lnr::BlackBoxRegressor                      # Classifier that we are linked to
-    mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}() # and their corresponding MI constraints,
-    leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their leaves and leaf variables
-    optima::Array = []
-    actuals::Array = []
+    if get_param(bbr, :linked)
+        println(io, "Has $(length(get_param(bbr, :lcs))) linked constraints.")
+    end
 end
 
 """
@@ -138,6 +130,9 @@ function Base.show(io::IO, bbc::BlackBoxClassifier)
         println(io, "BlackBoxClassifier inequality " * bbc.name * " with $(length(bbc.vars)) variables: ")
     end
     println(io, "Sampled $(length(bbc.Y)) times, and has $(length(bbc.learners)) trained OCTs.")
+    if get_param(bbc, :linked)
+        println(io, "Has $(length(get_param(bbc, :lcs))) linked constraints.")
+    end
     if get_param(bbc, :ignore_feasibility)
         if get_param(bbc, :ignore_accuracy)
             println(io, "Ignores training accuracy and data_feasibility thresholds.")
@@ -157,6 +152,17 @@ end
     linked_lnr::BlackBoxClassifier                     # Classifier that we are linked to
     mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}()
     leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() 
+end
+
+""" Contains data for a constraint that is repeated. """
+@with_kw mutable struct LinkedRegressor
+    vars::Array{JuMP.VariableRef,1}                    # JuMP variables (flat)
+    dependent_var::JuMP.VariableRef                    # Dependent variable
+    linked_lnr::BlackBoxRegressor                      # Classifier that we are linked to
+    mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}() # and their corresponding MI constraints,
+    leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their leaves and leaf variables
+    optima::Array = []
+    actuals::Array = []
 end
 
 """ BBL type is for function definitions! """
