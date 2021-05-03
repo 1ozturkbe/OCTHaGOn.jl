@@ -16,11 +16,11 @@ function add_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier, idx = l
         mi_constraints, leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[idx];
                                             M=M, equality = bbc.equality)
         if get_param(bbc, :linked)
-            for vars in get_param(bbc, :linked_vars)
+            for lc in gm.lcs[get_param(bbc, :lcs)]
                 mc, lv = add_feas_constraints!(gm.model, vars, bbc.learners[idx];
                                         M=M, equality = bbc.equality)
-                merge!(append!, mi_constraints, mc)
-                merge!(append!, leaf_variables, lv)
+                merge!(append!, lc.mi_constraints, mc)
+                merge!(append!, lc.leaf_variables, lv)
             end
         end
         bbc.mi_constraints = mi_constraints
@@ -39,11 +39,11 @@ function add_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier, idx = l
         mi_constraints, leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[idx];
                                             M=M, equality = bbc.equality);
         if get_param(bbc, :linked)
-            for vars in get_param(bbc, :linked_vars)
+            for lc in gm.lcs[get_param(bbc, :lcs)]
                 mc, lv = add_feas_constraints!(gm.model, vars, bbc.learners[idx];
                                         M=M, equality = bbc.equality)
-                merge!(append!, mi_constraints, mc)
-                merge!(append!, leaf_variables, lv)
+                merge!(append!, lc.mi_constraints, mc)
+                merge!(append!, lc.leaf_variables, lv)
             end
         end
         bbc.mi_constraints = mi_constraints
@@ -63,6 +63,15 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
             push!(mi_constraints[1], @constraint(gm.model, bbr.dependent_var >= sum(Array(bbr.gradients[i,:]) .* (bbr.vars .- Array(bbr.X[i, :]))) + bbr.Y[i]))
         end
         merge!(bbr.mi_constraints, mi_constraints)
+        if get_param(bbr, :linked)
+            for lc in gm.lcs[get_param(bbr, :lcs)]
+                mc = Dict(1 => [])
+                for i = Int64.(floor.(size(bbr.X,1) .* rand(10)))
+                    push!(mc[1], @constraint(gm.model, lc.dependent_var >= sum(Array(bbr.gradients[i,:]) .* (lc.vars .- Array(bbr.X[i, :]))) + bbr.Y[i]))
+                end
+                merge!(append!, lc.mi_constraints, mc)
+            end
+        end
         return
     elseif isempty(bbr.learners)
         throw(OCTException("Constraint " * string(bbr.name) * " must be learned before tree constraints
@@ -84,6 +93,8 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
         isempty(bbr.leaf_variables) ||
             throw(OCTException("Please clear previous tree constraints from $(gm.name) " *
             "before adding an random forest regressor constraints."))
+        get_param(bbr, :linked) && throw(OCTException("Random Forests cannot be used to approximate " *
+                        "linked regressor $(bbr.name)."))
         isnothing(bbr.thresholds[idx].second) ||
             throw(OCTException("RandomForestRegressors are not allowed upper bounds."))
     elseif bbr.thresholds[idx].first == "upper"
@@ -93,19 +104,8 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
         all(collect(keys(bbr.mi_constraints)) .<= 0) || throw(OCTException("Please clear previous lower tree constraints from $(gm.name) " *
                                                             "before adding new constraints."))
     end
-    if bbr.thresholds[idx].first != "rfreg"
-        mi_constraints, leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
-                                                                    bbr.learners[idx], bbr.ul_data[idx];
-                                                                    M = M, equality = bbr.equality)
-        if bbr.thresholds[idx].first == "upper"
-            push!(mi_constraints[-1], @constraint(gm.model, bbr.dependent_var <= bbr.thresholds[idx].second))
-        elseif bbr.thresholds[idx].first == "lower"
-            push!(mi_constraints[1], @constraint(gm.model, bbr.dependent_var >= bbr.thresholds[idx].second))
-        end
-        merge!(bbr.mi_constraints, mi_constraints)
-        merge!(bbr.leaf_variables, leaf_variables)
-        bbr.active_trees[idx] = bbr.thresholds[idx]
-    else
+    if bbr.thresholds[idx].first == "rfreg"
+
         trees = get_random_trees(bbr.learners[idx])
         for i=1:length(trees)
             mic, miv = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
@@ -117,6 +117,33 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
         merge!(bbr.mi_constraints, mi_constraints)
         merge!(bbr.leaf_variables, leaf_variables)
         bbr.active_trees[idx] = bbr.thresholds[idx]    
+    else
+        mi_constraints, leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
+        bbr.learners[idx], bbr.ul_data[idx];
+        M = M, equality = bbr.equality)
+        if bbr.thresholds[idx].first == "upper"
+        push!(mi_constraints[-1], @constraint(gm.model, bbr.dependent_var <= bbr.thresholds[idx].second))
+        elseif bbr.thresholds[idx].first == "lower"
+        push!(mi_constraints[1], @constraint(gm.model, bbr.dependent_var >= bbr.thresholds[idx].second))
+        end
+        merge!(bbr.mi_constraints, mi_constraints)
+        merge!(bbr.leaf_variables, leaf_variables)
+        bbr.active_trees[idx] = bbr.thresholds[idx]
+        if get_param(bbr, :linked)
+            for lc in gm.lcs[get_param(bbr, :lcs)]
+                mi_constraints, leaf_variables = 
+                    add_regr_constraints!(gm.model, lc.vars, lc.dependent_var, 
+                    bbr.learners[idx], bbr.ul_data[idx];
+                    M = M, equality = bbr.equality)
+                if bbr.thresholds[idx].first == "upper"
+                    push!(mi_constraints[-1], @constraint(gm.model, lc.dependent_var <= bbr.thresholds[idx].second))
+                elseif bbr.thresholds[idx].first == "lower"
+                    push!(mi_constraints[1], @constraint(gm.model, lc.dependent_var >= bbr.thresholds[idx].second))
+                end
+                merge!(lc.mi_constraints, mi_constraints)
+                merge!(lc.leaf_variables, leaf_variables)
+            end
+        end
     end
     return
 end
