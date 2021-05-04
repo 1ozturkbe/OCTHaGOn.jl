@@ -14,7 +14,7 @@ function add_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier, idx = l
         bbc.leaf_variables = Dict(1 => z_feas)
     elseif get_param(bbc, :reloaded)
         mi_constraints, leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[idx];
-                                            M=M, equality = bbc.equality, bbc.lcs)
+                                            M=M, equality = bbc.equality, lcs = bbc.lcs)
         bbc.mi_constraints = mi_constraints
         bbc.leaf_variables = leaf_variables
     elseif size(bbc.X, 1) == 0
@@ -29,7 +29,7 @@ function add_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier, idx = l
         throw(OCTException("Constraint " * string(bbc.name) * " is inaccurately approximated. "))
     else
         mi_constraints, leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[idx];
-                                            M=M, equality = bbc.equality, bbc.lcs);
+                                            M=M, equality = bbc.equality, lcs = bbc.lcs);
         bbc.mi_constraints = mi_constraints
         bbc.leaf_variables = leaf_variables
     end
@@ -46,7 +46,7 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
         for i = Int64.(floor.(size(bbr.X,1) .* rand(10)))
             push!(mi_constraints[1], @constraint(gm.model, bbr.dependent_var >= sum(Array(bbr.gradients[i,:]) .* (bbr.vars .- Array(bbr.X[i, :]))) + bbr.Y[i]))
         end
-        merge!(bbr.mi_constraints, mi_constraints)
+        merge!(append!, bbr.mi_constraints, mi_constraints)
         if get_param(bbr, :linked)
             for lc in gm.lcs[get_param(bbr, :lcs)]
                 mc = Dict(1 => [])
@@ -95,11 +95,11 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
             mic, miv = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
                                                 trees[i], bbr.ul_data[idx][i];
                                                 M = M, equality = bbr.equality)                                     
-            merge!(mi_constraints, mic)
-            merge!(leaf_variables, miv)
+            merge!(append!, mi_constraints, mic)
+            merge!(append!, leaf_variables, miv)
         end
-        merge!(bbr.mi_constraints, mi_constraints)
-        merge!(bbr.leaf_variables, leaf_variables)
+        merge!(append!, bbr.mi_constraints, mi_constraints)
+        merge!(append!, bbr.leaf_variables, leaf_variables)
         bbr.active_trees[idx] = bbr.thresholds[idx]    
     else
         mi_constraints, leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
@@ -110,8 +110,8 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
         elseif bbr.thresholds[idx].first == "lower"
         push!(mi_constraints[1], @constraint(gm.model, bbr.dependent_var >= bbr.thresholds[idx].second))
         end
-        merge!(bbr.mi_constraints, mi_constraints)
-        merge!(bbr.leaf_variables, leaf_variables)
+        merge!(append!, bbr.mi_constraints, mi_constraints)
+        merge!(append!, bbr.leaf_variables, leaf_variables)
         bbr.active_trees[idx] = bbr.thresholds[idx]
         if get_param(bbr, :linked)
             for lc in gm.lcs[get_param(bbr, :lcs)]
@@ -124,8 +124,8 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
                 elseif bbr.thresholds[idx].first == "lower"
                     push!(mi_constraints[1], @constraint(gm.model, lc.dependent_var >= bbr.thresholds[idx].second))
                 end
-                merge!(lc.mi_constraints, mi_constraints)
-                merge!(lc.leaf_variables, leaf_variables)
+                merge!(append!, lc.mi_constraints, mi_constraints)
+                merge!(append!, lc.leaf_variables, leaf_variables)
             end
         end
     end
@@ -151,7 +151,7 @@ add_tree_constraints!(gm::GlobalModel; M = 1e5) = add_tree_constraints!(gm, gm.b
 """
 function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::IAI.OptimalTreeLearner;
                                M::Float64 = 1.e5, equality::Bool = false, 
-                               lcs::Array{LinkedClassifier} = LinkedClassifier[])
+                               lcs::Array = [])
     check_if_trained(lnr);
     all_leaves = find_leaves(lnr)
     # Add a binary variable for each leaf
@@ -254,7 +254,7 @@ Arguments:
 function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuMP.VariableRef, 
                                lnr::IAI.OptimalTreeLearner,
                                ul_data::Dict; M::Float64 = 1.e5, equality::Bool = false, 
-                               lrs::Array{LinkedRegressor} = LinkedRegressor[])
+                               lrs::Array = [])
     if lnr isa OptimalTreeRegressor                
         check_if_trained(lnr)
         all_leaves = find_leaves(lnr)
@@ -292,7 +292,7 @@ function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuM
         end
         return constraints, leaf_variables
     elseif lnr isa OptimalTreeClassifier
-        constraints, leaf_variables = add_feas_constraints!(m, x, lnr, M=M, equality=equality, lrs)
+        constraints, leaf_variables = add_feas_constraints!(m, x, lnr, M=M, equality=equality, lcs = lrs)
         if !isempty(ul_data)
             if all(keys(ul_data) .<= 0) || !all(keys(ul_data) .>= 0) # means an upper or upperlower bounding tree
                 constraints = Dict(-key => value for (key, value) in constraints) # hacky sign flipping for upkeep. 
@@ -313,6 +313,7 @@ function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuM
     end
 end
 
+""" Clears upper-bounding constraints from a BBR and its associated GM. """
 function clear_upper_constraints!(gm, bbr::BlackBoxRegressor)
     for (leaf_key, leaf_constrs) in bbr.mi_constraints
         if leaf_key <= 0
@@ -345,6 +346,7 @@ function clear_upper_constraints!(gm, bbr::BlackBoxRegressor)
     return
 end
 
+""" Clears lower-bounding constraints from a BBR and its associated GM. """
 function clear_lower_constraints!(gm, bbr::BlackBoxRegressor)
     for (leaf_key, leaf_constrs) in bbr.mi_constraints
         if leaf_key >= 0
