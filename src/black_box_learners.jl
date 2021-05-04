@@ -69,7 +69,7 @@ Optional arguments:
     leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their leaves and leaf variables
     optima::Array = []
     actuals::Array = []
-    lrs:: Array{LinkedRegressor}                       # Linked regressor mi_constraints and leaf_variables
+    lrs::Array{LinkedRegressor,1} = []                      # Linked regressor mi_constraints and leaf_variables
     convex::Bool = false
     local_convexity::Float64 = 0.
     vexity::Dict = Dict{Int64, Tuple}()                # Size and convexity of leaves
@@ -136,6 +136,7 @@ Optional arguments:
     learner_kwargs = []                                # And their kwargs... 
     mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}() # and their corresponding MI constraints,
     leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their leaves and leaf variables
+    lcs::Array{LinkedClassifier,1} = []                  # LinkedClassifiers
     accuracies::Array{Float64} = []                    # and the tree misclassification scores.
     knn_tree::Union{KDTree, Nothing} = nothing         # KNN tree
     params::Dict = bbc_defaults(length(vars))          # Relevant settings
