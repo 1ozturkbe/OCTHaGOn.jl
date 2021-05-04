@@ -314,7 +314,7 @@ function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuM
 end
 
 """ Clears upper-bounding constraints from a BBR and its associated GM. """
-function clear_upper_constraints!(gm, bbr::BlackBoxRegressor)
+function clear_upper_constraints!(gm, bbr::Union{BlackBoxRegressor, LinkedRegressor})
     for (leaf_key, leaf_constrs) in bbr.mi_constraints
         if leaf_key <= 0
             while !isempty(leaf_constrs)
@@ -323,8 +323,7 @@ function clear_upper_constraints!(gm, bbr::BlackBoxRegressor)
                     delete(gm.model, constr)
                 else
                     push!(leaf_constrs, constr) # make sure to put the constraint back. 
-                    throw(OCTException("Constraints in BlackBoxRegressor $(bbr.name) " * 
-                                    " could not be removed."))
+                    throw(OCTException("Bug: Constraints could not be removed."))
                 end
             end
             delete!(bbr.mi_constraints, leaf_key)
@@ -336,18 +335,22 @@ function clear_upper_constraints!(gm, bbr::BlackBoxRegressor)
                 delete(gm.model, leaf_var)
                 delete!(bbr.leaf_variables, leaf_key)
             else
-                throw(OCTException("Variables in BlackBoxRegressor $(bbr.name) " * 
-                " could not be removed."))
+                throw(OCTException("Bug: Variables could not be removed."))
             end
         end
     end
-    idx = active_upper_tree(bbr)
-    delete!(bbr.active_trees, idx)
+    if bbr isa BlackBoxRegressor
+        idx = active_upper_tree(bbr)
+        delete!(bbr.active_trees, idx)
+        for lrs in bbr.lrs
+            clear_upper_constraints!(gm, lr)
+        end
+    end
     return
 end
 
 """ Clears lower-bounding constraints from a BBR and its associated GM. """
-function clear_lower_constraints!(gm, bbr::BlackBoxRegressor)
+function clear_lower_constraints!(gm, bbr::Union{BlackBoxRegressor, LinkedRegressor})
     for (leaf_key, leaf_constrs) in bbr.mi_constraints
         if leaf_key >= 0
             while !isempty(leaf_constrs)
@@ -356,8 +359,7 @@ function clear_lower_constraints!(gm, bbr::BlackBoxRegressor)
                     delete(gm.model, constr)
                 else
                     push!(leaf_constrs, constr) # make sure to put the constraint back. 
-                    throw(OCTException("Constraints in BlackBoxRegressor $(bbr.name) " * 
-                                    " could not be removed."))
+                    throw(OCTException("Bug: Constraints could not be removed."))
                 end
             end
             delete!(bbr.mi_constraints, leaf_key)
@@ -369,13 +371,17 @@ function clear_lower_constraints!(gm, bbr::BlackBoxRegressor)
                 delete(gm.model, leaf_var)
                 delete!(bbr.leaf_variables, leaf_key)
             else
-                throw(OCTException("Variables in BlackBoxRegressor $(bbr.name) " * 
-                " could not be removed."))
+                throw(OCTException("Bug: Variables could not be removed."))
             end
         end
     end
-    idx = active_lower_tree(bbr)
-    delete!(bbr.active_trees, idx)
+    if bbr isa BlackBoxRegressor
+        idx = active_lower_tree(bbr)
+        delete!(bbr.active_trees, idx)
+        for lrs in bbr.lrs
+            clear_lower_constraints!(gm, lr)
+        end
+    end
     return
 end
 
@@ -388,7 +394,7 @@ end
 Clears the constraints bbl.mi_constraints 
 as well as bbl.leaf_variables in GlobalModel. 
 """
-function OCT.clear_tree_constraints!(gm::GlobalModel, bbc::Union{BlackBoxClassifier, LinkedClassifier})
+function clear_tree_constraints!(gm::GlobalModel, bbc::Union{BlackBoxClassifier, LinkedClassifier})
     for (leaf_key, leaf_constrs) in bbc.mi_constraints
         while !isempty(leaf_constrs)
             constr = pop!(leaf_constrs)
@@ -409,10 +415,15 @@ function OCT.clear_tree_constraints!(gm::GlobalModel, bbc::Union{BlackBoxClassif
             throw(OCTException("Bug: Variables could not be removed."))
         end
     end
+    if bbc isa BlackBoxClassifier
+        for lc in bbc.lcs
+            clear_tree_constraints!(gm, lc)
+        end
+    end
     return
 end
 
-function clear_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor)
+function clear_tree_constraints!(gm::GlobalModel, bbr::Union{BlackBoxRegressor, LinkedRegressor})
     clear_lower_constraints!(gm, bbr)
     clear_upper_constraints!(gm, bbr)
     return 
