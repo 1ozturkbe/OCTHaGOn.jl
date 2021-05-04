@@ -388,7 +388,7 @@ end
 Clears the constraints bbl.mi_constraints 
 as well as bbl.leaf_variables in GlobalModel. 
 """
-function clear_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier)
+function OCT.clear_tree_constraints!(gm::GlobalModel, bbc::Union{BlackBoxClassifier, LinkedClassifier})
     for (leaf_key, leaf_constrs) in bbc.mi_constraints
         while !isempty(leaf_constrs)
             constr = pop!(leaf_constrs)
@@ -396,8 +396,7 @@ function clear_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier)
                 delete(gm.model, constr)
             else
                 push!(leaf_constrs, constr) # make sure to put the constraint back. 
-                throw(OCTException("Constraints in BlackBoxClassifier $(bbr.name) " * 
-                                " could not be removed."))
+                throw(OCTException("Bug: Constraints could not be removed."))
             end
         end
         delete!(bbc.mi_constraints, leaf_key)
@@ -407,8 +406,7 @@ function clear_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier)
             delete(gm.model, leaf_var)
             delete!(bbc.leaf_variables, leaf_key)
         else
-            throw(OCTException("Variables in BlackBoxClassifier $(bbr.name) " * 
-            " could not be removed."))
+            throw(OCTException("Bug: Variables could not be removed."))
         end
     end
     return
