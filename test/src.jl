@@ -529,13 +529,11 @@ function test_rfs()
                                     for type in JuMP.list_of_constraint_types(gm.model))
 end
 
-# function test_linking()
-    # Fox and rabbit nonlinear population dynamics 
-    # Predator prey model with logistic function from http://www.math.lsa.umich.edu/~rauch/256/F2Lab5.pdf
-    using JuMP, Gurobi
-    
-    m = Model(with_optimizer(Ipopt.Optimizer))
-    t = 50
+# Fox and rabbit nonlinear population dynamics 
+# Predator prey model with logistic function from http://www.math.lsa.umich.edu/~rauch/256/F2Lab5.pdf
+function test_linking()
+    m = Model(CPLEX_SILENT)
+    t = 40
     r = 0.2
     x1 = 0.6
     y1 = 0.5
@@ -549,9 +547,8 @@ end
     @constraint(m, [i=2:t], y[i] == y[i-1] + dy[i-1])
 
     # NL dynamics solution using Ipopt
-    @NLconstraint(m, [i=1:t-1], dx[i] == x[i]*(1-x[i]) - x[i]*y[i]/(x[i]+1/5))
-    @NLconstraint(m, [i=1:t-1], dy[i] == r*y[i]*(1-y[i]/x[i]))
-    optimize!(m)
+    # @NLconstraint(m, [i=1:t-1], dx[i] == x[i]*(1-x[i]) - x[i]*y[i]/(x[i]+1/5))
+    # @NLconstraint(m, [i=1:t-1], dy[i] == r*y[i]*(1-y[i]/x[i]))
 
     # GlobalModel representation
     set_upper_bound.(x, 1)
@@ -560,60 +557,52 @@ end
     set_upper_bound.(y, 1)
     set_upper_bound.(dy, 1)
     set_lower_bound.(dy, -1)
-
     gm = GlobalModel(model = m, name = "foxes_rabbits")
-
     add_nonlinear_constraint(gm, :((dx, x, y) -> dx[1] - x[1]*(1-x[1]) + x[1]*y[1]/(x[1]+1/5)), vars = [dx[1], x[1], y[1]], equality=true)
     add_nonlinear_constraint(gm, :((dy, x, y) -> dy[1] - 0.2*y[1]*(1-y[1]/x[1])), vars = [dy[1], x[1], y[1]], equality=true)
     for i = 2:t-1
-        add_linked_constraint(gm, bbls[1], [dx[i], x[i], y[i]])
-        add_linked_constraint(gm.bbls[2], [dy[i], x[i], y[i]])
+        add_linked_constraint(gm, gm.bbls[1], [dx[i], x[i], y[i]])
+        add_linked_constraint(gm, gm.bbls[2], [dy[i], x[i], y[i]])
     end
-
     uniform_sample_and_eval!(gm)
-
     # Usually would want to train the dynamics better, but for speed this is better!
-    learn_constraint!(gm, ls_num_tree_restarts = 10, ls_num_hyper_restarts = 10) 
-    
-    
+    learn_constraint!(gm)
     add_tree_constraints!(gm)
-
     optimize!(gm)
 
-    using Plots
-    # Plotting temporal population data
-    plot(getvalue.(x), label = "Prey")
-    plot!(getvalue.(y), label = "Predators", xlabel = "Time", ylabel = "Normalized population")
-    # OR simultaneously in the population dimensions
-    plot(getvalue.(m[:x]), getvalue.(m[:y]), xlabel = "Prey", ylabel = "predators", label = 1:t, legend = false)
-
-#     return true
-# end
+    # using Plots
+    # # Plotting temporal population data
+    # plot(getvalue.(x), label = "Prey")
+    # plot!(getvalue.(y), label = "Predators", xlabel = "Time", ylabel = "Normalized population")
+    # # OR simultaneously in the population dimensions
+    # plot(getvalue.(m[:x]), getvalue.(m[:y]), xlabel = "Prey", ylabel = "Predators", label = 1:t, legend = false)
+    return true
+end
     
-# test_expressions()
+test_expressions()
 
-# test_variables()
+test_variables()
 
-# test_bounds()
+test_bounds()
 
-# test_sets()
+test_sets()
 
-# test_linearize()
+test_linearize()
 
-# test_nonlinearize()
+test_nonlinearize()
 
-# test_bbc()
+test_bbc()
 
-# test_kwargs()
+test_kwargs()
 
-# test_regress()
+test_regress()
 
-# test_bbr()
+test_bbr()
 
-# test_basic_gm()
+test_basic_gm()
 
-# test_convex_objective()
+test_convex_objective()
 
-# test_data_driven()
+test_data_driven()
 
-# test_linking()
+test_linking()
