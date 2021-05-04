@@ -152,6 +152,7 @@ Adds cuts reducing infeasibility of BBC inequalities.
 """
 function add_infeasibility_cuts!(gm::GlobalModel, M = 1e5)
     #TODO: CHECK REGRESSION EQUALITIES.
+    #TODO: ADD CUTS TO LINKEDCONSTRAINTS. 
     sol_leaves = find_leaf_of_soln.(gm.bbls)
     var_vals = solution(gm)
     for i=1:length(gm.bbls)

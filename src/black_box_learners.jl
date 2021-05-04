@@ -207,7 +207,7 @@ Adds data to BlackBoxRegressor.
 function add_data!(bbr::BlackBoxRegressor, X::DataFrame, Y::Array)
     @assert length(Y) == size(X, 1)
     infeas_idxs = findall(x -> isinf(x), Y)
-    if isnothing(bbr.gradients) && get_param(bbr, :gradients) # TODO: improve the gradient DF init. 
+    if isnothing(bbr.gradients) && get_param(bbr, :gradients) 
         bbr.gradients = DataFrame([Union{Missing, Float64} for i=1:length(bbr.vars)], string.(bbr.vars)) 
         bbr.curvatures = Union{Missing, Float64}[]
     end 

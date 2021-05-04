@@ -111,7 +111,7 @@ function knn_sample(bbl::BlackBoxClassifier; k::Int64 = 10, tighttol = 1e-5, sam
     build_knn_tree(bbl);
     idxs, dists = find_knn(bbl, k=k);
     feas_class = classify_patches(bbl, idxs);
-    negatives = findall(x -> x .< 0, bbl.Y) # TODO: improve sign checking. 
+    negatives = findall(x -> x .< 0, bbl.Y)
     if !isnothing(sample_idxs)
         negatives = intersect(negatives, sample_idxs)
     end
