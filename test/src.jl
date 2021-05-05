@@ -533,13 +533,13 @@ end
 # Predator prey model with logistic function from http://www.math.lsa.umich.edu/~rauch/256/F2Lab5.pdf
 function test_linking()
     m = Model(CPLEX_SILENT)
-    t = 40
+    t = 25
     r = 0.2
     x1 = 0.6
     y1 = 0.5
-    @variable(m, x[1:t] >= 0) # Note: Ipopt solution does not converge with an upper bound!!
+    @variable(m, x[1:t] >= 0.001) # Note: Ipopt solution does not converge with an upper bound!!
     @variable(m, dx[1:t-1])
-    @variable(m, y[1:t] >= 0)
+    @variable(m, y[1:t] >= 0.001)
     @variable(m, dy[1:t-1])
     @constraint(m, x[1] == x1)
     @constraint(m, y[1] == y1)
@@ -558,15 +558,15 @@ function test_linking()
     set_upper_bound.(dy, 1)
     set_lower_bound.(dy, -1)
     gm = GlobalModel(model = m, name = "foxes_rabbits")
-    add_nonlinear_constraint(gm, :((dx, x, y) -> dx[1] - x[1]*(1-x[1]) + x[1]*y[1]/(x[1]+1/5)), vars = [dx[1], x[1], y[1]], equality=true)
-    add_nonlinear_constraint(gm, :((dy, x, y) -> dy[1] - 0.2*y[1]*(1-y[1]/x[1])), vars = [dy[1], x[1], y[1]], equality=true)
+    add_nonlinear_constraint(gm, :((dx, x, y) -> dx[1] - x[1]*(1-x[1]) + x[1]*y[1]/(x[1]+0.1)), vars = [dx[1], x[1], y[1]], equality=true)
+    add_nonlinear_constraint(gm, :((dy, x, y) -> dy[1] - 0.1*y[1]*(1-y[1]/x[1])), vars = [dy[1], x[1], y[1]], equality=true)
     for i = 2:t-1
         add_linked_constraint(gm, gm.bbls[1], [dx[i], x[i], y[i]])
         add_linked_constraint(gm, gm.bbls[2], [dy[i], x[i], y[i]])
     end
     uniform_sample_and_eval!(gm)
     # Usually would want to train the dynamics better, but for speed this is better!
-    learn_constraint!(gm)
+    learn_constraint!(gm) #, ls_num_tree_restarts = 50, ls_num_hyper_restarts = 50)
     add_tree_constraints!(gm)
     optimize!(gm)
 
@@ -576,8 +576,17 @@ function test_linking()
     # plot!(getvalue.(y), label = "Predators", xlabel = "Time", ylabel = "Normalized population")
     # # OR simultaneously in the population dimensions
     # plot(getvalue.(m[:x]), getvalue.(m[:y]), xlabel = "Prey", ylabel = "Predators", label = 1:t, legend = false)
-    return true
+    # return true
 end
+
+function test_oos()
+    gm = oos_gm!()
+    uniform_sample_and_eval!(gm)
+    learn_constraint!(gm)
+    add_tree_constraints!(gm)
+    optimize!(gm)
+end
+
     
 test_expressions()
 
@@ -606,3 +615,5 @@ test_convex_objective()
 test_data_driven()
 
 test_linking()
+
+test_oos()

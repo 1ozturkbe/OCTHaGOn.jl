@@ -35,6 +35,8 @@ include(OCT.PROJECT_ROOT * "/test/tools/models.jl")
 
 include(OCT.DATA_DIR * "speed_reducer.jl")
 
+include(OCT.DATA_DIR * "oos.jl")
+
 include(OCT.DATA_DIR * "afpm.jl")
 
 include(OCT.BARON_DIR * "gear.jl")

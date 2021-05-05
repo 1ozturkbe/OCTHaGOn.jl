@@ -259,9 +259,9 @@ function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuM
             @assert isempty(lr.mi_constraints) # TODO: remove check after testing
             @assert isempty(lr.leaf_variables) # TODO: remove check after testing
             lr_z = @variable(m, [1:size(all_leaves, 1)], Bin)
-            lr.leaf_variables = Dict{Int64, JuMP.VariableRef}(feas_leaves .=> lr_z)
-            lr.mi_constraints = Dict(leaf => JuMP.ConstraintRef[] for leaf in feas_leaves)
-            lc.mi_constraints[1] = [@constraint(m, sum(lr_z) == 1)]
+            lr.leaf_variables = Dict{Int64, JuMP.VariableRef}(all_leaves .=> lr_z)
+            lr.mi_constraints = Dict(leaf => JuMP.ConstraintRef[] for leaf in all_leaves)
+            lr.mi_constraints[1] = [@constraint(m, sum(lr_z) == 1)]
         end
         # Getting lnr data
         pwlDict = pwl_constraint_data(lnr, Symbol.(x))
@@ -352,7 +352,7 @@ function clear_upper_constraints!(gm, bbr::Union{BlackBoxRegressor, LinkedRegres
     if bbr isa BlackBoxRegressor
         idx = active_upper_tree(bbr)
         delete!(bbr.active_trees, idx)
-        for lrs in bbr.lrs
+        for lr in bbr.lrs
             clear_upper_constraints!(gm, lr)
         end
     end
@@ -388,7 +388,7 @@ function clear_lower_constraints!(gm, bbr::Union{BlackBoxRegressor, LinkedRegres
     if bbr isa BlackBoxRegressor
         idx = active_lower_tree(bbr)
         delete!(bbr.active_trees, idx)
-        for lrs in bbr.lrs
+        for lr in bbr.lrs
             clear_lower_constraints!(gm, lr)
         end
     end

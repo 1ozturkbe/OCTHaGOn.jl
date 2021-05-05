@@ -1,3 +1,5 @@
+using Parameters
+
 @with_kw mutable struct oos_params
     g = 9.81
     mu = 3.986e14 # gravitational constant
@@ -74,7 +76,7 @@ function oos_gm!(op = oos_params())
     @variable(m, 3000 >= wet_mass >= op.dry_mass)
 
     # Orbit choice, and time and fuel cost
-    @variable(m, 1.15 >= fractional_dmasses[1:n-1, j=1:5] >= 0) # reduction in masses in maneuvers
+    @variable(m, 1.15 >= fractional_dmasses[1:n-1, j=1:5] >= 1) # reduction in masses in maneuvers
     @constraint(m, [i=1:n-1], fractional_dmasses[i, 1] == dmass_entry[i])
     @constraint(m, [i=1:n-1], fractional_dmasses[i, 2] == dmass_exit[i])
     @constraint(m, [i=1:n-1], fractional_dmasses[i, 3] == dmass_exit[i])
@@ -103,7 +105,8 @@ function oos_gm!(op = oos_params())
     gm = GlobalModel(model = m, name = "oos")
     # Mass conservation constraints (bilinear) TODO: CHANGE
     add_nonlinear_constraint(gm, :((masses, fractional_dmasses) -> masses[1, 2] * fractional_dmasses[1,1]), 
-        vars = [masses[1, 2], fractional_dmasses[1,1]], dependent_var = masses[1,1])
+        vars = [masses[1, 2], fractional_dmasses[1,1]], dependent_var = masses[1,1],
+        name = "mass_fraction")
     for j=2:4
         add_linked_constraint(gm, gm.bbls[end], [masses[1, j+1], fractional_dmasses[1,j]], masses[1,j])
     end
@@ -115,21 +118,25 @@ function oos_gm!(op = oos_params())
 
     # Maneuver time constraints (nonlinear + bilinear)
     add_nonlinear_constraint(gm, :(r_orbit -> 2*pi*sqrt(r_orbit[1]^3/$(op.mu))), 
-        vars = [r_orbit[1]], dependent_var = period_orbit[1])
+        vars = [r_orbit[1]], dependent_var = period_orbit[1],
+        name = "orbital_period")
     [add_linked_constraint(gm, gm.bbls[end], [r_orbit[i]], period_orbit[i]) for i=2:n-1]
 
     add_nonlinear_constraint(gm, :(r_orbit -> 2*pi*sqrt(($(op.r_sat) + r_orbit[1])^3/(8*$(op.mu)))), 
-        vars = [r_orbit[1]], dependent_var = dt_transfer_orbit[1])
+        vars = [r_orbit[1]], dependent_var = dt_transfer_orbit[1],
+        name = "transfer_time")
     [add_linked_constraint(gm, gm.bbls[end], [r_orbit[i]], dt_transfer_orbit[i]) for i=2:n-1]
 
     add_nonlinear_constraint(gm, :((ta, dt_orbit, N_orbit) -> maximum([N_orbit[1]*dt_orbit[1] - ta[1] * $(op.period_sat), 
         N_orbit[1]*dt_orbit[1] - ta[1] * $(op.period_sat)])), 
-        vars = [ta[1], dt_orbit[1], N_orbit[1]])
+        vars = [ta[1], dt_orbit[1], N_orbit[1]],
+        name = "orbital_revolutions")
     [add_linked_constraint(gm, gm.bbls[end], [ta[i], dt_orbit[i], N_orbit[i]]) for i=2:n-1]
 
     add_nonlinear_constraint(gm, :((dt_transfer_orbit, N_orbit, period_orbit) -> 
             dt_transfer_orbit[1] + N_orbit[1] * period_orbit[1]), 
-            vars = [dt_transfer_orbit[1], N_orbit[1], period_orbit[1]], dependent_var = t_maneuver[1])
+            vars = [dt_transfer_orbit[1], N_orbit[1], period_orbit[1]], dependent_var = t_maneuver[1],
+            name = "maneuver_time")
     [add_linked_constraint(gm, gm.bbls[end], [dt_transfer_orbit[i], N_orbit[i], period_orbit[i]], t_maneuver[i])
         for i=2:n-1]
 
