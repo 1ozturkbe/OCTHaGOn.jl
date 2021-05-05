@@ -5,6 +5,11 @@
     leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() 
 end
 
+function Base.show(io::IO, lc::LinkedClassifier)
+    println(io, "LinkedClassifier with: ")
+    println(io, "variables: $(lc.vars) ") # TODO: improve printing
+end
+
 """ Contains data for a constraint that is repeated. """
 @with_kw mutable struct LinkedRegressor
     vars::Array{JuMP.VariableRef,1}                    # JuMP variables (flat)
@@ -13,6 +18,12 @@ end
     leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their leaves and leaf variables
     optima::Array = []
     actuals::Array = []
+end
+
+function Base.show(io::IO, lr::LinkedRegressor)
+    println(io, "LinkedRegressor with: ")
+    println(io, "variables: $(lr.vars) ") # TODO: improve printing
+    println(io, "and dependent variable: $(lr.dependent_var)")
 end
 
 """
@@ -82,7 +93,7 @@ function Base.show(io::IO, bbr::BlackBoxRegressor)
     println(io, "and dependent variable $(bbr.dependent_var).")
     println(io, "Sampled $(length(bbr.Y)) times, and has $(length(bbr.learners)) trained ORTs.")
     if get_param(bbr, :linked)
-        println(io, "Has $(length(bbr.lrs))) linked constraints.")
+        println(io, "Has $(length(bbr.lrs)) linked constraints.")
     end
 end
 
