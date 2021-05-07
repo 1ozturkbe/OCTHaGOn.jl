@@ -68,7 +68,8 @@ module OptimalConstraintTree
     include("plot.jl")
         
         # STRUCTS
-    export GlobalModel, BlackBoxLearner, BlackBoxClassifier, BlackBoxRegressor,
+    export GlobalModel, BlackBoxLearner, BlackBoxClassifier, BlackBoxRegressor, 
+        LinkedClassifier, LinkedRegressor,
 
     # JuMP.Model extensions to GlobalModel
         set_optimizer, optimize!,
@@ -77,6 +78,7 @@ module OptimalConstraintTree
 
         # Explicit constraints
         add_nonlinear_constraint, add_nonlinear_or_compatible, 
+        add_linked_constraint,
 
         # Data driven constraints
         add_variables_from_data!, add_datadriven_constraint, bound_to_data!,

@@ -201,7 +201,7 @@ function test_bbc()
     @test 0 <= evaluate_accuracy(bbl) <= 1
 
     # Training a model
-    mi_constraints, leaf_variables = add_feas_constraints!(model, bbl.vars, bbl.learners[1]);
+    jc = add_feas_constraints!(model, bbl.vars, bbl.learners[1]);
     @test true
 end
 
@@ -340,7 +340,7 @@ function test_bbr()
     clear_tree_constraints!(gm, bbr)
     update_tree_constraints!(gm, bbr, 2) # Updating nothing with single regressor
     @test all(sign.(collect(keys(bbr.leaf_variables))) .== 1) &&
-            2*length(bbr.leaf_variables) + 1 == length(bbr.mi_constraints) &&
+            length(bbr.leaf_variables) + 1 == length(bbr.mi_constraints) &&
                 bbr.active_trees == Dict(2 => bbr.thresholds[2])
     @test active_lower_tree(bbr) == 2 && active_upper_tree(bbr) == 2
 
@@ -528,6 +528,68 @@ function test_rfs()
     @test init_constraints == sum(length(all_constraints(gm.model, type[1], type[2])) 
                                     for type in JuMP.list_of_constraint_types(gm.model))
 end
+
+# Fox and rabbit nonlinear population dynamics 
+# Predator prey model with logistic function from http://www.math.lsa.umich.edu/~rauch/256/F2Lab5.pdf
+function test_linking()
+    m = Model(CPLEX_SILENT)
+    t = 25
+    r = 0.2
+    x1 = 0.6
+    y1 = 0.5
+    @variable(m, x[1:t] >= 0.001) # Note: Ipopt solution does not converge with an upper bound!!
+    @variable(m, dx[1:t-1])
+    @variable(m, y[1:t] >= 0.001)
+    @variable(m, dy[1:t-1])
+    @constraint(m, x[1] == x1)
+    @constraint(m, y[1] == y1)
+    @constraint(m, [i=2:t], x[i] == x[i-1] + dx[i-1])
+    @constraint(m, [i=2:t], y[i] == y[i-1] + dy[i-1])
+
+    # NL dynamics solution using Ipopt
+    # @NLconstraint(m, [i=1:t-1], dx[i] == x[i]*(1-x[i]) - x[i]*y[i]/(x[i]+1/5))
+    # @NLconstraint(m, [i=1:t-1], dy[i] == r*y[i]*(1-y[i]/x[i]))
+
+    # GlobalModel representation
+    set_upper_bound.(x, 1)
+    set_upper_bound.(dx, 1)
+    set_lower_bound.(dx, -1)
+    set_upper_bound.(y, 1)
+    set_upper_bound.(dy, 1)
+    set_lower_bound.(dy, -1)
+    gm = GlobalModel(model = m, name = "foxes_rabbits")
+    add_nonlinear_constraint(gm, :((x, y) -> x[1]*(1-x[1]) -x[1]*y[1]/(x[1]+0.2)), vars = [x[1], y[1]], 
+        dependent_var = dx[1], equality=true)
+    add_nonlinear_constraint(gm, :((x, y) -> 0.2*y[1]*(1-y[1]/x[1])), vars = [x[1], y[1]], 
+        dependent_var = dy[1], equality=true)
+    for i = 2:t-1
+        add_linked_constraint(gm, gm.bbls[1], [x[i], y[i]], dx[i])
+        add_linked_constraint(gm, gm.bbls[2], [x[i], y[i]], dy[i])
+    end
+    uniform_sample_and_eval!(gm)
+    # Usually would want to train the dynamics better, but for speed this is better!
+    learn_constraint!(gm, max_depth = 3, ls_num_tree_restarts = 20, ls_num_hyper_restarts = 20)
+    set_param(gm, :ignore_accuracy, true)
+    add_tree_constraints!(gm)
+    optimize!(gm)
+
+    # using Plots
+    # # Plotting temporal population data
+    # plot(getvalue.(x), label = "Prey")
+    # plot!(getvalue.(y), label = "Predators", xlabel = "Time", ylabel = "Normalized population")
+    # # OR simultaneously in the population dimensions
+    # plot(getvalue.(m[:x]), getvalue.(m[:y]), xlabel = "Prey", ylabel = "Predators", label = 1:t, legend = false)
+    # # return true
+end
+
+# function test_oos()
+#     gm = oos_gm!()
+#     uniform_sample_and_eval!(gm)
+#     learn_constraint!(gm)
+#     add_tree_constraints!(gm)
+#     optimize!(gm)
+# end
+
     
 test_expressions()
 
@@ -554,3 +616,7 @@ test_basic_gm()
 test_convex_objective()
 
 test_data_driven()
+
+test_linking()
+
+# test_oos()

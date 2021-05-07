@@ -1,3 +1,31 @@
+""" Contains data for a constraint that is repeated. """
+@with_kw mutable struct LinkedClassifier
+    vars::Array{JuMP.VariableRef,1}                    # JuMP variables (flat)
+    mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}()
+    leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() 
+end
+
+function Base.show(io::IO, lc::LinkedClassifier)
+    println(io, "LinkedClassifier with: ")
+    println(io, "variables: $(lc.vars) ") # TODO: improve printing
+end
+
+""" Contains data for a constraint that is repeated. """
+@with_kw mutable struct LinkedRegressor
+    vars::Array{JuMP.VariableRef,1}                    # JuMP variables (flat)
+    dependent_var::JuMP.VariableRef                    # Dependent variable
+    mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}() # and their corresponding MI constraints,
+    leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their leaves and leaf variables
+    optima::Array = []
+    actuals::Array = []
+end
+
+function Base.show(io::IO, lr::LinkedRegressor)
+    println(io, "LinkedRegressor with: ")
+    println(io, "variables: $(lr.vars) ") # TODO: improve printing
+    println(io, "and dependent variable: $(lr.dependent_var)")
+end
+
 """
     @with_kw mutable struct BlackBoxRegressor
 
@@ -52,6 +80,7 @@ Optional arguments:
     leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their leaves and leaf variables
     optima::Array = []
     actuals::Array = []
+    lrs::Array{LinkedRegressor} = []                      # Linked regressor mi_constraints and leaf_variables
     convex::Bool = false
     local_convexity::Float64 = 0.
     vexity::Dict = Dict{Int64, Tuple}()                # Size and convexity of leaves
@@ -63,6 +92,9 @@ function Base.show(io::IO, bbr::BlackBoxRegressor)
     println(io, "BlackBoxRegressor " * bbr.name * " with $(length(bbr.vars)) independent variables, ")
     println(io, "and dependent variable $(bbr.dependent_var).")
     println(io, "Sampled $(length(bbr.Y)) times, and has $(length(bbr.learners)) trained ORTs.")
+    if get_param(bbr, :linked)
+        println(io, "Has $(length(bbr.lrs)) linked constraints.")
+    end
 end
 
 """
@@ -114,7 +146,8 @@ Optional arguments:
                           IAI.Heuristics.RandomForestClassifier}} = []    # Learners...
     learner_kwargs = []                                # And their kwargs... 
     mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}() # and their corresponding MI constraints,
-    leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their binary leaves and associated variables,
+    leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their leaves and leaf variables
+    lcs::Array{LinkedClassifier} = []                  # LinkedClassifiers
     accuracies::Array{Float64} = []                    # and the tree misclassification scores.
     knn_tree::Union{KDTree, Nothing} = nothing         # KNN tree
     params::Dict = bbc_defaults(length(vars))          # Relevant settings
@@ -127,6 +160,9 @@ function Base.show(io::IO, bbc::BlackBoxClassifier)
         println(io, "BlackBoxClassifier inequality " * bbc.name * " with $(length(bbc.vars)) variables: ")
     end
     println(io, "Sampled $(length(bbc.Y)) times, and has $(length(bbc.learners)) trained OCTs.")
+    if get_param(bbc, :linked)
+        println(io, "Has $(length(bbc.lcs)) linked constraints.")
+    end
     if get_param(bbc, :ignore_feasibility)
         if get_param(bbc, :ignore_accuracy)
             println(io, "Ignores training accuracy and data_feasibility thresholds.")
@@ -138,7 +174,6 @@ function Base.show(io::IO, bbc::BlackBoxClassifier)
             println("Ignores training accuracy thresholds.")
         end
     end
-
 end
 
 """ BBL type is for function definitions! """
@@ -183,7 +218,10 @@ Adds data to BlackBoxRegressor.
 function add_data!(bbr::BlackBoxRegressor, X::DataFrame, Y::Array)
     @assert length(Y) == size(X, 1)
     infeas_idxs = findall(x -> isinf(x), Y)
-    if isnothing(bbr.gradients) && get_param(bbr, :gradients) # TODO: improve the gradient DF init. 
+    length(infeas_idxs) >= 0.5*length(Y) &&
+    throw(OCTException("A majority of samples on BBR $(bbr.name) evaluated as infeasible. " * 
+        "Please check your expressions. "))
+    if isnothing(bbr.gradients) && get_param(bbr, :gradients) 
         bbr.gradients = DataFrame([Union{Missing, Float64} for i=1:length(bbr.vars)], string.(bbr.vars)) 
         bbr.curvatures = Union{Missing, Float64}[]
     end 

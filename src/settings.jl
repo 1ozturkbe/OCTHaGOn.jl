@@ -2,7 +2,10 @@
 function bbr_defaults(n_vars::Int64 = 10; sample_coeff = 200)
     Dict(:n_samples => Int(ceil(sample_coeff*sqrt(n_vars))), # (0 if no sampling fn)
         :gradients => true,                                 # TODO: add option whether or not to use gradients
-        :reloaded => false)                                 # Whether learners are reloaded            
+        :reloaded => false,                                  # Whether learners are reloaded
+        :linked => false,
+        :linked_vars => [],
+        :linked_dependents => [])
 end
 
 """ Returns default BlackBoxClassifier settings for approximation."""
@@ -13,7 +16,9 @@ function bbc_defaults(n_vars::Int64 = 10; sample_coeff = 200)
         :ignore_accuracy => false,                          # Whether we should ignore accuracy checks 
         :n_samples => Int(ceil(sample_coeff*sqrt(n_vars))), # (0 if no sampling fn)
         :gradients => true,
-        :reloaded => false)                                 # Whether learners are reloaded  
+        :reloaded => false,                                 # Whether learners are reloaded  
+        :linked => false,
+        :linked_vars => [])
 end
 
 """
