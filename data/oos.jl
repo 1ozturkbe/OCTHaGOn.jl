@@ -102,10 +102,12 @@ function oos_gm!(op = oos_params())
     @variable(m, t_maneuver[1:n-1] >= 0)
     @constraint(m, sum(t_maneuver) <= op.maximum_time)
 
+    @objective(m, Min, wet_mass)
+
     gm = GlobalModel(model = m, name = "oos")
-    # Mass conservation constraints (bilinear) TODO: CHANGE
+    # Mass conservation constraints (bilinear)
     add_nonlinear_constraint(gm, :((masses, fractional_dmasses) -> masses[1, 2] * fractional_dmasses[1,1]), 
-        vars = [masses[1, 2], fractional_dmasses[1,1]], dependent_var = masses[1,1],
+        vars = [masses[1, 2], fractional_dmasses[1,1]], dependent_var = masses[1, 1],
         name = "mass_fraction")
     for j=2:4
         add_linked_constraint(gm, gm.bbls[end], [masses[1, j+1], fractional_dmasses[1,j]], masses[1,j])
@@ -139,6 +141,8 @@ function oos_gm!(op = oos_params())
             name = "maneuver_time")
     [add_linked_constraint(gm, gm.bbls[end], [dt_transfer_orbit[i], N_orbit[i], period_orbit[i]], t_maneuver[i])
         for i=2:n-1]
+
+    set_param(gm, :ignore_accuracy, true)
 
     return gm
 end
