@@ -270,20 +270,30 @@ function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuM
             # ADDING CONSTRAINTS
             leaf = all_leaves[i]
             β0, β = pwlDict[leaf]
-            if !isempty(ul_data) # Overwrite if we have a lower approximator
-                α0, α = ul_data[-leaf]
-                constraints[-leaf] = [@constraint(m, sum(α .* x) + α0 + M * (1 .- z[i]) >= y)] #TODO: could be problematic
-                [lr.mi_constraints[-leaf] = [@constraint(m, sum(α .* lr.vars) + α0 + 
-                        M * (1 .- lr.leaf_variables[leaf]) >= lr.dependent_var)] for lr in lrs]
-                β0, β = ul_data[leaf]
-            end
-            push!(constraints[leaf], @constraint(m, sum(β .* x) + β0 <= y + M * (1 .- z[i])))
-            [push!(lr.mi_constraints[leaf], @constraint(m, sum(β .* lr.vars) + β0 <= 
-                    lr.dependent_var + M * (1 .- lr.leaf_variables[leaf]))) for lr in lrs]
             if equality
+                # Use the ridge regressor!
                 push!(constraints[leaf], @constraint(m, sum(β .* x) + β0 + M * (1 .- z[i]) >= y))
                 [push!(lr.mi_constraints[leaf],  @constraint(m, sum(β .* lr.vars) + 
                     β0 + M * (1 .- lr.leaf_variables[leaf]) >= lr.dependent_var)) for lr in lrs]
+                push!(constraints[leaf], @constraint(m, sum(β .* x) + β0 <= y + M * (1 .- z[i])))
+                [push!(lr.mi_constraints[leaf], @constraint(m, sum(β .* lr.vars) + β0 <= 
+                        lr.dependent_var + M * (1 .- lr.leaf_variables[leaf]))) for lr in lrs]
+                # And use the lower bound
+                β0, β = ul_data[leaf]
+                push!(constraints[leaf], @constraint(m, sum(β .* x) + β0 <= y + M * (1 .- z[i])))
+                [push!(lr.mi_constraints[leaf], @constraint(m, sum(β .* lr.vars) + β0 <= 
+                        lr.dependent_var + M * (1 .- lr.leaf_variables[leaf]))) for lr in lrs]
+            elseif !isempty(ul_data) 
+                # Use only the lower approximator
+                β0, β = ul_data[leaf] # update the lower approximator
+                push!(constraints[leaf], @constraint(m, sum(β .* x) + β0 <= y + M * (1 .- z[i])))
+                [push!(lr.mi_constraints[leaf], @constraint(m, sum(β .* lr.vars) + β0 <= 
+                        lr.dependent_var + M * (1 .- lr.leaf_variables[leaf]))) for lr in lrs]
+            else 
+                # Use only the ridge regressor as the lower approximator. 
+                push!(constraints[leaf], @constraint(m, sum(β .* x) + β0 <= y + M * (1 .- z[i])))
+                [push!(lr.mi_constraints[leaf], @constraint(m, sum(β .* lr.vars) + β0 <= 
+                        lr.dependent_var + M * (1 .- lr.leaf_variables[leaf]))) for lr in lrs]
             end
             # ADDING TRUST REGIONS
             for region in upperDict[leaf]

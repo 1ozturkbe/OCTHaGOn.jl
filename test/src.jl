@@ -340,7 +340,7 @@ function test_bbr()
     clear_tree_constraints!(gm, bbr)
     update_tree_constraints!(gm, bbr, 2) # Updating nothing with single regressor
     @test all(sign.(collect(keys(bbr.leaf_variables))) .== 1) &&
-            2*length(bbr.leaf_variables) + 1 == length(bbr.mi_constraints) &&
+            length(bbr.leaf_variables) + 1 == length(bbr.mi_constraints) &&
                 bbr.active_trees == Dict(2 => bbr.thresholds[2])
     @test active_lower_tree(bbr) == 2 && active_upper_tree(bbr) == 2
 
@@ -558,15 +558,18 @@ function test_linking()
     set_upper_bound.(dy, 1)
     set_lower_bound.(dy, -1)
     gm = GlobalModel(model = m, name = "foxes_rabbits")
-    add_nonlinear_constraint(gm, :((dx, x, y) -> dx[1] - x[1]*(1-x[1]) + x[1]*y[1]/(x[1]+0.1)), vars = [dx[1], x[1], y[1]], equality=true)
-    add_nonlinear_constraint(gm, :((dy, x, y) -> dy[1] - 0.1*y[1]*(1-y[1]/x[1])), vars = [dy[1], x[1], y[1]], equality=true)
+    add_nonlinear_constraint(gm, :((x, y) -> x[1]*(1-x[1]) -x[1]*y[1]/(x[1]+0.2)), vars = [x[1], y[1]], 
+        dependent_var = dx[1], equality=true)
+    add_nonlinear_constraint(gm, :((x, y) -> 0.2*y[1]*(1-y[1]/x[1])), vars = [x[1], y[1]], 
+        dependent_var = dy[1], equality=true)
     for i = 2:t-1
-        add_linked_constraint(gm, gm.bbls[1], [dx[i], x[i], y[i]])
-        add_linked_constraint(gm, gm.bbls[2], [dy[i], x[i], y[i]])
+        add_linked_constraint(gm, gm.bbls[1], [x[i], y[i]], dx[i])
+        add_linked_constraint(gm, gm.bbls[2], [x[i], y[i]], dy[i])
     end
     uniform_sample_and_eval!(gm)
     # Usually would want to train the dynamics better, but for speed this is better!
-    learn_constraint!(gm) #, ls_num_tree_restarts = 50, ls_num_hyper_restarts = 50)
+    learn_constraint!(gm, max_depth = 3, ls_num_tree_restarts = 20, ls_num_hyper_restarts = 20)
+    set_param(gm, :ignore_accuracy, true)
     add_tree_constraints!(gm)
     optimize!(gm)
 
@@ -576,16 +579,16 @@ function test_linking()
     # plot!(getvalue.(y), label = "Predators", xlabel = "Time", ylabel = "Normalized population")
     # # OR simultaneously in the population dimensions
     # plot(getvalue.(m[:x]), getvalue.(m[:y]), xlabel = "Prey", ylabel = "Predators", label = 1:t, legend = false)
-    # return true
+    # # return true
 end
 
-function test_oos()
-    gm = oos_gm!()
-    uniform_sample_and_eval!(gm)
-    learn_constraint!(gm)
-    add_tree_constraints!(gm)
-    optimize!(gm)
-end
+# function test_oos()
+#     gm = oos_gm!()
+#     uniform_sample_and_eval!(gm)
+#     learn_constraint!(gm)
+#     add_tree_constraints!(gm)
+#     optimize!(gm)
+# end
 
     
 test_expressions()
@@ -616,4 +619,4 @@ test_data_driven()
 
 test_linking()
 
-test_oos()
+# test_oos()
