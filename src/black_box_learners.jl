@@ -218,6 +218,9 @@ Adds data to BlackBoxRegressor.
 function add_data!(bbr::BlackBoxRegressor, X::DataFrame, Y::Array)
     @assert length(Y) == size(X, 1)
     infeas_idxs = findall(x -> isinf(x), Y)
+    length(infeas_idxs) >= 0.5*length(Y) &&
+    throw(OCTException("A majority of samples on BBR $(bbr.name) evaluated as infeasible. " * 
+        "Please check your expressions. "))
     if isnothing(bbr.gradients) && get_param(bbr, :gradients) 
         bbr.gradients = DataFrame([Union{Missing, Float64} for i=1:length(bbr.vars)], string.(bbr.vars)) 
         bbr.curvatures = Union{Missing, Float64}[]
