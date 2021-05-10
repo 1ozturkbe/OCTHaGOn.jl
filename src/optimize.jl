@@ -19,26 +19,52 @@ function surveysolve(gm::GlobalModel)
 end
 
 """
-    function add_relaxation_variables(gm::GlobalModel, bbl::Union{BlackBoxLearner, LinkedLearner})
-    function add_relaxation_variables(gm::GlobalModel, bbls::Array)
+    function add_relaxation_variables!(gm::GlobalModel, bbl::Union{BlackBoxLearner, LinkedLearner})
+    function add_relaxation_variables!(gm::GlobalModel, bbls::Array)
+
 Populates relaxvar attributes of all substructs. 
 """
-function add_relaxation_variables(gm::GlobalModel, bbl::Union{BlackBoxLearner, LinkedLearner})
-    if isnothing(bbl.relax_var)
+function add_relaxation_variables!(gm::GlobalModel, bbl::Union{BlackBoxLearner, LinkedLearner})
+    if bbl.relaxvar isa Real
         bbl.relax_var = @variable(gm.model)
         @constraint(gm.model, bbl.relax_var >= 0)  
     end
+    if !isempty(bbl.mi_constraints)
+        clear_tree_constraints!(gm, bbl)
+        @info "Clearing MI constraints from $(bbl.name) due to relaxation."
+    end
     if bbl isa BlackBoxLearner
         for ll in bbl.lls
-            add_relaxation_variables(gm, ll)
+            add_relaxation_variables!(gm, ll)
         end
     end
 end
 
-function add_relaxation_variables(gm::GlobalModel, bbls::Array)
+function add_relaxation_variables!(gm::GlobalModel, bbls::Array)
     for bbl in bbls
-        add_relaxation_variables(gm, bbl)
+        add_relaxation_variables!(gm, bbl)
     end
 end
 
-add_relaxation_variables(gm::GlobalModel) = add_relaxation_variables(gm, gm.bbls)
+add_relaxation_variables!(gm::GlobalModel) = add_relaxation_variables!(gm, gm.bbls)
+
+function clear_relaxation_variables!(gm::GlobalModel, bbl::Union{BlackBoxLearner, LinkedLearner})
+    if bbl.relaxvar isa JuMP.VariableRef
+        is_valid(gm.model, bbl.relaxvar) || 
+            throw(OCTException("$(bbl.relaxvar) is not a valid variable of  $(gm.model)."))
+        delete(gm.model, bbl.relaxvar)
+    end
+    if bbl isa BlackBoxLearner
+        for ll in bbl.lls
+            clear_relaxation_variables!(gm, ll)
+        end
+    end
+end
+
+function clear_relaxation_variables!(gm::GlobalModel, bbls::Array)
+    for bbl in bbls
+        clear_relaxation_variables!(gm, bbl)
+    end
+end
+
+clear_relaxation_variables!(gm::GlobalModel) = clear_relaxation_variables!(gm, gm.bbls)
