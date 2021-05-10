@@ -116,6 +116,7 @@ module OptimalConstraintTree
         add_feas_constraints!, add_regr_constraints!,
         add_tree_constraints!, clear_tree_constraints!, update_tree_constraints!,
         clear_lower_constraints!, clear_upper_constraints!,
+        add_relaxation_variables,
 
         # BlackBoxLearner helpers
         show_trees, all_mi_constraints, active_lower_tree, active_upper_tree,

@@ -533,7 +533,7 @@ end
 # Predator prey model with logistic function from http://www.math.lsa.umich.edu/~rauch/256/F2Lab5.pdf
 function test_linking()
     m = Model(CPLEX_SILENT)
-    t = 25
+    t = 50
     r = 0.2
     x1 = 0.6
     y1 = 0.5

@@ -17,3 +17,28 @@ function surveysolve(gm::GlobalModel)
     optimize!(gm)
     return
 end
+
+"""
+    function add_relaxation_variables(gm::GlobalModel, bbl::Union{BlackBoxLearner, LinkedLearner})
+    function add_relaxation_variables(gm::GlobalModel, bbls::Array)
+Populates relaxvar attributes of all substructs. 
+"""
+function add_relaxation_variables(gm::GlobalModel, bbl::Union{BlackBoxLearner, LinkedLearner})
+    if isnothing(bbl.relax_var)
+        bbl.relax_var = @variable(gm.model)
+        @constraint(gm.model, bbl.relax_var >= 0)  
+    end
+    if bbl isa BlackBoxLearner
+        for ll in bbl.lls
+            add_relaxation_variables(gm, ll)
+        end
+    end
+end
+
+function add_relaxation_variables(gm::GlobalModel, bbls::Array)
+    for bbl in bbls
+        add_relaxation_variables(gm, bbl)
+    end
+end
+
+add_relaxation_variables(gm::GlobalModel) = add_relaxation_variables(gm, gm.bbls)

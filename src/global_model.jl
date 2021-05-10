@@ -9,7 +9,7 @@ nonlinear_model can contain JuMP.NonlinearConstraints.
     name::String = "Model"                                       # Name
     bbls::Array{BlackBoxLearner} = BlackBoxLearner[]             # Constraints to be learned
     vars::Array{JuMP.VariableRef} = JuMP.all_variables(model)    # JuMP variables
-    objective = JuMP.objective_function(gm.model)                # Original objective function
+    objective = JuMP.objective_function(model)                # Original objective function
     solution_history::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Solution history
     feas_history::Array = []                                     # Constraint feasibility history
     cost::Array = []                                             # List of costs. 
