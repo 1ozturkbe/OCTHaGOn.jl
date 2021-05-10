@@ -69,3 +69,15 @@ function clear_relaxation_variables!(gm::GlobalModel, bbls::Array)
 end
 
 clear_relaxation_variables!(gm::GlobalModel) = clear_relaxation_variables!(gm, gm.bbls)
+
+function relax_objective(gm::GlobalModel, M::Real = 1e5)
+    relax_term = 0
+    for bbl in gm.bbls
+        relax_term += bbl.relax_var
+        for ll in bbl.lls
+            relax_term += ll.relax_var
+        end
+    end
+    @objective(gm.model, Min, gm.objective + M * relax_term)
+    return 
+end

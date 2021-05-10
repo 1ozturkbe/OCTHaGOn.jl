@@ -112,7 +112,7 @@ module OptimalConstraintTree
         fit_regressor_kwargs, fit_classifier_kwargs, 
         regressor_kwargs, classifier_kwargs,
 
-        # Constraint generation/deletion
+        # Constraint/variable generation/deletion
         add_feas_constraints!, add_regr_constraints!,
         add_tree_constraints!, clear_tree_constraints!, update_tree_constraints!,
         clear_lower_constraints!, clear_upper_constraints!,
@@ -124,6 +124,7 @@ module OptimalConstraintTree
 
         # Algorithms
         add_infeasibility_cuts!, boundify, surveysolve,
+        relax_objective, 
 
         # Checks and exceptions
         feasibility, check_accuracy, check_feasibility, 
