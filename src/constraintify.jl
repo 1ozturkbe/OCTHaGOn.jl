@@ -13,10 +13,11 @@ function add_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier, idx = l
         bbc.mi_constraints = Dict(1 => [@constraint(gm.model, z_feas == 1)])
         bbc.leaf_variables = Dict(1 => z_feas)
     elseif get_param(bbc, :reloaded)
-        mi_constraints, leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[idx];
-                                            M=M, equality = bbc.equality, lcs = bbc.lcs)
-        bbc.mi_constraints = mi_constraints
-        bbc.leaf_variables = leaf_variables
+        mi, lv, av = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[idx];
+                                            M=M, equality = bbc.equality, lcs = bbc.lcs);
+        bbc.mi_constraints = mi
+        bbc.leaf_variables = lv
+        bbc.aux_variables = av
     elseif size(bbc.X, 1) == 0
         throw(OCTException("Constraint " * string(bbc.name) * " has not been sampled yet, and is thus untrained."))
     elseif isempty(bbc.learners)
@@ -28,10 +29,11 @@ function add_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier, idx = l
     elseif !get_param(gm, :ignore_accuracy) && !check_accuracy(bbc)
         throw(OCTException("Constraint " * string(bbc.name) * " is inaccurately approximated. "))
     else
-        mi_constraints, leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[idx];
+        mi, lv, av = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[idx];
                                             M=M, equality = bbc.equality, lcs = bbc.lcs);
-        bbc.mi_constraints = mi_constraints
-        bbc.leaf_variables = leaf_variables
+        bbc.mi_constraints = mi
+        bbc.leaf_variables = lv
+        bbc.aux_variables = av
     end
     return
 end
@@ -225,7 +227,7 @@ function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::I
             end
         end
     end
-    return constraints, leaf_variables
+    return constraints, leaf_variables, aux_variables
 end
 
 """
@@ -309,10 +311,10 @@ function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuM
                     sum(α .* lr.vars))) for lr in lrs]
             end
         end
-        return constraints, leaf_variables
+        return constraints, leaf_variables, aux_variables
     elseif lnr isa OptimalTreeClassifier
         isempty(lrs) || throw(OCTException("Bug: Cannot use OCTs to approximate linked BBRs."))
-        constraints, leaf_variables = add_feas_constraints!(m, x, lnr, M=M, equality=equality, lcs = lrs)
+        constraints, leaf_variables, aux_variables = add_feas_constraints!(m, x, lnr, M=M, equality=equality, lcs = lrs)
         if !isempty(ul_data)
             if all(keys(ul_data) .<= 0) || !all(keys(ul_data) .>= 0) # means an upper or upperlower bounding tree
                 constraints = Dict(-key => value for (key, value) in constraints) # hacky sign flipping for upkeep. 
@@ -329,7 +331,7 @@ function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuM
                 end
             end
         end
-        return constraints, leaf_variables
+        return constraints, leaf_variables, aux_variables
     end
 end
 
