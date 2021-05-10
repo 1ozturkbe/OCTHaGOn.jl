@@ -1,8 +1,9 @@
 """ Contains data for a constraint that is repeated. """
 @with_kw mutable struct LinkedClassifier
     vars::Array{JuMP.VariableRef,1}                    # JuMP variables (flat)
-    mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}()
-    leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() 
+    mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}() # and their corresponding MI constraints,
+    leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}()          # and binary leaf variables
+    aux_variables::Dict = Dict{Int64, Array[JuMP.VariableRef]}()    # and the continuous aux variables
 end
 
 function Base.show(io::IO, lc::LinkedClassifier)
@@ -15,7 +16,8 @@ end
     vars::Array{JuMP.VariableRef,1}                    # JuMP variables (flat)
     dependent_var::JuMP.VariableRef                    # Dependent variable
     mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}() # and their corresponding MI constraints,
-    leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their leaves and leaf variables
+    leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}()          # and binary leaf variables
+    aux_variables::Dict = Dict{Int64, Array[JuMP.VariableRef]}()    # and the continuous aux variables
     optima::Array = []
     actuals::Array = []
 end
@@ -77,7 +79,8 @@ Optional arguments:
     ul_data::Array{Dict} = Dict[]                      # Upper/lower bounding data
     active_trees::Dict{Int64, Union{Nothing, Pair}} = Dict() # Currently active tree indices
     mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}() # and their corresponding MI constraints,
-    leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their leaves and leaf variables
+    leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}()          # and binary leaf variables
+    aux_variables::Dict = Dict{Int64, Array[JuMP.VariableRef]}()    # and the continuous aux variables
     optima::Array = []
     actuals::Array = []
     lrs::Array{LinkedRegressor} = []                      # Linked regressor mi_constraints and leaf_variables
@@ -146,7 +149,8 @@ Optional arguments:
                           IAI.Heuristics.RandomForestClassifier}} = []    # Learners...
     learner_kwargs = []                                # And their kwargs... 
     mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}() # and their corresponding MI constraints,
-    leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their leaves and leaf variables
+    leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}()          # and binary leaf variables
+    aux_variables::Dict = Dict{Int64, Array[JuMP.VariableRef]}()    # and the continuous aux variables
     lcs::Array{LinkedClassifier} = []                  # LinkedClassifiers
     accuracies::Array{Float64} = []                    # and the tree misclassification scores.
     knn_tree::Union{KDTree, Nothing} = nothing         # KNN tree
