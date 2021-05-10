@@ -14,7 +14,7 @@ function add_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier, idx = l
         bbc.leaf_variables = Dict(1 => z_feas)
     elseif get_param(bbc, :reloaded)
         mi_constraints, leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[idx];
-                                            M=M, equality = bbc.equality, lcs = bbc.lcs)
+                                            M=M, equality = bbc.equality, lcs = bbc.lls)
         bbc.mi_constraints = mi_constraints
         bbc.leaf_variables = leaf_variables
     elseif size(bbc.X, 1) == 0
@@ -29,7 +29,7 @@ function add_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier, idx = l
         throw(OCTException("Constraint " * string(bbc.name) * " is inaccurately approximated. "))
     else
         mi_constraints, leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[idx];
-                                            M=M, equality = bbc.equality, lcs = bbc.lcs);
+                                            M=M, equality = bbc.equality, lcs = bbc.lls);
         bbc.mi_constraints = mi_constraints
         bbc.leaf_variables = leaf_variables
     end
@@ -49,7 +49,7 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
         end
         merge!(append!, bbr.mi_constraints, mi_constraints)
         if get_param(bbr, :linked)
-            for lr in bbr.lrs
+            for lr in bbr.lls
                 mc = Dict(1 => [])
                 for i = Int64.(floor.(size(bbr.X,1) .* rand(10)))
                     push!(mc[1], @constraint(gm.model, lr.dependent_var >= sum(Array(bbr.gradients[i,:]) .* (lr.vars .- Array(bbr.X[i, :]))) + bbr.Y[i]))
@@ -110,7 +110,7 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
     else
         mi_constraints, leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
                                                 bbr.learners[idx], bbr.ul_data[idx];
-                                                M = M, equality = bbr.equality, lrs = bbr.lrs)
+                                                M = M, equality = bbr.equality, lrs = bbr.lls)
         if bbr.thresholds[idx].first == "upper"
             push!(mi_constraints[-1], @constraint(gm.model, bbr.dependent_var <= bbr.thresholds[idx].second))
         elseif bbr.thresholds[idx].first == "lower"
@@ -362,7 +362,7 @@ function clear_upper_constraints!(gm, bbr::Union{BlackBoxRegressor, LinkedRegres
     if bbr isa BlackBoxRegressor
         idx = active_upper_tree(bbr)
         delete!(bbr.active_trees, idx)
-        for lr in bbr.lrs
+        for lr in bbr.lls
             clear_upper_constraints!(gm, lr)
         end
     end
@@ -398,7 +398,7 @@ function clear_lower_constraints!(gm, bbr::Union{BlackBoxRegressor, LinkedRegres
     if bbr isa BlackBoxRegressor
         idx = active_lower_tree(bbr)
         delete!(bbr.active_trees, idx)
-        for lr in bbr.lrs
+        for lr in bbr.lls
             clear_lower_constraints!(gm, lr)
         end
     end
@@ -436,7 +436,7 @@ function clear_tree_constraints!(gm::GlobalModel, bbc::Union{BlackBoxClassifier,
         end
     end
     if bbc isa BlackBoxClassifier
-        for lc in bbc.lcs
+        for lc in bbc.lls
             clear_tree_constraints!(gm, lc)
         end
     end

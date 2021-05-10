@@ -1,6 +1,7 @@
 """ Contains data for a constraint that is repeated. """
 @with_kw mutable struct LinkedClassifier
     vars::Array{JuMP.VariableRef,1}                    # JuMP variables (flat)
+    relax_var::Union{Real, JuMP.VariableRef} = 0.       # slack variable        
     mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}()
     leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() 
 end
@@ -14,6 +15,7 @@ end
 @with_kw mutable struct LinkedRegressor
     vars::Array{JuMP.VariableRef,1}                    # JuMP variables (flat)
     dependent_var::JuMP.VariableRef                    # Dependent variable
+    relax_var::Union{Real, JuMP.VariableRef} = 0.       # slack variable        
     mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}() # and their corresponding MI constraints,
     leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their leaves and leaf variables
     optima::Array = []
@@ -25,6 +27,8 @@ function Base.show(io::IO, lr::LinkedRegressor)
     println(io, "variables: $(lr.vars) ") # TODO: improve printing
     println(io, "and dependent variable: $(lr.dependent_var)")
 end
+
+LinkedLearner = Union{LinkedClassifier, LinkedRegressor}
 
 """
     @with_kw mutable struct BlackBoxRegressor
@@ -80,7 +84,8 @@ Optional arguments:
     leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their leaves and leaf variables
     optima::Array = []
     actuals::Array = []
-    lrs::Array{LinkedRegressor} = []                      # Linked regressor mi_constraints and leaf_variables
+    relax_var::Union{Float64, JuMP.VariableRef} = 0.    # slack variable        
+    lls::Array{LinkedRegressor} = []                   # Linked regressor mi_constraints and leaf_variables
     convex::Bool = false
     local_convexity::Float64 = 0.
     vexity::Dict = Dict{Int64, Tuple}()                # Size and convexity of leaves
@@ -93,7 +98,7 @@ function Base.show(io::IO, bbr::BlackBoxRegressor)
     println(io, "and dependent variable $(bbr.dependent_var).")
     println(io, "Sampled $(length(bbr.Y)) times, and has $(length(bbr.learners)) trained ORTs.")
     if get_param(bbr, :linked)
-        println(io, "Has $(length(bbr.lrs)) linked constraints.")
+        println(io, "Has $(length(bbr.lls)) linked constraints.")
     end
 end
 
@@ -147,7 +152,8 @@ Optional arguments:
     learner_kwargs = []                                # And their kwargs... 
     mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}() # and their corresponding MI constraints,
     leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their leaves and leaf variables
-    lcs::Array{LinkedClassifier} = []                  # LinkedClassifiers
+    lls::Array{LinkedClassifier} = []                  # LinkedClassifiers
+    relax_var::Union{Float64, JuMP.VariableRef} = 0.    # slack variable        
     accuracies::Array{Float64} = []                    # and the tree misclassification scores.
     knn_tree::Union{KDTree, Nothing} = nothing         # KNN tree
     params::Dict = bbc_defaults(length(vars))          # Relevant settings
@@ -161,7 +167,7 @@ function Base.show(io::IO, bbc::BlackBoxClassifier)
     end
     println(io, "Sampled $(length(bbc.Y)) times, and has $(length(bbc.learners)) trained OCTs.")
     if get_param(bbc, :linked)
-        println(io, "Has $(length(bbc.lcs)) linked constraints.")
+        println(io, "Has $(length(bbc.lls)) linked constraints.")
     end
     if get_param(bbc, :ignore_feasibility)
         if get_param(bbc, :ignore_accuracy)

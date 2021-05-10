@@ -69,7 +69,7 @@ module OptimalConstraintTree
         
         # STRUCTS
     export GlobalModel, BlackBoxLearner, BlackBoxClassifier, BlackBoxRegressor, 
-        LinkedClassifier, LinkedRegressor,
+        LinkedLearner, LinkedClassifier, LinkedRegressor,
 
     # JuMP.Model extensions to GlobalModel
         set_optimizer, optimize!,

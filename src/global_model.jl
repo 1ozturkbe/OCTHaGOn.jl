@@ -9,6 +9,7 @@ nonlinear_model can contain JuMP.NonlinearConstraints.
     name::String = "Model"                                       # Name
     bbls::Array{BlackBoxLearner} = BlackBoxLearner[]             # Constraints to be learned
     vars::Array{JuMP.VariableRef} = JuMP.all_variables(model)    # JuMP variables
+    objective = JuMP.objective_function(gm.model)                # Original objective function
     solution_history::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Solution history
     feas_history::Array = []                                     # Constraint feasibility history
     cost::Array = []                                             # List of costs. 
@@ -243,7 +244,7 @@ function add_linked_constraint(gm::GlobalModel, bbc::BlackBoxClassifier, vars::A
         @info "Cleared constraints from BBC $(bbc.name) since it was relinked."
     end
     get_param(bbc, :linked) || set_param(bbc, :linked, true)
-    push!(bbc.lcs, LinkedClassifier(vars = vars))
+    push!(bbc.lls, LinkedClassifier(vars = vars))
     return
 end
 
@@ -256,7 +257,7 @@ function add_linked_constraint(gm::GlobalModel, bbr::BlackBoxRegressor, vars::Ar
         @info "Cleared constraints from BBR $(bbr.name) since it was relinked."
     end
     get_param(bbr, :linked) || set_param(bbr, :linked, true)
-    push!(bbr.lrs, LinkedRegressor(vars = vars, dependent_var = dependent_var))
+    push!(bbr.lls, LinkedRegressor(vars = vars, dependent_var = dependent_var))
     return
 end
 
