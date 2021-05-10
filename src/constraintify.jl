@@ -141,7 +141,7 @@ add_tree_constraints!(gm::GlobalModel; M = 1e5) = add_tree_constraints!(gm, gm.b
         x:: JuMPVariables (features in lnr)
 """
 function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::IAI.OptimalTreeLearner;
-                               M::Float64 = 1.e5, equality::Bool = false, 
+                               M::Float64 = 1.e5, equality::Bool = false, relax_var::Union{Real, JuMP.VariableRef} = 0,
                                lcs::Array = [])
     check_if_trained(lnr);
     all_leaves = find_leaves(lnr)
@@ -171,17 +171,17 @@ function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::I
         # ADDING TRUST REGIONS
         for region in upperDict[leaf]
             threshold, α = region
-            push!(constraints[leaf], @constraint(m, threshold <= sum(α .* x) + M * (1 - z_feas[i])))
+            push!(constraints[leaf], @constraint(m, threshold <= sum(α .* x) + M * (1 + relax_var - z_feas[i])))
             for lc in lcs
                 push!(lc.mi_constraints[leaf], @constraint(m, threshold <= sum(α .* lc.vars) + 
-                            M * (1 - lc.leaf_variables[leaf])))
+                            M * (1 + lc.relax_var - lc.leaf_variables[leaf])))
             end
         end
         for region in lowerDict[leaf]
             threshold, α = region
-            push!(constraints[leaf], @constraint(m, threshold + M * (1 - z_feas[i]) >= sum(α .* x)))
+            push!(constraints[leaf], @constraint(m, threshold + M * (1 + relax_var - z_feas[i]) >= sum(α .* x)))
             for lc in lcs
-                push!(lc.mi_constraints[leaf], @constraint(m, threshold + M * (1 - lc.leaf_variables[leaf]) >= 
+                push!(lc.mi_constraints[leaf], @constraint(m, threshold + M * (1 + lc.relax_var - lc.leaf_variables[leaf]) >= 
                                                                 sum(α .* lc.vars)))
             end
         end
@@ -209,17 +209,17 @@ function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::I
             # ADDING TRUST REGIONS
             for region in upperDict[leaf]
                 threshold, α = region
-                push!(constraints[leaf], @constraint(m, threshold <= sum(α .* x) + M * (1 - z_infeas[i])))
+                push!(constraints[leaf], @constraint(m, threshold <= sum(α .* x) + M * (1 + relax_var - z_infeas[i])))
                 for lc in lcs
                     push!(lc.mi_constraints[leaf], @constraint(m, threshold <= sum(α .* lc.vars) + 
-                                M * (1 - lc.leaf_variables[leaf])))
+                                M * (1 + lc.relax_var - lc.leaf_variables[leaf])))
                 end
             end
             for region in lowerDict[leaf]
                 threshold, α = region
-                push!(constraints[leaf], @constraint(m, threshold + M * (1 - z_infeas[i]) >= sum(α .* x)))
+                push!(constraints[leaf], @constraint(m, threshold + M * (1 + relax_var - z_infeas[i]) >= sum(α .* x)))
                 for lc in lcs
-                    push!(lc.mi_constraints[leaf], @constraint(m, threshold + M * (1 - lc.leaf_variables[leaf]) >= 
+                    push!(lc.mi_constraints[leaf], @constraint(m, threshold + M * (1 + lc.relax_var - lc.leaf_variables[leaf]) >= 
                                                                     sum(α .* lc.vars)))
                 end
             end
