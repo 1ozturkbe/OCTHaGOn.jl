@@ -22,10 +22,10 @@ end
     function add_relaxation_variables!(gm::GlobalModel, bbl::Union{BlackBoxLearner, LinkedLearner})
     function add_relaxation_variables!(gm::GlobalModel, bbls::Array)
 
-Populates relaxvar attributes of all substructs. 
+Populates relax_var attributes of all substructs. 
 """
 function add_relaxation_variables!(gm::GlobalModel, bbl::Union{BlackBoxLearner, LinkedLearner})
-    if bbl.relaxvar isa Real
+    if bbl.relax_var isa Real
         bbl.relax_var = @variable(gm.model)
         @constraint(gm.model, bbl.relax_var >= 0)  
     end
@@ -49,10 +49,11 @@ end
 add_relaxation_variables!(gm::GlobalModel) = add_relaxation_variables!(gm, gm.bbls)
 
 function clear_relaxation_variables!(gm::GlobalModel, bbl::Union{BlackBoxLearner, LinkedLearner})
-    if bbl.relaxvar isa JuMP.VariableRef
-        is_valid(gm.model, bbl.relaxvar) || 
-            throw(OCTException("$(bbl.relaxvar) is not a valid variable of  $(gm.model)."))
-        delete(gm.model, bbl.relaxvar)
+    if bbl.relax_var isa JuMP.VariableRef
+        is_valid(gm.model, bbl.relax_var) || 
+            throw(OCTException("$(bbl.relax_var) is not a valid variable of  $(gm.model)."))
+        delete(gm.model, bbl.relax_var)
+        bbl.relax_var = 0
     end
     if bbl isa BlackBoxLearner
         for ll in bbl.lls
