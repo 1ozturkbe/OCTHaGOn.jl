@@ -533,7 +533,7 @@ end
 # Predator prey model with logistic function from http://www.math.lsa.umich.edu/~rauch/256/F2Lab5.pdf
 function test_linking()
     m = Model(CPLEX_SILENT)
-    t = 50
+    t = 100
     r = 0.2
     x1 = 0.6
     y1 = 0.5
@@ -568,7 +568,7 @@ function test_linking()
     end
     uniform_sample_and_eval!(gm)
     # Usually would want to train the dynamics better, but for speed this is better!
-    learn_constraint!(gm, max_depth = 3, ls_num_tree_restarts = 20, ls_num_hyper_restarts = 20)
+    learn_constraint!(gm, max_depth = 3, ls_num_tree_restarts = 5, ls_num_hyper_restarts = 5)
     set_param(gm, :ignore_accuracy, true)
     add_tree_constraints!(gm)
     optimize!(gm)
@@ -583,40 +583,55 @@ function test_linking()
 end
 
 # function test_oos()
-#     gm = oos_gm!()
-#     uniform_sample_and_eval!(gm)
-#     learn_constraint!(gm)
-#     add_tree_constraints!(gm)
-#     optimize!(gm)
+    op = oos_params()
+    gm = oos_gm!()
+    m = gm.model
+    uniform_sample_and_eval!(gm)
+    learn_constraint!(gm)
+    add_tree_constraints!(gm)
+    @test_throws MOI.ResultIndexBoundsError optimize!(gm)
+
+    add_relaxation_variables!(gm)
+    relax_objective(gm)
+    add_tree_constraints!(gm)
+    optimize!(gm)
+
+    # Printing results
+    println("Orbit altitudes (km) : $(round.(getvalue.(m[:r_orbit]), sigdigits=5))")
+    println("Satellite order: $(Int.(round.(getvalue.(m[:sat_order]))))")
+    println("True anomalies (radians): $(round.(getvalue.(m[:ta]), sigdigits=3))")
+    println("Orbital revolutions: $(round.(abs.(op.period_sat .* getvalue.(m[:ta]) ./ getvalue.(m[:dt_orbit])), sigdigits=5)))")
+    println("Time for maneuvers (days): $(round.(getvalue.(m[:t_maneuver])./(24*3600), sigdigits=3))")
+    println("Total mission time (years): $(sum(getvalue.(m[:t_maneuver]))/(24*3600*365))")
 # end
 
     
-test_expressions()
+# test_expressions()
 
-test_variables()
+# test_variables()
 
-test_bounds()
+# test_bounds()
 
-test_sets()
+# test_sets()
 
-test_linearize()
+# test_linearize()
 
-test_nonlinearize()
+# test_nonlinearize()
 
-test_bbc()
+# test_bbc()
 
-test_kwargs()
+# test_kwargs()
 
-test_regress()
+# test_regress()
 
-test_bbr()
+# test_bbr()
 
-test_basic_gm()
+# test_basic_gm()
 
-test_convex_objective()
+# test_convex_objective()
 
-test_data_driven()
+# test_data_driven()
 
-test_linking()
+# test_linking()
 
 # test_oos()

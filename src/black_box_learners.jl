@@ -84,7 +84,7 @@ Optional arguments:
     leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their leaves and leaf variables
     optima::Array = []
     actuals::Array = []
-    relax_var::Union{Float64, JuMP.VariableRef} = 0.    # slack variable        
+    relax_var::Union{Real, JuMP.VariableRef} = 0.    # slack variable        
     lls::Array{LinkedRegressor} = []                   # Linked regressor mi_constraints and leaf_variables
     convex::Bool = false
     local_convexity::Float64 = 0.
@@ -153,7 +153,7 @@ Optional arguments:
     mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}() # and their corresponding MI constraints,
     leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their leaves and leaf variables
     lls::Array{LinkedClassifier} = []                  # LinkedClassifiers
-    relax_var::Union{Float64, JuMP.VariableRef} = 0.    # slack variable        
+    relax_var::Union{Real, JuMP.VariableRef} = 0.    # slack variable        
     accuracies::Array{Float64} = []                    # and the tree misclassification scores.
     knn_tree::Union{KDTree, Nothing} = nothing         # KNN tree
     params::Dict = bbc_defaults(length(vars))          # Relevant settings

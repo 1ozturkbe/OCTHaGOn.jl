@@ -141,7 +141,8 @@ add_tree_constraints!(gm::GlobalModel; M = 1e5) = add_tree_constraints!(gm, gm.b
         x:: JuMPVariables (features in lnr)
 """
 function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::IAI.OptimalTreeLearner;
-                               M::Float64 = 1.e5, equality::Bool = false, relax_var::Union{Real, JuMP.VariableRef} = 0,
+                               M::Float64 = 1.e5, equality::Bool = false, 
+                               relax_var::Union{Real, JuMP.VariableRef} = 0,
                                lcs::Array = [])
     check_if_trained(lnr);
     all_leaves = find_leaves(lnr)
@@ -245,7 +246,9 @@ Arguments:
 function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuMP.VariableRef, 
                                lnr::IAI.OptimalTreeLearner,
                                ul_data::Dict; M::Float64 = 1.e5, equality::Bool = false, 
+                               relax_var::Union{Real, JuMP.VariableRef} = 0,
                                lrs::Array = [])
+    # TODO: Determine whether I should relax approximator or trust regions or both. 
     if lnr isa OptimalTreeRegressor                
         check_if_trained(lnr)
         all_leaves = find_leaves(lnr)
@@ -272,40 +275,40 @@ function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuM
             β0, β = pwlDict[leaf]
             if equality
                 # Use the ridge regressor!
-                push!(constraints[leaf], @constraint(m, sum(β .* x) + β0 + M * (1 .- z[i]) >= y))
+                push!(constraints[leaf], @constraint(m, sum(β .* x) + β0 + M * (1 + relax_var .- z[i]) >= y))
                 [push!(lr.mi_constraints[leaf],  @constraint(m, sum(β .* lr.vars) + 
-                    β0 + M * (1 .- lr.leaf_variables[leaf]) >= lr.dependent_var)) for lr in lrs]
-                push!(constraints[leaf], @constraint(m, sum(β .* x) + β0 <= y + M * (1 .- z[i])))
+                    β0 + M * (1 + lr.relax_var .- lr.leaf_variables[leaf]) >= lr.dependent_var)) for lr in lrs]
+                push!(constraints[leaf], @constraint(m, sum(β .* x) + β0 <= y + M * (1 + relax_var .- z[i])))
                 [push!(lr.mi_constraints[leaf], @constraint(m, sum(β .* lr.vars) + β0 <= 
-                        lr.dependent_var + M * (1 .- lr.leaf_variables[leaf]))) for lr in lrs]
+                        lr.dependent_var + M * (1 + lr.relax_var .- lr.leaf_variables[leaf]))) for lr in lrs]
                 # And use the lower bound
                 β0, β = ul_data[leaf]
-                push!(constraints[leaf], @constraint(m, sum(β .* x) + β0 <= y + M * (1 .- z[i])))
+                push!(constraints[leaf], @constraint(m, sum(β .* x) + β0 <= y + M * (1 + relax_var .- z[i])))
                 [push!(lr.mi_constraints[leaf], @constraint(m, sum(β .* lr.vars) + β0 <= 
-                        lr.dependent_var + M * (1 .- lr.leaf_variables[leaf]))) for lr in lrs]
+                        lr.dependent_var + M * (1 + lr.relax_var.- lr.leaf_variables[leaf]))) for lr in lrs]
             elseif !isempty(ul_data) 
                 # Use only the lower approximator
                 β0, β = ul_data[leaf] # update the lower approximator
-                push!(constraints[leaf], @constraint(m, sum(β .* x) + β0 <= y + M * (1 .- z[i])))
+                push!(constraints[leaf], @constraint(m, sum(β .* x) + β0 <= y + M * (1 + relax_var.- z[i])))
                 [push!(lr.mi_constraints[leaf], @constraint(m, sum(β .* lr.vars) + β0 <= 
-                        lr.dependent_var + M * (1 .- lr.leaf_variables[leaf]))) for lr in lrs]
+                        lr.dependent_var + M * (1 + lr.relax_var .- lr.leaf_variables[leaf]))) for lr in lrs]
             else 
                 # Use only the ridge regressor as the lower approximator. 
-                push!(constraints[leaf], @constraint(m, sum(β .* x) + β0 <= y + M * (1 .- z[i])))
+                push!(constraints[leaf], @constraint(m, sum(β .* x) + β0 <= y + M * (1 + relax_var .- z[i])))
                 [push!(lr.mi_constraints[leaf], @constraint(m, sum(β .* lr.vars) + β0 <= 
-                        lr.dependent_var + M * (1 .- lr.leaf_variables[leaf]))) for lr in lrs]
+                        lr.dependent_var + M * (1 + lr.relax_var .- lr.leaf_variables[leaf]))) for lr in lrs]
             end
             # ADDING TRUST REGIONS
             for region in upperDict[leaf]
                 threshold, α = region
-                push!(constraints[leaf], @constraint(m, threshold <= sum(α .* x) + M * (1 - z[i])))
+                push!(constraints[leaf], @constraint(m, threshold <= sum(α .* x) + M * (1 + relax_var - z[i])))
                 [push!(lr.mi_constraints[leaf], @constraint(m, threshold <= sum(α .* lr.vars) + 
-                    M * (1 - lr.leaf_variables[leaf]))) for lr in lrs]
+                    M * (1 + lr.relax_var - lr.leaf_variables[leaf]))) for lr in lrs]
             end
             for region in lowerDict[leaf]
                 threshold, α = region
-                push!(constraints[leaf], @constraint(m, threshold + M * (1 - z[i]) >= sum(α .* x)))
-                [push!(lr.mi_constraints[leaf], @constraint(m, threshold + M * (1 - lr.leaf_variables[leaf]) >= 
+                push!(constraints[leaf], @constraint(m, threshold + M * (1 + relax_var - z[i]) >= sum(α .* x)))
+                [push!(lr.mi_constraints[leaf], @constraint(m, threshold + M * (1 + lr.relax_var - lr.leaf_variables[leaf]) >= 
                     sum(α .* lr.vars))) for lr in lrs]
             end
         end
@@ -321,11 +324,11 @@ function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuM
             for leaf in collect(keys(ul_data))
                 γ0, γ = ul_data[leaf]
                 if !haskey(constraints, leaf) # occurs with ORTS with bounding hyperplanes
-                    constraints[leaf] = [@constraint(m, y <= γ0 + sum(γ .* x) + M * (1 .- leaf_variables[-leaf]))]
+                    constraints[leaf] = [@constraint(m, y <= γ0 + sum(γ .* x) + M * (1 + relax_var .- leaf_variables[-leaf]))]
                 elseif leaf <= 0
-                    push!(constraints[leaf], @constraint(m, y <= γ0 + sum(γ .* x) + M * (1 .- leaf_variables[leaf])))
+                    push!(constraints[leaf], @constraint(m, y <= γ0 + sum(γ .* x) + M * (1 + relax_var .- leaf_variables[leaf])))
                 else
-                    push!(constraints[leaf], @constraint(m, y + M * (1 .- leaf_variables[leaf]) >= γ0 + sum(γ .* x)))
+                    push!(constraints[leaf], @constraint(m, y + M * (1 + relax_var .- leaf_variables[leaf]) >= γ0 + sum(γ .* x)))
                 end
             end
         end
