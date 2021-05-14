@@ -92,12 +92,14 @@ function oos_gm!(op = oos_params())
                                 sqrt($(op.mu)/r_orbit[1])*(sqrt(2 * $(op.r_sat)/($(op.r_sat) + r_orbit[1]))-1)), 
                                                                       exp(1/($(op.g)*$(op.Isp)) * 
                                 sqrt($(op.mu)/$(op.r_sat))*(sqrt(2 * r_orbit[1]/($(op.r_sat) + r_orbit[1]))-1))])), 
-                                vars = [r_orbit[1]], dependent_var = dmass_entry[1])
+                                vars = [r_orbit[1]], dependent_var = dmass_entry[1],
+                                name = "dmass_entry")
     add_nonlinear_constraint(gm, :(r_orbit -> maximum([exp(1/($(op.g)*$(op.Isp)) * 
                                 sqrt($(op.mu)/$(op.r_sat))*(1 - sqrt(2 * r_orbit[1]/($(op.r_sat) + r_orbit[1])))),
                                                                       exp(1/($(op.g)*$(op.Isp)) * 
                                 sqrt($(op.mu)/r_orbit[1])*(1 - sqrt(2 * $(op.r_sat)/($(op.r_sat) + r_orbit[1]))))])), 
-                                vars = [r_orbit[1]], dependent_var = dmass_exit[1])
+                                vars = [r_orbit[1]], dependent_var = dmass_exit[1],
+                                name = "dmass_exit")
     for i = 2:n-1
         add_linked_constraint(gm, gm.bbls[end-1], [r_orbit[i]], dmass_entry[i])
         add_linked_constraint(gm, gm.bbls[end], [r_orbit[i]], dmass_exit[i])
