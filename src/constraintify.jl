@@ -44,14 +44,14 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
     elseif bbr.convex
         clear_tree_constraints!(gm, bbr)
         mi_constraints = Dict(1 => [])
-        for i = Int64.(floor.(size(bbr.X,1) .* rand(10)))
+        for i = Int64.(ceil.(size(bbr.X,1) .* rand(10)))
             push!(mi_constraints[1], @constraint(gm.model, bbr.dependent_var >= sum(Array(bbr.gradients[i,:]) .* (bbr.vars .- Array(bbr.X[i, :]))) + bbr.Y[i]))
         end
         merge!(append!, bbr.mi_constraints, mi_constraints)
         if get_param(bbr, :linked)
             for lr in bbr.lls
                 mc = Dict(1 => [])
-                for i = Int64.(floor.(size(bbr.X,1) .* rand(10)))
+                for i = Int64.(ceil.(size(bbr.X,1) .* rand(10)))
                     push!(mc[1], @constraint(gm.model, lr.dependent_var >= sum(Array(bbr.gradients[i,:]) .* (lr.vars .- Array(bbr.X[i, :]))) + bbr.Y[i]))
                 end
                 merge!(append!, lr.mi_constraints, mc)
