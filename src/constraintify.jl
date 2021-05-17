@@ -98,14 +98,18 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
                                                             "before adding new constraints."))
     end
     if bbr.thresholds[idx].first == "rfreg"
-
+        # NOTE: RFREG augments LinkedLearners. THIS WILL CAUSE BUGS. NOT A FULLY SUPPORTED FEATURE. 
         trees = get_random_trees(bbr.learners[idx])
-        for i=1:length(trees)
+        mi_constraints, leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
+                    trees[1], bbr.ul_data[idx][1]; M = M, equality = bbr.equality) 
+        for i=2:length(trees)
             mic, miv = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
                                                 trees[i], bbr.ul_data[idx][i];
-                                                M = M, equality = bbr.equality)                                     
-            merge!(append!, mi_constraints, mic)
-            merge!(append!, leaf_variables, miv)
+                                                M = M, equality = bbr.equality) 
+            nll = LinkedRegressor(vars = bbr.vars, dependent_var = bbr.dependent_var)
+            merge!(append!, nll.mi_constraints, mic)
+            merge!(append!, nll.leaf_variables, miv)       
+            push!(bbr.lls, nll)
         end
         merge!(append!, bbr.mi_constraints, mi_constraints)
         merge!(append!, bbr.leaf_variables, leaf_variables)
