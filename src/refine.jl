@@ -73,8 +73,11 @@ function u_regress(X::DataFrame, Y::Array; solver = CPLEX_SILENT)
     m = JuMP.Model(with_optimizer(solver))
     @variable(m, α[1:size(X, 2)])
     @variable(m, α0)
+    @variable(m, err[1:length(Y)] >= 0)
     @constraint(m, [i=1:length(Y)], sum(Array{Float64}(X[i, :]).* α) + α0 >= Y[i])
-    @objective(m, Min, sum(((Matrix(X) * α .+ α0 - Y).^2)))
+    @constraint(m, err .>= (Matrix(X) * α .+ α0 - Y))
+    @constraint(m, err .>= -(Matrix(X) * α .+ α0 - Y))
+    @objective(m, Min, sum(err.^2))
     try
         optimize!(m)
         return getvalue(α0), getvalue.(α)
@@ -97,8 +100,11 @@ function l_regress(X::DataFrame, Y::Array; solver = CPLEX_SILENT)
     m = JuMP.Model(with_optimizer(solver))
     @variable(m, β[1:size(X, 2)])
     @variable(m, β0)
+    @variable(m, err[1:length(Y)] >= 0)
     @constraint(m, [i=1:length(Y)], sum(Array{Float64}(X[i, :]).* β) + β0 <= Y[i])
-    @objective(m, Min, sum(((Y - (Matrix(X) * β .+ β0)).^2)))
+    @constraint(m, err .>= (Matrix(X) * β .+ β0 - Y))
+    @constraint(m, err .>= -(Matrix(X) * β .+ β0 - Y))
+    @objective(m, Min, sum(err.^2))
     try
         optimize!(m)
         return getvalue(β0), getvalue.(β)
@@ -153,20 +159,21 @@ Adds cuts reducing infeasibility of BBC inequalities.
 function add_infeasibility_cuts!(gm::GlobalModel, M = 1e5)
     #TODO: CHECK REGRESSION EQUALITIES.
     #TODO: ADD CUTS TO LINKEDCONSTRAINTS. 
-    sol_leaves = find_leaf_of_soln.(gm.bbls)
     var_vals = solution(gm)
     for i=1:length(gm.bbls)
         # Inequality Classifiers
         if get_param(gm.bbls[i], :gradients) && gm.bbls[i] isa BlackBoxClassifier && gm.feas_history[end][i] <= 0 && !gm.bbls[i].equality
             bbc = gm.bbls[i]
+            active_leaf = bbc.active_leaves[1]
+            @assert length(bbc.active_leaves) == 1
             rel_vals = var_vals[:, string.(bbc.vars)]
             eval!(bbc, rel_vals)
             Y = bbc.Y[end]
             update_gradients(bbc, [size(bbc.X, 1)])
             cut_grad = bbc.gradients[end, :]
-            push!(bbc.mi_constraints[sol_leaves[i]], 
+            push!(bbc.mi_constraints[active_leaf], 
                 @constraint(gm.model, sum(Array(cut_grad) .* (bbc.vars .- Array(rel_vals)')) + Y + 
-                                      M*(1 - bbc.leaf_variables[sol_leaves[i]]) >= 0)) 
+                                      M*(1 - bbc.leaf_variables[active_leaf]) >= 0)) 
         # Convex Regressors
         elseif get_param(gm.bbls[i], :gradients) && gm.bbls[i] isa BlackBoxRegressor && gm.feas_history[end][i] <= 0
             bbr = gm.bbls[i]

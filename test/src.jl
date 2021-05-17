@@ -392,8 +392,8 @@ function test_bbr()
         df = last_leaf_sample(bbc)
         @test size(df, 1) == get_param(bbc, :n_samples)
     end
-    update_tree_constraints!(gm, bbr, 2)
-    @test_throws OptimizeNotCalled last_leaf_sample(bbcs[1])
+    update_tree_constraints!(gm, bbcs[1])
+    @test_throws OCTException last_leaf_sample(bbcs[1])
 
     @test all(Array(gm.solution_history[:,"obj"]) .≈ gm.solution_history[1, "obj"])
 
@@ -423,8 +423,7 @@ function test_basic_gm()
     add_tree_constraints!(gm)
     optimize!(gm)
     vals = solution(gm);
-    init_leaves = [find_leaf_of_soln(bbl) for bbl in gm.bbls]
-    @test all(init_leaves[i] in keys(gm.bbls[i].leaf_variables) for i=1:length(gm.bbls))
+    @test all(gm.bbls[i].active_leaves[1] in keys(gm.bbls[i].leaf_variables) for i=1:length(gm.bbls))
     println("X values: ", vals)
     println("Optimal X: ", vcat(exp.([5.01063529, 3.40119660, -0.48450710]), [-147-2/3]))
 
@@ -480,7 +479,7 @@ function test_convex_objective()
     
     # Testing adding gradient cuts
     optimize!(gm)
-    @test find_leaf_of_soln.(gm.bbls) == [1]
+    @test gm.bbls[1].active_leaves == []
     add_infeasibility_cuts!(gm)
     optimize!(gm)
     while abs(gm.cost[end] - gm.cost[end-1]) >  get_param(gm, :abstol)
@@ -507,6 +506,9 @@ function test_data_driven()
     @test isnothing(get_unbounds(gm))
 end
 
+""" Test RandomForest learners for BlackBoxRegression.
+NOTE: Although rfreg is tested, IT IS NOT A SUPPORTED FEATURE SINCE IT
+IS NOT USEFUL FOR MOST PROBLEMS. """
 function test_rfs()
     gm = minlp(true)
     init_constraints = sum(length(all_constraints(gm.model, type[1], type[2])) 
@@ -533,7 +535,7 @@ end
 # Predator prey model with logistic function from http://www.math.lsa.umich.edu/~rauch/256/F2Lab5.pdf
 function test_linking()
     m = Model(CPLEX_SILENT)
-    t = 25
+    t = 100
     r = 0.2
     x1 = 0.6
     y1 = 0.5
@@ -568,7 +570,7 @@ function test_linking()
     end
     uniform_sample_and_eval!(gm)
     # Usually would want to train the dynamics better, but for speed this is better!
-    learn_constraint!(gm, max_depth = 3, ls_num_tree_restarts = 20, ls_num_hyper_restarts = 20)
+    learn_constraint!(gm, max_depth = 3, ls_num_tree_restarts = 5, ls_num_hyper_restarts = 5)
     set_param(gm, :ignore_accuracy, true)
     add_tree_constraints!(gm)
     optimize!(gm)
@@ -579,18 +581,67 @@ function test_linking()
     # plot!(getvalue.(y), label = "Predators", xlabel = "Time", ylabel = "Normalized population")
     # # OR simultaneously in the population dimensions
     # plot(getvalue.(m[:x]), getvalue.(m[:y]), xlabel = "Prey", ylabel = "Predators", label = 1:t, legend = false)
-    # # return true
+    return true
 end
 
-# function test_oos()
-#     gm = oos_gm!()
-#     uniform_sample_and_eval!(gm)
-#     learn_constraint!(gm)
-#     add_tree_constraints!(gm)
-#     optimize!(gm)
-# end
+function test_oos()
+    op = oos_params()
+    gm = oos_gm!()
+    m = gm.model
+    uniform_sample_and_eval!(gm)
+    update_vexity.(gm.bbls)
+    learn_constraint!(gm, ls_num_hyper_restarts = 20, ls_num_tree_restarts = 20)
+    add_tree_constraints!(gm)
+    optimize!(gm)
+    # @test_throws MOI.ResultIndexBoundsError optimize!(gm)
 
-    
+    add_relaxation_variables!(gm)
+    relax_objective(gm)
+    add_tree_constraints!(gm)
+    optimize!(gm)
+
+    # Printing results
+    println("Orbit altitudes (km) : $(round.(getvalue.(m[:r_orbit])./1e3, sigdigits=5))")
+    println("Satellite order: $(Int.(round.(getvalue.(m[:sat_order]))))")
+    println("True anomalies (radians): $(round.(getvalue.(m[:ta]), sigdigits=3))")
+    println("Orbital revolutions: $(round.(getvalue.(m[:N_orbit]), sigdigits=5)))")
+    println("Time for maneuvers (days): $(round.(getvalue.(m[:t_maneuver])./(24*3600), sigdigits=3))")
+    println("Total mission time (years): $(sum(getvalue.(m[:t_maneuver]))/(24*3600*365))")
+
+    # Post-processing
+    plot_r = (getvalue.(m[:r_orbit]) .- op.rE)./1e3
+    ords = Int.(round.(getvalue.(m[:sat_order])))
+    times = round.(getvalue.(m[:t_maneuver])./(24*3600), sigdigits=3) # days
+    revs = round.(getvalue.(m[:N_orbit]), sigdigits=5)
+    refuels = round.(getvalue.(m[:fuel_needed]), sigdigits=5)
+    transfuels = round.(getvalue.(m[:masses][:,1] .- m[:masses][:,5]), sigdigits=5)
+    n_trans = op.n_sats - 1
+
+    # using Plots
+    # colors = palette(:darktest, n_trans)
+
+    # # Orbit plotting
+    # plts = []
+    # using Plots
+    # colors = palette(:darktest, n_trans)
+    # for i=1:n_trans
+    #     plt = plot(x -> (op.r_sat-op.rE)/1e3,  0, 2pi, proj = :polar, label = false)
+    #     plt = plot!(x -> plot_r[i], 0, 2pi, proj = :polar, lims = (750, 870), 
+    #                 color = colors[i], title = "Transfer $(i)", titlefontsize = 9, label = false,
+    #                 xtickfontsize=2, ylabel="altitude", yguidefontsize=5)
+    #     push!(plts, plt)
+    # end
+    # orb_plots = plot([plt for plt in plts]...)
+    # @show orb_plots
+
+    # # Bar plotting 
+    # bar1 = bar(1:op.n_sats, refuels, color = colors, xlabel = "Satellite order", ylabel = "Satellite refuel (kg)", legend = false)
+    # bar2 = bar(1:n_trans, times, color = colors, xlabel = "Transfer index", ylabel = "Maneuver time (days)", legend = false)
+    # bar3 = bar(1:n_trans, transfuels, color = colors, xlabel = "Transfer index", ylabel = "Transfer fuel (kg)", legend = false)
+    # bar_plots = plot(bar1, bar2, bar3, layout = (1,3))
+    # @show bar_plots
+end
+
 test_expressions()
 
 test_variables()
@@ -617,6 +668,8 @@ test_convex_objective()
 
 test_data_driven()
 
+test_rfs()
+
 test_linking()
 
-# test_oos()
+test_oos()

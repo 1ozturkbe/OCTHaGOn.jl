@@ -180,18 +180,33 @@ uniform_sample_and_eval!(gm::GlobalModel; lh_iterations::Int64 = get_param(gm, :
 Gets Latin Hypercube samples that fall in the leaf of the last solution.
 """
 function last_leaf_sample(bbc::BlackBoxClassifier, n_samples = get_param(bbc, :n_samples))
-    last_leaf = find_leaf_of_soln(bbc)
-    idxs = findall(x -> x .>= 0.5, IAI.apply(bbc.learners[end], bbc.X) .== last_leaf)
-    lbs = [minimum(col) for col in eachcol(bbc.X[idxs, :])]
-    ubs = [maximum(col) for col in eachcol(bbc.X[idxs, :])]
-    plan, _ = LHCoptim(n_samples, length(bbc.vars), 3);
-    X = scaleLHC(plan, [(lbs[i], ubs[i]) for i=1:length(lbs)]);
-    return DataFrame(truncate_sigfigs(X), string.(bbc.vars))
+    isempty(bbc.active_leaves) &&         
+        throw(OCTException("BBC $(bbc.name) needs to be optimized first, to figure out its active leaves."))
+    if !bbc.equality
+        last_leaf = bbc.active_leaves[1]
+        idxs = findall(x -> x .>= 0.5, IAI.apply(bbc.learners[end], bbc.X) .== last_leaf)
+        lbs = [minimum(col) for col in eachcol(bbc.X[idxs, :])]
+        ubs = [maximum(col) for col in eachcol(bbc.X[idxs, :])]
+        plan, _ = LHCoptim(n_samples, length(bbc.vars), 3);
+        X = scaleLHC(plan, [(lbs[i], ubs[i]) for i=1:length(lbs)]);
+        return DataFrame(truncate_sigfigs(X), string.(bbc.vars))
+    else
+        for last_leaf in bbc.active_leaves
+            idxs = findall(x -> x .>= 0.5, IAI.apply(bbc.learners[end], bbc.X) .== last_leaf)
+            lbs = [minimum(col) for col in eachcol(bbc.X[idxs, :])]
+            ubs = [maximum(col) for col in eachcol(bbc.X[idxs, :])]
+            plan, _ = LHCoptim(Int(ceil(n_samples/2)), length(bbc.vars), 3);
+            X = scaleLHC(plan, [(lbs[i], ubs[i]) for i=1:length(lbs)]);
+            return DataFrame(truncate_sigfigs(X), string.(bbc.vars))
+        end
+    end
 end
 
 function last_leaf_sample(bbr::BlackBoxRegressor, n_samples = get_param(bbr, :n_samples))
-    if length(bbr.active_trees) == 2
-        upper_leaf, lower_leaf = sort(find_leaf_of_soln(bbr))
+    if isempty(bbr.active_leaves)
+        throw(OCTException("BBR $(bbr.name) needs to be optimized first, to figure out its active leaves."))
+    elseif length(bbr.active_trees) == 2
+        upper_leaf, lower_leaf = sort(bbr.active_leaves)
         upper_leafneighbor = [];
         lower_leafneighbor = [];
         for (tree_idx, threshold) in bbr.active_trees
@@ -212,7 +227,7 @@ function last_leaf_sample(bbr::BlackBoxRegressor, n_samples = get_param(bbr, :n_
         X = scaleLHC(plan, [(lbs[i], ubs[i]) for i=1:length(lbs)]);
         return DataFrame(truncate_sigfigs(X), string.(bbr.vars))
     elseif length(bbr.active_trees) == 1
-        leaf = find_leaf_of_soln(bbr)
+        leaf = bbr.active_leaves[1]
         tree = bbr.learners[collect(keys(bbr.active_trees))[1]]
         idxs = findall(x -> x .== leaf, IAI.apply(tree, bbr.X))
         lbs = [minimum(col) for col in eachcol(bbr.X[idxs, :])]

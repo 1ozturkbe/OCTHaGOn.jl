@@ -69,7 +69,7 @@ module OptimalConstraintTree
         
         # STRUCTS
     export GlobalModel, BlackBoxLearner, BlackBoxClassifier, BlackBoxRegressor, 
-        LinkedClassifier, LinkedRegressor,
+        LinkedLearner, LinkedClassifier, LinkedRegressor,
 
     # JuMP.Model extensions to GlobalModel
         set_optimizer, optimize!,
@@ -112,17 +112,19 @@ module OptimalConstraintTree
         fit_regressor_kwargs, fit_classifier_kwargs, 
         regressor_kwargs, classifier_kwargs,
 
-        # Constraint generation/deletion
+        # Constraint/variable generation/deletion
         add_feas_constraints!, add_regr_constraints!,
         add_tree_constraints!, clear_tree_constraints!, update_tree_constraints!,
         clear_lower_constraints!, clear_upper_constraints!,
+        add_relaxation_variables!, clear_relaxation_variables!,
 
         # BlackBoxLearner helpers
         show_trees, all_mi_constraints, active_lower_tree, active_upper_tree,
-        find_leaf_of_soln, find_leaves, get_random_trees,
+        active_leaves, find_leaves, get_random_trees,
 
         # Algorithms
         add_infeasibility_cuts!, boundify, surveysolve,
+        relax_objective, 
 
         # Checks and exceptions
         feasibility, check_accuracy, check_feasibility, 
