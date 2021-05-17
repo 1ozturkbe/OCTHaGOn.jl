@@ -346,7 +346,9 @@ feasibility(gm::GlobalModel) = feasibility.(gm.bbls)
 
 """ Returns the accuracy of learners in a bbl or GM. """
 function evaluate_accuracy(bbc::BlackBoxClassifier)
-    if bbc.feas_ratio in [1., 0]
+    if bbc.convex
+        return 1. 
+    elseif bbc.feas_ratio in [1., 0]
         @warn(string("Accuracy of BlackBoxClassifier ", bbc.name, " is tautological."))
         return 1.
     elseif isempty(bbc.learners)
@@ -357,7 +359,9 @@ function evaluate_accuracy(bbc::BlackBoxClassifier)
 end
 
 function evaluate_accuracy(bbr::BlackBoxRegressor)
-    if isempty(bbr.learners)
+    if bbr.convex
+        return 1.
+    elseif isempty(bbr.learners)
         throw(OCTException(string("BlackBoxRegressor ", bbr.name, " has not been trained yet.")))
     else
         return 1. 
