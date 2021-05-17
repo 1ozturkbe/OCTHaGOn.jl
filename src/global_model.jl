@@ -60,6 +60,16 @@ function (gm::GlobalModel)(name::String)
     end
 end
 
+""" Finds active leaves of all constraints in GlobalModel."""
+function active_leaves(gm::GlobalModel)
+    for bbl in gm.bbls
+        active_leaves(bbl)
+        for ll in bbl.lls
+            active_leaves(ll)
+        end
+    end
+end
+
 """
     JuMP.all_variables(bbo::Union{GlobalModel, BlackBoxLearner})
     JuMP.all_variables(bbls::Array{BlackBoxLearner})
@@ -368,6 +378,7 @@ function JuMP.optimize!(gm::GlobalModel; kwargs...)
     append!(gm.solution_history, solution(gm), cols=:intersect)
     push!(gm.feas_history, feas_gap(gm))
     push!(gm.cost, JuMP.getobjectivevalue(gm.model))
+    active_leaves(gm)
     return
 end
 

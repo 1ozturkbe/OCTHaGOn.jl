@@ -1,9 +1,10 @@
 """ Contains data for a constraint that is repeated. """
 @with_kw mutable struct LinkedClassifier
     vars::Array{JuMP.VariableRef,1}                    # JuMP variables (flat)
-    relax_var::Union{Real, JuMP.VariableRef} = 0.       # slack variable        
+    relax_var::Union{Real, JuMP.VariableRef} = 0.      # slack variable        
     mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}()
     leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() 
+    active_leaves::Array = []                          # leaf of last solution
 end
 
 function Base.show(io::IO, lc::LinkedClassifier)
@@ -15,9 +16,10 @@ end
 @with_kw mutable struct LinkedRegressor
     vars::Array{JuMP.VariableRef,1}                    # JuMP variables (flat)
     dependent_var::JuMP.VariableRef                    # Dependent variable
-    relax_var::Union{Real, JuMP.VariableRef} = 0.       # slack variable        
+    relax_var::Union{Real, JuMP.VariableRef} = 0.      # slack variable        
     mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}() # and their corresponding MI constraints,
     leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their leaves and leaf variables
+    active_leaves::Array = []                          # leaf of last solution    
     optima::Array = []
     actuals::Array = []
 end
@@ -82,6 +84,7 @@ Optional arguments:
     active_trees::Dict{Int64, Union{Nothing, Pair}} = Dict() # Currently active tree indices
     mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}() # and their corresponding MI constraints,
     leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their leaves and leaf variables
+    active_leaves::Array = []                          # leaf of last solution    
     optima::Array = []
     actuals::Array = []
     relax_var::Union{Real, JuMP.VariableRef} = 0.    # slack variable        
@@ -152,6 +155,7 @@ Optional arguments:
     learner_kwargs = []                                # And their kwargs... 
     mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}() # and their corresponding MI constraints,
     leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their leaves and leaf variables
+    active_leaves::Array = []                          # leaf of last solution    
     lls::Array{LinkedClassifier} = []                  # LinkedClassifiers
     relax_var::Union{Real, JuMP.VariableRef} = 0.    # slack variable        
     accuracies::Array{Float64} = []                    # and the tree misclassification scores.
@@ -381,60 +385,15 @@ function clear_tree_data!(bbr::BlackBoxRegressor)
     bbr.ul_data = Dict[]            
 end
 
-""" 
-    find_leaf_of_soln(bbl::BlackBoxLearner)
-
-Find leaf (or leaves) of previous solution via binary variables. 
-"""
-function find_leaf_of_soln(bbc::BlackBoxClassifier)
-    if !bbc.equality
-        leaf_in = 0
-        for (leaf, var) in bbc.leaf_variables
-            if isapprox(getvalue(var), 1; atol=1e-5)
-                leaf_in = leaf
-                break
-            end
+""" Helper function to find which binary leaf variables are one. """
+function active_leaves(bbl::Union{BlackBoxLearner, LinkedLearner})
+    leaf_in = []
+    for (leaf, var) in bbl.leaf_variables
+        if isapprox(getvalue(var), 1; atol=1e-5)
+            push!(leaf_in, leaf)
         end
-        leaf_in != 0 || throw(OCTException("BBC $(bbc.name) did not return a valid leaf. "*
-                                           "Please make sure the MI constraints are added to a GM."))
-        return leaf_in
-    else
-        leaf_in = []
-        for (leaf, var) in bbc.leaf_variables
-            if isapprox(getvalue(var), 1; atol=1e-5)
-                push!(leaf_in, leaf)
-            end
-        end
-        @assert length(leaf_in) == 2
-        return leaf_in
     end
-end
-
-function find_leaf_of_soln(bbr::BlackBoxRegressor)
-    leaf_in = 0
-    if bbr.convex
-        return 1
-    elseif length(bbr.active_trees) == 1
-        for (leaf, var) in bbr.leaf_variables
-            if isapprox(getvalue(var), 1; atol=1e-5)
-                leaf_in = leaf
-                break
-            end
-        end
-        leaf_in != 0 || throw(OCTException("BBR $(bbr.name) did not return a valid leaf. "*
-                                           "Please make sure the MI constraints are added to a GM."))
-        return leaf_in
-    elseif length(bbr.active_trees) == 2
-        leaf_in = []
-        for (leaf, var) in bbr.leaf_variables
-            if isapprox(getvalue(var), 1; atol=1e-5)
-                push!(leaf_in, leaf)
-            end
-        end
-        length(leaf_in) == 2 || throw(OCTException("BBR $(bbr.name) did not return valid leaves. "*
-                                        "Please make sure the MI constraints are added to a GM."))
-        return leaf_in
-    end
+    bbl.active_leaves = leaf_in
 end
 
 """ 
