@@ -33,6 +33,7 @@ function add_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier, idx = l
         bbc.mi_constraints = mi_constraints
         bbc.leaf_variables = leaf_variables
     end
+    bbc.active_leaves = []
     return
 end
 
@@ -55,8 +56,10 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
                     push!(mc[1], @constraint(gm.model, lr.dependent_var >= sum(Array(bbr.gradients[i,:]) .* (lr.vars .- Array(bbr.X[i, :]))) + bbr.Y[i]))
                 end
                 merge!(append!, lr.mi_constraints, mc)
+                lr.active_leaves = [1]
             end
         end
+        bbr.active_leaves = [1]
         return
     elseif isempty(bbr.learners)
         throw(OCTException("Constraint " * string(bbr.name) * " must be learned before tree constraints
@@ -120,6 +123,7 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
         merge!(append!, bbr.leaf_variables, leaf_variables)
         bbr.active_trees[idx] = bbr.thresholds[idx]
     end
+    bbr.active_leaves = []
     return
 end
 
@@ -164,6 +168,7 @@ function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::I
         lc.leaf_variables = Dict{Int64, JuMP.VariableRef}(feas_leaves .=> lc_z_feas)
         lc.mi_constraints = Dict(leaf => JuMP.ConstraintRef[] for leaf in feas_leaves)
         lc.mi_constraints[1] = [@constraint(m, sum(lc_z_feas) == 1)]
+        lc.active_leaves = []
     end
     # Getting lnr data
     upperDict, lowerDict = trust_region_data(lnr, Symbol.(x))
@@ -265,6 +270,7 @@ function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuM
             lr.leaf_variables = Dict{Int64, JuMP.VariableRef}(all_leaves .=> lr_z)
             lr.mi_constraints = Dict(leaf => JuMP.ConstraintRef[] for leaf in all_leaves)
             lr.mi_constraints[1] = [@constraint(m, sum(lr_z) == 1)]
+            lr.active_leaves = []
         end
         # Getting lnr data
         pwlDict = pwl_constraint_data(lnr, Symbol.(x))
@@ -438,6 +444,7 @@ function clear_tree_constraints!(gm::GlobalModel, bbc::Union{BlackBoxClassifier,
             throw(OCTException("Bug: Variables could not be removed."))
         end
     end
+    bbc.active_leaves = []
     if bbc isa BlackBoxClassifier
         for lc in bbc.lls
             clear_tree_constraints!(gm, lc)
