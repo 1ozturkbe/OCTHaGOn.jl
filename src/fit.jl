@@ -232,7 +232,7 @@ function learn_constraint!(bbr::BlackBoxRegressor, threshold::Pair = Pair("reg",
     classifications = ["upper", "lower", "upperlower"]
     check_sampled(bbr)
     get_param(bbr, :reloaded) && set_param(bbr, :reloaded, false) # Makes sure that we know trees are retrained. 
-    if bbr.convex
+    if bbr.convex && !bbr.equality
         return # If convex, don't train a tree!
     elseif threshold.first in classifications
         lnr = base_classifier()
