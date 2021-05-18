@@ -346,7 +346,9 @@ feasibility(gm::GlobalModel) = feasibility.(gm.bbls)
 
 """ Returns the accuracy of learners in a bbl or GM. """
 function evaluate_accuracy(bbc::BlackBoxClassifier)
-    if bbc.feas_ratio in [1., 0]
+    if bbc.convex
+        return 1. 
+    elseif bbc.feas_ratio in [1., 0]
         @warn(string("Accuracy of BlackBoxClassifier ", bbc.name, " is tautological."))
         return 1.
     elseif isempty(bbc.learners)
@@ -357,7 +359,9 @@ function evaluate_accuracy(bbc::BlackBoxClassifier)
 end
 
 function evaluate_accuracy(bbr::BlackBoxRegressor)
-    if isempty(bbr.learners)
+    if bbr.convex
+        return 1.
+    elseif isempty(bbr.learners)
         throw(OCTException(string("BlackBoxRegressor ", bbr.name, " has not been trained yet.")))
     else
         return 1. 
@@ -374,11 +378,11 @@ evaluate_accuracy(gm::GlobalModel) = evaluate_accuracy.(gm.bbls)
 Applies JuMP.optimize! to GlobalModels, and saves solution history. 
 """
 function JuMP.optimize!(gm::GlobalModel; kwargs...)
-    JuMP.optimize!(gm.model, kwargs...)
-    append!(gm.solution_history, solution(gm), cols=:intersect)
-    push!(gm.feas_history, feas_gap(gm))
-    push!(gm.cost, JuMP.getobjectivevalue(gm.model))
-    active_leaves(gm)
+    JuMP.optimize!(gm.model, kwargs...) # Solves the optimization problem. 
+    append!(gm.solution_history, solution(gm), cols=:intersect) # Saves the solution. 
+    feas_gap(gm) # Computes the feasibility gaps of all constraints.
+    push!(gm.cost, JuMP.getobjectivevalue(gm.model)) # Updates the final cost.
+    active_leaves(gm) # Updates the active leaves of all approximations. 
     return
 end
 
@@ -410,27 +414,38 @@ Positive values -> constraint violation for BBC equalities,
 """
 function feas_gap(gm::GlobalModel)
     soln = solution(gm)
-    feas = []
     for bbl in gm.bbls
         if bbl isa BlackBoxClassifier && !isnothing(bbl.constraint)
             eval!(bbl, soln)
-            push!(feas, bbl.Y[end] ./ (maximum(bbl.Y) - minimum(bbl.Y)))
+            push!(bbl.feas_gap, bbl.Y[end] ./ (maximum(bbl.Y) - minimum(bbl.Y)))
+            for ll in bbl.lls
+                eval!(bbl, DataFrame(string.(bbl.vars) .=> values(soln[1, string.(ll.vars)])))
+                push!(ll.feas_gap, bbl.Y[end] ./ (maximum(bbl.Y) - minimum(bbl.Y)))
+            end
         elseif bbl isa BlackBoxRegressor && !isnothing(bbl.constraint)
             eval!(bbl, soln)
             optimum = JuMP.getvalue(bbl.dependent_var)
             actual = bbl.Y[end]
             push!(bbl.optima, optimum)
             push!(bbl.actuals, actual)
-            push!(feas, (optimum-actual) / (maximum(bbl.Y) - minimum(bbl.Y)))
+            push!(bbl.feas_gap, (optimum-actual) / (maximum(bbl.Y) - minimum(bbl.Y)))
+            for ll in bbl.lls
+                eval!(bbl, DataFrame(string.(bbl.vars) .=> values(soln[1, string.(ll.vars)])))
+                optimum = JuMP.getvalue(ll.dependent_var)
+                actual = bbl.Y[end]
+                push!(ll.optima, optimum)
+                push!(ll.actuals, actual)
+                push!(ll.feas_gap, (optimum-actual) / (maximum(bbl.Y) - minimum(bbl.Y)))
+            end
         elseif bbl isa BlackBoxClassifier && isnothing(bbl.constraint)
-            push!(feas, 0) # data constraints are always feasible
+            push!(bbl.feas_gap, 0) # data constraints are always feasible
         elseif bbl isa BlackBoxRegressor && isnothing(bbl.constraint)
             optimum = JuMP.getvalue(bbl.dependent_var)
             push!(bbl.optima, optimum)
-            push!(feas, 0) # data constraints are always feasible
+            push!(bbl.feas_gap, 0) # data constraints are always feasible
         end
     end
-    return feas
+    return
 end
 
 """ Clears all sampling, training and optimization data from GlobalModel."""

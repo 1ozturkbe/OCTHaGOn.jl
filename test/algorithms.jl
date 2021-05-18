@@ -51,7 +51,9 @@ function test_infeasibility_cuts()
     add_tree_constraints!(gm)
     optimize!(gm)
     bbc_idxs = [bbl isa BlackBoxClassifier for bbl in gm.bbls]
-    while any(gm.feas_history[end] .* bbc_idxs .!= 0) && size(gm.solution_history, 1) <= 20
+    add_infeasibility_cuts!(gm)
+    optimize!(gm)
+    while abs(gm.cost[end] - gm.cost[end-1]) > get_param(gm, :abstol)
         add_infeasibility_cuts!(gm)
         optimize!(gm)
     end

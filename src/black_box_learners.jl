@@ -5,6 +5,7 @@
     mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}()
     leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() 
     active_leaves::Array = []                          # leaf of last solution
+    feas_gap::Array = []                               # Feasibility gaps of solutions   
 end
 
 function Base.show(io::IO, lc::LinkedClassifier)
@@ -22,6 +23,7 @@ end
     active_leaves::Array = []                          # leaf of last solution    
     optima::Array = []
     actuals::Array = []
+    feas_gap::Array = []                               # Feasibility gaps of solutions   
 end
 
 function Base.show(io::IO, lr::LinkedRegressor)
@@ -87,6 +89,7 @@ Optional arguments:
     active_leaves::Array = []                          # leaf of last solution    
     optima::Array = []
     actuals::Array = []
+    feas_gap::Array = []                               # Feasibility gaps of solutions   
     relax_var::Union{Real, JuMP.VariableRef} = 0.    # slack variable        
     lls::Array{LinkedRegressor} = []                   # Linked regressor mi_constraints and leaf_variables
     convex::Bool = false
@@ -155,7 +158,8 @@ Optional arguments:
     learner_kwargs = []                                # And their kwargs... 
     mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}() # and their corresponding MI constraints,
     leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their leaves and leaf variables
-    active_leaves::Array = []                          # leaf of last solution    
+    active_leaves::Array = []                          # Leaf of last solution
+    feas_gap::Array = []                               # Feasibility gaps of solutions   
     lls::Array{LinkedClassifier} = []                  # LinkedClassifiers
     relax_var::Union{Real, JuMP.VariableRef} = 0.    # slack variable        
     accuracies::Array{Float64} = []                    # and the tree misclassification scores.

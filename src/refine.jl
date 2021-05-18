@@ -162,33 +162,55 @@ function add_infeasibility_cuts!(gm::GlobalModel, M = 1e5)
     var_vals = solution(gm)
     for i=1:length(gm.bbls)
         # Inequality Classifiers
-        if get_param(gm.bbls[i], :gradients) && gm.bbls[i] isa BlackBoxClassifier && gm.feas_history[end][i] <= 0 && !gm.bbls[i].equality
+        if get_param(gm.bbls[i], :gradients) && gm.bbls[i] isa BlackBoxClassifier && !gm.bbls[i].equality
             bbc = gm.bbls[i]
-            active_leaf = bbc.active_leaves[1]
-            @assert length(bbc.active_leaves) == 1
-            rel_vals = var_vals[:, string.(bbc.vars)]
-            eval!(bbc, rel_vals)
-            Y = bbc.Y[end]
-            update_gradients(bbc, [size(bbc.X, 1)])
-            cut_grad = bbc.gradients[end, :]
-            push!(bbc.mi_constraints[active_leaf], 
-                @constraint(gm.model, sum(Array(cut_grad) .* (bbc.vars .- Array(rel_vals)')) + Y + 
-                                      M*(1 - bbc.leaf_variables[active_leaf]) >= 0)) 
+            if bbc.feas_gap[end] <= 0
+                active_leaf = bbc.active_leaves[1]
+                @assert length(bbc.active_leaves) == 1
+                rel_vals = var_vals[:, string.(bbc.vars)]
+                eval!(bbc, rel_vals)
+                Y = bbc.Y[end]
+                update_gradients(bbc, [size(bbc.X, 1)])
+                cut_grad = bbc.gradients[end, :]
+                push!(bbc.mi_constraints[bbc.active_leaves[1]], 
+                    @constraint(gm.model, sum(Array(cut_grad) .* (bbc.vars .- Array(rel_vals)')) + Y + 
+                                        M*(1 - bbc.leaf_variables[bbc.active_leaves[1]]) >= 0))
+            end
+            for ll in bbc.lls
+                if ll.feas_gap[end] <= 0
+                    @assert length(ll.active_leaves) == 1
+                    rel_vals = DataFrame(Array(var_vals[:, string.(ll.vars)]), string.(bbc.vars))
+                    eval!(bbc, rel_vals)
+                    Y = bbc.Y[end]
+                    update_gradients(bbc, [size(bbc.X, 1)])
+                    cut_grad = bbc.gradients[end, :]
+                    push!(ll.mi_constraints[ll.active_leaves[1]], 
+                    @constraint(gm.model, sum(Array(cut_grad) .* (ll.vars .- Array(rel_vals)')) + Y + 
+                                        M*(1 - ll.leaf_variables[ll.active_leaves[1]]) >= 0))
+                end
+            end
         # Convex Regressors
-        elseif get_param(gm.bbls[i], :gradients) && gm.bbls[i] isa BlackBoxRegressor && gm.feas_history[end][i] <= 0
+        elseif get_param(gm.bbls[i], :gradients) && gm.bbls[i] isa BlackBoxRegressor && gm.bbls[i].convex
             bbr = gm.bbls[i]
-            rel_vals = var_vals[:, string.(bbr.vars)]
-            eval!(bbr, rel_vals)
-            Y = bbr.Y[end]
-            update_gradients(bbr, [size(bbr.X, 1)])
-            cut_grad = bbr.gradients[end, :]
-            if gm.bbls[i].convex 
+            if bbr.feas_gap[end] <= 0
+                rel_vals = var_vals[:, string.(bbr.vars)]
+                eval!(bbr, rel_vals)
+                Y = bbr.Y[end]
+                update_gradients(bbr, [size(bbr.X, 1)])
+                cut_grad = bbr.gradients[end, :]
                 push!(bbr.mi_constraints[1], 
                     @constraint(gm.model, bbr.dependent_var >= sum(Array(cut_grad) .* (bbr.vars .- Array(rel_vals)')) + Y )) 
-            # else
-            #     push!(bbr.mi_constraints[sol_leaves[i]], 
-            #     @constraint(gm.model, bbr.dependent_var + M*(1 - bbc.leaf_variables[sol_leaves[i]]) >= 
-            #         sum(Array(cut_grad) .* (bbr.vars .- Array(rel_vals)')) + Y )) 
+            end
+            for ll in bbr.lls
+                if ll.feas_gap[end] <= 0
+                    rel_vals = DataFrame(Array(var_vals[:, string.(ll.vars)]), string.(bbr.vars))
+                    eval!(bbr, rel_vals)
+                    Y = bbr.Y[end]
+                    update_gradients(bbr, [size(bbr.X, 1)])
+                    cut_grad = bbr.gradients[end, :]
+                    push!(ll.mi_constraints[1], 
+                        @constraint(gm.model, ll.dependent_var >= sum(Array(cut_grad) .* (ll.vars .- Array(rel_vals)')) + Y)) 
+                end
             end
         end
         # TODO: add infeasibility cuts for Regressors that are locally convex. 
