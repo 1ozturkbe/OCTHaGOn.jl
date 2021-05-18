@@ -445,7 +445,7 @@ function feas_gap(gm::GlobalModel)
             push!(bbl.feas_gap, 0) # data constraints are always feasible
         end
     end
-    return feas
+    return
 end
 
 """ Clears all sampling, training and optimization data from GlobalModel."""

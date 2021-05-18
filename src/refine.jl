@@ -179,7 +179,7 @@ function add_infeasibility_cuts!(gm::GlobalModel, M = 1e5)
             for ll in bbc.lls
                 if ll.feas_gap[end] <= 0
                     @assert length(ll.active_leaves) == 1
-                    relvals = DataFrame(Array(var_vals[:, string.(ll.vars)]), string.(bbc.vars))
+                    rel_vals = DataFrame(Array(var_vals[:, string.(ll.vars)]), string.(bbc.vars))
                     eval!(bbc, rel_vals)
                     Y = bbc.Y[end]
                     update_gradients(bbc, [size(bbc.X, 1)])
@@ -190,7 +190,7 @@ function add_infeasibility_cuts!(gm::GlobalModel, M = 1e5)
                 end
             end
         # Convex Regressors
-        elseif get_param(gm.bbls[i], :gradients) && gm.bbls[i] isa BlackBoxRegressor && bbr.convex
+        elseif get_param(gm.bbls[i], :gradients) && gm.bbls[i] isa BlackBoxRegressor && gm.bbls[i].convex
             bbr = gm.bbls[i]
             if bbr.feas_gap[end] <= 0
                 rel_vals = var_vals[:, string.(bbr.vars)]
@@ -203,7 +203,7 @@ function add_infeasibility_cuts!(gm::GlobalModel, M = 1e5)
             end
             for ll in bbr.lls
                 if ll.feas_gap[end] <= 0
-                    relvals = DataFrame(Array(var_vals[:, string.(ll.vars)]), string.(bbc.vars))
+                    rel_vals = DataFrame(Array(var_vals[:, string.(ll.vars)]), string.(bbr.vars))
                     eval!(bbr, rel_vals)
                     Y = bbr.Y[end]
                     update_gradients(bbr, [size(bbr.X, 1)])
