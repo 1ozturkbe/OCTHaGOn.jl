@@ -133,6 +133,7 @@ end
                               lh_iterations::Int64 = 0)
 
 Uniform samples and evaluates a BlackBoxLearner.
+Furthermore, sets the big-M value. 
 Keyword arguments:
     boundary_fraction: maximum ratio of boundary samples
     lh_iterations: number of GA populations for LHC sampling (0 is a random LH.)
@@ -161,6 +162,7 @@ function uniform_sample_and_eval!(bbl::BlackBoxLearner;
             end
         end
     end
+    bbl.M = 2. * abs(minimum(bbl.Y))
     return
 end
 
