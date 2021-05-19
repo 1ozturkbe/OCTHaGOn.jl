@@ -590,51 +590,58 @@ function test_oos()
     m = gm.model
     uniform_sample_and_eval!(gm)
     update_vexity.(gm.bbls)
-    learn_constraint!(gm, ls_num_hyper_restarts = 20, ls_num_tree_restarts = 20)
+    learn_constraint!(gm, ls_num_hyper_restarts = 25, ls_num_tree_restarts = 25)
     add_tree_constraints!(gm)
     optimize!(gm)
-    # @test_throws MOI.ResultIndexBoundsError optimize!(gm)
+    add_infeasibility_cuts!(gm)
+    optimize!(gm)
+    while abs(gm.cost[end] - gm.cost[end-1]) > 1.
+        add_infeasibility_cuts!(gm)
+        optimize!(gm)
+    end
 
     add_relaxation_variables!(gm)
     relax_objective(gm)
     add_tree_constraints!(gm)
     optimize!(gm)
 
-    # Printing results
-    println("Orbit altitudes (km) : $(round.(getvalue.(m[:r_orbit])./1e3, sigdigits=5))")
-    println("Satellite order: $(Int.(round.(getvalue.(m[:sat_order]))))")
-    println("True anomalies (radians): $(round.(getvalue.(m[:ta]), sigdigits=3))")
-    println("Orbital revolutions: $(round.(getvalue.(m[:N_orbit]), sigdigits=5)))")
-    println("Time for maneuvers (days): $(round.(getvalue.(m[:t_maneuver])./(24*3600), sigdigits=3))")
-    println("Total mission time (years): $(sum(getvalue.(m[:t_maneuver]))/(24*3600*365))")
+    # # Printing results
+    # println("Orbit altitudes (km) : $(round.((getvalue.(m[:r_orbit]) .- op.rE)./1e3, sigdigits=5))")
+    # println("Satellite order: $(Int.(round.(getvalue.(m[:sat_order]))))")
+    # println("True anomalies (radians): $(round.(getvalue.(m[:ta]), sigdigits=3))")
+    # println("Orbital revolutions: $(round.(getvalue.(m[:N_orbit]), sigdigits=5)))")
+    # println("Time for maneuvers (days): $(round.(getvalue.(m[:t_maneuver])./(24*3600), sigdigits=3))")
+    # println("Total mission time (years): $(sum(getvalue.(m[:t_maneuver]))/(24*3600*365))")
 
-    # Post-processing
-    plot_r = (getvalue.(m[:r_orbit]) .- op.rE)./1e3
-    ords = Int.(round.(getvalue.(m[:sat_order])))
-    times = round.(getvalue.(m[:t_maneuver])./(24*3600), sigdigits=3) # days
-    revs = round.(getvalue.(m[:N_orbit]), sigdigits=5)
-    refuels = round.(getvalue.(m[:fuel_needed]), sigdigits=5)
-    transfuels = round.(getvalue.(m[:masses][:,1] .- m[:masses][:,5]), sigdigits=5)
-    n_trans = op.n_sats - 1
+    # # Post-processing
+    # plot_r = (getvalue.(m[:r_orbit]) .- op.rE)./1e3
+    # ords = Int.(round.(getvalue.(m[:sat_order])))
+    # times = round.(getvalue.(m[:t_maneuver])./(24*3600), sigdigits=3) # days
+    # revs = round.(getvalue.(m[:N_orbit]), sigdigits=5)
+    # refuels = round.(getvalue.(m[:fuel_needed]), sigdigits=5)
+    # transfuels = round.(getvalue.(m[:masses][:,1] .- m[:masses][:,5]), sigdigits=5)
+    # n_trans = op.n_sats - 1
 
     # using Plots
     # colors = palette(:darktest, n_trans)
 
-    # # Orbit plotting
-    # plts = []
-    # using Plots
-    # colors = palette(:darktest, n_trans)
-    # for i=1:n_trans
-    #     plt = plot(x -> (op.r_sat-op.rE)/1e3,  0, 2pi, proj = :polar, label = false)
-    #     plt = plot!(x -> plot_r[i], 0, 2pi, proj = :polar, lims = (750, 870), 
-    #                 color = colors[i], title = "Transfer $(i)", titlefontsize = 9, label = false,
-    #                 xtickfontsize=2, ylabel="altitude", yguidefontsize=5)
-    #     push!(plts, plt)
-    # end
-    # orb_plots = plot([plt for plt in plts]...)
-    # @show orb_plots
+    # # # Orbit plotting
+    # # plts = []
+    # # using Plots
+    # # colors = palette(:darktest, n_trans)
+    # # for i=1:n_trans
+    # #     plt = plot(x -> (op.r_sat-op.rE)/1e3,  0, 2pi, proj = :polar, label = false)
+    # #     plt = plot!(x -> plot_r[i], 0, 2pi, proj = :polar, lims = (750, 870), 
+    # #                 color = colors[i], title = "Transfer $(i)", titlefontsize = 9, label = false,
+    # #                 xtickfontsize=2, ylabel="altitude", yguidefontsize=5)
+    # #     push!(plts, plt)
+    # # end
+    # # orb_plots = plot([plt for plt in plts]...)
+    # # @show orb_plots
 
     # # Bar plotting 
+    # using Plots
+    # colors = palette(:darktest, n_trans)
     # bar1 = bar(1:op.n_sats, refuels, color = colors, xlabel = "Satellite order", ylabel = "Satellite refuel (kg)", legend = false)
     # bar2 = bar(1:n_trans, times, color = colors, xlabel = "Transfer index", ylabel = "Maneuver time (days)", legend = false)
     # bar3 = bar(1:n_trans, transfuels, color = colors, xlabel = "Transfer index", ylabel = "Transfer fuel (kg)", legend = false)
@@ -672,4 +679,4 @@ test_rfs()
 
 test_linking()
 
-test_oos()
+# test_oos()
