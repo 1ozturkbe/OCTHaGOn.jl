@@ -162,8 +162,12 @@ function uniform_sample_and_eval!(bbl::BlackBoxLearner;
             end
         end
     end
-    bbl.M = 2. * abs(minimum(bbl.Y))
-    return
+    if bbl isa BlackBoxClassifier
+        bbl.M = 2. * abs(minimum(filter(!isinf, bbl.Y)))
+    else
+        bbl.M = 2. * abs(maximum(filter(!isinf, bbl.Y)) - minimum(filter(!isinf, bbl.Y)))
+    end
+    return 
 end
 
 function uniform_sample_and_eval!(bbls::Array{BlackBoxLearner}; lh_iterations = 0, tighttol = 1e-5) 
