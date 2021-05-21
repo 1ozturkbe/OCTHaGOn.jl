@@ -8,7 +8,7 @@ Generates MI constraints from gm.learners, and adds them to gm.model.
 function add_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier, idx = length(bbc.learners))
     isempty(bbc.mi_constraints) || throw(OCTException("BBC $(bbc.name) already has associated MI approximation."))
     isempty(bbc.leaf_variables) || throw(OCTException("BBC $(bbc.name) already has associated MI variables."))
-    if bbc.feas_ratio == 1.0
+    if bbc.feas_ratio == 1.0 # Just a placeholder to show that the tree is "trained". 
         z_feas = @variable(gm.model, binary = true)
         bbc.mi_constraints = Dict(1 => [@constraint(gm.model, z_feas == 1)])
         bbc.leaf_variables = Dict(1 => z_feas)
@@ -149,7 +149,7 @@ add_tree_constraints!(gm::GlobalModel) = add_tree_constraints!(gm, gm.bbls)
         x:: JuMPVariables (features in lnr)
 """
 function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::IAI.OptimalTreeLearner;
-                               M::Real = 1.e5, equality::Bool = false, 
+                               M::Real = 1.e8, equality::Bool = false, 
                                relax_var::Union{Real, JuMP.VariableRef} = 0,
                                lcs::Array = [])
     check_if_trained(lnr);
@@ -241,7 +241,7 @@ end
 """
     add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuMP.VariableRef, lnr::IAI.OptimalTreeClassifier, 
             ul_data::Dict;
-            M::Real = 1.e5, equality::Bool = false)
+            M::Real = 1.e8, equality::Bool = false)
 
 Creates a set of MIO constraints from a OptimalTreeClassifier that thresholds a BlackBoxRegressor.
 Arguments:
@@ -255,7 +255,7 @@ Arguments:
 function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuMP.VariableRef, 
                                lnr::IAI.OptimalTreeLearner,
                                ul_data::Dict; 
-                               M::Real = 1.e5, equality::Bool = false, 
+                               M::Real = 1.e8, equality::Bool = false, 
                                relax_var::Union{Real, JuMP.VariableRef} = 0,
                                lrs::Array = [])
     # TODO: Determine whether I should relax approximator or trust regions or both. 

@@ -141,7 +141,7 @@ Keyword arguments:
 function uniform_sample_and_eval!(bbl::BlackBoxLearner;
                           boundary_fraction::Float64 = 0.5,
                           lh_iterations::Int64 = 0, tighttol = 1.e-5)
-    @assert size(bbl.X, 1) == 0 
+    @assert size(bbl.X, 1) == 0 #TODO: fix this w.r.t. data-driven constraints. 
     vks = string.(bbl.vars)
     n_dims = length(vks);
     check_bounds(get_bounds(bbl))
@@ -156,7 +156,7 @@ function uniform_sample_and_eval!(bbl::BlackBoxLearner;
             throw(OCTException(string(bbl.name) * " has zero feasible samples. " *
                                "Please find at least one feasible sample, seed the data and KNN sample."))
         else
-            df = knn_sample(bbl, k=10, tighttol = tighttol)
+            df = knn_sample(bbl, k= 2*length(bbl.vars) + 1, tighttol = tighttol)
             if size(df, 1) > 0
                 eval!(bbl, df)
             end

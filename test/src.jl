@@ -176,7 +176,7 @@ function test_bbc()
     @test_throws OCTException X = lh_sample(bbl, n_samples=100);
 
     # Check knn_sampling without previous samples
-    @test_throws OCTException knn_sample(bbl, k=3)
+    @test_throws OCTException knn_sample(bbl)
 
     # Check evaluation of samples
     samples = DataFrame(randn(10, length(bbl.vars)),string.(bbl.vars))
@@ -187,7 +187,7 @@ function test_bbc()
     bound!(model, Dict(z => [-Inf, 10]))
     X_bound = boundary_sample(bbl);
     @test size(X_bound, 1) == 2^(length(bbl.vars)+1)
-    @test_throws OCTException knn_sample(bbl, k=3)
+    @test_throws OCTException knn_sample(bbl)
     X_lh = lh_sample(bbl, lh_iterations=3);
 
     # Check sample_and_eval
@@ -506,6 +506,11 @@ function test_data_driven()
     @test isnothing(get_unbounds(gm))
 end
 
+function test_relaxations()
+    model, x, y, z, a = test_model()
+    return true
+end 
+
 """ Test RandomForest learners for BlackBoxRegression.
 NOTE: Although rfreg is tested, IT IS NOT A SUPPORTED FEATURE SINCE IT
 IS NOT USEFUL FOR MOST PROBLEMS. """
@@ -522,7 +527,7 @@ function test_rfs()
             add_tree_constraints!(gm, bbl)
         elseif bbl isa BlackBoxRegressor
             learn_constraint!(bbl, "rfreg" => nothing)
-            add_tree_constraints!(gm, bbl)
+            # add_tree_constraints!(gm, bbl)
         end
     end
     optimize!(gm)
@@ -575,12 +580,12 @@ function test_linking()
     add_tree_constraints!(gm)
     optimize!(gm)
 
-    # using Plots
-    # # Plotting temporal population data
-    # plot(getvalue.(x), label = "Prey")
-    # plot!(getvalue.(y), label = "Predators", xlabel = "Time", ylabel = "Normalized population")
-    # # OR simultaneously in the population dimensions
-    # plot(getvalue.(m[:x]), getvalue.(m[:y]), xlabel = "Prey", ylabel = "Predators", label = 1:t, legend = false)
+    using Plots
+    # Plotting temporal population data
+    plot(getvalue.(x), label = "Prey")
+    plot!(getvalue.(y), label = "Predators", xlabel = "Time", ylabel = "Normalized population")
+    # OR simultaneously in the population dimensions
+    plot(getvalue.(m[:x]), getvalue.(m[:y]), xlabel = "Prey", ylabel = "Predators", label = 1:t, legend = false)
     return true
 end
 
@@ -649,31 +654,31 @@ function test_oos()
     # @show bar_plots
 end
 
-test_expressions()
+# test_expressions()
 
-test_variables()
+# test_variables()
 
-test_bounds()
+# test_bounds()
 
-test_sets()
+# test_sets()
 
-test_linearize()
+# test_linearize()
 
-test_nonlinearize()
+# test_nonlinearize()
 
-test_bbc()
+# test_bbc()
 
-test_kwargs()
+# test_kwargs()
 
-test_regress()
+# test_regress()
 
-test_bbr()
+# test_bbr()
 
-test_basic_gm()
+# test_basic_gm()
 
-test_convex_objective()
+# test_convex_objective()
 
-test_data_driven()
+# test_data_driven()
 
 test_rfs()
 
