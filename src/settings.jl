@@ -31,7 +31,7 @@ function gm_defaults()
          :sample_coeff => 200,
          :sample_density => 1e-5,
          :abstol => 1e-3,
-         :tighttol => 1e-5,
+         :tighttol => 1e-5,    # sets how close samples can be. 
          :reltol => 1e-3,
          :convex_constrs => false)
 end

@@ -176,7 +176,7 @@ function test_bbc()
     @test_throws OCTException X = lh_sample(bbl, n_samples=100);
 
     # Check knn_sampling without previous samples
-    @test_throws OCTException knn_sample(bbl, k=3)
+    @test_throws OCTException knn_sample(bbl)
 
     # Check evaluation of samples
     samples = DataFrame(randn(10, length(bbl.vars)),string.(bbl.vars))
@@ -187,7 +187,7 @@ function test_bbc()
     bound!(model, Dict(z => [-Inf, 10]))
     X_bound = boundary_sample(bbl);
     @test size(X_bound, 1) == 2^(length(bbl.vars)+1)
-    @test_throws OCTException knn_sample(bbl, k=3)
+    @test_throws OCTException knn_sample(bbl)
     X_lh = lh_sample(bbl, lh_iterations=3);
 
     # Check sample_and_eval
@@ -454,6 +454,17 @@ function test_basic_gm()
     surveysolve(gm)
     update_leaf_vexity(gm.bbls[1])
     @test true
+
+    # # Testing relaxations
+    # add_relaxation_variables!(gm)
+    # # Adding new variables for each nonlinear constraint
+    # @test sum(length(all_constraints(gm.model, type[1], type[2])) 
+    #         for type in JuMP.list_of_constraint_types(gm.model)) == 8
+    # relax_objective!(gm)
+    
+    # surveysolve(gm)
+    # @test [getvalue(bbl.relax_var) for bbl in gm.bbls] == zeros(length(gm.bbls))
+    # @constraint(gm.model, gm.objective <= -155)
 end
 
 function test_convex_objective()
@@ -506,6 +517,11 @@ function test_data_driven()
     @test isnothing(get_unbounds(gm))
 end
 
+function test_relaxations()
+    model, x, y, z, a = test_model()
+    return true
+end 
+
 """ Test RandomForest learners for BlackBoxRegression.
 NOTE: Although rfreg is tested, IT IS NOT A SUPPORTED FEATURE SINCE IT
 IS NOT USEFUL FOR MOST PROBLEMS. """
@@ -535,13 +551,13 @@ end
 # Predator prey model with logistic function from http://www.math.lsa.umich.edu/~rauch/256/F2Lab5.pdf
 function test_linking()
     m = Model(CPLEX_SILENT)
-    t = 100
+    t = 50
     r = 0.2
     x1 = 0.6
     y1 = 0.5
-    @variable(m, x[1:t] >= 0.001) # Note: Ipopt solution does not converge with an upper bound!!
+    @variable(m, x[1:t] >= 0.05) # Note: Ipopt solution does not converge with an upper bound!!
     @variable(m, dx[1:t-1])
-    @variable(m, y[1:t] >= 0.001)
+    @variable(m, y[1:t] >= 0.05)
     @variable(m, dy[1:t-1])
     @constraint(m, x[1] == x1)
     @constraint(m, y[1] == y1)
@@ -560,17 +576,17 @@ function test_linking()
     set_upper_bound.(dy, 1)
     set_lower_bound.(dy, -1)
     gm = GlobalModel(model = m, name = "foxes_rabbits")
-    add_nonlinear_constraint(gm, :((x, y) -> x[1]*(1-x[1]) -x[1]*y[1]/(x[1]+0.2)), vars = [x[1], y[1]], 
-        dependent_var = dx[1], equality=true)
-    add_nonlinear_constraint(gm, :((x, y) -> 0.2*y[1]*(1-y[1]/x[1])), vars = [x[1], y[1]], 
-        dependent_var = dy[1], equality=true)
+    add_nonlinear_constraint(gm, :((x, y, dx) -> dx[1] - (x[1]*(1-x[1]) -x[1]*y[1]/(x[1]+0.2))), 
+                            vars = [x[1], y[1], dx[1]], equality=true)
+    add_nonlinear_constraint(gm, :((x, y, dy) -> dy[1] - (0.2*y[1]*(1-y[1]/x[1]))), 
+                            vars = [x[1], y[1], dy[1]], equality=true)
     for i = 2:t-1
-        add_linked_constraint(gm, gm.bbls[1], [x[i], y[i]], dx[i])
-        add_linked_constraint(gm, gm.bbls[2], [x[i], y[i]], dy[i])
+        add_linked_constraint(gm, gm.bbls[1], [x[i], y[i], dx[i]])
+        add_linked_constraint(gm, gm.bbls[2], [x[i], y[i], dy[i]])
     end
     uniform_sample_and_eval!(gm)
     # Usually would want to train the dynamics better, but for speed this is better!
-    learn_constraint!(gm, max_depth = 3, ls_num_tree_restarts = 5, ls_num_hyper_restarts = 5)
+    learn_constraint!(gm, max_depth = 3, ls_num_tree_restarts = 10, ls_num_hyper_restarts = 10)
     set_param(gm, :ignore_accuracy, true)
     add_tree_constraints!(gm)
     optimize!(gm)
@@ -590,51 +606,55 @@ function test_oos()
     m = gm.model
     uniform_sample_and_eval!(gm)
     update_vexity.(gm.bbls)
-    learn_constraint!(gm, ls_num_hyper_restarts = 20, ls_num_tree_restarts = 20)
+    learn_constraint!(gm)
     add_tree_constraints!(gm)
     optimize!(gm)
-    # @test_throws MOI.ResultIndexBoundsError optimize!(gm)
-
-    add_relaxation_variables!(gm)
-    relax_objective(gm)
-    add_tree_constraints!(gm)
+    add_infeasibility_cuts!(gm)
     optimize!(gm)
+    while abs(gm.cost[end] - gm.cost[end-1]) > 1.
+        add_infeasibility_cuts!(gm)
+        optimize!(gm)
+    end
 
-    # Printing results
-    println("Orbit altitudes (km) : $(round.(getvalue.(m[:r_orbit])./1e3, sigdigits=5))")
-    println("Satellite order: $(Int.(round.(getvalue.(m[:sat_order]))))")
-    println("True anomalies (radians): $(round.(getvalue.(m[:ta]), sigdigits=3))")
-    println("Orbital revolutions: $(round.(getvalue.(m[:N_orbit]), sigdigits=5)))")
-    println("Time for maneuvers (days): $(round.(getvalue.(m[:t_maneuver])./(24*3600), sigdigits=3))")
-    println("Total mission time (years): $(sum(getvalue.(m[:t_maneuver]))/(24*3600*365))")
+    return true
 
-    # Post-processing
-    plot_r = (getvalue.(m[:r_orbit]) .- op.rE)./1e3
-    ords = Int.(round.(getvalue.(m[:sat_order])))
-    times = round.(getvalue.(m[:t_maneuver])./(24*3600), sigdigits=3) # days
-    revs = round.(getvalue.(m[:N_orbit]), sigdigits=5)
-    refuels = round.(getvalue.(m[:fuel_needed]), sigdigits=5)
-    transfuels = round.(getvalue.(m[:masses][:,1] .- m[:masses][:,5]), sigdigits=5)
-    n_trans = op.n_sats - 1
+    # # Printing results
+    # println("Orbit altitudes (km) : $(round.((getvalue.(m[:r_orbit]) .- op.rE)./1e3, sigdigits=5))")
+    # println("Satellite order: $(Int.(round.(getvalue.(m[:sat_order]))))")
+    # println("True anomalies (radians): $(round.(getvalue.(m[:ta]), sigdigits=3))")
+    # println("Orbital revolutions: $(round.(getvalue.(m[:N_orbit]), sigdigits=5)))")
+    # println("Time for maneuvers (days): $(round.(getvalue.(m[:t_maneuver])./(24*3600), sigdigits=3))")
+    # println("Total mission time (years): $(sum(getvalue.(m[:t_maneuver]))/(24*3600*365))")
+
+    # # Post-processing
+    # plot_r = (getvalue.(m[:r_orbit]) .- op.rE)./1e3
+    # ords = Int.(round.(getvalue.(m[:sat_order])))
+    # times = round.(getvalue.(m[:t_maneuver])./(24*3600), sigdigits=3) # days
+    # revs = round.(getvalue.(m[:N_orbit]), sigdigits=5)
+    # refuels = round.(getvalue.(m[:fuel_needed]), sigdigits=5)
+    # transfuels = round.(getvalue.(m[:masses][:,1] .- m[:masses][:,5]), sigdigits=5)
+    # n_trans = op.n_sats - 1
 
     # using Plots
     # colors = palette(:darktest, n_trans)
 
-    # # Orbit plotting
-    # plts = []
-    # using Plots
-    # colors = palette(:darktest, n_trans)
-    # for i=1:n_trans
-    #     plt = plot(x -> (op.r_sat-op.rE)/1e3,  0, 2pi, proj = :polar, label = false)
-    #     plt = plot!(x -> plot_r[i], 0, 2pi, proj = :polar, lims = (750, 870), 
-    #                 color = colors[i], title = "Transfer $(i)", titlefontsize = 9, label = false,
-    #                 xtickfontsize=2, ylabel="altitude", yguidefontsize=5)
-    #     push!(plts, plt)
-    # end
-    # orb_plots = plot([plt for plt in plts]...)
-    # @show orb_plots
+    # # # Orbit plotting
+    # # plts = []
+    # # using Plots
+    # # colors = palette(:darktest, n_trans)
+    # # for i=1:n_trans
+    # #     plt = plot(x -> (op.r_sat-op.rE)/1e3,  0, 2pi, proj = :polar, label = false)
+    # #     plt = plot!(x -> plot_r[i], 0, 2pi, proj = :polar, lims = (750, 870), 
+    # #                 color = colors[i], title = "Transfer $(i)", titlefontsize = 9, label = false,
+    # #                 xtickfontsize=2, ylabel="altitude", yguidefontsize=5)
+    # #     push!(plts, plt)
+    # # end
+    # # orb_plots = plot([plt for plt in plts]...)
+    # # @show orb_plots
 
     # # Bar plotting 
+    # using Plots
+    # colors = palette(:darktest, n_trans)
     # bar1 = bar(1:op.n_sats, refuels, color = colors, xlabel = "Satellite order", ylabel = "Satellite refuel (kg)", legend = false)
     # bar2 = bar(1:n_trans, times, color = colors, xlabel = "Transfer index", ylabel = "Maneuver time (days)", legend = false)
     # bar3 = bar(1:n_trans, transfuels, color = colors, xlabel = "Transfer index", ylabel = "Transfer fuel (kg)", legend = false)

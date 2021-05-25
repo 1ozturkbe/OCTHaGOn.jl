@@ -84,6 +84,7 @@ Optional arguments:
     thresholds::Array{Pair} = []                       # For thresholding. 
     ul_data::Array{Dict} = Dict[]                      # Upper/lower bounding data
     active_trees::Dict{Int64, Union{Nothing, Pair}} = Dict() # Currently active tree indices
+    M::Real = 1e8                                      # M for big-M constraints  
     mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}() # and their corresponding MI constraints,
     leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their leaves and leaf variables
     active_leaves::Array = []                          # leaf of last solution    
@@ -156,6 +157,7 @@ Optional arguments:
     learners::Array{Union{IAI.OptimalTreeClassifier,
                           IAI.Heuristics.RandomForestClassifier}} = []    # Learners...
     learner_kwargs = []                                # And their kwargs... 
+    M::Real = 1e8                                      # M for big-M constraints  
     mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}() # and their corresponding MI constraints,
     leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their leaves and leaf variables
     active_leaves::Array = []                          # Leaf of last solution
@@ -331,7 +333,9 @@ Updates gradient information of selected points.
 """
 function update_gradients(bbl::BlackBoxLearner, idxs::Array = collect(1:size(bbl.X,1)))
     @assert get_param(bbl, :gradients)
+    isempty(idxs) && return
     empties = idxs[findall(idx -> any(ismissing.(values(bbl.gradients[idx,:]))), idxs)]
+    isempty(empties) && return
     bbl.gradients[empties, :] = evaluate_gradient(bbl, bbl.X[empties, :])
     return
 end    

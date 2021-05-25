@@ -232,7 +232,7 @@ function learn_constraint!(bbr::BlackBoxRegressor, threshold::Pair = Pair("reg",
     classifications = ["upper", "lower", "upperlower"]
     check_sampled(bbr)
     get_param(bbr, :reloaded) && set_param(bbr, :reloaded, false) # Makes sure that we know trees are retrained. 
-    if bbr.convex
+    if bbr.convex && !bbr.equality
         return # If convex, don't train a tree!
     elseif threshold.first in classifications
         lnr = base_classifier()
@@ -253,11 +253,17 @@ function learn_constraint!(bbr::BlackBoxRegressor, threshold::Pair = Pair("reg",
         push!(bbr.learner_kwargs, Dict(kwargs))
         push!(bbr.thresholds, threshold)
         push!(bbr.ul_data, ul_data)
-        return 
     elseif threshold.first == "reg"
         lnr = base_regressor()
         IAI.set_params!(lnr; minbucket = 2*length(bbr.vars), regressor_kwargs(; kwargs...)...)
-        if threshold.second == nothing && bbr.local_convexity < 0.75
+        if bbr.equality # Equalities cannot leverage convexity unfortunately...
+            if threshold.second == nothing
+                lnr = learn_from_data!(bbr.X, bbr.Y, lnr; fit_regressor_kwargs(; kwargs...)...)   
+            else
+                idxs = findall(y -> y <= threshold.second, bbr.Y) 
+                lnr = learn_from_data!(bbr.X[idxs, :], bbr.Y[idxs], lnr; fit_regressor_kwargs(; kwargs...)...)
+            end        
+        elseif threshold.second == nothing && bbr.local_convexity < 0.75
             lnr = learn_from_data!(bbr.X, bbr.Y, lnr; fit_regressor_kwargs(; kwargs...)...)   
         elseif threshold.second == nothing && bbr.local_convexity >= 0.75
             lnr = learn_from_data!(bbr.X, bbr.curvatures .> 0, lnr; fit_regressor_kwargs(; kwargs...)...)             
@@ -272,7 +278,6 @@ function learn_constraint!(bbr::BlackBoxRegressor, threshold::Pair = Pair("reg",
         push!(bbr.learner_kwargs, Dict(kwargs))
         push!(bbr.thresholds, threshold)
         push!(bbr.ul_data, boundify(lnr, bbr.X, bbr.Y))
-        return
     elseif threshold.first == "rfreg"
         lnr = base_rf_regressor()
         bbr.local_convexity < 0.75 || throw(OCTException("Cannot use RandomForestRegressor " *
@@ -288,11 +293,23 @@ function learn_constraint!(bbr::BlackBoxRegressor, threshold::Pair = Pair("reg",
         push!(bbr.learner_kwargs, Dict(kwargs))
         push!(bbr.thresholds, threshold)
         push!(bbr.ul_data, boundify(lnr, bbr.X, bbr.Y))
-        return
+        # # TODO: Improve big-M bound
+        # new_M = maximum(abs(value[1]) for (k, v) in bbr.ul_data[end] for (key, value) in v)
+        # if new_M >= bbr.M
+        #     @info("BBR $(bbr.name) big-M updated from $(bbr.M) to $(new_M).")
+        #     bbr.M = new_M
+        # end
     else
         throw(OCTException("$(threshold.first) is not a valid learner type for" *
             " thresholded learning of BBR $(bbr.name)."))
     end    
+    # # TODO: Improve big-M bound
+    # new_M = maximum(abs(value[1]) for (key, value) in bbr.ul_data[end])
+    # if new_M >= bbr.M
+    #     @info("BBR $(bbr.name) big-M updated from $(bbr.M) to $(new_M).")
+    #     bbr.M = new_M
+    # end
+    return
 end
 
 function learn_constraint!(bbl::Array; kwargs...)

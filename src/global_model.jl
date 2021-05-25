@@ -359,7 +359,7 @@ function evaluate_accuracy(bbc::BlackBoxClassifier)
 end
 
 function evaluate_accuracy(bbr::BlackBoxRegressor)
-    if bbr.convex
+    if bbr.convex && !bbr.equality
         return 1.
     elseif isempty(bbr.learners)
         throw(OCTException(string("BlackBoxRegressor ", bbr.name, " has not been trained yet.")))
