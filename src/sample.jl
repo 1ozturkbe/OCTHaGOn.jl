@@ -156,7 +156,7 @@ function uniform_sample_and_eval!(bbl::BlackBoxLearner;
             throw(OCTException(string(bbl.name) * " has zero feasible samples. " *
                                "Please find at least one feasible sample, seed the data and KNN sample."))
         else
-            df = knn_sample(bbl, k= 2*length(bbl.vars) + 1, tighttol = tighttol)
+            df = knn_sample(bbl, k= maximum([10, 2*length(bbl.vars) + 1]), tighttol = tighttol)
             if size(df, 1) > 0
                 eval!(bbl, df)
             end
