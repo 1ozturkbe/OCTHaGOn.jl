@@ -124,7 +124,7 @@ module OptimalConstraintTree
 
         # Algorithms
         add_infeasibility_cuts!, boundify, surveysolve,
-        relax_objective, 
+        relax_objective!, tighten_objective!,
 
         # Checks and exceptions
         feasibility, check_accuracy, check_feasibility, 

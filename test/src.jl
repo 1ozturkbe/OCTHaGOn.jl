@@ -454,6 +454,17 @@ function test_basic_gm()
     surveysolve(gm)
     update_leaf_vexity(gm.bbls[1])
     @test true
+
+    # # Testing relaxations
+    # add_relaxation_variables!(gm)
+    # # Adding new variables for each nonlinear constraint
+    # @test sum(length(all_constraints(gm.model, type[1], type[2])) 
+    #         for type in JuMP.list_of_constraint_types(gm.model)) == 8
+    # relax_objective!(gm)
+    
+    # surveysolve(gm)
+    # @test [getvalue(bbl.relax_var) for bbl in gm.bbls] == zeros(length(gm.bbls))
+    # @constraint(gm.model, gm.objective <= -155)
 end
 
 function test_convex_objective()
