@@ -527,7 +527,7 @@ function test_rfs()
             add_tree_constraints!(gm, bbl)
         elseif bbl isa BlackBoxRegressor
             learn_constraint!(bbl, "rfreg" => nothing)
-            # add_tree_constraints!(gm, bbl)
+            add_tree_constraints!(gm, bbl)
         end
     end
     optimize!(gm)
@@ -540,13 +540,13 @@ end
 # Predator prey model with logistic function from http://www.math.lsa.umich.edu/~rauch/256/F2Lab5.pdf
 function test_linking()
     m = Model(CPLEX_SILENT)
-    t = 100
+    t = 50
     r = 0.2
     x1 = 0.6
     y1 = 0.5
-    @variable(m, x[1:t] >= 0.001) # Note: Ipopt solution does not converge with an upper bound!!
+    @variable(m, x[1:t] >= 0.05) # Note: Ipopt solution does not converge with an upper bound!!
     @variable(m, dx[1:t-1])
-    @variable(m, y[1:t] >= 0.001)
+    @variable(m, y[1:t] >= 0.05)
     @variable(m, dy[1:t-1])
     @constraint(m, x[1] == x1)
     @constraint(m, y[1] == y1)
@@ -565,27 +565,27 @@ function test_linking()
     set_upper_bound.(dy, 1)
     set_lower_bound.(dy, -1)
     gm = GlobalModel(model = m, name = "foxes_rabbits")
-    add_nonlinear_constraint(gm, :((x, y) -> x[1]*(1-x[1]) -x[1]*y[1]/(x[1]+0.2)), vars = [x[1], y[1]], 
-        dependent_var = dx[1], equality=true)
-    add_nonlinear_constraint(gm, :((x, y) -> 0.2*y[1]*(1-y[1]/x[1])), vars = [x[1], y[1]], 
-        dependent_var = dy[1], equality=true)
+    add_nonlinear_constraint(gm, :((x, y, dx) -> dx[1] - (x[1]*(1-x[1]) -x[1]*y[1]/(x[1]+0.2))), 
+                            vars = [x[1], y[1], dx[1]], equality=true)
+    add_nonlinear_constraint(gm, :((x, y, dy) -> dy[1] - (0.2*y[1]*(1-y[1]/x[1]))), 
+                            vars = [x[1], y[1], dy[1]], equality=true)
     for i = 2:t-1
-        add_linked_constraint(gm, gm.bbls[1], [x[i], y[i]], dx[i])
-        add_linked_constraint(gm, gm.bbls[2], [x[i], y[i]], dy[i])
+        add_linked_constraint(gm, gm.bbls[1], [x[i], y[i], dx[i]])
+        add_linked_constraint(gm, gm.bbls[2], [x[i], y[i], dy[i]])
     end
     uniform_sample_and_eval!(gm)
     # Usually would want to train the dynamics better, but for speed this is better!
-    learn_constraint!(gm, max_depth = 3, ls_num_tree_restarts = 5, ls_num_hyper_restarts = 5)
+    learn_constraint!(gm, max_depth = 3, ls_num_tree_restarts = 10, ls_num_hyper_restarts = 10)
     set_param(gm, :ignore_accuracy, true)
     add_tree_constraints!(gm)
     optimize!(gm)
 
-    using Plots
-    # Plotting temporal population data
-    plot(getvalue.(x), label = "Prey")
-    plot!(getvalue.(y), label = "Predators", xlabel = "Time", ylabel = "Normalized population")
-    # OR simultaneously in the population dimensions
-    plot(getvalue.(m[:x]), getvalue.(m[:y]), xlabel = "Prey", ylabel = "Predators", label = 1:t, legend = false)
+    # using Plots
+    # # Plotting temporal population data
+    # plot(getvalue.(x), label = "Prey")
+    # plot!(getvalue.(y), label = "Predators", xlabel = "Time", ylabel = "Normalized population")
+    # # OR simultaneously in the population dimensions
+    # plot(getvalue.(m[:x]), getvalue.(m[:y]), xlabel = "Prey", ylabel = "Predators", label = 1:t, legend = false)
     return true
 end
 
@@ -595,7 +595,7 @@ function test_oos()
     m = gm.model
     uniform_sample_and_eval!(gm)
     update_vexity.(gm.bbls)
-    learn_constraint!(gm, ls_num_hyper_restarts = 25, ls_num_tree_restarts = 25)
+    learn_constraint!(gm)
     add_tree_constraints!(gm)
     optimize!(gm)
     add_infeasibility_cuts!(gm)
@@ -605,10 +605,7 @@ function test_oos()
         optimize!(gm)
     end
 
-    add_relaxation_variables!(gm)
-    relax_objective(gm)
-    add_tree_constraints!(gm)
-    optimize!(gm)
+    return true
 
     # # Printing results
     # println("Orbit altitudes (km) : $(round.((getvalue.(m[:r_orbit]) .- op.rE)./1e3, sigdigits=5))")
@@ -654,34 +651,34 @@ function test_oos()
     # @show bar_plots
 end
 
-# test_expressions()
+test_expressions()
 
-# test_variables()
+test_variables()
 
-# test_bounds()
+test_bounds()
 
-# test_sets()
+test_sets()
 
-# test_linearize()
+test_linearize()
 
-# test_nonlinearize()
+test_nonlinearize()
 
-# test_bbc()
+test_bbc()
 
-# test_kwargs()
+test_kwargs()
 
-# test_regress()
+test_regress()
 
-# test_bbr()
+test_bbr()
 
-# test_basic_gm()
+test_basic_gm()
 
-# test_convex_objective()
+test_convex_objective()
 
-# test_data_driven()
+test_data_driven()
 
 test_rfs()
 
 test_linking()
 
-# test_oos()
+test_oos()

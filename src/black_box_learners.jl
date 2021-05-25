@@ -335,6 +335,7 @@ function update_gradients(bbl::BlackBoxLearner, idxs::Array = collect(1:size(bbl
     @assert get_param(bbl, :gradients)
     isempty(idxs) && return
     empties = idxs[findall(idx -> any(ismissing.(values(bbl.gradients[idx,:]))), idxs)]
+    isempty(empties) && return
     bbl.gradients[empties, :] = evaluate_gradient(bbl, bbl.X[empties, :])
     return
 end    
