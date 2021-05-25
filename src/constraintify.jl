@@ -52,7 +52,10 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
         if get_param(bbr, :linked)
             for lr in bbr.lls
                 mc = Dict(1 => [])
-                for i = Int64.(ceil.(size(bbr.X,1) .* rand(10)))
+                # Number of initial cuts depends on the dimension of the constraint
+                pt_idxs = Int64.(ceil.(size(bbr.X,1) .* rand(maximum([10, Int64(10*ceil(log(length(bbr.vars))))]))))
+                update_gradients(bbr, pt_idxs)
+                for i in pt_idxs
                     push!(mc[1], @constraint(gm.model, lr.dependent_var >= sum(Array(bbr.gradients[i,:]) .* (lr.vars .- Array(bbr.X[i, :]))) + bbr.Y[i]))
                 end
                 merge!(append!, lr.mi_constraints, mc)
