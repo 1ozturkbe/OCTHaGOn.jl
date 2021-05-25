@@ -257,7 +257,7 @@ function learn_constraint!(bbr::BlackBoxRegressor, threshold::Pair = Pair("reg",
         lnr = base_regressor()
         IAI.set_params!(lnr; minbucket = 2*length(bbr.vars), regressor_kwargs(; kwargs...)...)
         if bbr.equality # Equalities cannot leverage convexity unfortunately...
-            if bbr.threshold.second == nothing
+            if threshold.second == nothing
                 lnr = learn_from_data!(bbr.X, bbr.Y, lnr; fit_regressor_kwargs(; kwargs...)...)   
             else
                 idxs = findall(y -> y <= threshold.second, bbr.Y) 

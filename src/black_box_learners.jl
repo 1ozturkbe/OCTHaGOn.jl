@@ -333,6 +333,7 @@ Updates gradient information of selected points.
 """
 function update_gradients(bbl::BlackBoxLearner, idxs::Array = collect(1:size(bbl.X,1)))
     @assert get_param(bbl, :gradients)
+    isempty(idxs) && return
     empties = idxs[findall(idx -> any(ismissing.(values(bbl.gradients[idx,:]))), idxs)]
     bbl.gradients[empties, :] = evaluate_gradient(bbl, bbl.X[empties, :])
     return
