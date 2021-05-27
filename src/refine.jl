@@ -156,7 +156,7 @@ end
 
 Adds cuts reducing infeasibility of BBC inequalities. 
 """
-function add_infeasibility_cuts!(gm::GlobalModel, M = 1e5)
+function add_infeasibility_cuts!(gm::GlobalModel)
     #TODO: CHECK REGRESSION EQUALITIES.
     #TODO: ADD CUTS TO LINKEDCONSTRAINTS. 
     var_vals = solution(gm)
@@ -175,7 +175,7 @@ function add_infeasibility_cuts!(gm::GlobalModel, M = 1e5)
                 cut_grad = bbc.gradients[end, :]
                 push!(bbc.mi_constraints[bbc.active_leaves[1]], 
                     @constraint(gm.model, sum(Array(cut_grad) .* (bbc.vars .- Array(rel_vals)')) + Y + 
-                                        M*(1 - bbc.leaf_variables[bbc.active_leaves[1]]) >= 0))
+                                        bbc.M*(1 - bbc.leaf_variables[bbc.active_leaves[1]]) >= 0))
                 count += 1                        
             end
             for ll in bbc.lls
@@ -188,7 +188,7 @@ function add_infeasibility_cuts!(gm::GlobalModel, M = 1e5)
                     cut_grad = bbc.gradients[end, :]
                     push!(ll.mi_constraints[ll.active_leaves[1]], 
                     @constraint(gm.model, sum(Array(cut_grad) .* (ll.vars .- Array(rel_vals)')) + Y + 
-                                        M*(1 - ll.leaf_variables[ll.active_leaves[1]]) >= 0))
+                                        bbc.M*(1 - ll.leaf_variables[ll.active_leaves[1]]) >= 0))
                     count += 1                        
                 end
             end
