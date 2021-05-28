@@ -1,3 +1,16 @@
+"""Generates binary-bounded auxiliary variables and their bounding constraintsof the same size as x. """
+function bounded_aux(x::Array{JuMP.VariableRef}, binary_var::JuMP.VariableRef)
+    var_bounds = get_bounds(x)
+    aux_vars = @variable(m, [1:length(x)])
+    bound_cons = []
+    for i = 1:length(x) # Bounding auxiliary variables
+        bds = var_bounds[x[i]]
+        push!(bound_cons, @constraint(x[i].model, aux_vars[i] >= minimum(bds)*binary_var))
+        push!(bound_cons, @constraint(x[i].model, aux_vars[i] <= maximum(bds)*binary_var))
+    end
+    return aux_vars, bound_cons
+end
+
 """
     add_tree_constraints!(gm::GlobalModel, bbl::BlackBoxLearner)
     add_tree_constraints!(gm::GlobalModel, bbls::Vector{BlackBoxLearner})
