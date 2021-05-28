@@ -183,12 +183,12 @@ function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::I
     mi_constraints = Dict(leaf => JuMP.ConstraintRef[] for leaf in feas_leaves)
     leaf_variables = Dict{Int64, Tuple{JuMP.VariableRef, Array}()
     for leaf in feas_leaves
-        leaf_variables[leaf], mi_constraints[leaf] = bounded_aux(x, @variable(m, Bin))
+        leaf_variables[leaf], mi_constraints[leaf] = bounded_aux(x, @variable(m, binary=true))
     end
     mi_constraints[1] = JuMP.ConstraintRef[@constraint(m, sum(leaf_variables[leaf][1] for leaf in feas_leaves) == 1))]
     for lc in lcs
         for leaf in feas_leaves
-            lc.leaf_variables[leaf], lc.mi_constraints[leaf] = bounded_aux(x, @variable(m, Bin))
+            lc.leaf_variables[leaf], lc.mi_constraints[leaf] = bounded_aux(x, @variable(m, binary=true))
         end
         lc.mi_constraints[1] = JuMP.ConstraintRef[@constraint(m, sum(lc.leaf_variables[leaf][1] for leaf in feas_leaves) == 1))]
         lc.active_leaves = []
@@ -460,13 +460,20 @@ function clear_tree_constraints!(gm::GlobalModel, bbc::Union{BlackBoxClassifier,
         end
         delete!(bbc.mi_constraints, leaf_key)
     end
-    for (leaf_key, leaf_var) in bbc.leaf_variables
-        if is_valid(gm.model, leaf_var)
-            delete(gm.model, leaf_var)
-            delete!(bbc.leaf_variables, leaf_key)
-        else
-            throw(OCTException("Bug: Variables could not be removed."))
+    for (leaf_key, (bin_var, leaf_vars)) in bbc.leaf_variables
+        for leaf_var in leaf_vars
+            if is_valid(gm.model, leaf_vars)
+                delete(gm.model, leaf_var)
+            else
+                throw(OCTException("Bug: Variables could not be removed."))
+            end
         end
+        if is_valid(gm.model, bin_var)
+            delete(gm.model, bin_var)
+        else
+            throw(OCTException("Bug: Binary variable could not be removed."))
+        end
+        delete!(bbc.leaf_variables, leaf_key)
     end
     bbc.active_leaves = []
     if bbc isa BlackBoxClassifier
