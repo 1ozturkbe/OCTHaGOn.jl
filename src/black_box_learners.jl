@@ -3,7 +3,7 @@
     vars::Array{JuMP.VariableRef,1}                    # JuMP variables (flat)
     relax_var::Union{Real, JuMP.VariableRef} = 0.      # slack variable        
     mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}()
-    leaf_variables::Dict = Dict{Int64, Tuple{JuMP.VariableRef, Tuple}}() 
+    leaf_variables::Dict = Dict{Int64, Tuple{JuMP.VariableRef, Array}}() 
     active_leaves::Array = []                          # leaf of last solution
     feas_gap::Array = []                               # Feasibility gaps of solutions   
 end
@@ -19,7 +19,7 @@ end
     dependent_var::JuMP.VariableRef                    # Dependent variable
     relax_var::Union{Real, JuMP.VariableRef} = 0.      # slack variable        
     mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}() # and their corresponding MI constraints,
-    leaf_variables::Dict = Dict{Int64, Tuple{JuMP.VariableRef, Tuple}}() # and leaf variables. 
+    leaf_variables::Dict = Dict{Int64, Tuple{JuMP.VariableRef, Array}}() # and leaf variables. 
     active_leaves::Array = []                          # leaf of last solution    
     optima::Array = []
     actuals::Array = []
@@ -86,7 +86,7 @@ Optional arguments:
     active_trees::Dict{Int64, Union{Nothing, Pair}} = Dict() # Currently active tree indices
     M::Real = 1e8                                      # M for big-M constraints  
     mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}() # and their corresponding MI constraints,
-    leaf_variables::Dict = Dict{Int64, Tuple{JuMP.VariableRef, Tuple}}() # and their leaf variables 
+    leaf_variables::Dict = Dict{Int64, Tuple{JuMP.VariableRef, Array}}() # and their leaf variables 
     active_leaves::Array = []                          # leaf of last solution    
     optima::Array = []
     actuals::Array = []
@@ -159,7 +159,7 @@ Optional arguments:
     learner_kwargs = []                                # And their kwargs... 
     M::Real = 1e8                                      # M for big-M constraints  
     mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}() # and their corresponding MI constraints,
-    leaf_variables::Dict = Dict{Int64, Tuple{JuMP.VariableRef, Tuple}}() # and their leaf variables 
+    leaf_variables::Dict = Dict{Int64, Tuple{JuMP.VariableRef, Array}}() # and their leaf variables 
     active_leaves::Array = []                          # Leaf of last solution
     feas_gap::Array = []                               # Feasibility gaps of solutions   
     lls::Array{LinkedClassifier} = []                  # LinkedClassifiers
