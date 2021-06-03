@@ -254,7 +254,7 @@ end
 Equally LH samples the leaves of BBC with not enough feasible samples. 
 """
 function feasibility_sample(bbc::BlackBoxClassifier, n_samples::Int64 = get_param(bbc, :n_samples))
-    minbucket = minimum([Int64(bbc.feas_ratio .* size(bbc.X, 1)), Int64(floor(0.05*size(bbc.X, 1)))])
+    minbucket = minimum([Int64(round(bbc.feas_ratio .* size(bbc.X, 1))), Int64(floor(0.05*size(bbc.X, 1)))])
     lnr = base_classifier()
     IAI.set_params!(lnr, minbucket = minbucket)
     lnr = learn_from_data!(bbc.X, bbc.Y .>= 0, lnr; fit_classifier_kwargs()...)

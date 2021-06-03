@@ -63,6 +63,7 @@ end
 function test_feasibility_sample()
     gm = speed_reducer()
     uniform_sample_and_eval!(gm)
+    [set_param(bbl, :threshold_feasibility, 0.3) for bbl in gm.bbls]
     @test any(check_feasibility(gm) .!= 1)
     feasibility_sample(gm)
     @test all(check_feasibility(gm) .== 1)
