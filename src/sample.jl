@@ -162,12 +162,6 @@ function uniform_sample_and_eval!(bbl::BlackBoxLearner;
             end
         end
     end
-    # TODO: Dynamically set M
-    # if bbl isa BlackBoxClassifier
-    #     bbl.M = 2. * abs(minimum(filter(!isinf, bbl.Y)))
-    # else
-    #     bbl.M = 2. * abs(maximum(filter(!isinf, bbl.Y)) - minimum(filter(!isinf, bbl.Y)))
-    # end
     return 
 end
 
