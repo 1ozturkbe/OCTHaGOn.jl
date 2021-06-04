@@ -1,4 +1,4 @@
-"""Generates binary-bounded auxiliary variables and their bounding constraintsof the same size as x. """
+"""Generates binary-bounded auxiliary variables and their bounding constraints of the same size as x. """
 function bounded_aux(x::Array{JuMP.VariableRef}, binary_var::JuMP.VariableRef)
     var_bounds = get_bounds(x)
     aux_vars = @variable(m, [1:length(x)])
@@ -27,10 +27,8 @@ function add_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier, idx = l
         bbc.mi_constraints = Dict(1 => [@constraint(gm.model, z_feas == 1)])
         bbc.leaf_variables = Dict(1 => (z_feas, []))
     elseif get_param(bbc, :reloaded)
-        mi_constraints, leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[idx];
+        bbc.mi_constraints, bbc.leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[idx];
                                             equality = bbc.equality, lcs = bbc.lls)
-        bbc.mi_constraints = mi_constraints
-        bbc.leaf_variables = leaf_variables
     elseif size(bbc.X, 1) == 0
         throw(OCTException("Constraint " * string(bbc.name) * " has not been sampled yet, and is thus untrained."))
     elseif isempty(bbc.learners)
@@ -42,10 +40,8 @@ function add_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier, idx = l
     elseif !get_param(gm, :ignore_accuracy) && !check_accuracy(bbc)
         throw(OCTException("Constraint " * string(bbc.name) * " is inaccurately approximated. "))
     else
-        mi_constraints, leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[idx];
-                                            equality = bbc.equality, lcs = bbc.lls);
-        bbc.mi_constraints = mi_constraints
-        bbc.leaf_variables = leaf_variables
+        bbc.mi_constraints, bbc.leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[idx];
+                                            equality = bbc.equality, lcs = bbc.lls)
     end
     bbc.active_leaves = []
     return
@@ -179,18 +175,19 @@ function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::I
     else 
         feas_leaves = all_leaves
     end
-    var_bounds = get_bounds(x)
     mi_constraints = Dict(leaf => JuMP.ConstraintRef[] for leaf in feas_leaves)
-    leaf_variables = Dict{Int64, Tuple{JuMP.VariableRef, Array}()
+    leaf_variables = Dict{Int64, Tuple{JuMP.VariableRef, Array}}()
     for leaf in feas_leaves
         leaf_variables[leaf], mi_constraints[leaf] = bounded_aux(x, @variable(m, binary=true))
     end
     mi_constraints[1] = JuMP.ConstraintRef[@constraint(m, sum(leaf_variables[leaf][1] for leaf in feas_leaves) == 1))]
+    push!(mi_constraints[1], @constraint(m, sum(leaf_variables[2] for leaf in feas_leaves) .== x))
     for lc in lcs
         for leaf in feas_leaves
             lc.leaf_variables[leaf], lc.mi_constraints[leaf] = bounded_aux(x, @variable(m, binary=true))
         end
-        lc.mi_constraints[1] = JuMP.ConstraintRef[@constraint(m, sum(lc.leaf_variables[leaf][1] for leaf in feas_leaves) == 1))]
+        lc.mi_constraints[1] = JuMP.ConstraintRef[@constraint(m, sum(lc.leaf_variables[leaf][1] for leaf in feas_leaves) == 1)]
+        push!(lc.mi_constraints[1], @constraint(m, sum(lc.leaf_variables[leaf][2] for leaf in feas_leaves) .== lc.vars)]
         lc.active_leaves = []
     end
     # Getting lnr data
@@ -200,56 +197,52 @@ function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::I
         # ADDING TRUST REGIONS
         for region in upperDict[leaf]
             threshold, α = region
-            push!(mi_constraints[leaf], @constraint(m, threshold <= sum(α .* x) + M * (1 + relax_var - z_feas[i])))
+            push!(mi_constraints[leaf], @constraint(m, threshold * leaf_variables[leaf][1] <= sum(α .* leaf_variables[leaf][2]) + relax_var))
             for lc in lcs
-                push!(lc.mi_constraints[leaf], @constraint(m, threshold <= sum(α .* lc.vars) + 
-                            M * (1 + lc.relax_var - lc.leaf_variables[leaf])))
+                push!(lc.mi_constraints[leaf], @constraint(m, threshold * lc.leaf_variables[leaf][1] <= sum(α .* lc.leaf_variables[leaf][2]) + 
+                                                lc.relax_var))
             end
         end
         for region in lowerDict[leaf]
             threshold, α = region
-            push!(mi_constraints[leaf], @constraint(m, threshold + M * (1 + relax_var - z_feas[i]) >= sum(α .* x)))
+            push!(mi_constraints[leaf], @constraint(m, threshold * leaf_variables[leaf][1] + relax_var >= sum(α .* leaf_variables[leaf][2])))
             for lc in lcs
-                push!(lc.mi_constraints[leaf], @constraint(m, threshold + M * (1 + lc.relax_var - lc.leaf_variables[leaf]) >= 
-                                                                sum(α .* lc.vars)))
+                push!(lc.mi_constraints[leaf], @constraint(m, threshold  * lc.leaf_variables[leaf][1] + lc.relax_var >= 
+                                                                sum(α .* lc.leaf_variables[leaf][2])))
             end
         end
     end
     if equality
         infeas_leaves = [i for i in all_leaves if !Bool(IAI.get_classification_label(lnr, i))];
-        z_infeas = @variable(m, [1:length(infeas_leaves)], Bin)
-        push!(mi_constraints[1], @constraint(m, sum(z_infeas) == 1))
         for leaf in infeas_leaves
-            mi_constraints[leaf] = JuMP.ConstraintRef[]
+            leaf_variables[leaf], mi_constraints[leaf] = bounded_aux(x, @variable(m, binary=true))
         end
+        push!(mi_constraints[1], @constraint(m, sum(leaf_variables[leaf][1] for leaf in infeas_leaves) == 1))
+        push!(mi_constraints[1], @constraint(m, sum(leaf_variables[leaf][2] for leaf in infeas_leaves) .== x))
         for lc in lcs
-            for lc in lcs
-                lc_z_infeas = @variable(m, [1:length(infeas_leaves)], Bin)
-                for i=1:length(infeas_leaves)
-                    lc.leaf_variables[infeas_leaves[i]] = lc_z_infeas[i]
-                    lc.mi_constraints[infeas_leaves[i]] = JuMP.ConstraintRef[] 
-                    push!(lc.mi_constraints[1], @constraint(m, sum(lc_z_infeas) == 1))
-                end
+            for leaf in infeas_leaves
+                lc.leaf_variables[leaf], lc.mi_constraints[leaf] = bounded_aux(x, @variable(m, binary=true))
             end
+            push!(lc.mi_constraints[1], @constraint(m, sum(lc.leaf_variables[leaf][1] for leaf in infeas_leaves) == 1))
+            push!(lc.mi_constraints[1], @constraint(m, sum(lc.leaf_variables[leaf][2] for leaf in infeas_leaves) .== lc.vars))
+            lc.active_leaves = []
         end
         for i = 1:size(infeas_leaves, 1)
             leaf = infeas_leaves[i]
-            leaf_variables[leaf] = z_infeas[i]
             # ADDING TRUST REGIONS
             for region in upperDict[leaf]
                 threshold, α = region
-                push!(mi_constraints[leaf], @constraint(m, threshold <= sum(α .* x) + M * (1 + relax_var - z_infeas[i])))
+                push!(mi_constraints[leaf], @constraint(m, threshold * leaf_variables[leaf][1] <= sum(α .* leaf_variables[leaf][2]) + relax_var))
                 for lc in lcs
-                    push!(lc.mi_constraints[leaf], @constraint(m, threshold <= sum(α .* lc.vars) + 
-                                M * (1 + lc.relax_var - lc.leaf_variables[leaf])))
+                    push!(lc.mi_constraints[leaf], @constraint(m, threshold * lc.leaf_variables[leaf][1] <= sum(α .* lc.leaf_variables[leaf][2]) + lc.relax_var))
                 end
             end
             for region in lowerDict[leaf]
                 threshold, α = region
-                push!(mi_constraints[leaf], @constraint(m, threshold + M * (1 + relax_var - z_infeas[i]) >= sum(α .* x)))
+                push!(mi_constraints[leaf], @constraint(m, threshold * leaf_variables[1] + relax_var >= sum(α .* leaf_variables[2])))
                 for lc in lcs
-                    push!(lc.mi_constraints[leaf], @constraint(m, threshold + M * (1 + lc.relax_var - lc.leaf_variables[leaf]) >= 
-                                                                    sum(α .* lc.vars)))
+                    push!(lc.mi_constraints[leaf], @constraint(m, threshold * lc.leaf_variables[1] + lc.relax_var >= 
+                                                                    sum(α .* lc.leaf_variables[2])))
                 end
             end
         end
