@@ -166,29 +166,32 @@ function add_infeasibility_cuts!(gm::GlobalModel)
         if get_param(gm.bbls[i], :gradients) && gm.bbls[i] isa BlackBoxClassifier && !gm.bbls[i].equality
             bbc = gm.bbls[i]
             if bbc.feas_gap[end] <= 0
-                active_leaf = bbc.active_leaves[1]
+                leaf = bbc.active_leaves[1]
                 @assert length(bbc.active_leaves) == 1
                 rel_vals = var_vals[:, string.(bbc.vars)]
                 eval!(bbc, rel_vals)
                 Y = bbc.Y[end]
                 update_gradients(bbc, [size(bbc.X, 1)])
                 cut_grad = bbc.gradients[end, :]
-                push!(bbc.mi_constraints[bbc.active_leaves[1]], 
-                    @constraint(gm.model, sum(Array(cut_grad) .* (bbc.vars .- Array(rel_vals)')) + Y + 
-                                        bbc.M*(1 - bbc.leaf_variables[bbc.active_leaves[1]]) >= 0))
+                push!(bbc.mi_constraints[leaf], 
+                    @constraint(gm.model, sum(Array(cut_grad) .* (bbc.leaf_variables[leaf][2] .- 
+                                        (Array(rel_vals)' .* bbc.leaf_variables[leaf][1]))) + 
+                                        Y * bbc.leaf_variables[leaf][1] + bbc.relax_var >= 0))
                 count += 1                        
             end
             for ll in bbc.lls
                 if ll.feas_gap[end] <= 0
+                    leaf = ll.active_leaves[1]
                     @assert length(ll.active_leaves) == 1
                     rel_vals = DataFrame(Array(var_vals[:, string.(ll.vars)]), string.(bbc.vars))
                     eval!(bbc, rel_vals)
                     Y = bbc.Y[end]
                     update_gradients(bbc, [size(bbc.X, 1)])
                     cut_grad = bbc.gradients[end, :]
-                    push!(ll.mi_constraints[ll.active_leaves[1]], 
-                    @constraint(gm.model, sum(Array(cut_grad) .* (ll.vars .- Array(rel_vals)')) + Y + 
-                                        bbc.M*(1 - ll.leaf_variables[ll.active_leaves[1]]) >= 0))
+                    push!(ll.mi_constraints[leaf], 
+                    @constraint(gm.model, sum(Array(cut_grad) .* (ll.leaf_variables[leaf][2] .- 
+                                        (Array(rel_vals)' .* ll.leaf_variables[leaf][1])) + 
+                                        Y * ll.leaf_variables[leaf][1] + ll.relax_var >= 0))
                     count += 1                        
                 end
             end
@@ -202,7 +205,8 @@ function add_infeasibility_cuts!(gm::GlobalModel)
                 update_gradients(bbr, [size(bbr.X, 1)])
                 cut_grad = bbr.gradients[end, :]
                 push!(bbr.mi_constraints[1], 
-                    @constraint(gm.model, bbr.dependent_var >= sum(Array(cut_grad) .* (bbr.vars .- Array(rel_vals)')) + Y )) 
+                    @constraint(gm.model, bbr.dependent_var + bbr.relax_var >= 
+                        sum(Array(cut_grad) .* (bbr.vars .- Array(rel_vals)')) + Y)) 
                     count += 1                        
             end
             for ll in bbr.lls
@@ -213,7 +217,8 @@ function add_infeasibility_cuts!(gm::GlobalModel)
                     update_gradients(bbr, [size(bbr.X, 1)])
                     cut_grad = bbr.gradients[end, :]
                     push!(ll.mi_constraints[1], 
-                        @constraint(gm.model, ll.dependent_var >= sum(Array(cut_grad) .* (ll.vars .- Array(rel_vals)')) + Y)) 
+                        @constraint(gm.model, ll.dependent_var + ll.relax_var >= 
+                            sum(Array(cut_grad) .* (ll.vars .- Array(rel_vals)')) + Y)) 
                         count += 1                        
                 end
             end
