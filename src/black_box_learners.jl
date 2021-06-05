@@ -19,7 +19,7 @@ end
     dependent_var::JuMP.VariableRef                    # Dependent variable
     relax_var::Union{Real, JuMP.VariableRef} = 0.      # slack variable        
     mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}() # and their corresponding MI constraints,
-    leaf_variables::Dict = Dict{Int64, Tuple{JuMP.VariableRef, Array}}() # and leaf variables. 
+    leaf_variables::Dict = Dict{Int64, Tuple{JuMP.VariableRef, Array, JuMP.VariableRef}}() # and leaf variables. 
     active_leaves::Array = []                          # leaf of last solution    
     optima::Array = []
     actuals::Array = []
@@ -73,7 +73,7 @@ Optional arguments:
     g::Union{Nothing, Function} = gradientify(constraint, expr_vars)   # ... and its gradient f'n
     X::DataFrame = DataFrame([Float64 
                  for i=1:length(vars)], string.(vars)) # Function samples
-    Y::Array = []                                                           # Function values
+    Y::Array = []                                      # Function values
     gradients::Union{Nothing, DataFrame} = nothing     # Gradients 
     curvatures::Union{Nothing, Array} = nothing        # Curvature around the points
     infeas_X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Infeasible samples, if any
@@ -85,7 +85,7 @@ Optional arguments:
     ul_data::Array{Dict} = Dict[]                      # Upper/lower bounding data
     active_trees::Dict{Int64, Union{Nothing, Pair}} = Dict() # Currently active tree indices
     mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}() # and their corresponding MI constraints,
-    leaf_variables::Dict = Dict{Int64, Tuple{JuMP.VariableRef, Array}}() # and their leaf variables 
+    leaf_variables::Dict = Dict{Int64, Tuple{JuMP.VariableRef, Array, JuMP.VariableRef}}() # and leaf variables. 
     active_leaves::Array = []                          # leaf of last solution    
     optima::Array = []
     actuals::Array = []
