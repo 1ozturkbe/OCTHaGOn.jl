@@ -104,6 +104,14 @@ function test_bounds()
     @test !JuMP.has_lower_bound(x[1]) && JuMP.has_lower_bound(y) && !JuMP.has_upper_bound(x[2])
     bound!(m, Dict(var => [-10, 10] for var in all_variables(m)))
     @test isnothing(get_unbounds(m))
+
+    # Test bounded auxiliary variables
+    model, x, y, z, a = test_model()
+    aux_vars, cons = bounded_aux(x, @variable(model, binary=true))
+    @test length(cons) == 2*length(x)
+    aux_vars, cons = bounded_aux(x[1:end-1], x[end], @variable(model, binary=true))
+    @test length(cons) == 2*length(x)
+    return true
 end
 
 function test_sets()
@@ -258,6 +266,10 @@ function test_bbr()
     set_optimizer(gm, CPLEX_SILENT)
     uniform_sample_and_eval!(gm)
     bbr = gm.bbls[3]
+
+    # Checking that sampling adds bounds to BBRs. 
+    #TODO: COMPLETE. 
+    # check_unbounds([bbr.])
 
     # Make sure to train and add bbcs, and forget for a while...
     bbcs = [bbl for bbl in gm.bbls if bbl isa BlackBoxClassifier]
@@ -662,34 +674,34 @@ function test_oos()
     # @show bar_plots
 end
 
-test_expressions()
+# test_expressions()
 
-test_variables()
+# test_variables()
 
-test_bounds()
+# test_bounds()
 
-test_sets()
+# test_sets()
 
-test_linearize()
+# test_linearize()
 
-test_nonlinearize()
+# test_nonlinearize()
 
-test_bbc()
+# test_bbc()
 
-test_kwargs()
+# test_kwargs()
 
-test_regress()
+# test_regress()
 
-test_bbr()
+# test_bbr()
 
-test_basic_gm()
+# test_basic_gm()
 
-test_convex_objective()
+# test_convex_objective()
 
-test_data_driven()
+# test_data_driven()
 
-test_rfs()
+# test_rfs()
 
-test_linking()
+# test_linking()
 
-test_oos()
+# test_oos()
