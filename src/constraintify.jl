@@ -1,4 +1,8 @@
-"""Generates binary-bounded auxiliary variables and their bounding constraints of the same size as x. """
+""" 
+    bounded_aux(x::Array{JuMP.VariableRef}, binary_var::JuMP.VariableRef)
+    bounded_aux(x::Array{JuMP.VariableRef}, y::JuMP.VariableRef, binary_var::JuMP.VariableRef)
+Generates binary-bounded auxiliary variables and their bounding constraints of the same size as x + y.
+"""
 function bounded_aux(x::Array{JuMP.VariableRef}, binary_var::JuMP.VariableRef)
     var_bounds = get_bounds(x)
     aux_vars = @variable(m, [1:length(x)])
@@ -9,6 +13,15 @@ function bounded_aux(x::Array{JuMP.VariableRef}, binary_var::JuMP.VariableRef)
         push!(bound_cons, @constraint(x[i].model, aux_vars[i] <= maximum(bds)*binary_var))
     end
     aux_vars = (binary_var, aux_vars)
+    return aux_vars, bound_cons
+end
+
+function bounded_aux(x::Array{JuMP.VariableRef}, y::JuMP.VariableRef, binary_var::JuMP.VariableRef)
+    aux_vars, bound_cons = bounded_aux(x, binary_var)
+    aux_dep = @variable(y.model)
+    push!(bound_cons, @constraint(y.model, aux_dep >= binary_var * JuMP.lower_bound(y)))
+    push!(bound_cons, @constraint(y.model, aux_dep <= binary_var * JuMP.upper_bound(y)))
+    aux_vars = (aux_vars[1], aux_vars[2], aux_dep)
     return aux_vars, bound_cons
 end
 
@@ -279,12 +292,14 @@ function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuM
         end
         mi_constraints[1] = JuMP.ConstraintRef[@constraint(m, sum(leaf_variables[leaf][1] for leaf in all_leaves) == 1)]
         push!(mi_constraints[1], @constraint(m, sum(leaf_variables[2] for leaf in all_leaves) .== x))
+        push!(mi_constraints[1], @constraint(m, sum(leaf_variables[3] for leaf in all_leaves) == y))
         for lr in lrs          
             for leaf in all_leaves
                 lr.leaf_variables[leaf], lr.mi_constraints[leaf] = bounded_aux(x, @variable(m, binary=true))
             end
             lr.mi_constraints[1] = JuMP.ConstraintRef[@constraint(m, sum(lr.leaf_variables[leaf][1] for leaf in feas_leaves) == 1)]
             push!(lr.mi_constraints[1], @constraint(m, sum(lr.leaf_variables[leaf][2] for leaf in all_leaves) .== lr.vars))
+            push!(lr.mi_constraints[3], @constraint(m, sum(lr.leaf_variables[leaf][3] for leaf in all_leaves == lr.dependent_var)))
             lr.active_leaves = []
         end
         # Getting lnr data
@@ -384,14 +399,26 @@ function clear_upper_constraints!(gm, bbr::Union{BlackBoxRegressor, LinkedRegres
             delete!(bbr.mi_constraints, leaf_key)
         end
     end
-    for (leaf_key, leaf_var) in bbr.leaf_variables
+    for (leaf_key, (bin_var, leaf_vars, aux_dep)) in bbr.leaf_variables
         if leaf_key <= 0
-            if is_valid(gm.model, leaf_var)
-                delete(gm.model, leaf_var)
-                delete!(bbr.leaf_variables, leaf_key)
-            else
-                throw(OCTException("Bug: Variables could not be removed."))
+            for leaf_var in leaf_vars
+                if is_valid(gm.model, leaf_vars)
+                    delete(gm.model, leaf_var)
+                else
+                    throw(OCTException("Bug: Variables could not be removed."))
+                end
             end
+            if is_valid(gm.model, bin_var)
+                delete(gm.model, bin_var)
+            else
+                throw(OCTException("Bug: Binary variable could not be removed."))
+            end
+            if is_valid(gm.model, aux_dep)
+                delete(gm.model, aux_dep)
+            else
+                throw(OCTException("Bug: Aux dependent variable could not be removed."))
+            end
+            delete!(bbr.leaf_variables, leaf_key)
         end
     end
     if bbr isa BlackBoxRegressor
@@ -420,16 +447,29 @@ function clear_lower_constraints!(gm, bbr::Union{BlackBoxRegressor, LinkedRegres
             delete!(bbr.mi_constraints, leaf_key)
         end
     end
-    for (leaf_key, leaf_var) in bbr.leaf_variables
+    for (leaf_key, (bin_var, leaf_vars, aux_dep)) in bbr.leaf_variables
         if leaf_key >= 0
-            if is_valid(gm.model, leaf_var)
-                delete(gm.model, leaf_var)
-                delete!(bbr.leaf_variables, leaf_key)
-            else
-                throw(OCTException("Bug: Variables could not be removed."))
+            for leaf_var in leaf_vars
+                if is_valid(gm.model, leaf_vars)
+                    delete(gm.model, leaf_var)
+                else
+                    throw(OCTException("Bug: Variables could not be removed."))
+                end
             end
+            if is_valid(gm.model, bin_var)
+                delete(gm.model, bin_var)
+            else
+                throw(OCTException("Bug: Binary variable could not be removed."))
+            end
+            if is_valid(gm.model, aux_dep)
+                delete(gm.model, aux_dep)
+            else
+                throw(OCTException("Bug: Aux dependent variable could not be removed."))
+            end
+            delete!(bbr.leaf_variables, leaf_key)
         end
     end
+    bbr.active_leaves = []
     if bbr isa BlackBoxRegressor
         idx = active_lower_tree(bbr)
         delete!(bbr.active_trees, idx)
