@@ -299,7 +299,7 @@ function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuM
             end
             lr.mi_constraints[1] = JuMP.ConstraintRef[@constraint(m, sum(lr.leaf_variables[leaf][1] for leaf in feas_leaves) == 1)]
             push!(lr.mi_constraints[1], @constraint(m, sum(lr.leaf_variables[leaf][2] for leaf in all_leaves) .== lr.vars))
-            push!(lr.mi_constraints[3], @constraint(m, sum(lr.leaf_variables[leaf][3] for leaf in all_leaves) == lr.dependent_var))
+            push!(lr.mi_constraints[1], @constraint(m, sum(lr.leaf_variables[leaf][3] for leaf in all_leaves) == lr.dependent_var))
             lr.active_leaves = []
         end
         # Getting lnr data
@@ -313,32 +313,32 @@ function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuM
                 # Use the ridge regressor!
                 # TODO: ADD AUX DEPENDENT VARIABLE?
                 push!(mi_constraints[leaf], @constraint(m, sum(β .* leaf_variables[leaf][2]) + 
-                    β0 * leaf_variables[leaf][1] + relax_var >= y))
+                    β0 * leaf_variables[leaf][1] + relax_var >= leaf_variables[leaf][3]))
                 [push!(lr.mi_constraints[leaf],  @constraint(m, sum(β .* lr.leaf_variables[leaf][2]) + 
                     β0 * leaf_variables[leaf][1] + lr.relax_var >= lr.dependent_var)) for lr in lrs]
                 push!(mi_constraints[leaf], @constraint(m, sum(β .* leaf_variables[leaf][2]) + 
-                    β0 * leaf_variables[leaf][1] <= y + relax_var))
+                    β0 * leaf_variables[leaf][1] <= leaf_variables[leaf][3] + relax_var))
                 [push!(lr.mi_constraints[leaf], @constraint(m, sum(β .* lr.leaf_variables[leaf][2]) + 
-                    β0 * lr.leaf_variables[leaf][1] <= lr.dependent_var + lr.relax_var)) for lr in lrs]
+                    β0 * lr.leaf_variables[leaf][1] <= lr.leaf_variables[leaf][3] + lr.relax_var)) for lr in lrs]
                 # And use the lower bound
                 β0, β = ul_data[leaf]
                 push!(mi_constraints[leaf], @constraint(m, sum(β .* leaf_variables[leaf][2]) + 
-                    β0 * leaf_variables[leaf][1] <= y + relax_var))
+                    β0 * leaf_variables[leaf][1] <= leaf_variables[leaf][3] + relax_var))
                 [push!(lr.mi_constraints[leaf], @constraint(m, sum(β .* lr.leaf_variables[leaf][2]) + 
-                    β0 * lr.leaf_variables[leaf][1] <= lr.dependent_var + lr.relax_var)) for lr in lrs]
+                    β0 * lr.leaf_variables[leaf][1] <= lr.leaf_variables[leaf][3] + lr.relax_var)) for lr in lrs]
             elseif !isempty(ul_data) 
                 # Use only the lower approximator
                 β0, β = ul_data[leaf] # update the lower approximator
                 push!(mi_constraints[leaf], @constraint(m, sum(β .* leaf_variables[leaf][2]) + 
-                    β0 * leaf_variables[leaf][1] <= y + relax_var))
+                    β0 * leaf_variables[leaf][1] <= leaf_variables[leaf][3] + relax_var))
                 [push!(lr.mi_constraints[leaf], @constraint(m, sum(β .* lr.leaf_variables[leaf][2]) + 
-                    β0 * leaf_variables[leaf][1] <= lr.dependent_var + lr.relax_var)) for lr in lrs]
+                    β0 * leaf_variables[leaf][1] <= lr.leaf_variables[leaf][3] + lr.relax_var)) for lr in lrs]
             else 
                 # Use only the ridge regressor as the lower approximator. 
                 push!(mi_constraints[leaf], @constraint(m, sum(β .* leaf_variables[leaf][2]) + 
-                    β0 * leaf_variables[leaf][1] <= y + relax_var))
+                    β0 * leaf_variables[leaf][1] <= leaf_variables[leaf][3] + relax_var))
                 [push!(lr.mi_constraints[leaf], @constraint(m, sum(β .* leaf_variables[leaf][2]) + 
-                    β0 * leaf_variables[leaf][1] <= lr.dependent_var + lr.relax_var)) for lr in lrs]
+                    β0 * leaf_variables[leaf][1] <= lr.leaf_variables[leaf][3] + lr.relax_var)) for lr in lrs]
             end
             # ADDING TRUST REGIONS
             for region in upperDict[leaf]
@@ -368,13 +368,13 @@ function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuM
             for leaf in collect(keys(ul_data))
                 γ0, γ = ul_data[leaf]
                 if !haskey(mi_constraints, leaf) # occurs with ORTS with bounding hyperplanes
-                    mi_constraints[leaf] = [@constraint(m, y <= γ0 * leaf_variables[leaf][1] + 
+                    mi_constraints[leaf] = [@constraint(m, leaf_variables[leaf][3] <= γ0 * leaf_variables[leaf][1] + 
                         sum(γ .* leaf_variables[leaf][2]) + relax_var)]
                 elseif leaf <= 0
-                    push!(mi_constraints[leaf], @constraint(m, y <= γ0 * leaf_variables[leaf][1] + 
+                    push!(mi_constraints[leaf], @constraint(m, leaf_variables[leaf][3] <= γ0 * leaf_variables[leaf][1] + 
                         sum(γ .* leaf_variables[leaf][2]) + relax_var))
                 else
-                    push!(mi_constraints[leaf], @constraint(m, y + relax_var >= 
+                    push!(mi_constraints[leaf], @constraint(m, leaf_variables[leaf][3] + relax_var >= 
                     γ0 * leaf_variables[leaf][1] + sum(γ .* leaf_variables[leaf][2])))
                 end
             end
