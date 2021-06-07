@@ -190,7 +190,7 @@ function add_infeasibility_cuts!(gm::GlobalModel)
                     cut_grad = bbc.gradients[end, :]
                     push!(ll.mi_constraints[leaf], 
                     @constraint(gm.model, sum(Array(cut_grad) .* (ll.leaf_variables[leaf][2] .- 
-                                        (Array(rel_vals)' .* ll.leaf_variables[leaf][1])) + 
+                                        (Array(rel_vals)' .* ll.leaf_variables[leaf][1]))) + 
                                         Y * ll.leaf_variables[leaf][1] + ll.relax_var >= 0))
                     count += 1                        
                 end

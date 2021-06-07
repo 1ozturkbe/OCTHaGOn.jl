@@ -138,6 +138,7 @@ module OptimalConstraintTree
 
         # Functions on JuMP/MathOptInterface objects
         fetch_variable, get_bounds, get_unbounds,
+        bounded_aux, 
         linearize_objective!, classify_constraints,
         bound!, restrict_to_set,
         distance_to_set, get_constant, 

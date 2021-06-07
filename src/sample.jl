@@ -167,8 +167,8 @@ function uniform_sample_and_eval!(bbl::BlackBoxLearner;
     if bbl isa BlackBoxRegressor
         min_Y = minimum(bbl.Y)
         max_Y = maximum(bbl.Y)
-        lower_margined_bound = min_Y - (max_Y - min_Y)/2)
-        upper_margined_bound = max_Y + (max_Y - min_Y)/2)
+        lower_margined_bound = min_Y - (max_Y - min_Y)/2
+        upper_margined_bound = max_Y + (max_Y - min_Y)/2
         JuMP.set_lower_bound(bbl.dependent_var, lower_margined_bound)
         JuMP.set_upper_bound(bbl.dependent_var, upper_margined_bound)
         for ll in bbl.lls

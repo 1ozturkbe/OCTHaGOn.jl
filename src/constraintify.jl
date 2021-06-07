@@ -5,7 +5,7 @@ Generates binary-bounded auxiliary variables and their bounding constraints of t
 """
 function bounded_aux(x::Array{JuMP.VariableRef}, binary_var::JuMP.VariableRef)
     var_bounds = get_bounds(x)
-    aux_vars = @variable(m, [1:length(x)])
+    aux_vars = @variable(x[1].model, [1:length(x)])
     bound_cons = []
     for i = 1:length(x) # Bounding auxiliary variables
         bds = var_bounds[x[i]]
@@ -194,7 +194,7 @@ function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::I
         leaf_variables[leaf], mi_constraints[leaf] = bounded_aux(x, @variable(m, binary=true))
     end
     mi_constraints[1] = JuMP.ConstraintRef[@constraint(m, sum(leaf_variables[leaf][1] for leaf in feas_leaves) == 1)]
-    push!(mi_constraints[1], @constraint(m, sum(leaf_variables[2] for leaf in feas_leaves) .== x))
+    push!(mi_constraints[1], @constraint(m, sum(leaf_variables[leaf][2] for leaf in feas_leaves) .== x))
     for lc in lcs
         for leaf in feas_leaves
             lc.leaf_variables[leaf], lc.mi_constraints[leaf] = bounded_aux(x, @variable(m, binary=true))
@@ -252,10 +252,10 @@ function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::I
             end
             for region in lowerDict[leaf]
                 threshold, α = region
-                push!(mi_constraints[leaf], @constraint(m, threshold * leaf_variables[1] + relax_var >= sum(α .* leaf_variables[2])))
+                push!(mi_constraints[leaf], @constraint(m, threshold * leaf_variables[leaf][1] + relax_var >= sum(α .* leaf_variables[leaf][2])))
                 for lc in lcs
-                    push!(lc.mi_constraints[leaf], @constraint(m, threshold * lc.leaf_variables[1] + lc.relax_var >= 
-                                                                    sum(α .* lc.leaf_variables[2])))
+                    push!(lc.mi_constraints[leaf], @constraint(m, threshold * lc.leaf_variables[leaf][1] + lc.relax_var >= 
+                                                                    sum(α .* lc.leaf_variables[leaf][2])))
                 end
             end
         end
@@ -299,7 +299,7 @@ function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuM
             end
             lr.mi_constraints[1] = JuMP.ConstraintRef[@constraint(m, sum(lr.leaf_variables[leaf][1] for leaf in feas_leaves) == 1)]
             push!(lr.mi_constraints[1], @constraint(m, sum(lr.leaf_variables[leaf][2] for leaf in all_leaves) .== lr.vars))
-            push!(lr.mi_constraints[3], @constraint(m, sum(lr.leaf_variables[leaf][3] for leaf in all_leaves == lr.dependent_var)))
+            push!(lr.mi_constraints[3], @constraint(m, sum(lr.leaf_variables[leaf][3] for leaf in all_leaves) == lr.dependent_var))
             lr.active_leaves = []
         end
         # Getting lnr data
