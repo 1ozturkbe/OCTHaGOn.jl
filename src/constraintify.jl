@@ -62,7 +62,7 @@ end
 
 function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = length(bbr.learners))
     mi_constraints = Dict{Int64, Array{JuMP.ConstraintRef}}()
-    leaf_variables = Dict{Int64, Tuple{JuMP.VariableRef, Array}}()
+    leaf_variables = Dict{Int64, Tuple{JuMP.VariableRef, Array, JuMP.VariableRef}}()
     if size(bbr.X, 1) == 0 && !get_param(bbr, :reloaded)
         throw(OCTException("Constraint " * string(bbr.name) * " has not been sampled yet, and is thus untrained."))
     elseif bbr.convex
@@ -173,11 +173,12 @@ add_tree_constraints!(gm::GlobalModel) = add_tree_constraints!(gm, gm.bbls)
         lnr: A fitted IAI.OptimalTreeLearner
         m:: JuMP Model
         x:: JuMPVariables (features in lnr)
+    NOTE: mic and lv are only nonempty if we are adding an OCT approximation of a BBR. 
 """
 function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::IAI.OptimalTreeLearner;
                                equality::Bool = false, 
                                relax_var::Union{Real, JuMP.VariableRef} = 0,
-                               lcs::Array = [])
+                               lcs::Array = [], mic::Dict = Dict(), lv::Dict = Dict())
     check_if_trained(lnr);
     all_leaves = find_leaves(lnr)
     # Add a binary variable for each leaf
@@ -188,20 +189,27 @@ function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::I
     else 
         feas_leaves = all_leaves
     end
-    mi_constraints = Dict(leaf => JuMP.ConstraintRef[] for leaf in feas_leaves)
+    mi_constraints = Dict(leaf => [] for leaf in feas_leaves)
     leaf_variables = Dict{Int64, Tuple{JuMP.VariableRef, Array}}()
-    for leaf in feas_leaves
-        leaf_variables[leaf], mi_constraints[leaf] = bounded_aux(x, @variable(m, binary=true))
-    end
-    mi_constraints[1] = JuMP.ConstraintRef[@constraint(m, sum(leaf_variables[leaf][1] for leaf in feas_leaves) == 1)]
-    push!(mi_constraints[1], @constraint(m, sum(leaf_variables[leaf][2] for leaf in feas_leaves) .== x))
-    for lc in lcs
+    if isempty(lv)
         for leaf in feas_leaves
-            lc.leaf_variables[leaf], lc.mi_constraints[leaf] = bounded_aux(x, @variable(m, binary=true))
+            leaf_variables[leaf], mi_constraints[leaf] = bounded_aux(x, @variable(m, binary=true))
         end
-        lc.mi_constraints[1] = JuMP.ConstraintRef[@constraint(m, sum(lc.leaf_variables[leaf][1] for leaf in feas_leaves) == 1)]
-        push!(lc.mi_constraints[1], @constraint(m, sum(lc.leaf_variables[leaf][2] for leaf in feas_leaves) .== lc.vars))
-        lc.active_leaves = []
+        mi_constraints[1] = [@constraint(m, sum(leaf_variables[leaf][1] for leaf in feas_leaves) == 1)]
+        [push!(mi_constraints[1], constr) 
+            for constr in @constraint(m, sum(leaf_variables[leaf][2] for leaf in feas_leaves) .== x)]
+        for lc in lcs
+            for leaf in feas_leaves
+                lc.leaf_variables[leaf], lc.mi_constraints[leaf] = bounded_aux(x, @variable(m, binary=true))
+            end
+            lc.mi_constraints[1] = [@constraint(m, sum(lc.leaf_variables[leaf][1] for leaf in feas_leaves) == 1)]
+            [push!(lc.mi_constraints[1], constr) 
+                for constr in @constraint(m, sum(lc.leaf_variables[leaf][2] for leaf in feas_leaves) .== lc.vars)]
+            lc.active_leaves = []
+        end
+    end
+    if !isempty(mic)
+        merge!(append!, mi_constraints, mic)
     end
     # Getting lnr data
     upperDict, lowerDict = trust_region_data(lnr, Symbol.(x))
@@ -231,13 +239,15 @@ function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::I
             leaf_variables[leaf], mi_constraints[leaf] = bounded_aux(x, @variable(m, binary=true))
         end
         push!(mi_constraints[1], @constraint(m, sum(leaf_variables[leaf][1] for leaf in infeas_leaves) == 1))
-        push!(mi_constraints[1], @constraint(m, sum(leaf_variables[leaf][2] for leaf in infeas_leaves) .== x))
+        [push!(mi_constraints[1], constr) 
+            for constr in @constraint(m, sum(leaf_variables[leaf][2] for leaf in infeas_leaves) .== x)]
         for lc in lcs
             for leaf in infeas_leaves
                 lc.leaf_variables[leaf], lc.mi_constraints[leaf] = bounded_aux(x, @variable(m, binary=true))
             end
             push!(lc.mi_constraints[1], @constraint(m, sum(lc.leaf_variables[leaf][1] for leaf in infeas_leaves) == 1))
-            push!(lc.mi_constraints[1], @constraint(m, sum(lc.leaf_variables[leaf][2] for leaf in infeas_leaves) .== lc.vars))
+            [push!(lc.mi_constraints[1], constr) 
+                for constr in @constraint(m, sum(lc.leaf_variables[leaf][2] for leaf in infeas_leaves) .== lc.vars)]
             lc.active_leaves = []
         end
         for i = 1:size(infeas_leaves, 1)
@@ -285,20 +295,22 @@ function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuM
         check_if_trained(lnr)
         all_leaves = find_leaves(lnr)
         # Add a binary variable for each leaf
-        mi_constraints = Dict(leaf => JuMP.ConstraintRef[] for leaf in all_leaves)
+        mi_constraints = Dict(leaf => [] for leaf in all_leaves)
         leaf_variables = Dict{Int64, Tuple{JuMP.VariableRef, Array}}()
         for leaf in all_leaves
-            leaf_variables[leaf], mi_constraints[leaf] = bounded_aux(x, @variable(m, binary=true))
+            leaf_variables[leaf], mi_constraints[leaf] = bounded_aux(x, y, @variable(m, binary=true))
         end
-        mi_constraints[1] = JuMP.ConstraintRef[@constraint(m, sum(leaf_variables[leaf][1] for leaf in all_leaves) == 1)]
-        push!(mi_constraints[1], @constraint(m, sum(leaf_variables[2] for leaf in all_leaves) .== x))
-        push!(mi_constraints[1], @constraint(m, sum(leaf_variables[3] for leaf in all_leaves) == y))
+        mi_constraints[1] = [@constraint(m, sum(leaf_variables[leaf][1] for leaf in all_leaves) == 1)]
+        [push!(mi_constraints[1], constr) 
+            for constr in @constraint(m, sum(leaf_variables[leaf][2] for leaf in all_leaves) .== x)]
+        push!(mi_constraints[1], @constraint(m, sum(leaf_variables[leaf][3] for leaf in all_leaves) == y))
         for lr in lrs          
             for leaf in all_leaves
                 lr.leaf_variables[leaf], lr.mi_constraints[leaf] = bounded_aux(x, @variable(m, binary=true))
             end
-            lr.mi_constraints[1] = JuMP.ConstraintRef[@constraint(m, sum(lr.leaf_variables[leaf][1] for leaf in feas_leaves) == 1)]
-            push!(lr.mi_constraints[1], @constraint(m, sum(lr.leaf_variables[leaf][2] for leaf in all_leaves) .== lr.vars))
+            lr.mi_constraints[1] = [@constraint(m, sum(lr.leaf_variables[leaf][1] for leaf in feas_leaves) == 1)]
+            [push!(lr.mi_constraints[1], constr)
+                for constr in @constraint(m, sum(lr.leaf_variables[leaf][2] for leaf in all_leaves) .== lr.vars)]
             push!(lr.mi_constraints[1], @constraint(m, sum(lr.leaf_variables[leaf][3] for leaf in all_leaves) == lr.dependent_var))
             lr.active_leaves = []
         end
@@ -359,7 +371,21 @@ function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuM
         return mi_constraints, leaf_variables
     elseif lnr isa OptimalTreeClassifier
         isempty(lrs) || throw(OCTException("Bug: Cannot use OCTs to approximate linked BBRs."))
-        mi_constraints, leaf_variables = add_feas_constraints!(m, x, lnr, equality = equality, lcs = lrs)
+        # Add a binary variable for each leaf
+        all_leaves = find_leaves(lnr)
+        # Add a binary variable for each leaf
+        feas_leaves = [i for i in all_leaves if Bool(IAI.get_classification_label(lnr, i))];
+        mi_constraints = Dict(leaf => [] for leaf in feas_leaves)
+        leaf_variables = Dict{Int64, Tuple{JuMP.VariableRef, Array, JuMP.VariableRef}}()
+        for leaf in feas_leaves
+            leaf_variables[leaf], mi_constraints[leaf] = bounded_aux(x, y, @variable(m, binary=true))
+        end
+        mi_constraints[1] = [@constraint(m, sum(leaf_variables[leaf][1] for leaf in feas_leaves) == 1)]
+        [push!(mi_constraints[1], constr) 
+            for constr in @constraint(m, sum(leaf_variables[leaf][2] for leaf in feas_leaves) .== x)]
+        push!(mi_constraints[1], @constraint(m, sum(leaf_variables[leaf][3] for leaf in feas_leaves) == y))
+        mi_constraints, leaf_variables = add_feas_constraints!(m, x, lnr, equality = equality, lcs = lrs, 
+                                                    mic = mi_constraints, lv = leaf_variables)
         if !isempty(ul_data)
             if all(keys(ul_data) .<= 0) || !all(keys(ul_data) .>= 0) # means an upper or upperlower bounding tree
                 mi_constraints = Dict(-key => value for (key, value) in mi_constraints) # hacky sign flipping for upkeep. 
