@@ -107,11 +107,12 @@ function test_bounds()
 
     # Test bounded auxiliary variables
     model, x, y, z, a = test_model()
+    # For classifiers
     aux_vars, cons = bounded_aux(x, @variable(model, binary=true))
     @test length(cons) == 2*length(x)
+    # For regressors
     aux_vars, cons = bounded_aux(x[1:end-1], x[end], @variable(model, binary=true))
     @test length(cons) == 2*length(x)
-    return true
 end
 
 function test_sets()
@@ -563,7 +564,7 @@ end
 # Predator prey model with logistic function from http://www.math.lsa.umich.edu/~rauch/256/F2Lab5.pdf
 function test_linking()
     m = Model(CPLEX_SILENT)
-    t = 50
+    t = 5
     r = 0.2
     x1 = 0.6
     y1 = 0.5
@@ -588,6 +589,7 @@ function test_linking()
     set_upper_bound.(dy, 1)
     set_lower_bound.(dy, -1)
     gm = GlobalModel(model = m, name = "foxes_rabbits")
+    set_param(gm, :sample_coeff, 300)
     add_nonlinear_constraint(gm, :((x, y, dx) -> dx[1] - (x[1]*(1-x[1]) -x[1]*y[1]/(x[1]+0.2))), 
                             vars = [x[1], y[1], dx[1]], equality=true)
     add_nonlinear_constraint(gm, :((x, y, dy) -> dy[1] - (0.2*y[1]*(1-y[1]/x[1]))), 
@@ -598,18 +600,18 @@ function test_linking()
     end
     uniform_sample_and_eval!(gm)
     # Usually would want to train the dynamics better, but for speed this is better!
-    learn_constraint!(gm, max_depth = 3, ls_num_tree_restarts = 10, ls_num_hyper_restarts = 10)
+    learn_constraint!(gm, max_depth = 3, ls_num_tree_restarts = 20, ls_num_hyper_restarts = 20)
     set_param(gm, :ignore_accuracy, true)
     add_tree_constraints!(gm)
     optimize!(gm)
 
     # using Plots
-    # # Plotting temporal population data
-    # plot(getvalue.(x), label = "Prey")
-    # plot!(getvalue.(y), label = "Predators", xlabel = "Time", ylabel = "Normalized population")
-    # # OR simultaneously in the population dimensions
-    # plot(getvalue.(m[:x]), getvalue.(m[:y]), xlabel = "Prey", ylabel = "Predators", label = 1:t, legend = false)
-    return true
+    # Plotting temporal population data
+    plot(getvalue.(x), label = "Prey")
+    plot!(getvalue.(y), label = "Predators", xlabel = "Time", ylabel = "Normalized population")
+    # OR simultaneously in the population dimensions
+    plot(getvalue.(m[:x]), getvalue.(m[:y]), xlabel = "Prey", ylabel = "Predators", label = 1:t, legend = false)
+    @test true
 end
 
 function test_oos()

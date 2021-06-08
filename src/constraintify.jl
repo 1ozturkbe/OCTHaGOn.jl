@@ -192,6 +192,7 @@ function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::I
     mi_constraints = Dict(leaf => [] for leaf in feas_leaves)
     leaf_variables = Dict{Int64, Tuple{JuMP.VariableRef, Array}}()
     if isempty(lv)
+        leaf_variables = Dict{Int64, Tuple{JuMP.VariableRef, Array, JuMP.VariableRef}}()
         for leaf in feas_leaves
             leaf_variables[leaf], mi_constraints[leaf] = bounded_aux(x, @variable(m, binary=true))
         end
