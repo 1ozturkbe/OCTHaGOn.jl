@@ -296,7 +296,7 @@ function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuM
         all_leaves = find_leaves(lnr)
         # Add a binary variable for each leaf
         mi_constraints = Dict(leaf => [] for leaf in all_leaves)
-        leaf_variables = Dict{Int64, Tuple{JuMP.VariableRef, Array}}()
+        leaf_variables = Dict{Int64, Tuple{JuMP.VariableRef, Array, JuMP.VariableRef}}()
         for leaf in all_leaves
             leaf_variables[leaf], mi_constraints[leaf] = bounded_aux(x, y, @variable(m, binary=true))
         end
@@ -428,7 +428,7 @@ function clear_upper_constraints!(gm, bbr::Union{BlackBoxRegressor, LinkedRegres
     for (leaf_key, (bin_var, leaf_vars, aux_dep)) in bbr.leaf_variables
         if leaf_key <= 0
             for leaf_var in leaf_vars
-                if is_valid(gm.model, leaf_vars)
+                if is_valid(gm.model, leaf_var)
                     delete(gm.model, leaf_var)
                 else
                     throw(OCTException("Bug: Variables could not be removed."))
@@ -476,7 +476,7 @@ function clear_lower_constraints!(gm, bbr::Union{BlackBoxRegressor, LinkedRegres
     for (leaf_key, (bin_var, leaf_vars, aux_dep)) in bbr.leaf_variables
         if leaf_key >= 0
             for leaf_var in leaf_vars
-                if is_valid(gm.model, leaf_vars)
+                if is_valid(gm.model, leaf_var)
                     delete(gm.model, leaf_var)
                 else
                     throw(OCTException("Bug: Variables could not be removed."))
@@ -530,7 +530,7 @@ function clear_tree_constraints!(gm::GlobalModel, bbc::Union{BlackBoxClassifier,
     end
     for (leaf_key, (bin_var, leaf_vars)) in bbc.leaf_variables
         for leaf_var in leaf_vars
-            if is_valid(gm.model, leaf_vars)
+            if is_valid(gm.model, leaf_var)
                 delete(gm.model, leaf_var)
             else
                 throw(OCTException("Bug: Variables could not be removed."))
