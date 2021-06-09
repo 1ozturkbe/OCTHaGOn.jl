@@ -353,31 +353,12 @@ function eval!(bbl::BlackBoxLearner, X::DataFrame)
     add_data!(bbl, X, Y)
 end
 
-""" Deletes all data associated with object. """
-function clear_data!(bbc::BlackBoxClassifier)
-    bbc.X = DataFrame([Float64 for i=1:length(bbc.vars)], string.(bbc.vars))
-    bbc.Y = [];
-    bbc.gradients = nothing
-    bbc.curvatures = nothing
-    bbc.feas_ratio = 0
-    bbc.learners = [];
-    bbc.learner_kwargs = []                            
-    bbc.accuracies = []
-end
+""" 
+    clear_tree_data!(bbc::BlackBoxClassifier)
+    clear_tree_data!(bbr::BlackBoxRegressor)
 
-function clear_data!(bbr::BlackBoxRegressor)
-    bbr.X = DataFrame([Float64 for i=1:length(bbr.vars)], string.(bbr.vars))
-    bbr.Y = []
-    bbr.gradients = nothing
-    bbr.curvatures = nothing
-    bbr.infeas_X = DataFrame([Float64 for i=1:length(bbr.vars)], string.(bbr.vars));
-    bbr.learners = []
-    bbr.learner_kwargs = []   
-    bbr.thresholds = []                         
-    bbr.ul_data = Dict[]                          
-end
-
-""" Deletes tree data associated with object. """
+Deletes tree data associated with object. 
+"""
 function clear_tree_data!(bbc::BlackBoxClassifier)
     bbc.learners = [];
     bbc.learner_kwargs = []                            
@@ -389,6 +370,32 @@ function clear_tree_data!(bbr::BlackBoxRegressor)
     bbr.learner_kwargs = []   
     bbr.thresholds = []                         
     bbr.ul_data = Dict[]            
+end
+
+""" 
+    clear_data!(bbc::BlackBoxClassifier)
+    clear_data!(bbr::BlackBoxRegressor)    
+
+Deletes all data (NOT constraints) associated with object. 
+Please clear constraints using the clear_tree_constraints! function. 
+"""
+function clear_data!(bbc::BlackBoxClassifier)
+    bbc.X = DataFrame([Float64 for i=1:length(bbc.vars)], string.(bbc.vars))
+    bbc.Y = [];
+    bbc.gradients = nothing
+    bbc.curvatures = nothing
+    bbc.feas_ratio = 0
+    clear_tree_data!(bbc)
+end
+
+function clear_data!(bbr::BlackBoxRegressor)
+    bbr.X = DataFrame([Float64 for i=1:length(bbr.vars)], string.(bbr.vars))
+    bbr.Y = []
+    bbr.gradients = nothing
+    bbr.curvatures = nothing
+    bbr.infeas_X = DataFrame([Float64 for i=1:length(bbr.vars)], string.(bbr.vars));
+    clear_tree_data!(bbr)
+                       
 end
 
 """ Helper function to find which binary leaf variables are one. """
