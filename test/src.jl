@@ -475,7 +475,7 @@ function test_basic_gm()
     # Adding new variables for each nonlinear constraint
     @test sum(length(all_constraints(gm.model, type[1], type[2])) 
             for type in JuMP.list_of_constraint_types(gm.model)) == 10
-    relax_objective!(gm)
+    relaxed_objective!(gm)
     surveysolve(gm)
     @test [getvalue(bbl.relax_var) for bbl in gm.bbls] == zeros(length(gm.bbls))
 end
@@ -586,9 +586,9 @@ function test_linking()
     set_lower_bound.(dy, -1)
     gm = GlobalModel(model = m, name = "foxes_rabbits")
     set_param(gm, :sample_coeff, 300)
-    add_nonlinear_constraint(gm, :((x, y, dx) -> dx[1] - (x[1]*(1-x[1]) -x[1]*y[1]/(x[1]+0.2))), 
+    add_nonlinear_constraint(gm, :((x, y, dx) -> dx[1] - (x[1]*(1-x[1]) -x[1]*y[1]/(x[1]+$(r)))), 
                             vars = [x[1], y[1], dx[1]], equality=true)
-    add_nonlinear_constraint(gm, :((x, y, dy) -> dy[1] - (0.2*y[1]*(1-y[1]/x[1]))), 
+    add_nonlinear_constraint(gm, :((x, y, dy) -> dy[1] - ($(r)*y[1]*(1-y[1]/x[1]))), 
                             vars = [x[1], y[1], dy[1]], equality=true)
     for i = 2:t-1
         add_linked_constraint(gm, gm.bbls[1], [x[i], y[i], dx[i]])
@@ -598,23 +598,22 @@ function test_linking()
     init_constraints = sum(length(all_constraints(gm.model, type[1], type[2])) 
         for type in JuMP.list_of_constraint_types(gm.model))
     # Usually would want to train the dynamics better, but for speed this is better!
-    learn_constraint!(gm, max_depth = 3, ls_num_tree_restarts = 20, ls_num_hyper_restarts = 20)
+    learn_constraint!(gm, max_depth = 4, ls_num_tree_restarts = 10, ls_num_hyper_restarts = 10)
     set_param(gm, :ignore_accuracy, true)
+
     add_tree_constraints!(gm)
-    optimize!(gm)
-
-    # Checking constraint clearing
-    clear_tree_constraints!(gm)
-    @test init_constraints == sum(length(all_constraints(gm.model, type[1], type[2])) 
-        for type in JuMP.list_of_constraint_types(gm.model))
-
+    # optimize!(gm)
     # using Plots
     # # Plotting temporal population data
     # plot(getvalue.(x), label = "Prey")
     # plot!(getvalue.(y), label = "Predators", xlabel = "Time", ylabel = "Normalized population")
     # # OR simultaneously in the population dimensions
     # plot(getvalue.(m[:x]), getvalue.(m[:y]), xlabel = "Prey", ylabel = "Predators", label = 1:t, legend = false)
-    @test true
+    # @test true
+    # Checking constraint clearing
+    clear_tree_constraints!(gm)
+    @test init_constraints == sum(length(all_constraints(gm.model, type[1], type[2])) 
+        for type in JuMP.list_of_constraint_types(gm.model))
 end
 
 function test_oos()

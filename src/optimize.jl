@@ -70,11 +70,24 @@ end
 
 clear_relaxation_variables!(gm::GlobalModel) = clear_relaxation_variables!(gm, gm.bbls)
 
-function relax_objective!(gm::GlobalModel, M::Real = 1e8)
-    @objective(gm.model, Min, gm.objective + M * sum(bbl.relax_var for bbl in gm.bbls))
-    return 
+"""
+Includes relaxation variables in objective function 
+"""
+function relaxed_objective!(gm::GlobalModel, M::Real = 1e8)
+    no = 0
+    for bbl in gm.bbls
+        no += M*bbl.relax_var
+        for ll in bbl.lls
+            no += M*ll.relax_var
+        end
+    end
+    @objective(gm.model, Min, gm.objective + no)
+    return
 end
 
-function tighten_objective!(gm::GlobalModel)
+""" 
+Removes relaxation variables from objective. 
+"""
+function tight_objective!(gm::GlobalModel)
     @objective(gm.model, Min, gm.objective)
 end
