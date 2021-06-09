@@ -103,7 +103,7 @@ function Base.show(io::IO, bbr::BlackBoxRegressor)
     println(io, "BlackBoxRegressor " * bbr.name * " with $(length(bbr.vars)) independent variables, ")
     println(io, "and dependent variable $(bbr.dependent_var).")
     println(io, "Sampled $(length(bbr.Y)) times, and has $(length(bbr.learners)) trained ORTs.")
-    if get_param(bbr, :linked)
+    if !isempty(bbr.lls)
         println(io, "Has $(length(bbr.lls)) linked constraints.")
     end
 end
@@ -174,7 +174,7 @@ function Base.show(io::IO, bbc::BlackBoxClassifier)
         println(io, "BlackBoxClassifier inequality " * bbc.name * " with $(length(bbc.vars)) variables: ")
     end
     println(io, "Sampled $(length(bbc.Y)) times, and has $(length(bbc.learners)) trained OCTs.")
-    if get_param(bbc, :linked)
+    if !isempty(bbc.lls)
         println(io, "Has $(length(bbc.lls)) linked constraints.")
     end
     if get_param(bbc, :ignore_feasibility)

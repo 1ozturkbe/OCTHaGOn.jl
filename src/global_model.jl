@@ -248,12 +248,11 @@ Note that the bounds used for sampling are for the original variables!!
 """
 function add_linked_constraint(gm::GlobalModel, bbc::BlackBoxClassifier, vars::Array{JuMP.VariableRef})
     length(vars) == length(bbc.vars) || throw(OCTException("BBC $(bbc.name) does not" *
-    " have the same number of variables as linked variables $(vars)"))
+    " have the same number of variables as linked variables $(vars)."))
     if !isempty(bbc.mi_constraints)
         clear_tree_constraints!(gm, bbc)
         @info "Cleared constraints from BBC $(bbc.name) since it was relinked."
     end
-    get_param(bbc, :linked) || set_param(bbc, :linked, true)
     push!(bbc.lls, LinkedClassifier(vars = vars))
     return
 end
@@ -266,7 +265,6 @@ function add_linked_constraint(gm::GlobalModel, bbr::BlackBoxRegressor, vars::Ar
         clear_tree_constraints!(gm, bbr)
         @info "Cleared constraints from BBR $(bbr.name) since it was relinked."
     end
-    get_param(bbr, :linked) || set_param(bbr, :linked, true)
     push!(bbr.lls, LinkedRegressor(vars = vars, dependent_var = dependent_var))
     return
 end

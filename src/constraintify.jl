@@ -72,7 +72,7 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
             push!(mi_constraints[1], @constraint(gm.model, bbr.dependent_var >= sum(Array(bbr.gradients[i,:]) .* (bbr.vars .- Array(bbr.X[i, :]))) + bbr.Y[i]))
         end
         merge!(append!, bbr.mi_constraints, mi_constraints)
-        if get_param(bbr, :linked)
+        if !isempty(bbr.lls)
             for lr in bbr.lls
                 mc = Dict(1 => [])
                 # Number of initial cuts depends on the dimension of the constraint
@@ -94,7 +94,7 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
         throw(OCTException("Constraint " * string(bbr.name) * " is a Regressor, 
         but doesn't have a ORT and/or OCT with upper/lower bounding approximators!"))
     end
-    if get_param(bbr, :linked)
+    if !isempty(bbr.lls)
         bbr.thresholds[idx].first == "reg" || 
             throw(OCTException("BBRs with LinkedRegressors are only allowed ORT approximators."))
         length(bbr.active_trees) == 0 || 
@@ -112,8 +112,8 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
         isempty(bbr.leaf_variables) ||
             throw(OCTException("Please clear previous tree constraints from $(gm.name) " *
             "before adding an random forest regressor constraints."))
-        get_param(bbr, :linked) && throw(OCTException("Random Forests cannot be used to approximate " *
-                        "linked regressor $(bbr.name)."))
+            !isempty(bbr.lls) && throw(OCTException("Random Forests cannot be used to approximate " *
+                        "linked BBR $(bbr.name)."))
         isnothing(bbr.thresholds[idx].second) ||
             throw(OCTException("RandomForestRegressors are not allowed upper bounds."))
     elseif bbr.thresholds[idx].first == "upper"
@@ -208,6 +208,8 @@ function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::I
                 for constr in @constraint(m, sum(lc.leaf_variables[leaf][2] for leaf in feas_leaves) .== lc.vars)]
             lc.active_leaves = []
         end
+    else
+        leaf_variables = lv
     end
     if !isempty(mic)
         merge!(append!, mi_constraints, mic)
@@ -375,7 +377,7 @@ function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuM
         # Add a binary variable for each leaf
         all_leaves = find_leaves(lnr)
         # Add a binary variable for each leaf
-        feas_leaves = [i for i in all_leaves if Bool(IAI.get_classification_label(lnr, i))];
+        feas_leaves = [i for i in all_leaves if Bool(IAI.get_classification_label(lnr, i))]
         mi_constraints = Dict(leaf => [] for leaf in feas_leaves)
         leaf_variables = Dict{Int64, Tuple{JuMP.VariableRef, Array, JuMP.VariableRef}}()
         for leaf in feas_leaves
