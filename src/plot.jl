@@ -4,3 +4,5 @@ function show_trees(bbl::BlackBoxLearner)
     end
     return
 end
+
+show_trees(gm::GlobalModel) = show_trees.(gm.bbls)

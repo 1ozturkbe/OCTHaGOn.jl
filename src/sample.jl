@@ -162,12 +162,28 @@ function uniform_sample_and_eval!(bbl::BlackBoxLearner;
             end
         end
     end
-    # TODO: Dynamically set M
-    # if bbl isa BlackBoxClassifier
-    #     bbl.M = 2. * abs(minimum(filter(!isinf, bbl.Y)))
-    # else
-    #     bbl.M = 2. * abs(maximum(filter(!isinf, bbl.Y)) - minimum(filter(!isinf, bbl.Y)))
-    # end
+    # Setting vague bounds for the dependent variable. 
+    # This is the only big-M required in the formulation, adding 50% margin to all observed Y values. 
+    if bbl isa BlackBoxRegressor
+        min_Y = minimum(bbl.Y)
+        max_Y = maximum(bbl.Y)
+        lower_margined_bound = min_Y - (max_Y - min_Y)/2
+        upper_margined_bound = max_Y + (max_Y - min_Y)/2
+        if !JuMP.has_lower_bound(bbl.dependent_var)
+            JuMP.set_lower_bound(bbl.dependent_var, lower_margined_bound)
+        end
+        if !JuMP.has_upper_bound(bbl.dependent_var)
+            JuMP.set_upper_bound(bbl.dependent_var, upper_margined_bound)
+        end
+        for ll in bbl.lls
+            if !JuMP.has_lower_bound(ll.dependent_var)
+                JuMP.set_lower_bound(ll.dependent_var, lower_margined_bound)
+            end
+            if !JuMP.has_upper_bound(ll.dependent_var)
+                JuMP.set_upper_bound(ll.dependent_var, upper_margined_bound)
+            end
+        end
+    end
     return 
 end
 
@@ -254,7 +270,7 @@ end
 Equally LH samples the leaves of BBC with not enough feasible samples. 
 """
 function feasibility_sample(bbc::BlackBoxClassifier, n_samples::Int64 = get_param(bbc, :n_samples))
-    minbucket = minimum([Int64(bbc.feas_ratio .* size(bbc.X, 1)), Int64(floor(0.05*size(bbc.X, 1)))])
+    minbucket = minimum([Int64(round(bbc.feas_ratio .* size(bbc.X, 1))), Int64(floor(0.05*size(bbc.X, 1)))])
     lnr = base_classifier()
     IAI.set_params!(lnr, minbucket = minbucket)
     lnr = learn_from_data!(bbc.X, bbc.Y .>= 0, lnr; fit_classifier_kwargs()...)

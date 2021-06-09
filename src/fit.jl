@@ -293,22 +293,10 @@ function learn_constraint!(bbr::BlackBoxRegressor, threshold::Pair = Pair("reg",
         push!(bbr.learner_kwargs, Dict(kwargs))
         push!(bbr.thresholds, threshold)
         push!(bbr.ul_data, boundify(lnr, bbr.X, bbr.Y))
-        # # TODO: Improve big-M bound
-        # new_M = maximum(abs(value[1]) for (k, v) in bbr.ul_data[end] for (key, value) in v)
-        # if new_M >= bbr.M
-        #     @info("BBR $(bbr.name) big-M updated from $(bbr.M) to $(new_M).")
-        #     bbr.M = new_M
-        # end
     else
         throw(OCTException("$(threshold.first) is not a valid learner type for" *
             " thresholded learning of BBR $(bbr.name)."))
     end    
-    # # TODO: Improve big-M bound
-    # new_M = maximum(abs(value[1]) for (key, value) in bbr.ul_data[end])
-    # if new_M >= bbr.M
-    #     @info("BBR $(bbr.name) big-M updated from $(bbr.M) to $(new_M).")
-    #     bbr.M = new_M
-    # end
     return
 end
 

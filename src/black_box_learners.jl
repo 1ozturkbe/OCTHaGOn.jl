@@ -3,7 +3,7 @@
     vars::Array{JuMP.VariableRef,1}                    # JuMP variables (flat)
     relax_var::Union{Real, JuMP.VariableRef} = 0.      # slack variable        
     mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}()
-    leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() 
+    leaf_variables::Dict = Dict{Int64, Tuple{JuMP.VariableRef, Array}}() 
     active_leaves::Array = []                          # leaf of last solution
     feas_gap::Array = []                               # Feasibility gaps of solutions   
 end
@@ -19,7 +19,7 @@ end
     dependent_var::JuMP.VariableRef                    # Dependent variable
     relax_var::Union{Real, JuMP.VariableRef} = 0.      # slack variable        
     mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}() # and their corresponding MI constraints,
-    leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their leaves and leaf variables
+    leaf_variables::Dict = Dict{Int64, Tuple{JuMP.VariableRef, Array, JuMP.VariableRef}}() # and leaf variables. 
     active_leaves::Array = []                          # leaf of last solution    
     optima::Array = []
     actuals::Array = []
@@ -73,7 +73,7 @@ Optional arguments:
     g::Union{Nothing, Function} = gradientify(constraint, expr_vars)   # ... and its gradient f'n
     X::DataFrame = DataFrame([Float64 
                  for i=1:length(vars)], string.(vars)) # Function samples
-    Y::Array = []                                                           # Function values
+    Y::Array = []                                      # Function values
     gradients::Union{Nothing, DataFrame} = nothing     # Gradients 
     curvatures::Union{Nothing, Array} = nothing        # Curvature around the points
     infeas_X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Infeasible samples, if any
@@ -84,9 +84,8 @@ Optional arguments:
     thresholds::Array{Pair} = []                       # For thresholding. 
     ul_data::Array{Dict} = Dict[]                      # Upper/lower bounding data
     active_trees::Dict{Int64, Union{Nothing, Pair}} = Dict() # Currently active tree indices
-    M::Real = 1e8                                      # M for big-M constraints  
     mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}() # and their corresponding MI constraints,
-    leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their leaves and leaf variables
+    leaf_variables::Dict = Dict{Int64, Tuple{JuMP.VariableRef, Array, JuMP.VariableRef}}() # and leaf variables. 
     active_leaves::Array = []                          # leaf of last solution    
     optima::Array = []
     actuals::Array = []
@@ -104,7 +103,7 @@ function Base.show(io::IO, bbr::BlackBoxRegressor)
     println(io, "BlackBoxRegressor " * bbr.name * " with $(length(bbr.vars)) independent variables, ")
     println(io, "and dependent variable $(bbr.dependent_var).")
     println(io, "Sampled $(length(bbr.Y)) times, and has $(length(bbr.learners)) trained ORTs.")
-    if get_param(bbr, :linked)
+    if !isempty(bbr.lls)
         println(io, "Has $(length(bbr.lls)) linked constraints.")
     end
 end
@@ -157,9 +156,8 @@ Optional arguments:
     learners::Array{Union{IAI.OptimalTreeClassifier,
                           IAI.Heuristics.RandomForestClassifier}} = []    # Learners...
     learner_kwargs = []                                # And their kwargs... 
-    M::Real = 1e8                                      # M for big-M constraints  
     mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}() # and their corresponding MI constraints,
-    leaf_variables::Dict = Dict{Int64, JuMP.VariableRef}() # and their leaves and leaf variables
+    leaf_variables::Dict = Dict{Int64, Tuple{JuMP.VariableRef, Array}}() # and their leaf variables 
     active_leaves::Array = []                          # Leaf of last solution
     feas_gap::Array = []                               # Feasibility gaps of solutions   
     lls::Array{LinkedClassifier} = []                  # LinkedClassifiers
@@ -176,7 +174,7 @@ function Base.show(io::IO, bbc::BlackBoxClassifier)
         println(io, "BlackBoxClassifier inequality " * bbc.name * " with $(length(bbc.vars)) variables: ")
     end
     println(io, "Sampled $(length(bbc.Y)) times, and has $(length(bbc.learners)) trained OCTs.")
-    if get_param(bbc, :linked)
+    if !isempty(bbc.lls)
         println(io, "Has $(length(bbc.lls)) linked constraints.")
     end
     if get_param(bbc, :ignore_feasibility)
@@ -396,8 +394,8 @@ end
 """ Helper function to find which binary leaf variables are one. """
 function active_leaves(bbl::Union{BlackBoxLearner, LinkedLearner})
     leaf_in = []
-    for (leaf, var) in bbl.leaf_variables
-        if isapprox(getvalue(var), 1; atol=1e-5)
+    for (leaf, var_tuple) in bbl.leaf_variables
+        if isapprox(getvalue(var_tuple[1]), 1; atol=1e-5)
             push!(leaf_in, leaf)
         end
     end
