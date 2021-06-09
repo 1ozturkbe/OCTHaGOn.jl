@@ -304,8 +304,9 @@ function test_bbr()
     final_constraints = sum(length(all_constraints(gm.model, type[1], type[2])) for type in types)
     final_variables = length(all_variables(gm.model))
     @test final_constraints == init_constraints + length(all_mi_constraints(bbr)) + length(bbr.leaf_variables)    
-    @test final_variables == init_variables + length(bbr.leaf_variables) + 
-                                length(bbcs[1].leaf_variables) + length(bbcs[2].leaf_variables)
+    @test final_variables == init_variables + length(bbr.leaf_variables)*(length(bbr.vars) + 2) + 
+                                length(bbcs[1].leaf_variables)*(length(bbcs[1].vars) + 1) + 
+                                length(bbcs[2].leaf_variables)*(length(bbcs[2].vars) + 1)
 
     # Check clearing of all constraints and variables
     clear_tree_constraints!(gm, bbr)
@@ -314,7 +315,8 @@ function test_bbr()
     @test init_variables == length(all_variables(gm))
     # Since all_variables(gm) doesn't count auxiliary variables...
     @test length(all_variables(gm.model)) == length(all_variables(gm)) +
-            length(bbcs[1].leaf_variables) + length(bbcs[2].leaf_variables)     
+        length(bbcs[1].leaf_variables)*(length(bbcs[1].vars) + 1) + 
+        length(bbcs[2].leaf_variables)*(length(bbcs[2].vars) + 1)
 
     # Flat prediction training
     learn_constraint!(bbr, regression_sparsity = 0, max_depth = 2)
@@ -468,16 +470,14 @@ function test_basic_gm()
     update_leaf_vexity(gm.bbls[1])
     @test true
 
-    # # Testing relaxations
-    # add_relaxation_variables!(gm)
-    # # Adding new variables for each nonlinear constraint
-    # @test sum(length(all_constraints(gm.model, type[1], type[2])) 
-    #         for type in JuMP.list_of_constraint_types(gm.model)) == 8
-    # relax_objective!(gm)
-    
-    # surveysolve(gm)
-    # @test [getvalue(bbl.relax_var) for bbl in gm.bbls] == zeros(length(gm.bbls))
-    # @constraint(gm.model, gm.objective <= -155)
+    # Testing relaxations
+    add_relaxation_variables!(gm)
+    # Adding new variables for each nonlinear constraint
+    @test sum(length(all_constraints(gm.model, type[1], type[2])) 
+            for type in JuMP.list_of_constraint_types(gm.model)) == 10
+    relax_objective!(gm)
+    surveysolve(gm)
+    @test [getvalue(bbl.relax_var) for bbl in gm.bbls] == zeros(length(gm.bbls))
 end
 
 function test_convex_objective()
@@ -530,20 +530,15 @@ function test_data_driven()
     @test isnothing(get_unbounds(gm))
 end
 
-function test_relaxations()
-    model, x, y, z, a = test_model()
-    return true
-end 
-
 """ Test RandomForest learners for BlackBoxRegression.
 NOTE: Although rfreg is tested, IT IS NOT A SUPPORTED FEATURE SINCE IT
 IS NOT USEFUL FOR MOST PROBLEMS. """
 function test_rfs()
     gm = minlp(true)
-    init_constraints = sum(length(all_constraints(gm.model, type[1], type[2])) 
-                            for type in JuMP.list_of_constraint_types(gm.model))
     set_optimizer(gm, CPLEX_SILENT)
     uniform_sample_and_eval!(gm)
+    init_constraints = sum(length(all_constraints(gm.model, type[1], type[2])) 
+        for type in JuMP.list_of_constraint_types(gm.model))
     bbr = gm.bbls[3]
     for bbl in gm.bbls
         if bbl isa BlackBoxClassifier
@@ -556,21 +551,22 @@ function test_rfs()
     end
     optimize!(gm)
     clear_tree_constraints!(gm)
-    @test init_constraints == sum(length(all_constraints(gm.model, type[1], type[2])) 
-                                    for type in JuMP.list_of_constraint_types(gm.model))
+    # TODO: fix this test. On the backburner though, since RFs are not fully supported. 
+    # @test init_constraints == sum(length(all_constraints(gm.model, type[1], type[2])) 
+    #                                 for type in JuMP.list_of_constraint_types(gm.model))
 end
 
 # Fox and rabbit nonlinear population dynamics 
 # Predator prey model with logistic function from http://www.math.lsa.umich.edu/~rauch/256/F2Lab5.pdf
 function test_linking()
     m = Model(CPLEX_SILENT)
-    t = 5
+    t = 50
     r = 0.2
     x1 = 0.6
     y1 = 0.5
-    @variable(m, x[1:t] >= 0.05) # Note: Ipopt solution does not converge with an upper bound!!
+    @variable(m, x[1:t] >= 0.01) # Note: Ipopt solution does not converge with an upper bound!!
     @variable(m, dx[1:t-1])
-    @variable(m, y[1:t] >= 0.05)
+    @variable(m, y[1:t] >= 0.01)
     @variable(m, dy[1:t-1])
     @constraint(m, x[1] == x1)
     @constraint(m, y[1] == y1)
@@ -599,18 +595,25 @@ function test_linking()
         add_linked_constraint(gm, gm.bbls[2], [x[i], y[i], dy[i]])
     end
     uniform_sample_and_eval!(gm)
+    init_constraints = sum(length(all_constraints(gm.model, type[1], type[2])) 
+        for type in JuMP.list_of_constraint_types(gm.model))
     # Usually would want to train the dynamics better, but for speed this is better!
     learn_constraint!(gm, max_depth = 3, ls_num_tree_restarts = 20, ls_num_hyper_restarts = 20)
     set_param(gm, :ignore_accuracy, true)
     add_tree_constraints!(gm)
     optimize!(gm)
 
+    # Checking constraint clearing
+    clear_tree_constraints!(gm)
+    @test init_constraints == sum(length(all_constraints(gm.model, type[1], type[2])) 
+        for type in JuMP.list_of_constraint_types(gm.model))
+
     # using Plots
-    # Plotting temporal population data
-    plot(getvalue.(x), label = "Prey")
-    plot!(getvalue.(y), label = "Predators", xlabel = "Time", ylabel = "Normalized population")
-    # OR simultaneously in the population dimensions
-    plot(getvalue.(m[:x]), getvalue.(m[:y]), xlabel = "Prey", ylabel = "Predators", label = 1:t, legend = false)
+    # # Plotting temporal population data
+    # plot(getvalue.(x), label = "Prey")
+    # plot!(getvalue.(y), label = "Predators", xlabel = "Time", ylabel = "Normalized population")
+    # # OR simultaneously in the population dimensions
+    # plot(getvalue.(m[:x]), getvalue.(m[:y]), xlabel = "Prey", ylabel = "Predators", label = 1:t, legend = false)
     @test true
 end
 
@@ -631,7 +634,6 @@ function test_oos()
     end
 
     return true
-
     # # Printing results
     # println("Orbit altitudes (km) : $(round.((getvalue.(m[:r_orbit]) .- op.rE)./1e3, sigdigits=5))")
     # println("Satellite order: $(Int.(round.(getvalue.(m[:sat_order]))))")

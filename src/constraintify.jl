@@ -116,6 +116,8 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
                         "linked BBR $(bbr.name)."))
         isnothing(bbr.thresholds[idx].second) ||
             throw(OCTException("RandomForestRegressors are not allowed upper bounds."))
+        bbr.equality && 
+            throw(OCTException("RandomForest cannot approximate BBR $(bbr.name) since it is an equality constraint."))
     elseif bbr.thresholds[idx].first == "upper"
         all(collect(keys(bbr.mi_constraints)) .>= 0)  || throw(OCTException("Please clear previous upper tree constraints from $(gm.name) " *
                                                           "before adding new constraints."))
@@ -126,19 +128,17 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
     if bbr.thresholds[idx].first == "rfreg"
         # NOTE: RFREG augments LinkedLearners. THIS WILL CAUSE BUGS. NOT A FULLY SUPPORTED FEATURE. 
         trees = get_random_trees(bbr.learners[idx])
-        mi_constraints, leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
+        bbr.mi_constraints, bbr.leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
                     trees[1], bbr.ul_data[idx][1]; equality = bbr.equality) 
         for i=2:length(trees)
-            mic, miv = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
+            mic, lv = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
                                                 trees[i], bbr.ul_data[idx][i];
                                                 equality = bbr.equality) 
             nll = LinkedRegressor(vars = bbr.vars, dependent_var = bbr.dependent_var)
-            merge!(append!, nll.mi_constraints, mic)
-            merge!(append!, nll.leaf_variables, miv)       
+            nll.mi_constraints = mic
+            nll.leaf_variables = lv       
             push!(bbr.lls, nll)
         end
-        merge!(append!, bbr.mi_constraints, mi_constraints)
-        merge!(append!, bbr.leaf_variables, leaf_variables)
         bbr.active_trees[idx] = bbr.thresholds[idx]    
     else
         mi_constraints, leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
@@ -192,7 +192,7 @@ function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::I
     mi_constraints = Dict(leaf => [] for leaf in feas_leaves)
     leaf_variables = Dict{Int64, Tuple{JuMP.VariableRef, Array}}()
     if isempty(lv)
-        leaf_variables = Dict{Int64, Tuple{JuMP.VariableRef, Array, JuMP.VariableRef}}()
+        leaf_variables = Dict{Int64, Tuple{JuMP.VariableRef, Array}}()
         for leaf in feas_leaves
             leaf_variables[leaf], mi_constraints[leaf] = bounded_aux(x, @variable(m, binary=true))
         end
@@ -397,8 +397,8 @@ function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuM
             for leaf in collect(keys(ul_data))
                 γ0, γ = ul_data[leaf]
                 if !haskey(mi_constraints, leaf) # occurs with ORTS with bounding hyperplanes
-                    mi_constraints[leaf] = [@constraint(m, leaf_variables[leaf][3] <= γ0 * leaf_variables[leaf][1] + 
-                        sum(γ .* leaf_variables[leaf][2]) + relax_var)]
+                    mi_constraints[leaf] = [@constraint(m, leaf_variables[-leaf][3] <= γ0 * leaf_variables[-leaf][1] + 
+                        sum(γ .* leaf_variables[-leaf][2]) + relax_var)]
                 elseif leaf <= 0
                     push!(mi_constraints[leaf], @constraint(m, leaf_variables[leaf][3] <= γ0 * leaf_variables[leaf][1] + 
                         sum(γ .* leaf_variables[leaf][2]) + relax_var))
