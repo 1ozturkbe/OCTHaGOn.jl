@@ -169,11 +169,19 @@ function uniform_sample_and_eval!(bbl::BlackBoxLearner;
         max_Y = maximum(bbl.Y)
         lower_margined_bound = min_Y - (max_Y - min_Y)/2
         upper_margined_bound = max_Y + (max_Y - min_Y)/2
-        JuMP.set_lower_bound(bbl.dependent_var, lower_margined_bound)
-        JuMP.set_upper_bound(bbl.dependent_var, upper_margined_bound)
+        if !JuMP.has_lower_bound(bbl.dependent_var)
+            JuMP.set_lower_bound(bbl.dependent_var, lower_margined_bound)
+        end
+        if !JuMP.has_upper_bound(bbl.dependent_var)
+            JuMP.set_upper_bound(bbl.dependent_var, upper_margined_bound)
+        end
         for ll in bbl.lls
-            JuMP.set_lower_bound(ll.dependent_var, lower_margined_bound)
-            JuMP.set_upper_bound(ll.dependent_var, upper_margined_bound)
+            if !JuMP.has_lower_bound(ll.dependent_var)
+                JuMP.set_lower_bound(ll.dependent_var, lower_margined_bound)
+            end
+            if !JuMP.has_upper_bound(ll.dependent_var)
+                JuMP.set_upper_bound(ll.dependent_var, upper_margined_bound)
+            end
         end
     end
     return 
