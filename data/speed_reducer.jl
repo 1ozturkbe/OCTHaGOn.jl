@@ -12,10 +12,13 @@ function speed_reducer(solver = CPLEX_SILENT)
     JuMP.set_integer(x[3])
     bound!(gm, Dict(var => [lbs[var], ubs[var]] for var in gm.vars))
 
-#     Objective
-    add_nonlinear_constraint(gm, :(x -> x[8] - (0.7854*x[1]*x[2]^2*(10. / 3. *x[3]^2 + 14.9334*x[3] - 43.0934) -
-             1.5079*x[1]*(x[6]^2 + x[7]^2) + 7.477*(x[6]^3 + x[7]^3) +
-             0.7854*(x[4]*x[6]^2 + x[5]*x[7]^2))), vars = x[1:8])
+    # Objective
+    # add_nonlinear_constraint(gm, :(x -> x[8] - (0.7854*x[1]*x[2]^2*(10. / 3. *x[3]^2 + 14.9334*x[3] - 43.0934) -
+    #          1.5079*x[1]*(x[6]^2 + x[7]^2) + 7.477*(x[6]^3 + x[7]^3) +
+    #          0.7854*(x[4]*x[6]^2 + x[5]*x[7]^2))), vars = x[1:8])
+    add_nonlinear_constraint(gm, :(x -> 0.7854*x[1]*x[2]^2*(10. / 3. *x[3]^2 + 14.9334*x[3] - 43.0934) -
+    1.5079*x[1]*(x[6]^2 + x[7]^2) + 7.477*(x[6]^3 + x[7]^3) +
+    0.7854*(x[4]*x[6]^2 + x[5]*x[7]^2)), vars = x[1:7], dependent_var = x[8])
 
     # Constraints
     add_nonlinear_constraint(gm, :(x -> -27 + x[1] * x[2]^2 * x[3]), vars = x[1:3])
@@ -27,7 +30,7 @@ function speed_reducer(solver = CPLEX_SILENT)
     add_nonlinear_constraint(gm, :(x -> -1.93 + x[2] * x[7]^4 * x[3] / x[5]^3), vars = [x[2], x[3], x[5], x[7]])
 
     add_nonlinear_constraint(gm, :(x -> 110.0*x[6]^3 - (((745*x[4]/(x[2]*x[3]))^2) +
-    16.91*10^6)^0.5), vars = [x[2], x[3], x[4], x[6]])
+    16.9*10^6)^0.5), vars = [x[2], x[3], x[4], x[6]])
 
     add_nonlinear_constraint(gm, :(x -> 85.0*x[7]^3 - (((745*x[5]/(x[2]*x[3]))^2) +
                                             157.5*10^6)^0.5), vars = [x[2], x[3], x[5], x[7]])
