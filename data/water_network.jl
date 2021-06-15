@@ -14,7 +14,7 @@ sink = [0, 890, 850, 130, 725, 1005, 1350, 550, 525,
          865, 1345, 60, 1275, 930, 485, 1045, 820, 170,
          900, 370, 290, 360, 360, 105, 805]/3600.0
 source = zeros(m[:N])
-sources[1] = sum(sinks)
+source[1] = sum(sinks)
 topology_list = [[0, 1], [1, 2], [2, 3], [2, 19], [2, 18], [3, 4], [4, 5], [5, 6], [6, 7], [7, 8], [8, 9], [9, 10],
                  [10, 11], [11, 12], [9, 13], [13, 14], [14, 15], [16, 15], [17, 16], [18, 17], [15, 26], [26, 25],
                  [25, 24], [23, 24], [22, 23], [22, 27], [27, 28], [28, 29], [29, 30], [24, 31], [31, 30], [19, 20],
@@ -35,23 +35,28 @@ L = [100, 1350, 900, 1150, 1450, 450, 850, 850, 800, 950, 1200, 3500, 800, 500, 
 rho = 1000 # Density (kg/m^3)
 mu =  8.9e-4 # Viscosity, kg/m/s
 g = 9.81 # Acceleration of gravity, m/s^2
-H_min = [30 for i = 1:m[:N]] # Minimum head, m
+H_min = 30
 D_min = 0.1 # Minimum pipe diameter, m
 D_max = 2.0 # Maximum pipe diameter, m
-maxV = 100
+V_max = 100
 
-@variable(m, H[1:N] >= 0)             # Head
+if friction == "HW"
+    rough = 130 .* ones(K)
+elseif friction == "DW"        
+    rough = 0.26e-6 .* ones(K)
+end
+
+@variable(m, H[1:N] >= H_min)             # Head
 @constraint(m, H[1] == 100)
-@variable(m, rough[1:K] >= 0)         # Pipe roughness
-@variable(m, pipeCost[1:K] >= 0)      # Pipe roughness
-@variable(m, L[1:K] >= 0)             # Pipe length
-@variable(m, D[1:K] >= 0)             # Pipe diameter
-@variable(m, qp[1:K] >= 0)            # Flow rate (positive direction)
-@variable(m, qm[1:K] >= 0)            # Flow rate (negative direction)
-@variable(m, flow[1:K])               # Net flow rate 
-@variable(m, V[1:K] >= 0)             # Flow velocity (m/s)
+@variable(m, pipeCost[1:K] >= 0)      # Pipe cost
+@variable(m, D_max >= D[1:K] >= D_min)             # Pipe diameter
+@variable(m, flow[1:K] >= 0)
+# @variable(m, flow_dir[1:K], Bin)      # Flow direction
+@variable(m, V_max >= V[1:K] >= 0)             # Flow velocity (m/s)
 @variable(m, H_loss[1:K] >= 0)        # Head loss
 
+# Flow directionality
+flow_dir = ones(K)
 
 if friction == "DW"
     @variable(m, relRough[1:K] >= 0)    # Relative pipe roughness
@@ -60,32 +65,26 @@ if friction == "DW"
 end
 
 @objective(m, Min, sum(pipeCost))
-@constraint(m, flow .== qp .+ qm)
-@constraint(m, H .>= H_min)
-@constraint(m, V .<= maxV)
-@constraint(m, D .<= D_max)
-@constraint(m, D .>= D_min)
 
 for i = 1:N
     @constraint(m, source[i] - sink[i] + 
-        sum(qp[pipe_index] for (pipe_index, node) in topology_dict if node[1] == i) - 
-        sum(qm[pipe_index] for (pipe_index, node) in topology_dict if node[2] == i) == 0)
-    for (pipe_index, node) in topology_dict
-        @NLconstraint(m, H_loss[pipe_index] == abs(H[node[1]] - H[node[2]]))
-    end
+        sum(flow[pipe_index] for (pipe_index, node) in topology_dict if node[1] == i) - 
+        sum(flow[pipe_index] for (pipe_index, node) in topology_dict if node[2] == i) == 0)
+end
+
+for (pipe_index, node) in topology_dict
+    @constraint(m, H_loss[pipe_index] <= H[node[1]] - H[node[2]]) # TODO: add directionality
 end
 
 for i = 1:K
     @NLconstraint(m, pipeCost[i] >= D[i]^1.5*L[i])
-    @NLconstraint(m, V[i] == 4 * flow[i] / (pi*D[i]^2))
+    @NLconstraint(m, V[i] >= 4 * flow[i] / (pi*D[i]^2))
 end
-
-
 
 for pipe_index = 1:K
     if friction == "HW"
-        @NLconstraint(m, H_loss[pipe_index] == 10.67*L[pipe_index] * (flow[pipe_index]) ^ 1.852 /
-                                            ((rough[pipe_index])) ^1.852*(D[pipe_index]) ^4.8704)
+        @NLconstraint(m, H_loss[pipe_index] == flow_dir[pipe_index] * 10.67*L[pipe_index] * flow[pipe_index] ^ 1.852 /
+                                            ((rough[pipe_index]))^1.852*(D[pipe_index])^4.8704)
                     # S (hydraulic slope H/L) = 10.67*Q^1.852 (volumetric flow rate) /
                     # C^1.852 (pipe roughness) /d^4.8704 (pipe diameter)
     elseif friction == "DW"
