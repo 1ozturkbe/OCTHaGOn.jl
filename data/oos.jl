@@ -9,13 +9,13 @@ using Parameters, Random
     alt_sat = 780e3 # altitude of satellites (m)
     n_sats = 7     # number of satellites (must be odd for this case)
     true_anomalies = circshift(collect(1:n_sats).*2*pi/n_sats .- 2pi*6/n_sats, Int((n_sats-1)/2)+1)
-    fuel_required = circshift(collect(100 .+ range(-20, stop=40, length=n_sats)), 4) + rand(MersenneTwister(314), n_sats) .* 40 # dummy example 
+    fuel_required = circshift(collect(100 .+ range(-20, stop=40, length=n_sats)), 4) + rand(MersenneTwister(314), n_sats) .* 80 # dummy example 
     r_sat = rE + alt_sat
     period_sat = 2pi*sqrt(r_sat^3/mu)
-    r_orbits = rE .+ 1e3 .* collect(720:10:840)
+    r_orbits = rE .+ 1e3 .* collect(760:1:800)
     orbital_periods = [2pi*sqrt(r^3/mu) for r in r_orbits]
     transfer_time = [2*pi*sqrt((r_sat + r)^3/(8*mu)) for r in r_orbits]
-    maximum_time = n_sats * 0.05*3600*24*365 # 0.75 years in seconds
+    maximum_time = n_sats * 0.05*3600*24*365 # 0.35 years in seconds
 end
 
 function oos_gm!(op = oos_params())
@@ -29,14 +29,14 @@ function oos_gm!(op = oos_params())
     # Starting a JuMP.Model
     m = Model(CPLEX_SILENT)
 
-    @variable(m, 1.01 >= dmass_entry[i=1:n-1] >= 1)
-    @variable(m, 1.01 >= dmass_exit[i=1:n-1] >= 1)
+    @variable(m, 1.0025 >= dmass_entry[i=1:n-1] >= 1)
+    @variable(m, 1.0025 >= dmass_exit[i=1:n-1] >= 1)
     # Locations xx, and sat_order (mostly for post_processing)
     @variable(m, n >= sat_order[i=1:n] >= 1)
     @variable(m, xx[1:n, 1:n], Bin)        # transfer occurs from row index to column index
 
     # Maneuver time variables
-    @variable(m, 1000 >= N_orbit[1:n-1] >= 50) # Artificial lower and upper bounds.
+    @variable(m, 500 >= N_orbit[1:n-1] >= 50) # Artificial lower and upper bounds.
     @variable(m,  maximum(abs.(op.period_sat .- op.orbital_periods)) >= dt_orbit[1:n-1] >= -maximum(abs.(op.period_sat .- op.orbital_periods)))
     @variable(m, maximum(op.transfer_time) >= dt_transfer_orbit[1:n-1] >= minimum(op.transfer_time))
     @variable(m, maximum(op.r_orbits) >= r_orbit[1:n-1] >= minimum(op.r_orbits))
@@ -54,11 +54,11 @@ function oos_gm!(op = oos_params())
                                         sum(op.true_anomalies .* xx[i,:]))
 
     # Fuel consumption (Watch these arbitrary upper bounds)
-    @variable(m, 2500 >= masses[1:n-1, 1:5] >= op.dry_mass)
-    @variable(m, 3000 >= wet_mass >= op.dry_mass)
+    @variable(m, 2000 >= masses[1:n-1, 1:5] >= op.dry_mass)
+    @variable(m, 2000 >= wet_mass >= op.dry_mass)
 
     # Orbit choice, and time and fuel cost
-    @variable(m, 1.01 >= fractional_dmasses[1:n-1, j=1:4] >= 1) # reduction in masses in maneuvers
+    @variable(m, 1.0025 >= fractional_dmasses[1:n-1, j=1:4] >= 1) # reduction in masses in maneuvers
     @constraint(m, [i=1:n-1], fractional_dmasses[i, 1] == dmass_entry[i])
     @constraint(m, [i=1:n-1], fractional_dmasses[i, 2] == dmass_exit[i])
     @constraint(m, [i=1:n-1], fractional_dmasses[i, 3] == dmass_exit[i])
@@ -81,7 +81,7 @@ function oos_gm!(op = oos_params())
 
     # Maneuver time constraints (linear)
     @constraint(m, [i=1:n-1], dt_orbit[i] == period_orbit[i] - op.period_sat)
-    @variable(m, 0.5 * op.maximum_time >= t_maneuver[1:n-1] >= 0)
+    @variable(m, 2 * op.maximum_time / op.n_sats >= t_maneuver[1:n-1] >= 0)
     @constraint(m, sum(t_maneuver) <= op.maximum_time)
 
     @objective(m, Min, wet_mass)
@@ -92,13 +92,13 @@ function oos_gm!(op = oos_params())
                                 sqrt($(op.mu)/r_orbit[1])*(sqrt(2 * $(op.r_sat)/($(op.r_sat) + r_orbit[1]))-1)), 
                                                                       exp(1/($(op.g)*$(op.Isp)) * 
                                 sqrt($(op.mu)/$(op.r_sat))*(sqrt(2 * r_orbit[1]/($(op.r_sat) + r_orbit[1]))-1))])), 
-                                vars = [r_orbit[1], dmass_entry[1]], #dependent_var = dmass_entry[1],
+                                vars = [r_orbit[1], dmass_entry[1]],
                                 name = "dmass_entry")
     add_nonlinear_constraint(gm, :((r_orbit, dmass_exit) -> dmass_exit[1] - maximum([exp(1/($(op.g)*$(op.Isp)) * 
                                 sqrt($(op.mu)/$(op.r_sat))*(1 - sqrt(2 * r_orbit[1]/($(op.r_sat) + r_orbit[1])))),
                                                                       exp(1/($(op.g)*$(op.Isp)) * 
                                 sqrt($(op.mu)/r_orbit[1])*(1 - sqrt(2 * $(op.r_sat)/($(op.r_sat) + r_orbit[1]))))])), 
-                                vars = [r_orbit[1], dmass_exit[1]], #dependent_var = dmass_exit[1],
+                                vars = [r_orbit[1], dmass_exit[1]],
                                 name = "dmass_exit")
     for i = 2:n-1
         add_linked_constraint(gm, gm.bbls[end-1], [r_orbit[i], dmass_entry[i]])
@@ -131,10 +131,10 @@ function oos_gm!(op = oos_params())
         name = "transfer_time")
     [add_linked_constraint(gm, gm.bbls[end], [r_orbit[i]], dt_transfer_orbit[i]) for i=2:n-1]
 
-    # Orbital revolutions constraint (equality)
+    # Orbital revolutions constraint
     add_nonlinear_constraint(gm, :((ta, dt_orbit, N_orbit) -> N_orbit[1]*dt_orbit[1] - ta[1] * $(op.period_sat)), 
         vars = [ta[1], dt_orbit[1], N_orbit[1]],
-        name = "orbital_revolutions", equality=true)
+        name = "orbital_revolutions")
     [add_linked_constraint(gm, gm.bbls[end], [ta[i], dt_orbit[i], N_orbit[i]]) for i=2:n-1]
 
     # Maneuver time constraint
