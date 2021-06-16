@@ -446,6 +446,17 @@ function feas_gap(gm::GlobalModel)
     return
 end
 
+function print_feas_gaps(gm::GlobalModel)
+    @info "Feasibility gaps:"
+    for bbl in gm.bbls
+        println("$(bbl.name): $(bbl.feas_gap[end])")
+        for ll in bbl.lls
+            println("Linked: $(ll.feas_gap[end])")
+        end
+    end
+    return
+end
+
 """ Clears all sampling, training and optimization data from GlobalModel."""
 function clear_data!(gm::GlobalModel)
     clear_tree_constraints!(gm, gm.bbls)
