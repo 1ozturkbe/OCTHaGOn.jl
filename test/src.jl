@@ -625,14 +625,15 @@ function test_oos()
     learn_constraint!(gm)
     add_tree_constraints!(gm)
     optimize!(gm)
-    add_infeasibility_cuts!(gm)
+    cut_count = add_infeasibility_cuts!(gm)
     optimize!(gm)
-    while abs(gm.cost[end] - gm.cost[end-1]) > 1.
-        add_infeasibility_cuts!(gm)
+    while cut_count != 0
+        cut_count = add_infeasibility_cuts!(gm)
         optimize!(gm)
     end
 
     return true
+
     # # Printing results
     # println("Orbit altitudes (km) : $(round.((getvalue.(m[:r_orbit]) .- op.rE)./1e3, sigdigits=5))")
     # println("Satellite order: $(Int.(round.(getvalue.(m[:sat_order]))))")
