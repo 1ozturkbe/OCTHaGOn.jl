@@ -326,17 +326,10 @@ function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuM
             β0, β = pwlDict[leaf]
             if equality
                 # Use the ridge regressor!
-                # TODO: ADD AUX DEPENDENT VARIABLE?
                 push!(mi_constraints[leaf], @constraint(m, sum(β .* leaf_variables[leaf][2]) + 
                     β0 * leaf_variables[leaf][1] + relax_var >= leaf_variables[leaf][3]))
                 [push!(lr.mi_constraints[leaf],  @constraint(m, sum(β .* lr.leaf_variables[leaf][2]) + 
                     β0 * leaf_variables[leaf][1] + lr.relax_var >= lr.dependent_var)) for lr in lrs]
-                push!(mi_constraints[leaf], @constraint(m, sum(β .* leaf_variables[leaf][2]) + 
-                    β0 * leaf_variables[leaf][1] <= leaf_variables[leaf][3] + relax_var))
-                [push!(lr.mi_constraints[leaf], @constraint(m, sum(β .* lr.leaf_variables[leaf][2]) + 
-                    β0 * lr.leaf_variables[leaf][1] <= lr.leaf_variables[leaf][3] + lr.relax_var)) for lr in lrs]
-                # And use the lower bound
-                β0, β = ul_data[leaf]
                 push!(mi_constraints[leaf], @constraint(m, sum(β .* leaf_variables[leaf][2]) + 
                     β0 * leaf_variables[leaf][1] <= leaf_variables[leaf][3] + relax_var))
                 [push!(lr.mi_constraints[leaf], @constraint(m, sum(β .* lr.leaf_variables[leaf][2]) + 
