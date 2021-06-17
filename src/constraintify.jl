@@ -329,7 +329,7 @@ function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuM
                 push!(mi_constraints[leaf], @constraint(m, sum(β .* leaf_variables[leaf][2]) + 
                     β0 * leaf_variables[leaf][1] + relax_var >= leaf_variables[leaf][3]))
                 [push!(lr.mi_constraints[leaf],  @constraint(m, sum(β .* lr.leaf_variables[leaf][2]) + 
-                    β0 * leaf_variables[leaf][1] + lr.relax_var >= lr.dependent_var)) for lr in lrs]
+                    β0 * leaf_variables[leaf][1] + lr.relax_var >= lr.leaf_variables[leaf][3])) for lr in lrs]
                 push!(mi_constraints[leaf], @constraint(m, sum(β .* leaf_variables[leaf][2]) + 
                     β0 * leaf_variables[leaf][1] <= leaf_variables[leaf][3] + relax_var))
                 [push!(lr.mi_constraints[leaf], @constraint(m, sum(β .* lr.leaf_variables[leaf][2]) + 
