@@ -48,8 +48,7 @@ function oos_gm!(op = oos_params())
     @constraint(m, [i=1:n], sum(xx[:, i]) == 1)   # At most one transfer to each satellite
 
     # # True anomaly computation from satellite order
-    @variable(m, pi + 1e-5 >= ta[1:n-1] >= -pi -1e-5)
-    @variable(m, -1 <= rotdummy[1:n-1] <= 1, Int) # for rotations
+    @variable(m, pi >= ta[1:n-1] >= -pi)
     @constraint(m, [i=1:n-1], ta[i] == sum(op.true_anomalies .* xx[i+1,:]) - 
                                         sum(op.true_anomalies .* xx[i,:]))
 
@@ -131,18 +130,18 @@ function oos_gm!(op = oos_params())
         name = "transfer_time")
     [add_linked_constraint(gm, gm.bbls[end], [r_orbit[i]], dt_transfer_orbit[i]) for i=2:n-1]
 
-    # Orbital revolutions constraint
-    add_nonlinear_constraint(gm, :((ta, dt_orbit, N_orbit) -> N_orbit[1]*dt_orbit[1] - ta[1] * $(op.period_sat)), 
-        vars = [ta[1], dt_orbit[1], N_orbit[1]],
-        name = "orbital_revolutions")
-    [add_linked_constraint(gm, gm.bbls[end], [ta[i], dt_orbit[i], N_orbit[i]]) for i=2:n-1]
+    # Orbital revolutions constraint (equality)
+    add_nonlinear_constraint(gm, :((dt_orbit, N_orbit) -> N_orbit[1]*dt_orbit[1]/ $(op.period_sat)), 
+        vars = [dt_orbit[1], N_orbit[1]], dependent_var = ta[1],
+        name = "orbital_revolutions", equality=true)
+    [add_linked_constraint(gm, gm.bbls[end], [dt_orbit[i], N_orbit[i]], ta[i]) for i=2:n-1]
 
     # Maneuver time constraint
-    add_nonlinear_constraint(gm, :((dt_transfer_orbit, N_orbit, period_orbit, t_maneuver) -> 
-            t_maneuver[1] - (dt_transfer_orbit[1] + N_orbit[1] * period_orbit[1])), 
-            vars = [dt_transfer_orbit[1], N_orbit[1], period_orbit[1], t_maneuver[1]],
+    add_nonlinear_constraint(gm, :((dt_transfer_orbit, N_orbit, period_orbit) -> 
+            (dt_transfer_orbit[1] + N_orbit[1] * period_orbit[1])), 
+            vars = [dt_transfer_orbit[1], N_orbit[1], period_orbit[1]], dependent_var = t_maneuver[1],
             name = "maneuver_time")
-    [add_linked_constraint(gm, gm.bbls[end], [dt_transfer_orbit[i], N_orbit[i], period_orbit[i], t_maneuver[i]])
+    [add_linked_constraint(gm, gm.bbls[end], [dt_transfer_orbit[i], N_orbit[i], period_orbit[i]], t_maneuver[i])
         for i=2:n-1]
 
     set_param(gm, :ignore_accuracy, true)

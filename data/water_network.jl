@@ -116,3 +116,16 @@ for pipe_index = 1:K
                     relRough[pipe_index] ^ 0.823896)
     end
 end
+
+optimize!(m)
+
+# # Plotting results
+# using LightGraphs
+# using GraphPlot
+
+# G = Graph(N)
+# for i = 1:K
+#     add_edge!(G, topology_dict[1][1], topology_dict[1][2])
+# end
+
+# gplot(G, nodelabel = 1:N)

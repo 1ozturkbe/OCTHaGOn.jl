@@ -223,6 +223,32 @@ function add_infeasibility_cuts!(gm::GlobalModel)
                         cut_count += 1                        
                 end
             end
+        # elseif get_param(gm.bbls[i], :gradients) && gm.bbls[i] isa BlackBoxRegressor
+        #     bbr = gm.bbls[i]
+        #     if bbr.feas_gap[end] <= -feas_tol
+        #         rel_vals = var_vals[:, string.(bbr.vars)]
+        #         eval!(bbr, rel_vals)
+        #         Y = bbr.Y[end]
+        #         update_gradients(bbr, [size(bbr.X, 1)])
+        #         cut_grad = bbr.gradients[end, :]
+        #         push!(bbr.mi_constraints[1], 
+        #             @constraint(gm.model, bbr.dependent_var + bbr.relax_var >= 
+        #                 sum(Array(cut_grad) .* (bbr.vars .- Array(rel_vals)')) + Y)) 
+        #             cut_count += 1                        
+        #     end
+        #     for ll in bbr.lls
+        #         if ll.feas_gap[end] <= -feas_tol
+        #             rel_vals = DataFrame(Array(var_vals[:, string.(ll.vars)]), string.(bbr.vars))
+        #             eval!(bbr, rel_vals)
+        #             Y = bbr.Y[end]
+        #             update_gradients(bbr, [size(bbr.X, 1)])
+        #             cut_grad = bbr.gradients[end, :]
+        #             push!(ll.mi_constraints[1], 
+        #                 @constraint(gm.model, ll.dependent_var + ll.relax_var >= 
+        #                     sum(Array(cut_grad) .* (ll.vars .- Array(rel_vals)')) + Y)) 
+        #                 cut_count += 1                        
+        #         end
+        #     end
         end
         # TODO: add infeasibility cuts for Regressors that are locally convex. 
         # TODO: add infeasibility cuts for equalities as well. 
