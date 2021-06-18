@@ -100,8 +100,8 @@ function test_concave_regressors(gm::GlobalModel = gear(true))
     actual = bbr.actuals[end]
     optim = bbr.optima[end]
     learn_constraint!(bbr, "upper" => minimum(bbr.actuals)) # 2nd tree (Upper OCT)
-    learn_constraint!(bbr, "reg" => minimum(bbr.actuals), 
-                        regression_sparsity = 0, max_depth = 5) # 3th tree (Regressor on upper bounded samples)
+    learn_constraint!(bbr, "reg" => 40, 
+                        regression_sparsity = 0, max_depth = 3) # 3th tree (Regressor on upper bounded samples)
 
     # Trying to add and remove individual constraints in random order to make sure no constraints accidentally remain. 
     for i=1:length(bbr.learners)
@@ -126,36 +126,16 @@ function test_concave_regressors(gm::GlobalModel = gear(true))
     update_tree_constraints!(gm, bbr, 2)
     update_tree_constraints!(gm, bbr, 3)
     @test active_lower_tree(bbr) == 3
-    @test active_upper_tree(bbr) == 2  
+    @test active_upper_tree(bbr) == 3  
     optimize!(gm)
     clear_tree_constraints!(gm)
     @test init_constraints == sum(length(all_constraints(gm.model, type[1], type[2])) for type in JuMP.list_of_constraint_types(gm.model))
-    @test true
 end
 
-# function update_uls(gm::GlobalModel, bbr::BlackBoxRegressor)
-#     if length(bbr.active_trees) == 1
-#         ub = maximum(bbr.actuals)
-#         lb = minimum(bbr.optima)
-#         learn_constraint!(bbr, "upper" => ub)
-#         update_tree_constraints!(gm, bbr)
-#         learn_constraint!(bbr, "lower" => lb)
-#         update_tree_constraints!(gm, bbr)
-
-#     while gm.cost[end] > gm.cost[end-1]
-#         add_infeasibility_cuts!(gm)
-#         optimize!(gm)
-#     end
-
-#     elseif length(bbr.active_trees) = 2
-#         ub = maximum(bbr.actuals)
-#         lb = minimum(bbr.optima)
-#         l_tree_idx = active_lower_tree(bbr)
-#         u_tree_idx = findall(x -> x != l_tree_idx, 
-#                             collect(keys(bbr.active_trees)))[1]
-#         if ub != u_tree_idx[]
-#     end
-# end
+function refine_tree()
+    gm = gear(true)
+    @test true
+end
 
 test_baron_solve()
 

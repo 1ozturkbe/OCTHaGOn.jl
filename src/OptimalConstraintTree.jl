@@ -112,6 +112,8 @@ module OptimalConstraintTree
         fit_regressor_kwargs, fit_classifier_kwargs, 
         regressor_kwargs, classifier_kwargs,
 
+        # Error computation
+
         # Constraint/variable generation/deletion
         add_feas_constraints!, add_regr_constraints!,
         add_tree_constraints!, clear_tree_constraints!, update_tree_constraints!,
@@ -159,5 +161,5 @@ module OptimalConstraintTree
         # Small scripts
         vars_from_expr, vars_from_constraint, flat,
         power, sqr, normalized_data
-end
+and
 
