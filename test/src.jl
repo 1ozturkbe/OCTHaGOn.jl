@@ -602,7 +602,7 @@ function test_linking()
     set_param(gm, :ignore_accuracy, true)
 
     add_tree_constraints!(gm)
-    
+
     # optimize!(gm)
     # using Plots
     # # Plotting temporal population data
@@ -639,7 +639,7 @@ function test_oos()
     # add_tree_constraints!(gm)
     # optimize!(gm)
 
-    return true
+    @test true
 
     # # Printing results
     # println("Orbit altitudes (km) : $(round.((getvalue.(m[:r_orbit]) .- op.rE)./1e3, sigdigits=5))")
