@@ -602,6 +602,7 @@ function test_linking()
     set_param(gm, :ignore_accuracy, true)
 
     add_tree_constraints!(gm)
+    
     # optimize!(gm)
     # using Plots
     # # Plotting temporal population data
@@ -610,6 +611,7 @@ function test_linking()
     # # OR simultaneously in the population dimensions
     # plot(getvalue.(m[:x]), getvalue.(m[:y]), xlabel = "Prey", ylabel = "Predators", label = 1:t, legend = false)
     # @test true
+
     # Checking constraint clearing
     clear_tree_constraints!(gm)
     @test init_constraints == sum(length(all_constraints(gm.model, type[1], type[2])) 
@@ -627,10 +629,10 @@ function test_oos()
     optimize!(gm)
     cut_count = add_infeasibility_cuts!(gm)
     optimize!(gm)
-    while cut_count != 0
-        cut_count = add_infeasibility_cuts!(gm)
-        optimize!(gm)
-    end
+    # while cut_count != 0
+    #     cut_count = add_infeasibility_cuts!(gm)
+    #     optimize!(gm)
+    # end
 
     # add_relaxation_variables!(gm)
     # relaxed_objective!(gm)
@@ -639,22 +641,22 @@ function test_oos()
 
     return true
 
-    # Printing results
-    println("Orbit altitudes (km) : $(round.((getvalue.(m[:r_orbit]) .- op.rE)./1e3, sigdigits=5))")
-    println("Satellite order: $(Int.(round.(getvalue.(m[:sat_order]))))")
-    println("True anomalies (radians): $(round.(getvalue.(m[:ta]), sigdigits=3))")
-    println("Orbital revolutions: $(round.(getvalue.(m[:N_orbit]), sigdigits=5)))")
-    println("Time for maneuvers (days): $(round.(getvalue.(m[:t_maneuver])./(24*3600), sigdigits=3))")
-    println("Total mission time (years): $(sum(getvalue.(m[:t_maneuver]))/(24*3600*365))")
+    # # Printing results
+    # println("Orbit altitudes (km) : $(round.((getvalue.(m[:r_orbit]) .- op.rE)./1e3, sigdigits=5))")
+    # println("Satellite order: $(Int.(round.(getvalue.(m[:sat_order]))))")
+    # println("True anomalies (radians): $(round.(getvalue.(m[:ta]), sigdigits=3))")
+    # println("Orbital revolutions: $(round.(getvalue.(m[:N_orbit]), sigdigits=5)))")
+    # println("Time for maneuvers (days): $(round.(getvalue.(m[:t_maneuver])./(24*3600), sigdigits=3))")
+    # println("Total mission time (years): $(sum(getvalue.(m[:t_maneuver]))/(24*3600*365))")
 
-    # Post-processing
-    plot_r = (getvalue.(m[:r_orbit]) .- op.rE)./1e3
-    ords = Int.(round.(getvalue.(m[:sat_order])))
-    times = round.(getvalue.(m[:t_maneuver])./(24*3600), sigdigits=3) # days
-    revs = round.(getvalue.(m[:N_orbit]), sigdigits=5)
-    refuels = round.(getvalue.(m[:fuel_needed]), sigdigits=5)
-    transfuels = round.(getvalue.(m[:masses][:,1] .- m[:masses][:,5]), sigdigits=5)
-    n_trans = op.n_sats - 1
+    # # Post-processing
+    # plot_r = (getvalue.(m[:r_orbit]) .- op.rE)./1e3
+    # ords = Int.(round.(getvalue.(m[:sat_order])))
+    # times = round.(getvalue.(m[:t_maneuver])./(24*3600), sigdigits=3) # days
+    # revs = round.(getvalue.(m[:N_orbit]), sigdigits=5)
+    # refuels = round.(getvalue.(m[:fuel_needed]), sigdigits=5)
+    # transfuels = round.(getvalue.(m[:masses][:,1] .- m[:masses][:,5]), sigdigits=5)
+    # n_trans = op.n_sats - 1
 
     # using Plots
     # colors = palette(:darktest, n_trans)
@@ -674,19 +676,19 @@ function test_oos()
     # # @show orb_plots
 
     # # Bar plotting 
-    using Plots
-    colors = palette(:darktest, n_trans)
-    bar1 = bar(1:op.n_sats, refuels, color = colors, xlabel = "Satellite order", ylabel = "Satellite refuel (kg)", legend = false)
-    bar2 = bar(1:n_trans, times, color = colors, xlabel = "Transfer index", ylabel = "Maneuver time (days)", legend = false)
-    bar3 = bar(1:n_trans, transfuels, color = colors, xlabel = "Transfer index", ylabel = "Transfer fuel (kg)", legend = false)
-    bar_plots = plot(bar1, bar2, bar3, layout = (1,3))
-    @show bar_plots
+    # using Plots
+    # colors = palette(:darktest, n_trans)
+    # bar1 = bar(1:op.n_sats, refuels, color = colors, xlabel = "Satellite order", ylabel = "Satellite refuel (kg)", legend = false)
+    # bar2 = bar(1:n_trans, times, color = colors, xlabel = "Transfer index", ylabel = "Maneuver time (days)", legend = false)
+    # bar3 = bar(1:n_trans, transfuels, color = colors, xlabel = "Transfer index", ylabel = "Transfer fuel (kg)", legend = false)
+    # bar_plots = plot(bar1, bar2, bar3, layout = (1,3))
+    # @show bar_plots
 
-    m = oos_gm!()
-    JuMP.unset_binary.(m.model[:xx])
-    @constraint(m.model, m.model[:sat_order] .== [5,6,7,1,2,3,4])
-    nonlinearize!(m)
-    set_optimizer(m, Ipopt.Optimizer)
+    # m = oos_gm!()
+    # JuMP.unset_binary.(m.model[:xx])
+    # @constraint(m.model, m.model[:sat_order] .== [5,6,7,1,2,3,4])
+    # nonlinearize!(m)
+    # set_optimizer(m, Ipopt.Optimizer)
 end
 
 test_expressions()
