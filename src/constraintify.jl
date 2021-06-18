@@ -65,7 +65,7 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
     leaf_variables = Dict{Int64, Tuple{JuMP.VariableRef, Array, JuMP.VariableRef}}()
     if size(bbr.X, 1) == 0 && !get_param(bbr, :reloaded)
         throw(OCTException("Constraint " * string(bbr.name) * " has not been sampled yet, and is thus untrained."))
-    elseif bbr.convex
+    elseif bbr.convex && !bbr.equality
         clear_tree_constraints!(gm, bbr)
         mi_constraints = Dict(1 => [])
         for i = Int64.(ceil.(size(bbr.X,1) .* rand(10)))
@@ -309,9 +309,9 @@ function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuM
         push!(mi_constraints[1], @constraint(m, sum(leaf_variables[leaf][3] for leaf in all_leaves) == y))
         for lr in lrs          
             for leaf in all_leaves
-                lr.leaf_variables[leaf], lr.mi_constraints[leaf] = bounded_aux(x, @variable(m, binary=true))
+                lr.leaf_variables[leaf], lr.mi_constraints[leaf] = bounded_aux(lr.vars, lr.dependent_var, @variable(m, binary=true))
             end
-            lr.mi_constraints[1] = [@constraint(m, sum(lr.leaf_variables[leaf][1] for leaf in feas_leaves) == 1)]
+            lr.mi_constraints[1] = [@constraint(m, sum(lr.leaf_variables[leaf][1] for leaf in all_leaves) == 1)]
             [push!(lr.mi_constraints[1], constr)
                 for constr in @constraint(m, sum(lr.leaf_variables[leaf][2] for leaf in all_leaves) .== lr.vars)]
             push!(lr.mi_constraints[1], @constraint(m, sum(lr.leaf_variables[leaf][3] for leaf in all_leaves) == lr.dependent_var))
@@ -326,17 +326,10 @@ function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuM
             β0, β = pwlDict[leaf]
             if equality
                 # Use the ridge regressor!
-                # TODO: ADD AUX DEPENDENT VARIABLE?
                 push!(mi_constraints[leaf], @constraint(m, sum(β .* leaf_variables[leaf][2]) + 
                     β0 * leaf_variables[leaf][1] + relax_var >= leaf_variables[leaf][3]))
                 [push!(lr.mi_constraints[leaf],  @constraint(m, sum(β .* lr.leaf_variables[leaf][2]) + 
-                    β0 * leaf_variables[leaf][1] + lr.relax_var >= lr.dependent_var)) for lr in lrs]
-                push!(mi_constraints[leaf], @constraint(m, sum(β .* leaf_variables[leaf][2]) + 
-                    β0 * leaf_variables[leaf][1] <= leaf_variables[leaf][3] + relax_var))
-                [push!(lr.mi_constraints[leaf], @constraint(m, sum(β .* lr.leaf_variables[leaf][2]) + 
-                    β0 * lr.leaf_variables[leaf][1] <= lr.leaf_variables[leaf][3] + lr.relax_var)) for lr in lrs]
-                # And use the lower bound
-                β0, β = ul_data[leaf]
+                    β0 * leaf_variables[leaf][1] + lr.relax_var >= lr.leaf_variables[leaf][3])) for lr in lrs]
                 push!(mi_constraints[leaf], @constraint(m, sum(β .* leaf_variables[leaf][2]) + 
                     β0 * leaf_variables[leaf][1] <= leaf_variables[leaf][3] + relax_var))
                 [push!(lr.mi_constraints[leaf], @constraint(m, sum(β .* lr.leaf_variables[leaf][2]) + 

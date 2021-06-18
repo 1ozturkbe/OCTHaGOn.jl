@@ -102,7 +102,7 @@ module OptimalConstraintTree
         # Convexity checks
         update_local_convexity, update_vexity, update_leaf_vexity,
         solution, evaluate_accuracy,
-        feas_gap, 
+        feas_gap, print_feas_gaps,
         nonlinearize!,
         set_param, get_param, 
 
