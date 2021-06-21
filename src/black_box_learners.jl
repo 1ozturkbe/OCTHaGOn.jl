@@ -90,7 +90,8 @@ Optional arguments:
     optima::Array = []
     actuals::Array = []
     feas_gap::Array = []                               # Feasibility gaps of solutions   
-    relax_var::Union{Real, JuMP.VariableRef} = 0.    # slack variable        
+    relax_var::Union{Real, JuMP.VariableRef} = 0.      # slack variable  
+    accuracies::Array{Float64} = []                    # and the tree MSE scores.       
     lls::Array{LinkedRegressor} = []                   # Linked regressor mi_constraints and leaf_variables
     convex::Bool = false
     local_convexity::Float64 = 0.

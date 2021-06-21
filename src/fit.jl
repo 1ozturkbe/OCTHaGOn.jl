@@ -218,9 +218,9 @@ function learn_constraint!(bbc::BlackBoxClassifier; kwargs...)
     end
     IAI.set_params!(lnr; classifier_kwargs(; kwargs...)...)
     if check_feasibility(bbc) || get_param(bbc, :ignore_feasibility)
-        nl = learn_from_data!(bbc.X, bbc.Y .>= 0, lnr; fit_classifier_kwargs(; kwargs...)...)
-        push!(bbc.learners, nl)
-        push!(bbc.accuracies, IAI.score(nl, bbc.X, bbc.Y .>= 0)) # TODO: add ability to specify criterion. 
+        lnr = learn_from_data!(bbc.X, bbc.Y .>= 0, lnr; fit_classifier_kwargs(; kwargs...)...)
+        push!(bbc.learners, lnr)
+        push!(bbc.accuracies, IAI.score(lnr, bbc.X, bbc.Y .>= 0)) # TODO: add ability to specify criterion. 
         push!(bbc.learner_kwargs, Dict(kwargs))
     else
         throw(OCTException("Not enough feasible samples for BlackBoxClassifier " * string(bbc.name) * "."))
@@ -253,6 +253,7 @@ function learn_constraint!(bbr::BlackBoxRegressor, threshold::Pair = Pair("reg",
         push!(bbr.learner_kwargs, Dict(kwargs))
         push!(bbr.thresholds, threshold)
         push!(bbr.ul_data, ul_data)
+        push!(bbr.accuracies, IAI.score(lnr, bbr.X, bbr.Y .>= 0))
     elseif threshold.first == "reg"
         lnr = base_regressor()
         IAI.set_params!(lnr; regressor_kwargs(; kwargs...)...)
@@ -278,6 +279,7 @@ function learn_constraint!(bbr::BlackBoxRegressor, threshold::Pair = Pair("reg",
         push!(bbr.learner_kwargs, Dict(kwargs))
         push!(bbr.thresholds, threshold)
         push!(bbr.ul_data, boundify(lnr, bbr.X, bbr.Y))
+        push!(bbr.accuracies, IAI.score(lnr, bbr.X, bbr.Y))
     elseif threshold.first == "rfreg"
         lnr = base_rf_regressor()
         bbr.local_convexity < 0.75 || throw(OCTException("Cannot use RandomForestRegressor " *
@@ -293,6 +295,7 @@ function learn_constraint!(bbr::BlackBoxRegressor, threshold::Pair = Pair("reg",
         push!(bbr.learner_kwargs, Dict(kwargs))
         push!(bbr.thresholds, threshold)
         push!(bbr.ul_data, boundify(lnr, bbr.X, bbr.Y))
+        push!(bbr.accuracies, IAI.score(lnr, bbr.X, bbr.Y))
     else
         throw(OCTException("$(threshold.first) is not a valid learner type for" *
             " thresholded learning of BBR $(bbr.name)."))
