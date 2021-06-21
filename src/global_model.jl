@@ -170,11 +170,13 @@ function add_nonlinear_constraint(gm::GlobalModel,
         if isnothing(dependent_var)
             new_bbl = BlackBoxClassifier(constraint = constraint, vars = vars, expr_vars = expr_vars,
                                          equality = equality, name = name)
+            set_param(new_bbl, :n_samples, Int(ceil(get_param(gm, :sample_coeff)*sqrt(length(vars)))))
             push!(gm.bbls, new_bbl)
             return
         else
             new_bbl = BlackBoxRegressor(constraint = constraint, vars = vars, expr_vars = expr_vars,
                                         dependent_var = dependent_var, equality = equality, name = name)
+            set_param(new_bbl, :n_samples, Int(ceil(get_param(gm, :sample_coeff)*sqrt(length(vars)))))
             push!(gm.bbls, new_bbl)
             return
         end
@@ -183,6 +185,7 @@ function add_nonlinear_constraint(gm::GlobalModel,
                                                         "and cannot have a dependent variable " * string(dependent_var) * "."))
         new_bbl = BlackBoxClassifier(constraint = constraint, vars = vars, expr_vars = expr_vars,
                                         equality = equality, name = name)
+        set_param(new_bbl, :n_samples, Int(ceil(get_param(gm, :sample_coeff)*sqrt(length(vars)))))
         push!(gm.bbls, new_bbl)
         JuMP.delete(gm.model, constraint)   
     end
