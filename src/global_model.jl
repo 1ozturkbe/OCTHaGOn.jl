@@ -365,7 +365,7 @@ function evaluate_accuracy(bbr::BlackBoxRegressor)
     elseif isempty(bbr.learners)
         throw(OCTException(string("BlackBoxRegressor ", bbr.name, " has not been trained yet.")))
     else
-        return 1. 
+        return bbr.accuracies[active_lower_tree(bbr)] 
     end
 end
 
