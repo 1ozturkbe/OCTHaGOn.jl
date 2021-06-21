@@ -161,5 +161,5 @@ module OptimalConstraintTree
         # Small scripts
         vars_from_expr, vars_from_constraint, flat,
         power, sqr, normalized_data
-and
+end
 
