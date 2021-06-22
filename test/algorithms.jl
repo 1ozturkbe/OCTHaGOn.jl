@@ -132,10 +132,29 @@ function test_concave_regressors(gm::GlobalModel = gear(true))
     @test init_constraints == sum(length(all_constraints(gm.model, type[1], type[2])) for type in JuMP.list_of_constraint_types(gm.model))
 end
 
-function refine_tree()
-    gm = gear(true)
-    @test true
-end
+# function refine_tree()
+#     gm = gear(true)
+#     uniform_sample_and_eval!(gm)
+#     learn_constraint!(gm)
+#     add_tree_constraints!(gm)
+#     optimize!(gm)
+#     bbr = gm.bbls[1]
+#     feas_tol = get_param(gm, :tighttol)
+#     max_gap = maximum(bbr.Y) - minimum(bbr.Y)
+#     if bbr.feas_gap[end] <= 0 && bbr.feas_gap[end]/max_gap <= -feas_tol 
+#         lnr = bbr.learners[end]
+#         max_depth = lnr.max_depth + 1
+#         set_param(bbr, :n_samples, 2*get_param(bbr, :n_samples))
+#         bbr.X = DataFrame([Float64 for i=1:length(bbr.vars)], string.(bbr.vars))
+#         bbr.Y = [];
+#         bbr.gradients = nothing
+#         bbr.curvatures = nothing
+#         uniform_sample_and_eval!(bbr)
+#         learn_constraint!(bbr, max_depth = 12, regression_sparsity = 0)
+#         update_tree_constraints!(gm, bbr)
+#     end
+#     @test true
+# end
 
 test_baron_solve()
 
