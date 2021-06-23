@@ -275,10 +275,11 @@ function test_bbr()
     # Make sure to train and add bbcs, and forget for a while...
     bbcs = [bbl for bbl in gm.bbls if bbl isa BlackBoxClassifier]
     learn_constraint!(bbcs)
-    @test all(evaluate_accuracy.(bbcs) .>= 0.95)
     for bbc in bbcs
         add_tree_constraints!(gm, bbc)
     end
+    @test all(evaluate_accuracy.(bbcs) .>= 0.95)
+
     
     # Threshold training
     learn_constraint!(bbr, "upper" => 20.)
@@ -429,13 +430,12 @@ function test_basic_gm()
     # Actually trying to optimize...
     find_bounds!(gm, all_bounds=true)
     uniform_sample_and_eval!(gm)
-
     learn_constraint!(gm)
-    println("Approximation accuracies: ", evaluate_accuracy(gm))
 
     # Solving of model
     set_param(gm, :ignore_accuracy, true)
     add_tree_constraints!(gm)
+    println("Approximation accuracies: ", evaluate_accuracy(gm))
     optimize!(gm)
     vals = solution(gm);
     @test all(gm.bbls[i].active_leaves[1] in keys(gm.bbls[i].leaf_variables) for i=1:length(gm.bbls))
@@ -585,7 +585,7 @@ function test_linking()
     set_upper_bound.(dy, 1)
     set_lower_bound.(dy, -1)
     gm = GlobalModel(model = m, name = "foxes_rabbits")
-    set_param(gm, :sample_coeff, 800)
+    set_param(gm, :sample_coeff, 500)
     add_nonlinear_constraint(gm, :((x, y) -> x[1]*(1-x[1]) -x[1]*y[1]/(x[1]+$(r))), 
                             vars = [x[1], y[1]], dependent_var = dx[1], equality=true)
     add_nonlinear_constraint(gm, :((x, y) -> $(r)*y[1]*(1-y[1]/x[1])), 
@@ -600,10 +600,9 @@ function test_linking()
     # Usually would want to train the dynamics better, but for speed this is better!
     learn_constraint!(gm)
     set_param(gm, :ignore_accuracy, true)
-
     add_tree_constraints!(gm)
+    # optimize!(gm)
 
-    optimize!(gm)
     # using Plots
     # # Plotting temporal population data
     # plot(getvalue.(x), label = "Prey")

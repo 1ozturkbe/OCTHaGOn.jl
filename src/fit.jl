@@ -238,9 +238,9 @@ function learn_constraint!(bbr::BlackBoxRegressor, threshold::Pair = Pair("reg",
         return # If convex, don't train a tree!
     elseif threshold.first in classifications
         lnr = base_classifier()
-        IAI.set_params!(lnr; classifier_kwargs(; kwargs...)...)
         IAI.set_params!(lnr; minbucket = 
-            maximum([2*length(bbr.vars)/length(bbr.Y), lnr.minbucket]))
+            maximum([2*length(bbr.vars)/length(bbr.Y), lnr.minbucket]), 
+            classifier_kwargs(; kwargs...)...)
         ul_data = Dict()
         if threshold.first == "upper" # Upper bounding classifier with upper bounds in leaves
             lnr = learn_from_data!(bbr.X, bbr.Y .<= threshold.second, lnr; fit_classifier_kwargs(; kwargs...)...)
@@ -260,9 +260,9 @@ function learn_constraint!(bbr::BlackBoxRegressor, threshold::Pair = Pair("reg",
         push!(bbr.accuracies, IAI.score(lnr, bbr.X, bbr.Y .>= 0))
     elseif threshold.first == "reg"
         lnr = base_regressor()
-        IAI.set_params!(lnr; regressor_kwargs(; kwargs...)...)
         IAI.set_params!(lnr; minbucket = 
-            maximum([2*length(bbr.vars)/length(bbr.Y), lnr.minbucket]))
+            maximum([2*length(bbr.vars)/length(bbr.Y), lnr.minbucket]),
+            regressor_kwargs(; kwargs...)...)
         if bbr.equality # Equalities cannot leverage convexity unfortunately...
             if threshold.second == nothing
                 lnr = learn_from_data!(bbr.X, bbr.Y, lnr; fit_regressor_kwargs(; kwargs...)...)   
@@ -290,9 +290,9 @@ function learn_constraint!(bbr::BlackBoxRegressor, threshold::Pair = Pair("reg",
         lnr = base_rf_regressor()
         bbr.local_convexity < 0.75 || throw(OCTException("Cannot use RandomForestRegressor " *
         "on BBR $(bbr.name) since it is almost convex."))
-        IAI.set_params!(lnr; regressor_kwargs(; kwargs...)...)
         IAI.set_params!(lnr; minbucket = 
-            maximum([2*length(bbr.vars)/length(bbr.Y), lnr.minbucket]))
+            maximum([2*length(bbr.vars)/length(bbr.Y), lnr.minbucket]),
+            regressor_kwargs(; kwargs...)...)
         if threshold.second == nothing
             lnr = learn_from_data!(bbr.X, bbr.Y, lnr; fit_regressor_kwargs(; kwargs...)...)   
         else
