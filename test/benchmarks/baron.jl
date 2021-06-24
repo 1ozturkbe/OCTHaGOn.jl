@@ -7,22 +7,24 @@ function recipe(gm::GlobalModel)
     set_param(gm, :ignore_accuracy, true)
     set_param(gm, :ignore_feasibility, true)
     for bbl in gm.bbls
-        if bbl isa BlackBoxClassifier
-            learn_constraint!(bbl)
-        else
-            learn_constraint!(bbl, regression_sparsity = 0)
-        end
+        learn_constraint!(bbl)
         add_tree_constraints!(gm, bbl)
     end
     optimize!(gm)    
-end
+    add_infeasibility_cuts!(gm)
+    optimize!(gm)
+    while (gm.cost[end] - gm.cost[end-1]) > get_param(gm, :abstol)
+        add_infeasibility_cuts!(gm)
+        optimize!(gm)
+    end
+end 
 
 # Loading BARON examples (that haven't been loaded yet)
 for i in ["nlp1.jl", "nlp2.jl", "nlp3.jl"]
     include(OCT.BARON_DIR * i)
 end
 
-BARON_PROBLEMS = [gear, minlp, nlp1, nlp2, nlp3]
+BARON_PROBLEMS = [minlp, nlp1, nlp2, nlp3]
 
 function optimize_and_time!(m::Union{JuMP.Model, GlobalModel})
     t1 = time()

@@ -132,25 +132,37 @@ function test_concave_regressors(gm::GlobalModel = gear(true))
     @test init_constraints == sum(length(all_constraints(gm.model, type[1], type[2])) for type in JuMP.list_of_constraint_types(gm.model))
 end
 
-# function refine_tree()
-#     gm = gear(true)
-#     uniform_sample_and_eval!(gm)
-#     learn_constraint!(gm)
-#     add_tree_constraints!(gm)
-#     optimize!(gm)
-#     bbr = gm.bbls[1]
+function recipe(gm::GlobalModel)
+    @info "GlobalModel " * gm.name * " in progress..."
+    set_optimizer(gm, CPLEX_SILENT)
+    uniform_sample_and_eval!(gm)
+    set_param(gm, :ignore_accuracy, true)
+    set_param(gm, :ignore_feasibility, true)
+    for bbl in gm.bbls
+        learn_constraint!(bbl)
+        add_tree_constraints!(gm, bbl)
+    end
+    optimize!(gm)    
+    add_infeasibility_cuts!(gm)
+    optimize!(gm)
+    while (gm.cost[end] - gm.cost[end-1]) > get_param(gm, :abstol)
+        add_infeasibility_cuts!(gm)
+        optimize!(gm)
+    end
+end 
+
+# function refine_equality_tree()
+#     gm = nlp3(true)
+#     recipe(gm)
 #     feas_tol = get_param(gm, :tighttol)
-#     max_gap = maximum(bbr.Y) - minimum(bbr.Y)
+#     for bbl in gm.bbls
+#         if bbl.equality && abs(bbl.feas_gap[end]) >= feas_tol
+#             sol = DataFrame(gm.solution_history[end, string.(bbl.vars)])
+#             learn_constraint!(bbl, sample_weight = reweight(bbl, sol))
+#             update_tree_constraints!(gm, bbl)
+#         end
+#     end
 #     if bbr.feas_gap[end] <= 0 && bbr.feas_gap[end]/max_gap <= -feas_tol 
-#         lnr = bbr.learners[end]
-#         max_depth = lnr.max_depth + 1
-#         set_param(bbr, :n_samples, 2*get_param(bbr, :n_samples))
-#         bbr.X = DataFrame([Float64 for i=1:length(bbr.vars)], string.(bbr.vars))
-#         bbr.Y = [];
-#         bbr.gradients = nothing
-#         bbr.curvatures = nothing
-#         uniform_sample_and_eval!(bbr)
-#         learn_constraint!(bbr, max_depth = 12, regression_sparsity = 0)
 #         update_tree_constraints!(gm, bbr)
 #     end
 #     @test true
