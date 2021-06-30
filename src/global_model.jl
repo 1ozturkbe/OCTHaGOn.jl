@@ -418,25 +418,29 @@ function feas_gap(gm::GlobalModel)
     for bbl in gm.bbls
         if bbl isa BlackBoxClassifier && !isnothing(bbl.constraint)
             eval!(bbl, soln)
-            push!(bbl.feas_gap, bbl.Y[end] ./ (maximum(bbl.Y) - minimum(bbl.Y)))
+            maxY = maximum(filter(!isinf, bbl.Y))
+            minY = minimum(filter(!isinf, bbl.Y))
+            push!(bbl.feas_gap, bbl.Y[end] ./ (maxY - minY))
             for ll in bbl.lls
                 eval!(bbl, DataFrame(string.(bbl.vars) .=> values(soln[1, string.(ll.vars)])))
-                push!(ll.feas_gap, bbl.Y[end] ./ (maximum(bbl.Y) - minimum(bbl.Y)))
+                push!(ll.feas_gap, bbl.Y[end] ./ (maxY - minY))
             end
         elseif bbl isa BlackBoxRegressor && !isnothing(bbl.constraint)
             eval!(bbl, soln)
+            maxY = maximum(filter(!isinf, bbl.Y))
+            minY = minimum(filter(!isinf, bbl.Y))
             optimum = JuMP.getvalue(bbl.dependent_var)
             actual = bbl.Y[end]
             push!(bbl.optima, optimum)
             push!(bbl.actuals, actual)
-            push!(bbl.feas_gap, (optimum-actual) / (maximum(bbl.Y) - minimum(bbl.Y)))
+            push!(bbl.feas_gap, (optimum-actual) / (maxY - minY))
             for ll in bbl.lls
                 eval!(bbl, DataFrame(string.(bbl.vars) .=> values(soln[1, string.(ll.vars)])))
                 optimum = JuMP.getvalue(ll.dependent_var)
                 actual = bbl.Y[end]
                 push!(ll.optima, optimum)
                 push!(ll.actuals, actual)
-                push!(ll.feas_gap, (optimum-actual) / (maximum(bbl.Y) - minimum(bbl.Y)))
+                push!(ll.feas_gap, (optimum-actual) / (maxY - minY))
             end
         elseif bbl isa BlackBoxClassifier && isnothing(bbl.constraint)
             push!(bbl.feas_gap, 0) # data constraints are always feasible
