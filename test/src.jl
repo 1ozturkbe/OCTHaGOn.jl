@@ -478,6 +478,12 @@ function test_basic_gm()
     relaxed_objective!(gm)
     surveysolve(gm)
     @test [getvalue(bbl.relax_var) for bbl in gm.bbls] == zeros(length(gm.bbls))
+    clear_relaxation_variables!(gm)
+    optimize!(gm)
+    @test gm.cost[end] == gm.cost[end-1]
+    @test length(JuMP.objective_function(gm.model).terms) == 1
+    tight_objective!(gm)
+    @test JuMP.objective_function(gm.model) isa JuMP.VariableRef
 end
 
 function test_convex_objective()
@@ -644,6 +650,7 @@ function test_oos()
     println("Time for maneuvers (days): $(times)")
     println("Maneuver fuel (kg): $(transfuels)")
     println("Total mission time (years): $(sum(times)/365)")
+    print_feas_gaps(gm)
     @test true
 
     # using Plots
