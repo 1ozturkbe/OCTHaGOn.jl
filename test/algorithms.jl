@@ -151,6 +151,16 @@ function recipe(gm::GlobalModel)
     end
 end 
 
+function optimize_and_time!(m::Union{JuMP.Model, GlobalModel})
+    t1 = time()
+    if m isa JuMP.Model
+        optimize!(m);
+    else
+        recipe(m)
+    end
+    println("Model solution time: " * string(time()-t1) * " seconds.")
+end
+
 # function refine_equality_tree()
 #     gm = nlp3(true)
 #     recipe(gm)
