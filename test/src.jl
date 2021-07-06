@@ -275,10 +275,11 @@ function test_bbr()
     # Make sure to train and add bbcs, and forget for a while...
     bbcs = [bbl for bbl in gm.bbls if bbl isa BlackBoxClassifier]
     learn_constraint!(bbcs)
-    @test all(evaluate_accuracy.(bbcs) .>= 0.95)
     for bbc in bbcs
         add_tree_constraints!(gm, bbc)
     end
+    @test all(evaluate_accuracy.(bbcs) .>= 0.95)
+
     
     # Threshold training
     learn_constraint!(bbr, "upper" => 20.)
@@ -429,13 +430,12 @@ function test_basic_gm()
     # Actually trying to optimize...
     find_bounds!(gm, all_bounds=true)
     uniform_sample_and_eval!(gm)
-
     learn_constraint!(gm)
-    println("Approximation accuracies: ", evaluate_accuracy(gm))
 
     # Solving of model
     set_param(gm, :ignore_accuracy, true)
     add_tree_constraints!(gm)
+    println("Approximation accuracies: ", evaluate_accuracy(gm))
     optimize!(gm)
     vals = solution(gm);
     @test all(gm.bbls[i].active_leaves[1] in keys(gm.bbls[i].leaf_variables) for i=1:length(gm.bbls))
@@ -478,6 +478,12 @@ function test_basic_gm()
     relaxed_objective!(gm)
     surveysolve(gm)
     @test [getvalue(bbl.relax_var) for bbl in gm.bbls] == zeros(length(gm.bbls))
+    clear_relaxation_variables!(gm)
+    optimize!(gm)
+    @test gm.cost[end] == gm.cost[end-1]
+    @test length(JuMP.objective_function(gm.model).terms) == 1
+    tight_objective!(gm)
+    @test JuMP.objective_function(gm.model) isa JuMP.VariableRef
 end
 
 function test_convex_objective()
@@ -585,25 +591,24 @@ function test_linking()
     set_upper_bound.(dy, 1)
     set_lower_bound.(dy, -1)
     gm = GlobalModel(model = m, name = "foxes_rabbits")
-    set_param(gm, :sample_coeff, 300)
-    add_nonlinear_constraint(gm, :((x, y, dx) -> dx[1] - (x[1]*(1-x[1]) -x[1]*y[1]/(x[1]+$(r)))), 
-                            vars = [x[1], y[1], dx[1]], equality=true)
-    add_nonlinear_constraint(gm, :((x, y, dy) -> dy[1] - ($(r)*y[1]*(1-y[1]/x[1]))), 
-                            vars = [x[1], y[1], dy[1]], equality=true)
+    set_param(gm, :sample_coeff, 500)
+    add_nonlinear_constraint(gm, :((x, y) -> x[1]*(1-x[1]) -x[1]*y[1]/(x[1]+$(r))), 
+                            vars = [x[1], y[1]], dependent_var = dx[1], equality=true)
+    add_nonlinear_constraint(gm, :((x, y) -> $(r)*y[1]*(1-y[1]/x[1])), 
+                            vars = [x[1], y[1]], dependent_var = dy[1], equality=true)
     for i = 2:t-1
-        add_linked_constraint(gm, gm.bbls[1], [x[i], y[i], dx[i]])
-        add_linked_constraint(gm, gm.bbls[2], [x[i], y[i], dy[i]])
+        add_linked_constraint(gm, gm.bbls[1], [x[i], y[i]], dx[i])
+        add_linked_constraint(gm, gm.bbls[2], [x[i], y[i]], dy[i])
     end
     uniform_sample_and_eval!(gm)
     init_constraints = sum(length(all_constraints(gm.model, type[1], type[2])) 
         for type in JuMP.list_of_constraint_types(gm.model))
     # Usually would want to train the dynamics better, but for speed this is better!
-    learn_constraint!(gm, max_depth = 4, ls_num_tree_restarts = 10, ls_num_hyper_restarts = 10)
+    learn_constraint!(gm)
     set_param(gm, :ignore_accuracy, true)
-
     add_tree_constraints!(gm)
-
     # optimize!(gm)
+
     # using Plots
     # # Plotting temporal population data
     # plot(getvalue.(x), label = "Prey")
@@ -622,41 +627,31 @@ function test_oos()
     op = oos_params()
     gm = oos_gm!()
     m = gm.model
-    uniform_sample_and_eval!(gm)
-    update_vexity.(gm.bbls)
-    learn_constraint!(gm)
+    [set_param(bbl, :n_samples, 1000) for bbl in gm.bbls]
+    uniform_sample_and_eval!(gm, lh_iterations = 0)
+    learn_constraint!(gm, max_depth = 6)
     add_tree_constraints!(gm)
     optimize!(gm)
-    cut_count = add_infeasibility_cuts!(gm)
-    optimize!(gm)
-    # while cut_count != 0
-    #     cut_count = add_infeasibility_cuts!(gm)
-    #     optimize!(gm)
-    # end
 
-    # add_relaxation_variables!(gm)
-    # relaxed_objective!(gm)
-    # add_tree_constraints!(gm)
-    # optimize!(gm)
-
-    @test true
+    # Post-processing
+    plot_r = round.((getvalue.(m[:r_orbit]) .- op.rE)./1e3, sigdigits = 5)
+    ords = Int.(round.(getvalue.(m[:sat_order])))
+    times = round.(getvalue.(m[:t_maneuver])./(24*3600), sigdigits=3) # days
+    revs = round.(getvalue.(m[:N_orbit]), sigdigits=5)
+    refuels = round.(getvalue.(m[:fuel_needed]), sigdigits=5)
+    transfuels = round.(getvalue.(m[:masses][:,1] .- m[:masses][:,5]), sigdigits=5)
+    n_trans = op.n_sats - 1
 
     # # Printing results
-    # println("Orbit altitudes (km) : $(round.((getvalue.(m[:r_orbit]) .- op.rE)./1e3, sigdigits=5))")
-    # println("Satellite order: $(Int.(round.(getvalue.(m[:sat_order]))))")
-    # println("True anomalies (radians): $(round.(getvalue.(m[:ta]), sigdigits=3))")
-    # println("Orbital revolutions: $(round.(getvalue.(m[:N_orbit]), sigdigits=5)))")
-    # println("Time for maneuvers (days): $(round.(getvalue.(m[:t_maneuver])./(24*3600), sigdigits=3))")
-    # println("Total mission time (years): $(sum(getvalue.(m[:t_maneuver]))/(24*3600*365))")
-
-    # # Post-processing
-    # plot_r = (getvalue.(m[:r_orbit]) .- op.rE)./1e3
-    # ords = Int.(round.(getvalue.(m[:sat_order])))
-    # times = round.(getvalue.(m[:t_maneuver])./(24*3600), sigdigits=3) # days
-    # revs = round.(getvalue.(m[:N_orbit]), sigdigits=5)
-    # refuels = round.(getvalue.(m[:fuel_needed]), sigdigits=5)
-    # transfuels = round.(getvalue.(m[:masses][:,1] .- m[:masses][:,5]), sigdigits=5)
-    # n_trans = op.n_sats - 1
+    println("Orbit altitudes (km) : $(plot_r)")
+    println("Satellite order: $(ords)")
+    println("True anomalies (radians): $(round.(getvalue.(m[:ta]), sigdigits=3))")
+    println("Orbital revolutions: $(revs)")
+    println("Time for maneuvers (days): $(times)")
+    println("Maneuver fuel (kg): $(transfuels)")
+    println("Total mission time (years): $(sum(times)/365)")
+    print_feas_gaps(gm)
+    @test true
 
     # using Plots
     # colors = palette(:darktest, n_trans)
@@ -678,9 +673,9 @@ function test_oos()
     # # Bar plotting 
     # using Plots
     # colors = palette(:darktest, n_trans)
-    # bar1 = bar(1:op.n_sats, refuels, color = colors, xlabel = "Satellite order", ylabel = "Satellite refuel (kg)", legend = false)
-    # bar2 = bar(1:n_trans, times, color = colors, xlabel = "Transfer index", ylabel = "Maneuver time (days)", legend = false)
-    # bar3 = bar(1:n_trans, transfuels, color = colors, xlabel = "Transfer index", ylabel = "Transfer fuel (kg)", legend = false)
+    # bar1 = bar(1:op.n_sats, refuels,  xlabel = "Satellite order", ylabel = "Satellite refuel (kg)", legend = false)
+    # bar2 = bar(1:n_trans, times, xlabel = "Transfer index", ylabel = "Maneuver time (days)", legend = false)
+    # bar3 = bar(1:n_trans, transfuels, xlabel = "Transfer index", ylabel = "Transfer fuel (kg)", legend = false)
     # bar_plots = plot(bar1, bar2, bar3, layout = (1,3))
     # @show bar_plots
 

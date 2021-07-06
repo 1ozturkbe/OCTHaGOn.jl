@@ -213,14 +213,16 @@ function learn_constraint!(bbc::BlackBoxClassifier; kwargs...)
     check_sampled(bbc)
     set_param(bbc, :reloaded, false) # Makes sure that we know trees are retrained. 
     lnr = base_classifier()
+    IAI.set_params!(lnr; minbucket = 
+        maximum([2*length(bbc.vars)/length(bbc.Y), lnr.minbucket]))
     if bbc.equality # Equalities are approximated more aggressively.
         IAI.set_params!(lnr; max_depth = 6, ls_num_tree_restarts = 30, fast_num_support_restarts = 15)
     end
-    IAI.set_params!(lnr; minbucket =  2*length(bbc.vars), classifier_kwargs(; kwargs...)...)
+    IAI.set_params!(lnr; classifier_kwargs(; kwargs...)...)
     if check_feasibility(bbc) || get_param(bbc, :ignore_feasibility)
-        nl = learn_from_data!(bbc.X, bbc.Y .>= 0, lnr; fit_classifier_kwargs(; kwargs...)...)
-        push!(bbc.learners, nl)
-        push!(bbc.accuracies, IAI.score(nl, bbc.X, bbc.Y .>= 0)) # TODO: add ability to specify criterion. 
+        lnr = learn_from_data!(bbc.X, bbc.Y .>= 0, lnr; fit_classifier_kwargs(; kwargs...)...)
+        push!(bbc.learners, lnr)
+        push!(bbc.accuracies, IAI.score(lnr, bbc.X, bbc.Y .>= 0)) # TODO: add ability to specify criterion. 
         push!(bbc.learner_kwargs, Dict(kwargs))
     else
         throw(OCTException("Not enough feasible samples for BlackBoxClassifier " * string(bbc.name) * "."))
@@ -236,7 +238,9 @@ function learn_constraint!(bbr::BlackBoxRegressor, threshold::Pair = Pair("reg",
         return # If convex, don't train a tree!
     elseif threshold.first in classifications
         lnr = base_classifier()
-        IAI.set_params!(lnr; minbucket = 2*length(bbr.vars), classifier_kwargs(; kwargs...)...)
+        IAI.set_params!(lnr; minbucket = 
+            maximum([2*length(bbr.vars)/length(bbr.Y), lnr.minbucket]), 
+            classifier_kwargs(; kwargs...)...)
         ul_data = Dict()
         if threshold.first == "upper" # Upper bounding classifier with upper bounds in leaves
             lnr = learn_from_data!(bbr.X, bbr.Y .<= threshold.second, lnr; fit_classifier_kwargs(; kwargs...)...)
@@ -253,9 +257,12 @@ function learn_constraint!(bbr::BlackBoxRegressor, threshold::Pair = Pair("reg",
         push!(bbr.learner_kwargs, Dict(kwargs))
         push!(bbr.thresholds, threshold)
         push!(bbr.ul_data, ul_data)
+        push!(bbr.accuracies, IAI.score(lnr, bbr.X, bbr.Y .>= 0))
     elseif threshold.first == "reg"
         lnr = base_regressor()
-        IAI.set_params!(lnr; minbucket = 2*length(bbr.vars), regressor_kwargs(; kwargs...)...)
+        IAI.set_params!(lnr; minbucket = 
+            maximum([2*length(bbr.vars)/length(bbr.Y), lnr.minbucket]),
+            regressor_kwargs(; kwargs...)...)
         if bbr.equality # Equalities cannot leverage convexity unfortunately...
             if threshold.second == nothing
                 lnr = learn_from_data!(bbr.X, bbr.Y, lnr; fit_regressor_kwargs(; kwargs...)...)   
@@ -278,11 +285,14 @@ function learn_constraint!(bbr::BlackBoxRegressor, threshold::Pair = Pair("reg",
         push!(bbr.learner_kwargs, Dict(kwargs))
         push!(bbr.thresholds, threshold)
         push!(bbr.ul_data, boundify(lnr, bbr.X, bbr.Y))
+        push!(bbr.accuracies, IAI.score(lnr, bbr.X, bbr.Y))
     elseif threshold.first == "rfreg"
         lnr = base_rf_regressor()
         bbr.local_convexity < 0.75 || throw(OCTException("Cannot use RandomForestRegressor " *
         "on BBR $(bbr.name) since it is almost convex."))
-        IAI.set_params!(lnr; minbucket = 2*length(bbr.vars), regressor_kwargs(; kwargs...)...)
+        IAI.set_params!(lnr; minbucket = 
+            maximum([2*length(bbr.vars)/length(bbr.Y), lnr.minbucket]),
+            regressor_kwargs(; kwargs...)...)
         if threshold.second == nothing
             lnr = learn_from_data!(bbr.X, bbr.Y, lnr; fit_regressor_kwargs(; kwargs...)...)   
         else
@@ -293,6 +303,7 @@ function learn_constraint!(bbr::BlackBoxRegressor, threshold::Pair = Pair("reg",
         push!(bbr.learner_kwargs, Dict(kwargs))
         push!(bbr.thresholds, threshold)
         push!(bbr.ul_data, boundify(lnr, bbr.X, bbr.Y))
+        push!(bbr.accuracies, IAI.score(lnr, bbr.X, bbr.Y))
     else
         throw(OCTException("$(threshold.first) is not a valid learner type for" *
             " thresholded learning of BBR $(bbr.name)."))

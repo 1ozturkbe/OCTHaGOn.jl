@@ -13,9 +13,12 @@ function pool1(gm::Bool = false)
            "e4" => -x[4] + x[6]^2 - 4*x[7]^2)
     if gm
         gm = GlobalModel(model = m, name = "pool1")
-        for (key, eq) in eqs
-            add_nonlinear_constraint(gm, @constraint(gm.model, eq >= 0), name = key)
-        end
+        add_nonlinear_constraint(gm, :(x -> 12 - x[3]^2+x[4]^2), name = "e1")
+        add_nonlinear_constraint(gm, :(x -> x[1]^2-x[2]^2+x[4]^2 - 3), name = "e2_1")
+        add_nonlinear_constraint(gm, :(x -> 100 - x[1]^2-x[2]^2+x[4]^2), name = "e2_2")
+        add_nonlinear_or_compatible(gm, :(x -> x[1]+x[2]-5*x[3]+2*x[4] - 10), name = "e3_1")
+        add_nonlinear_or_compatible(gm, :(x -> 20 - x[1]+x[2]-5*x[3]+2*x[4]), name = "e3_2")
+        add_nonlinear_constraint(gm, :(x -> -x[4] + x[6]^2 - 4*x[7]^2), name = "e4")
         return gm
     else
         for (key, eq) in eqs

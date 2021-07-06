@@ -100,8 +100,8 @@ function test_concave_regressors(gm::GlobalModel = gear(true))
     actual = bbr.actuals[end]
     optim = bbr.optima[end]
     learn_constraint!(bbr, "upper" => minimum(bbr.actuals)) # 2nd tree (Upper OCT)
-    learn_constraint!(bbr, "reg" => minimum(bbr.actuals), 
-                        regression_sparsity = 0, max_depth = 5) # 3th tree (Regressor on upper bounded samples)
+    learn_constraint!(bbr, "reg" => 40, 
+                        regression_sparsity = 0, max_depth = 3) # 3th tree (Regressor on upper bounded samples)
 
     # Trying to add and remove individual constraints in random order to make sure no constraints accidentally remain. 
     for i=1:length(bbr.learners)
@@ -126,35 +126,56 @@ function test_concave_regressors(gm::GlobalModel = gear(true))
     update_tree_constraints!(gm, bbr, 2)
     update_tree_constraints!(gm, bbr, 3)
     @test active_lower_tree(bbr) == 3
-    @test active_upper_tree(bbr) == 2  
+    @test active_upper_tree(bbr) == 3  
     optimize!(gm)
     clear_tree_constraints!(gm)
     @test init_constraints == sum(length(all_constraints(gm.model, type[1], type[2])) for type in JuMP.list_of_constraint_types(gm.model))
-    @test true
 end
 
-# function update_uls(gm::GlobalModel, bbr::BlackBoxRegressor)
-#     if length(bbr.active_trees) == 1
-#         ub = maximum(bbr.actuals)
-#         lb = minimum(bbr.optima)
-#         learn_constraint!(bbr, "upper" => ub)
-#         update_tree_constraints!(gm, bbr)
-#         learn_constraint!(bbr, "lower" => lb)
-#         update_tree_constraints!(gm, bbr)
+function recipe(gm::GlobalModel)
+    @info "GlobalModel " * gm.name * " in progress..."
+    set_optimizer(gm, CPLEX_SILENT)
+    uniform_sample_and_eval!(gm)
+    set_param(gm, :ignore_accuracy, true)
+    set_param(gm, :ignore_feasibility, true)
+    for bbl in gm.bbls
+        learn_constraint!(bbl)
+        add_tree_constraints!(gm, bbl)
+    end
+    optimize!(gm)    
+    add_infeasibility_cuts!(gm)
+    optimize!(gm)
+    while (gm.cost[end] - gm.cost[end-1]) > get_param(gm, :abstol)
+        add_infeasibility_cuts!(gm)
+        optimize!(gm)
+    end
+end 
 
-#     while gm.cost[end] > gm.cost[end-1]
-#         add_infeasibility_cuts!(gm)
-#         optimize!(gm)
-#     end
+function optimize_and_time!(m::Union{JuMP.Model, GlobalModel})
+    t1 = time()
+    if m isa JuMP.Model
+        optimize!(m);
+    else
+        recipe(m)
+    end
+    println("Model solution time: " * string(time()-t1) * " seconds.")
+end
 
-#     elseif length(bbr.active_trees) = 2
-#         ub = maximum(bbr.actuals)
-#         lb = minimum(bbr.optima)
-#         l_tree_idx = active_lower_tree(bbr)
-#         u_tree_idx = findall(x -> x != l_tree_idx, 
-#                             collect(keys(bbr.active_trees)))[1]
-#         if ub != u_tree_idx[]
+# function refine_equality_tree()
+#     gm = nlp3(true)
+#     recipe(gm)
+#     feas_tol = get_param(gm, :tighttol)
+#     for bbl in gm.bbls
+#         if bbl.equality && abs(bbl.feas_gap[end]) >= feas_tol
+#             sol = DataFrame(gm.solution_history[end, string.(bbl.vars)])
+#             learn_constraint!(bbl, sample_weight = reweight(bbl, sol))
+#             update_tree_constraints!(gm, bbl)
+#         end
 #     end
+#     if bbr.feas_gap[end] <= 0 && bbr.feas_gap[end]/max_gap <= -feas_tol 
+#         update_tree_constraints!(gm, bbr)
+#     end
+#     @test true
 # end
 
 test_baron_solve()

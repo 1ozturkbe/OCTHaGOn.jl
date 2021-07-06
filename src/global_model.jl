@@ -170,11 +170,13 @@ function add_nonlinear_constraint(gm::GlobalModel,
         if isnothing(dependent_var)
             new_bbl = BlackBoxClassifier(constraint = constraint, vars = vars, expr_vars = expr_vars,
                                          equality = equality, name = name)
+            set_param(new_bbl, :n_samples, Int(ceil(get_param(gm, :sample_coeff)*sqrt(length(vars)))))
             push!(gm.bbls, new_bbl)
             return
         else
             new_bbl = BlackBoxRegressor(constraint = constraint, vars = vars, expr_vars = expr_vars,
                                         dependent_var = dependent_var, equality = equality, name = name)
+            set_param(new_bbl, :n_samples, Int(ceil(get_param(gm, :sample_coeff)*sqrt(length(vars)))))
             push!(gm.bbls, new_bbl)
             return
         end
@@ -183,6 +185,7 @@ function add_nonlinear_constraint(gm::GlobalModel,
                                                         "and cannot have a dependent variable " * string(dependent_var) * "."))
         new_bbl = BlackBoxClassifier(constraint = constraint, vars = vars, expr_vars = expr_vars,
                                         equality = equality, name = name)
+        set_param(new_bbl, :n_samples, Int(ceil(get_param(gm, :sample_coeff)*sqrt(length(vars)))))
         push!(gm.bbls, new_bbl)
         JuMP.delete(gm.model, constraint)   
     end
@@ -362,7 +365,7 @@ function evaluate_accuracy(bbr::BlackBoxRegressor)
     elseif isempty(bbr.learners)
         throw(OCTException(string("BlackBoxRegressor ", bbr.name, " has not been trained yet.")))
     else
-        return 1. 
+        return bbr.accuracies[active_lower_tree(bbr)] 
     end
 end
 
@@ -415,25 +418,29 @@ function feas_gap(gm::GlobalModel)
     for bbl in gm.bbls
         if bbl isa BlackBoxClassifier && !isnothing(bbl.constraint)
             eval!(bbl, soln)
-            push!(bbl.feas_gap, bbl.Y[end])
+            maxY = maximum(filter(!isinf, bbl.Y))
+            minY = minimum(filter(!isinf, bbl.Y))
+            push!(bbl.feas_gap, bbl.Y[end] ./ (maxY - minY))
             for ll in bbl.lls
                 eval!(bbl, DataFrame(string.(bbl.vars) .=> values(soln[1, string.(ll.vars)])))
-                push!(ll.feas_gap, bbl.Y[end])
+                push!(ll.feas_gap, bbl.Y[end] ./ (maxY - minY))
             end
         elseif bbl isa BlackBoxRegressor && !isnothing(bbl.constraint)
             eval!(bbl, soln)
+            maxY = maximum(filter(!isinf, bbl.Y))
+            minY = minimum(filter(!isinf, bbl.Y))
             optimum = JuMP.getvalue(bbl.dependent_var)
             actual = bbl.Y[end]
             push!(bbl.optima, optimum)
             push!(bbl.actuals, actual)
-            push!(bbl.feas_gap, optimum-actual)
+            push!(bbl.feas_gap, (optimum-actual) / (maxY - minY))
             for ll in bbl.lls
                 eval!(bbl, DataFrame(string.(bbl.vars) .=> values(soln[1, string.(ll.vars)])))
                 optimum = JuMP.getvalue(ll.dependent_var)
                 actual = bbl.Y[end]
                 push!(ll.optima, optimum)
                 push!(ll.actuals, actual)
-                push!(ll.feas_gap, optimum-actual)
+                push!(ll.feas_gap, (optimum-actual) / (maxY - minY))
             end
         elseif bbl isa BlackBoxClassifier && isnothing(bbl.constraint)
             push!(bbl.feas_gap, 0) # data constraints are always feasible

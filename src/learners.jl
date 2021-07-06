@@ -18,7 +18,7 @@ function base_regressor()
         regression_sparsity = :all,
         regression_weighted_betas = true,
         random_seed = 1,
-        max_depth = 3,
+        max_depth = 5,
         cp = 1e-6, 
         minbucket = 0.02,
         fast_num_support_restarts = 5, 

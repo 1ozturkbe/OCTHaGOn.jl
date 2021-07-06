@@ -16,7 +16,7 @@ function speed_reducer(solver = CPLEX_SILENT)
     # add_nonlinear_constraint(gm, :(x -> x[8] - (0.7854*x[1]*x[2]^2*(10. / 3. *x[3]^2 + 14.9334*x[3] - 43.0934) -
     #          1.5079*x[1]*(x[6]^2 + x[7]^2) + 7.477*(x[6]^3 + x[7]^3) +
     #          0.7854*(x[4]*x[6]^2 + x[5]*x[7]^2))), vars = x[1:8])
-    add_nonlinear_constraint(gm, :(x -> 0.7854*x[1]*x[2]^2*(10. / 3. *x[3]^2 + 14.9334*x[3] - 43.0934) -
+    add_nonlinear_constraint(gm, :(x -> 0.7854*x[1]*x[2]^2*(3.3333 *x[3]^2 + 14.9334*x[3] - 43.0934) -
     1.5079*x[1]*(x[6]^2 + x[7]^2) + 7.477*(x[6]^3 + x[7]^3) +
     0.7854*(x[4]*x[6]^2 + x[5]*x[7]^2)), vars = x[1:7], dependent_var = x[8])
 

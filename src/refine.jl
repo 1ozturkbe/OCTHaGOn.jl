@@ -141,13 +141,16 @@ Note: mag -> Inf results in uniform reweighting.
 Returns:
 - weights: weights of X rows, by Euclidian distance
 """
-function reweight(X::Matrix, mag::Float64 = 10.)
-
-    n_samples, n_features = size(X);
-    mean = [sum(X[:,i])/n_samples for i=1:n_features];
-    std = [sum((X[:,i]-ones(n_samples)* mean[i]).^2)/n_samples for i=1:n_features];
-    distance = [sum((X[i,:] - mean).^2 ./std) for i=1:n_samples];
-    weights = exp.(-1/mag*distance);
+function reweight(bbl::BlackBoxLearner, sol::DataFrame, mag::Float64 = 10.)
+    n_samples, n_features = size(bbl.X);
+    bounds = get_bounds(bbl.vars)
+    bound_dist = [abs(bounds[var][1] - bounds[var][2]) for var in bbl.vars]
+    vecsol = [sol[1,strvar] for strvar in string.(bbl.vars)]
+    distances = []
+    for i = eachrow(bbl.X)
+        push!(distances, sum((values(i) .- vecsol).^2 ./ bound_dist))
+    end
+    weights = exp.(-1/mag*distances);
     return weights
 end
 
