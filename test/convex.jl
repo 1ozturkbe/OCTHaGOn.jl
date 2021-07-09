@@ -76,3 +76,11 @@ end
 
 # gm = gms[filenames[1]]
 # set_optimizer(gm, CPLEX.Optimizer)
+
+# Functions to check
+# g(x) = x^2/(x^2+1)
+
+# 
+
+# The implications of convexity finding. 
+# This allows us to exploit the properties of convex functions in the domains they are relevant, and come up with appropriate heuristic in the domains where they are invalid. 
