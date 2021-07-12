@@ -41,20 +41,58 @@ for bbl in bounded_bbls
     update_vexity(bbl)
 end
 @info "Found $(sum(bbl.convex for bbl in bounded_bbls)) convex BBLs."
+convex_bbls = [bbl for bbl in bounded_bbls if bbl.convex]
 
 # Actually confirming convexity of the underlying functions. 
 convex_ones = Dict(1 => [1,3], 2 => [1], 19 => [1], 21 => [4], 23 => [4])
 
-for (key, values) in convex_ones
+""" Checks the convexity of signomials. """
+function check_cvx(alpha, c, lse::Bool = true)
+    cvxity = true
+    if lse # exponential form
+        if length(c) == 1
+        elseif length(c) >= 2
+            if sum(c .> 0) != 1
+                cvxity = false
+            end
+        end
+    else # geometric form
+        for i in 1:length(c)
+            if c[i] >= 0
+                if any(alpha[i,:] .< 0)
+                    cvxity = false
+                    break
+                end
+            else
+                if any(alpha[i,:] .> 0)
+                    cvxity = false
+                    break
+                end
+            end
+        end
+    end
+    return cvxity
+end
+
+# Finding the actual convex ones analytically
+lse = false
+for idx in idxs
     sagemarks = pyimport("sagebenchmarks.literature.solved");
     signomials, solver, run_fn = sagemarks.get_example(key);
     f, greaters, equals = signomials;
-
+    check_cvx(f.alpha, f.c, lse) && println("Bench $(idx) has convex objective.")
     for i = 1:length(greaters)
-        constrexpr, constrvars = alphac_to_expr(gm.model, greaters[i].alpha, greaters[i].c, lse=lse)
+        # if to prune the bounds
+        if !(sum(greaters[i].alpha .== 1) == 1 && sum(greaters[i].alpha) == 1)
+            check_cvx(greaters[i].alpha, greaters[i].c, lse) && 
+                println("Bench $(idx) has convex constraint $(i+1).")
+        end
     end
     for i = 1:length(equals)
-        constrexpr, constrvars = alphac_to_expr(gm.model, equals[i].alpha, equals[i].c, lse=lse)
+        if !(sum(greaters[i].alpha .== 1) == 1 && sum(greaters[i].alpha) == 1)
+            check_cvx(greaters[i].alpha, greaters[i].c, lse) && 
+                println("Bench $(idx) has `convex' equality $(i+1).")
+        end    
     end
 end
 
