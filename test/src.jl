@@ -424,7 +424,7 @@ end
 
 """ Tests basic functionalities in GMs. """
 function test_basic_gm()
-    gm = sagemark_to_GlobalModel(3; lse=false)
+    gm = sagemark_to_GlobalModel(3, false)
     set_optimizer(gm, CPLEX_SILENT)
 
     # Actually trying to optimize...

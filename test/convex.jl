@@ -12,7 +12,7 @@ idxs = 1:25; # 25
 gms = Dict()
 for idx in idxs
     try
-        ex = sagemark_to_GlobalModel(idx, lse=true);
+        ex = sagemark_to_GlobalModel(idx, true);
         gms[idx] = ex
     catch
         println("Failed import of problem $(idx).")
@@ -31,7 +31,7 @@ for idx in idxs
         try
             check_bounds(get_bounds(gm.bbls[i]))
             gm.bbls[i].name = gm.name * "_" * gm.bbls[i].name
-            push!(bounded_bbls, bbl)
+            push!(bounded_bbls, gm.bbls[i])
             push!(bbl_idxs[idx], ct)
         catch ErrorException
         end
@@ -52,13 +52,41 @@ convex_bbls = [bbl for bbl in bounded_bbls if bbl.convex]
 # Actually confirming convexity of the underlying functions. 
 convex_ones = Dict(1 => [1,3], 2 => [1], 19 => [1], 21 => [4], 23 => [4])
 
-""" Checks the convexity of signomials. """
-function check_cvx(alpha, c, lse::Bool = true)
+""" Checks the convexity of signomial constraints (sig >= 0). """
+function check_cvx_con(alpha, c, lse::Bool = true)
     cvxity = true
     if lse # exponential form
         if length(c) == 1
         elseif length(c) >= 2
             if sum(c .> 0) != 1
+                cvxity = false
+            end
+        end
+    else # geometric form
+        for i in 1:length(c)
+            if c[i] >= 0
+                if any(alpha[i,:] .> 0)
+                    cvxity = false
+                    break
+                end
+            else
+                if any(alpha[i,:] .< 0)
+                    cvxity = false
+                    break
+                end
+            end
+        end
+    end
+    return cvxity
+end
+
+""" Checks the convexity of signomial objectives. """
+function check_cvx_obj(alpha, c, lse::Bool = true)
+    cvxity = true
+    if lse # exponential form
+        if length(c) == 1
+        elseif length(c) >= 2
+            if any(c .< 0) 
                 cvxity = false
             end
         end
@@ -89,19 +117,19 @@ for (idx, val) in bbl_idxs
     signomials, solver, run_fn = sagemarks.get_example(idx);
     f, greaters, equals = signomials;
     ct = 1
-    check_cvx(f.alpha, f.c, lse) && push!(actual_cvx[idx], ct)
+    check_cvx_obj(f.alpha, f.c, lse) && push!(actual_cvx[idx], ct)
     for i = 1:length(greaters)
         # if to prune the bounds
-        if !(sum(greaters[i].alpha .== 1) == 1 && sum(greaters[i].alpha) == 1)
+        if !(sum(greaters[i].alpha .!= 0) == 1 && sum(greaters[i].alpha) == 1) && ct in bbl_idxs[idx]
             ct += 1
-            check_cvx(greaters[i].alpha, -1 .* greaters[i].c, lse) && 
+            check_cvx_con(greaters[i].alpha, -1 .* greaters[i].c, lse) && 
             push!(actual_cvx[idx], ct)
         end
     end
     for i = 1:length(equals)
-        if !(sum(equals[i].alpha .== 1) == 1 && sum(equals[i].alpha) == 1)
+        if !(sum(equals[i].alpha .!= 0) == 1 && sum(equals[i].alpha) == 1) && ct in bbl_idxs[idx]
             ct += 1
-            check_cvx(equals[i].alpha, -1 .* equals[i].c, lse) && 
+            check_cvx_con(equals[i].alpha, -1 .* equals[i].c, lse) && 
             push!(actual_cvx[idx], ct)
         end    
     end

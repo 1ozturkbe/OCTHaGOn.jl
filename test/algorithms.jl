@@ -44,7 +44,7 @@ function test_classify_gradients()
 end
 
 function test_infeasibility_cuts()
-    gm = sagemark_to_GlobalModel(15, lse=false)
+    gm = sagemark_to_GlobalModel(15, false)
     set_param(gm, :ignore_accuracy, true)
     uniform_sample_and_eval!(gm)
     learn_constraint!(gm)
