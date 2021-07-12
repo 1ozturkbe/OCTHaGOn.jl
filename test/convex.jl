@@ -21,18 +21,24 @@ end
 
 # Finding the bounded BBLs
 bounded_bbls = []
+bbl_idxs = Dict(idx => [] for idx in collect(idxs))
 for idx in idxs
     gm = gms[idx]
     find_bounds!(gm)
-    for bbl in gm.bbls
+    ct = 0
+    for i = 1:length(gm.bbls)
+        ct += 1
         try
-            check_bounds(get_bounds(bbl))
-            bbl.name = gm.name * "_" * bbl.name
+            check_bounds(get_bounds(gm.bbls[i]))
+            gm.bbls[i].name = gm.name * "_" * gm.bbls[i].name
             push!(bounded_bbls, bbl)
+            push!(bbl_idxs[idx], ct)
         catch ErrorException
         end
     end
 end
+bbl_idxs = Dict(key => val for (key, val) in bbl_idxs if !isempty(val))
+
 @info "Found $(length(bounded_bbls)) bounded BBLs."
 
 # Making sure to compute the convexity of the BBLs. 
@@ -75,26 +81,32 @@ function check_cvx(alpha, c, lse::Bool = true)
 end
 
 # Finding the actual convex ones analytically
-lse = false
-for idx in idxs
+lse = true
+actual_cvx = Dict(idx => [] for idx in collect(idxs))
+
+for (idx, val) in bbl_idxs
     sagemarks = pyimport("sagebenchmarks.literature.solved");
-    signomials, solver, run_fn = sagemarks.get_example(key);
+    signomials, solver, run_fn = sagemarks.get_example(idx);
     f, greaters, equals = signomials;
-    check_cvx(f.alpha, f.c, lse) && println("Bench $(idx) has convex objective.")
+    ct = 1
+    check_cvx(f.alpha, f.c, lse) && push!(actual_cvx[idx], ct)
     for i = 1:length(greaters)
         # if to prune the bounds
         if !(sum(greaters[i].alpha .== 1) == 1 && sum(greaters[i].alpha) == 1)
-            check_cvx(greaters[i].alpha, greaters[i].c, lse) && 
-                println("Bench $(idx) has convex constraint $(i+1).")
+            ct += 1
+            check_cvx(greaters[i].alpha, -1 .* greaters[i].c, lse) && 
+            push!(actual_cvx[idx], ct)
         end
     end
     for i = 1:length(equals)
-        if !(sum(greaters[i].alpha .== 1) == 1 && sum(greaters[i].alpha) == 1)
-            check_cvx(greaters[i].alpha, greaters[i].c, lse) && 
-                println("Bench $(idx) has `convex' equality $(i+1).")
+        if !(sum(equals[i].alpha .== 1) == 1 && sum(equals[i].alpha) == 1)
+            ct += 1
+            check_cvx(equals[i].alpha, -1 .* equals[i].c, lse) && 
+            push!(actual_cvx[idx], ct)
         end    
     end
 end
+actual_cvx = Dict(key => value for (key, value) in actual_cvx if !isempty(value))
 
 # filenums = [2.15, 2.16, 2.17, 2.18, 3.13]
 # filenames = ["problem" * string(filenum) * ".gms" for filenum in filenums]
