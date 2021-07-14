@@ -158,6 +158,26 @@ actual_cvx = Dict(key => value for (key, value) in actual_cvx if !isempty(value)
 # Functions to check
 # g(x) = x^2/(x^2+1)
 
+
+# g(x) = x[1]^4*x[2]^2 + x[2]^4*x[1]^2 - 3x[1]^2*x[2]^2 + 1 # Motzkin polynomial
+m = Model()
+@variable(m, -2 <= x[1:2] <= 2)
+gm = GlobalModel(model = m)
+add_nonlinear_constraint(gm, :(x -> x[1]^4*x[2]^2 + x[2]^4*x[1]^2 - 3x[1]^2*x[2]^2 + 1))
+uniform_sample_and_eval!(gm)
+update_vexity.(gm.bbls)
+@test !gm.bbls[1].convex
+
+# An example from : https://arxiv.org/pdf/0903.1287v1.pdf
+m = Model()
+@variable(m, -1 <= x[1:3] <= 1)
+gm = GlobalModel(model = m)
+add_nonlinear_constraint(gm, :(x -> 32*x[1]^8 + 118*x[1]^6*x[2]^2 + 40*x[1]^6*x[3]^2 + 25*x[1]^4*x[2]^4 -
+                            43*x[1]^4*x[2]^2*x[3]^2 - 35*x[1]^4*x[3]^4 + 3*x[1]^2*x[2]^4*x[3]^2 - 
+                            16*x[1]^2*x[2]^2*x[3]^4 + 24*x[1]^2*x[3]^6 + 16*x[2]^8 + 
+                            44*x[2]^6*x[3]^2 + 70*x[2]^4*x[3]^4 + 60*x[2]^2*x[3]^6 + 30*x[3]^8))
+update_vexity(gm.bbls[1])
+@test gm.bbls[1].convex
 # 
 
 # The implications of convexity finding. 
