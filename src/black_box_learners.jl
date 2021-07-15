@@ -528,7 +528,7 @@ function update_vexity(bbl::BlackBoxLearner, threshold = 0.75)
                 if i != j && !(bbl.Y[test_idxs[j]] >= bbl.Y[test_idxs[i]] - 
                                 sum(Array(bbl.gradients[test_idxs[i],:]) .* diffs[i][j]))
                     cvx = false
-                    println(i, j)
+                    @info "Points $(test_idxs[j]) and $(test_idxs[i]) broke the convexity of $(bbl.name)."
                     break
                 end
             end
