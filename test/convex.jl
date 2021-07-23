@@ -176,20 +176,27 @@ add_nonlinear_constraint(gm, :(x -> 32*x[1]^8 + 118*x[1]^6*x[2]^2 + 40*x[1]^6*x[
                             43*x[1]^4*x[2]^2*x[3]^2 - 35*x[1]^4*x[3]^4 + 3*x[1]^2*x[2]^4*x[3]^2 - 
                             16*x[1]^2*x[2]^2*x[3]^4 + 24*x[1]^2*x[3]^6 + 16*x[2]^8 + 
                             44*x[2]^6*x[3]^2 + 70*x[2]^4*x[3]^4 + 60*x[2]^2*x[3]^6 + 30*x[3]^8))
-update_vexity(gm.bbls[1])
-@test gm.bbls[1].convex
 
+
+# Easy example to check method
+add_nonlinear_constraint(gm, :(x -> x[1] - 0.25x[2] + 0.01))
+
+# Really stupid example that keeps breaking...
+add_nonlinear_constraint(gm, :(x -> 1 - 0.5*exp(-x[1]+x[2])))
 
 # A simple but tough nonconvex example
 add_nonlinear_constraint(gm, :(x -> minimum([1 - x[1]^2 - x[2]^2, x[1]^2 + x[2]^2 - 0.5])))
 
-# Checking vexity
+# Procedure
 uniform_sample_and_eval!(gm.bbls[end])
 update_vexity(gm.bbls[end])
+@test gm.bbls[end].convex
 
 # Plotting
 using Plots
+bbl = gm.bbls[end]
 scatter(bbl.X[:,1], bbl.X[:,2], bbl.Y .>= 0)
+scatter(bbl.X[:,1], bbl.X[:,2], bbl.curvatures)
 
 # The implications of convexity finding. 
 # This allows us to exploit the properties of convex functions in the domains they are relevant, and come up with appropriate heuristic in the domains where they are invalid. 
