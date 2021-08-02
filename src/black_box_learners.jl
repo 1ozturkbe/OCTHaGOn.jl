@@ -515,27 +515,44 @@ end
 Checks whether a function is perhaps locally or globally convex.
 Threshold sets the border of being considered for convex regression. 
 """
-function update_vexity(bbl::BlackBoxLearner)
+function update_vexity(bbl::BlackBoxLearner, t::Int64 = 5)
     update_local_convexity(bbl)
     maxY = maximum(filter(!isinf, bbl.Y))
     minY = minimum(filter(!isinf, bbl.Y))
     thresh = 1e-10 * (maxY - minY)
     if bbl.local_convexity == 1.0
-        # Checking against quasi_convexity with 5 random points
-        t = 5
-        cvx = true
-        test_idxs = Int64.(ceil.(rand(t) .* size(bbl.X, 1)))
-        diffs = [[Array(bbl.X[j, :]) - Array(bbl.X[i, :]) for i in test_idxs] for j in test_idxs]
-        for i=1:t, j=1:t
-            if i != j && !(bbl.Y[test_idxs[j]] >= bbl.Y[test_idxs[i]] - 
-                            sum(Array(bbl.gradients[test_idxs[i],:]) .* diffs[i][j]) - thresh)
-                cvx = false
-                @info "Points $(test_idxs[j]) and $(test_idxs[i]) broke the convexity of $(bbl.name)."
-                break
+        if bbl isa BlackBoxRegressor
+            # Checking against quasi_convexity with 5 random points
+            cvx = true
+            test_idxs = Int64.(ceil.(rand(t) .* size(bbl.X, 1)))
+            diffs = [[Array(bbl.X[j, :]) - Array(bbl.X[i, :]) for i in test_idxs] for j in test_idxs]
+            for i=1:t, j=1:t
+                if i != j && !(bbl.Y[test_idxs[j]] >= bbl.Y[test_idxs[i]] - 
+                                sum(Array(bbl.gradients[test_idxs[i],:]) .* diffs[i][j]) - thresh)
+                    cvx = false
+                    @info "Points $(test_idxs[j]) and $(test_idxs[i]) broke the convexity of $(bbl.name)."
+                    break
+                end
             end
-        end
-        if cvx
-            bbl.convex = true
+            if cvx
+                bbl.convex = true
+            end
+        else
+            # Checking against quasi_convexity with 5 random points
+            cvx = true
+            test_idxs = Int64.(ceil.(rand(t) .* size(bbl.X, 1)))
+            diffs = [[Array(bbl.X[j, :]) - Array(bbl.X[i, :]) for i in test_idxs] for j in test_idxs]
+            for i=1:t, j=1:t
+                if i != j && !(bbl.Y[test_idxs[i]] >= bbl.Y[test_idxs[j]] + 
+                                sum(Array(bbl.gradients[test_idxs[i],:]) .* diffs[i][j]) - thresh)
+                    cvx = false
+                    @info "Points $(test_idxs[i]) and $(test_idxs[j]) broke the convexity of $(bbl.name)."
+                    break
+                end
+            end
+            if cvx
+                bbl.convex = true
+            end
         end
     end
     return
