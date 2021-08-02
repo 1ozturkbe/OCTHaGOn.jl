@@ -510,31 +510,32 @@ function update_local_convexity(bbl::BlackBoxLearner)
 end
 
 """ 
-    update_vexity(bbl::BlackBoxRegressor, threshold = 0.75)
+    update_vexity(bbl::BlackBoxLearner)
 
 Checks whether a function is perhaps locally or globally convex.
 Threshold sets the border of being considered for convex regression. 
 """
-function update_vexity(bbl::BlackBoxLearner, threshold = 0.75)
+function update_vexity(bbl::BlackBoxLearner)
     update_local_convexity(bbl)
-    if bbl.local_convexity >= threshold
-        if bbl.local_convexity == 1.0
-            # Checking against quasi_convexity with 5 random points
-            t = 5
-            cvx = true
-            test_idxs = Int64.(ceil.(rand(t) .* size(bbl.X, 1)))
-            diffs = [[Array(bbl.X[j, :]) - Array(bbl.X[i, :]) for i in test_idxs] for j in test_idxs]
-            for i=1:t, j=1:t
-                if i != j && !(bbl.Y[test_idxs[j]] >= bbl.Y[test_idxs[i]] - 
-                                sum(Array(bbl.gradients[test_idxs[i],:]) .* diffs[i][j]))
-                    cvx = false
-                    @info "Points $(test_idxs[j]) and $(test_idxs[i]) broke the convexity of $(bbl.name)."
-                    break
-                end
+    maxY = maximum(filter(!isinf, bbl.Y))
+    minY = minimum(filter(!isinf, bbl.Y))
+    thresh = 1e-10 * (maxY - minY)
+    if bbl.local_convexity == 1.0
+        # Checking against quasi_convexity with 5 random points
+        t = 5
+        cvx = true
+        test_idxs = Int64.(ceil.(rand(t) .* size(bbl.X, 1)))
+        diffs = [[Array(bbl.X[j, :]) - Array(bbl.X[i, :]) for i in test_idxs] for j in test_idxs]
+        for i=1:t, j=1:t
+            if i != j && !(bbl.Y[test_idxs[j]] >= bbl.Y[test_idxs[i]] - 
+                            sum(Array(bbl.gradients[test_idxs[i],:]) .* diffs[i][j]) - thresh)
+                cvx = false
+                @info "Points $(test_idxs[j]) and $(test_idxs[i]) broke the convexity of $(bbl.name)."
+                break
             end
-            if cvx
-                bbl.convex = true
-            end
+        end
+        if cvx
+            bbl.convex = true
         end
     end
     return
