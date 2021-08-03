@@ -49,9 +49,6 @@ end
 @info "Found $(sum(bbl.convex for bbl in bounded_bbls)) convex BBLs."
 convex_bbls = [bbl for bbl in bounded_bbls if bbl.convex]
 
-# Actually confirming convexity of the underlying functions. 
-convex_ones = Dict(1 => [1,3], 2 => [1], 19 => [1], 21 => [4], 23 => [4])
-
 """ Checks the convexity of signomial constraints (sig >= 0). """
 function check_cvx_con(alpha, c, lse::Bool = true)
     cvxity = true
@@ -112,26 +109,17 @@ end
 lse = true
 actual_cvx = Dict(idx => [] for idx in collect(idxs))
 
+sagemarks = pyimport("sagebenchmarks.literature.solved");
 for (idx, val) in bbl_idxs
-    sagemarks = pyimport("sagebenchmarks.literature.solved");
     signomials, solver, run_fn = sagemarks.get_example(idx);
     f, greaters, equals = signomials;
-    ct = 1
-    check_cvx_obj(f.alpha, f.c, lse) && push!(actual_cvx[idx], ct)
+    check_cvx_obj(f.alpha, f.c, lse) && push!(actual_cvx[idx], 1)
     for i = 1:length(greaters)
         # if to prune the bounds
-        if !(sum(greaters[i].alpha .!= 0) == 1 && sum(greaters[i].alpha) == 1) && ct in bbl_idxs[idx]
-            ct += 1
-            check_cvx_con(greaters[i].alpha, -1 .* greaters[i].c, lse) && 
-            push!(actual_cvx[idx], ct)
+        if !(sum(greaters[i].alpha .!= 0) == 1 && sum(greaters[i].alpha) == 1) && i+1 in val
+            check_cvx_con(greaters[i].alpha, greaters[i].c, lse) && 
+            push!(actual_cvx[idx], i+1)
         end
-    end
-    for i = 1:length(equals)
-        if !(sum(equals[i].alpha .!= 0) == 1 && sum(equals[i].alpha) == 1) && ct in bbl_idxs[idx]
-            ct += 1
-            check_cvx_con(equals[i].alpha, -1 .* equals[i].c, lse) && 
-            push!(actual_cvx[idx], ct)
-        end    
     end
 end
 actual_cvx = Dict(key => value for (key, value) in actual_cvx if !isempty(value))
@@ -171,32 +159,51 @@ update_vexity.(gm.bbls)
 # An example from : https://arxiv.org/pdf/0903.1287v1.pdf
 m = Model()
 @variable(m, -1 <= x[1:3] <= 1)
+@variable(m, -10 <= y <= 10)
 gm = GlobalModel(model = m)
-add_nonlinear_constraint(gm, :(x -> 32*x[1]^8 + 118*x[1]^6*x[2]^2 + 40*x[1]^6*x[3]^2 + 25*x[1]^4*x[2]^4 -
+add_nonlinear_constraint(gm, :((x,y) -> y-(32*x[1]^8 + 118*x[1]^6*x[2]^2 + 40*x[1]^6*x[3]^2 + 25*x[1]^4*x[2]^4 -
                             43*x[1]^4*x[2]^2*x[3]^2 - 35*x[1]^4*x[3]^4 + 3*x[1]^2*x[2]^4*x[3]^2 - 
                             16*x[1]^2*x[2]^2*x[3]^4 + 24*x[1]^2*x[3]^6 + 16*x[2]^8 + 
-                            44*x[2]^6*x[3]^2 + 70*x[2]^4*x[3]^4 + 60*x[2]^2*x[3]^6 + 30*x[3]^8))
-
-
-# Easy example to check method
-add_nonlinear_constraint(gm, :(x -> x[1] - 0.25x[2] + 0.01))
-
-# Really stupid example that keeps breaking...
-add_nonlinear_constraint(gm, :(x -> 1 - 0.5*exp(-x[1]+x[2])))
-
-# A simple but tough nonconvex example
-add_nonlinear_constraint(gm, :(x -> minimum([1 - x[1]^2 - x[2]^2, x[1]^2 + x[2]^2 - 0.5])))
-
-# Procedure
+                            44*x[2]^6*x[3]^2 + 70*x[2]^4*x[3]^4 + 60*x[2]^2*x[3]^6 + 30*x[3]^8)))
 uniform_sample_and_eval!(gm.bbls[end])
 update_vexity(gm.bbls[end])
 @test gm.bbls[end].convex
 
+
+# Easy examples to check method
+add_nonlinear_constraint(gm, :(x -> x[1] - 0.25x[2] + 0.01))
+uniform_sample_and_eval!(gm.bbls[end])
+update_vexity(gm.bbls[end])
+@test gm.bbls[end].convex
+
+# LSE
+add_nonlinear_constraint(gm, :(x -> 1 - 0.5*exp(-10*x[1]+x[2])))
+uniform_sample_and_eval!(gm.bbls[end])
+update_vexity(gm.bbls[end])
+@test gm.bbls[end].convex
+
+# Quadratic
+add_nonlinear_constraint(gm, :(x -> 1 - x[1]^2 - 5x[2]^2))
+uniform_sample_and_eval!(gm.bbls[end])
+update_vexity(gm.bbls[end])
+@test gm.bbls[end].convex
+
+# A simple nonconvex example
+add_nonlinear_constraint(gm, :(x -> minimum([1 - x[1]^2 - x[2]^2, x[1]^2 + x[2]^2 - 0.5])))
+uniform_sample_and_eval!(gm.bbls[end])
+update_vexity(gm.bbls[end])
+@test !gm.bbls[end].convex
+
 # Plotting
-using Plots
-bbl = gm.bbls[end]
-scatter(bbl.X[:,1], bbl.X[:,2], bbl.Y .>= 0)
-scatter(bbl.X[:,1], bbl.X[:,2], bbl.curvatures)
+# using Plots
+# bbl = gm.bbls[end]
+# scatter(bbl.X[:,1], bbl.X[:,2], bbl.Y .>= 0)
+# scatter(bbl.X[:,1], bbl.X[:,2], bbl.curvatures)
+
+# pos_idxs = findall(x -> x >= 0, bbl.Y)
+# neg_idxs = findall(x -> x < 0, bbl.Y)
+# scatter(bbl.X[pos_idxs, 1], bbl.X[pos_idxs, 2], color="green")
+# scatter!(bbl.X[neg_idxs, 1], bbl.X[neg_idxs, 2], color="red", legend=false)
 
 # The implications of convexity finding. 
 # This allows us to exploit the properties of convex functions in the domains they are relevant, and come up with appropriate heuristic in the domains where they are invalid. 
