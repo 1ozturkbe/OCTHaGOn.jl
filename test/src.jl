@@ -562,6 +562,46 @@ function test_rfs()
     #                                 for type in JuMP.list_of_constraint_types(gm.model))
 end
 
+""" Tests convexity checking. """
+function test_convexcheck()
+    # An example from : https://arxiv.org/pdf/0903.1287v1.pdf
+    m = Model()
+    @variable(m, -1 <= x[1:3] <= 1)
+    @variable(m, -10 <= y <= 10)
+    gm = GlobalModel(model = m)
+    add_nonlinear_constraint(gm, :((x,y) -> y-(32*x[1]^8 + 118*x[1]^6*x[2]^2 + 40*x[1]^6*x[3]^2 + 25*x[1]^4*x[2]^4 -
+                                43*x[1]^4*x[2]^2*x[3]^2 - 35*x[1]^4*x[3]^4 + 3*x[1]^2*x[2]^4*x[3]^2 - 
+                                16*x[1]^2*x[2]^2*x[3]^4 + 24*x[1]^2*x[3]^6 + 16*x[2]^8 + 
+                                44*x[2]^6*x[3]^2 + 70*x[2]^4*x[3]^4 + 60*x[2]^2*x[3]^6 + 30*x[3]^8)))
+    uniform_sample_and_eval!(gm.bbls[end])
+    update_vexity(gm.bbls[end])
+    @test gm.bbls[end].convex
+
+    # Easy examples to check method
+    add_nonlinear_constraint(gm, :(x -> x[1] - 0.25x[2] + 0.01))
+    uniform_sample_and_eval!(gm.bbls[end])
+    update_vexity(gm.bbls[end])
+    @test gm.bbls[end].convex
+
+    # LSE
+    add_nonlinear_constraint(gm, :(x -> 1 - 0.5*exp(-10*x[1]+x[2])))
+    uniform_sample_and_eval!(gm.bbls[end])
+    update_vexity(gm.bbls[end])
+    @test gm.bbls[end].convex
+
+    # Quadratic
+    add_nonlinear_constraint(gm, :(x -> 1 - x[1]^2 - 5x[2]^2))
+    uniform_sample_and_eval!(gm.bbls[end])
+    update_vexity(gm.bbls[end])
+    @test gm.bbls[end].convex
+
+    # A simple nonconvex example
+    add_nonlinear_constraint(gm, :(x -> minimum([1 - x[1]^2 - x[2]^2, x[1]^2 + x[2]^2 - 0.5])))
+    uniform_sample_and_eval!(gm.bbls[end])
+    update_vexity(gm.bbls[end])
+    @test !gm.bbls[end].convex
+end
+
 # Fox and rabbit nonlinear population dynamics 
 # Predator prey model with logistic function from http://www.math.lsa.umich.edu/~rauch/256/F2Lab5.pdf
 function test_linking()
@@ -713,6 +753,8 @@ test_convex_objective()
 test_data_driven()
 
 test_rfs()
+
+test_convexcheck()
 
 test_linking()
 

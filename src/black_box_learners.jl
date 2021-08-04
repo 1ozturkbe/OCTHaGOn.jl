@@ -558,8 +558,6 @@ function update_vexity(bbl::BlackBoxLearner, t::Int64 = 5)
     return
 end
 
-update_vexity(gm::GlobalModel) = update_vexity.(gm.bbls)
-
 """
     update_leaf_vexity(bbl::BlackBoxLearner)
 
