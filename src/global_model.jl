@@ -470,3 +470,5 @@ function clear_data!(gm::GlobalModel)
     clear_data!.(gm.bbls)
     gm.solution_history = DataFrame([Float64 for i=1:length(gm.vars)], string.(gm.vars))
 end
+
+update_vexity(gm::GlobalModel) = update_vexity.(gm.bbls)

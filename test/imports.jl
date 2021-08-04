@@ -9,13 +9,13 @@ function test_sagemark_to_GlobalModel()
         ex = sagemark_to_GlobalModel(idx);
     end
     idx = 1;
-    gm = sagemark_to_GlobalModel(idx; lse=false);
-    gm_lse = sagemark_to_GlobalModel(idx; lse=true);
+    gm = sagemark_to_GlobalModel(idx, false);
+    gm_lse = sagemark_to_GlobalModel(idx, true);
     classify_constraints.([gm, gm_lse])
 
     # Testing proper importing using sagemark #1
-    gm = sagemark_to_GlobalModel(1, lse=false);
-    gm_lse = sagemark_to_GlobalModel(1, lse=true);
+    gm = sagemark_to_GlobalModel(1, false);
+    gm_lse = sagemark_to_GlobalModel(1, true);
 
     bounds = Dict(all_variables(gm) .=> [[0.1, 1], [5., 10.], [8., 15.], [0.01, 1.], [-Inf, Inf]])
     @test all(get_bounds(gm)[var] ≈ bounds[var] for var in all_variables(gm))
@@ -58,7 +58,7 @@ function test_gams_to_GlobalModel()
 end
 
 # function test_load_fits()
-#     gm = sagemark_to_GlobalModel(3; lse=false)
+#     gm = sagemark_to_GlobalModel(3, false)
 #     set_optimizer(gm, CPLEX_SILENT)
 #     # Testing finding bounds of bounded model
 #     @test isnothing(get_unbounds(gm.bbls))

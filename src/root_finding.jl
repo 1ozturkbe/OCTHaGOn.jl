@@ -95,18 +95,36 @@ function classify_curvature(bbl::BlackBoxLearner, idxs = collect(1:size(bbl.X, 1
         miss_idxs = [idx for idx in idxs if ismissing(bbl.gradients[idx,1])]
         update_gradients(bbl, miss_idxs)
     end
-    thresh = (maximum(bbl.Y) - minimum(bbl.Y)) * 1e-10
-    for i in idxs
-        diffs = [Array(bbl.X[i, :]) - Array(bbl.X[j, :]) for j in knn_idxs[i]]
-        center_grad = Array(bbl.gradients[i,:])
-        under_offsets = [-dot(center_grad, differ) for differ in diffs]
-        actual_offsets = bbl.Y[knn_idxs[i]] .- bbl.Y[i]
-        if all(actual_offsets - under_offsets .>= -thresh)
-            bbl.curvatures[i] = 1
-        elseif all(actual_offsets - under_offsets .<= thresh)
-            bbl.curvatures[i] = -1
-        else
-            bbl.curvatures[i] = 0
+    maxY = maximum(filter(!isinf, bbl.Y))
+    minY = minimum(filter(!isinf, bbl.Y))
+    thresh = 1e-10 * (maxY - minY)
+    if bbl isa BlackBoxRegressor
+        for i in idxs
+            diffs = [Array(bbl.X[i, :]) - Array(bbl.X[j, :]) for j in knn_idxs[i]]
+            center_grad = Array(bbl.gradients[i,:])
+            under_offsets = [-dot(center_grad, differ) for differ in diffs]
+            actual_offsets = bbl.Y[knn_idxs[i]] .- bbl.Y[i]
+            if all(actual_offsets - under_offsets .>= -thresh)
+                bbl.curvatures[i] = 1
+            elseif all(actual_offsets - under_offsets .<= thresh)
+                bbl.curvatures[i] = -1
+            else
+                bbl.curvatures[i] = 0
+            end
+        end
+    else
+        for i in idxs
+            diffs = [Array(bbl.X[i, :]) - Array(bbl.X[j, :]) for j in knn_idxs[i]]
+            center_grad = Array(bbl.gradients[i,:])
+            under_offsets = [-dot(center_grad, differ) for differ in diffs]
+            actual_offsets = bbl.Y[knn_idxs[i]] .- bbl.Y[i]
+            if all(actual_offsets - under_offsets .<= thresh)
+                bbl.curvatures[i] = 1
+            elseif all(actual_offsets - under_offsets .>= -thresh)
+                bbl.curvatures[i] = -1
+            else
+                bbl.curvatures[i] = 0
+            end
         end
     end
 end
