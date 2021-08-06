@@ -178,16 +178,43 @@ end
 #     @test true
 # end
 
-test_baron_solve()
+# test_baron_solve()
 
-test_speed_params()
+# test_speed_params()
 
-test_classify_gradients()
+# test_classify_gradients()
 
-test_infeasibility_cuts()
+# test_infeasibility_cuts()
 
-test_feasibility_sample()
+# test_feasibility_sample()
 
-test_survey_method()
+# test_survey_method()
 
-test_concave_regressors()
+# test_concave_regressors()
+
+# Implementing gradient descent
+m = JuMP.Model()
+@variable(m, -1 <= x <= 4)
+@variable(m, -1 <= y <= 4)
+@variable(m, obj)
+@objective(m, Min, obj)
+gm = GlobalModel(model = m)
+set_param(gm, :ignore_accuracy, true)
+set_param(gm, :ignore_feasibility, true)
+
+# add_nonlinear_constraint(gm, :(x -> 4*x[1]^3 + x[2]^2 + 2*x[1]^2*x[2]), dependent_var = obj)
+# add_nonlinear_constraint(gm, :(x -> 20 - 3*x[1]^2 - 5*x[2]^2))
+
+add_nonlinear_constraint(gm, :((x,y) -> 2*x^6 - 12.2*x^5 + 21.2*x^4 + 6.2*x - 6.4*x^3 - 4.7*x^2 + 
+ y^6 - 11*y^5 + 43.3*y^4 - 10*y - 74.8*y^3 + 56.9*y^2 - 4.1*x*y - 0.1*y^2*x^2 + 0.4*y^2*x + 0.4*x^2*y), 
+ name = "objective", dependent_var = obj)
+add_nonlinear_constraint(gm, :((x,y) -> 10.125 - (x-1.5)^4 - (y-1.5)^4), name = "h1")
+add_nonlinear_constraint(gm, :((x,y) -> (2.5 - x)^3 + (y+1.5)^3 - 15.75), name = "h2")
+
+uniform_sample_and_eval!(gm)
+learn_constraint!(gm)
+add_tree_constraints!(gm)
+set_optimizer(gm, CPLEX_SILENT)
+optimize!(gm)
+
+
