@@ -217,4 +217,30 @@ add_tree_constraints!(gm)
 set_optimizer(gm, CPLEX_SILENT)
 optimize!(gm)
 
+# Formulating descent algorithm
+clear_tree_constraints!(gm)
+
+x0 = gm.solution_history[end, :]
+
+obj_bbl = gm("objective")
+obj_gradient = obj_bbl.g(Array(x0[string.(obj_bbl.vars)]))
+obj_value = obj_bbl.f(Array(x0[string.(obj_bbl.vars)])...)
+
+# Descent direction
+d = @variable(m, d[1:2])
+dg = @constraint(gm.model, sum(d .* obj_gradient) <= -1e-5)
+dnorm = @constraint(gm.model, sum(d.^2) <= 1) # unit vector
+@objective(gm.model, Min, sum(d .* obj_gradient))
+
+# Implementing a binary localsearch algorithm from the last start point 
+
+bbls = [bbl for bbl in gm.bbls if bbl != obj_bbl]
+constr_grads = DataFrame([Float64 for i=1:length(gm.vars)], string.(gm.vars))
+constr_vals = []
+bbl_constrs = []
+for bbl in bbls
+    var_vals = Array(x0[string.(bbl.vars)])
+    push!(constr_vals, bbl.f(var_vals...))
+    append!(constr_grads, DataFrame(string.(bbl.vars) .=> bbl.g(var_vals)), cols=:subset)
+end
 
