@@ -263,3 +263,23 @@ d_vals = getvalue.(d)
 # Implementing linesearch
 
 
+using Plots
+colors = ["yellow", "orange", "red"]
+plt = plot()
+plt = quiver!([gm.solution_history[end, "x"]], [gm.solution_history[end,"y"]], 
+    quiver = (obj_gradient[:, "x"]./sqrt.((obj_gradient[:, "x"].^2 .+ obj_gradient[:, "y"].^2)), 
+                obj_gradient[:, "y"]./sqrt.((obj_gradient[:, "x"].^2 .+ obj_gradient[:, "y"].^2))), 
+    markershape = :star5, color = "green", label = "+ Objective")
+for i=1:length(bbls)
+    bbl = bbls[i]
+    infeas_idxs = findall(x -> x .< 0, bbl.Y)
+    plt = scatter!(bbl.X[infeas_idxs,"x"], bbl.X[infeas_idxs, "y"], color = colors[i])
+    plt = quiver!([gm.solution_history[end, "x"]], [gm.solution_history[end,"y"]], 
+    quiver = (constr_grads[[i], "x"]./sqrt.((constr_grads[[i], "x"].^2 .+ constr_grads[[i], "y"].^2)), 
+                constr_grads[[i], "y"]./sqrt.((constr_grads[[i], "x"].^2 .+ constr_grads[[i], "y"].^2))),
+    markershape = :circle, color = colors[i], label = "+ BBL$(i)")
+end
+plt = quiver!([gm.solution_history[end, "x"]], [gm.solution_history[end,"y"]], 
+    quiver = ([d_vals[1]], [d_vals[2]]),
+    markershape = :square, color = "purple", label = "Descent direction")
+display(plt)
