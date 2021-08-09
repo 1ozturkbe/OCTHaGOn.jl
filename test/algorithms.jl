@@ -220,13 +220,50 @@ optimize!(gm)
 # Formulating descent algorithm
 clear_tree_constraints!(gm)
 
-x0 = gm.solution_history[end, :]
+function descend(gm::GlobalModel; max_iterations = 100, step_size = 1e-2)
+    clear_tree_constraints!(gm)
 
-# Objective computations
+    # Initialization
+    obj_bbl = gm("objective")
+    gm_bounds = get_bounds(gm.bbls)
+    gm_vars = all_variables(gm.bbls)
+    var_max = [maximum(gm_bounds[key]) for key in gm_vars]
+    var_min = [minimum(gm_bounds[key]) for key in gm_vars]
+
+    # Last solution (carried through each iteration)
+    x0 = gm.solution_history[end, :]
+    sol_vals = x0[string.(gm_vars)]
+
+    # Setting up descent direction variables
+    # Descent direction
+    d = @variable(m, d[1:length(gm_vars)])
+    constrs = [@constraint(gm.model, sum(d .* Array(obj_gradient)) <= -1e-5), 
+            @constraint(gm.model, d .== gm_vars - sol_vals)] # unit vector
+    @objective(gm.model, Min, sum(d .* Array(obj_gradient))) # rewriting constraints at every iterate
+
+    # Evaluating objective and gradient
+    ct = 0
+    dcost = 1e5
+    while ct < max_iterations && dcost >= get_param(gm, :abstol)
+
+    end
+    append!(gm.solution_history)
+    coalesce.(gm.solution_history[end, :], )
+
+    # Reverting objective
+    @objective(gm.model, Min, gm.objective)
+end
+
 obj_bbl = gm("objective")
 gm_bounds = get_bounds(gm.bbls)
 gm_vars = all_variables(gm.bbls)
-sol_vals = Array(x0[string.(gm_vars)])
+var_max = [maximum(gm_bounds[key]) for key in gm_vars]
+var_min = [minimum(gm_bounds[key]) for key in gm_vars]
+
+# Objective computations
+x0 = gm.solution_history[end, :]
+sol_vals = x0[string.(gm_vars)]
+
 obj_gradient = DataFrame([Float64 for i=1:length(gm_vars)], string.(gm_vars))
 append!(obj_gradient, DataFrame(string.(gm_vars) .=> obj_bbl.g(Array(x0[string.(obj_bbl.vars)]))),
         cols = :subset)
@@ -262,10 +299,17 @@ end
 # Finding the direction
 optimize!(gm.model)
 d_vals = getvalue.(d)
+d_length = sqrt(sum(d_vals.^2))
+d_rellength = sqrt(sum((d_vals ./ (var_max .- var_min).^2)))
 
-# Implementing linesearch (i.e. finding a good step size t)
-var_bounds = get_bounds(gm.vars)
-max_ts = 
+# Take a step
+if d_rellength >= 1e-3
+    d_vals = d_vals ./ d_rellength .* 1e-3
+end
+new_sol = DataFrame(string.(gm_vars) .=> Array(sol_vals) .+ d_vals)
+new_sol[!,:obj] = obj_bbl(new_sol)
+append!(gm.solution_history, new_sol)
+
 
 # Plotting results
 
