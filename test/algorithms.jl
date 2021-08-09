@@ -217,99 +217,88 @@ add_tree_constraints!(gm)
 set_optimizer(gm, CPLEX_SILENT)
 optimize!(gm)
 
-# Formulating descent algorithm
-clear_tree_constraints!(gm)
-
-function descend(gm::GlobalModel; max_iterations = 100, step_size = 1e-2)
+function descend(gm::GlobalModel; max_iterations = 50, step_size = 1e-3)
     clear_tree_constraints!(gm)
 
     # Initialization
     obj_bbl = gm("objective")
+    bbls = [bbl for bbl in gm.bbls if bbl != obj_bbl]
     gm_bounds = get_bounds(gm.bbls)
     gm_vars = all_variables(gm.bbls)
     var_max = [maximum(gm_bounds[key]) for key in gm_vars]
     var_min = [minimum(gm_bounds[key]) for key in gm_vars]
 
-    # Last solution (carried through each iteration)
-    x0 = gm.solution_history[end, :]
-    sol_vals = x0[string.(gm_vars)]
-
     # Setting up descent direction variables
     # Descent direction
     d = @variable(m, d[1:length(gm_vars)])
-    constrs = [@constraint(gm.model, sum(d .* Array(obj_gradient)) <= -1e-5), 
-            @constraint(gm.model, d .== gm_vars - sol_vals)] # unit vector
-    @objective(gm.model, Min, sum(d .* Array(obj_gradient))) # rewriting constraints at every iterate
 
-    # Evaluating objective and gradient
+    # Counting and book-keeping
     ct = 0
-    dcost = 1e5
-    while ct < max_iterations && dcost >= get_param(gm, :abstol)
+    d_improv = 1e5
+    grad_shell = DataFrame([Float64 for i=1:length(gm_vars)], string.(gm_vars))
+    # WHILE LOOP
+    while (ct < max_iterations && abs(d_improv) >= get_param(gm, :abstol))
+        constrs = []
+        ct += 1
+        @info("Count $(ct)")
+        # Last solution (carried through each iteration)
+        x0 = DataFrame(gm.solution_history[end, :])
+        sol_vals = x0[:,string.(gm_vars)]
 
+        # Objective evaluation
+        eval!(obj_bbl, x0)
+        update_gradients(obj_bbl, [length(obj_bbl.Y)])
+
+        # Update gradient constraints
+        full_obj_gradient = copy(grad_shell)
+        append!(full_obj_gradient, DataFrame(obj_bbl.gradients[end,:]), cols = :subset)
+        full_obj_gradient = coalesce.(full_obj_gradient, 0)
+        append!(constrs, [@constraint(gm.model, sum(d .* Array(full_obj_gradient[end,:])) <= -1e-5), 
+                   @constraint(gm.model, d .== gm_vars .- Array(sol_vals[end,:]))])
+        @objective(gm.model, Min, sum(d .* Array(full_obj_gradient[end,:]))) # will rewrite constraints at every iterate
+
+        # Constraint evaluation
+        for bbl in bbls
+            eval!(bbl, x0)
+            update_gradients(bbl, [length(bbl.Y)])
+            full_constr_gradient = copy(grad_shell)
+            append!(full_constr_gradient, DataFrame(bbl.gradients[end,:]), cols = :subset)
+            full_constr_gradient = coalesce.(full_constr_gradient, 0)
+            push!(constrs, @constraint(gm.model, sum(Array(full_constr_gradient[end,:]) .* d)  + bbl.Y[end] >= 0))
+        end
+
+        # Finding the direction
+        optimize!(gm.model)
+        d_vals = getvalue.(d)
+        d_length = sqrt(sum(d_vals.^2))
+        d_rellength = sqrt(sum((d_vals ./ (var_max .- var_min)).^2))
+        # Take a step
+        if d_rellength >= step_size
+            d_vals = d_vals ./ d_rellength .* step_size
+        end
+        new_sol = DataFrame(string.(gm_vars) .=> Array(sol_vals[end,:]) .+ d_vals)
+        new_sol[!, :obj] = obj_bbl(new_sol)
+        append!(gm.solution_history, new_sol)
+
+        # Delete gradient constraints (TODO: perhaps add constraints to avoid cycling?)
+        for con in constrs
+            delete(gm.model, con)
+        end
+        d_improv = gm.solution_history[end-1, :obj] - gm.solution_history[end, :obj]
     end
-    append!(gm.solution_history)
-    coalesce.(gm.solution_history[end, :], )
 
-    # Reverting objective
+    # Reverting objective, and deleting vars
     @objective(gm.model, Min, gm.objective)
+    delete(gm.model, d)
+
+    # Returning final solution
+    return gm.solution_history[end,:]
 end
 
-obj_bbl = gm("objective")
-gm_bounds = get_bounds(gm.bbls)
-gm_vars = all_variables(gm.bbls)
-var_max = [maximum(gm_bounds[key]) for key in gm_vars]
-var_min = [minimum(gm_bounds[key]) for key in gm_vars]
-
-# Objective computations
-x0 = gm.solution_history[end, :]
-sol_vals = x0[string.(gm_vars)]
-
-obj_gradient = DataFrame([Float64 for i=1:length(gm_vars)], string.(gm_vars))
-append!(obj_gradient, DataFrame(string.(gm_vars) .=> obj_bbl.g(Array(x0[string.(obj_bbl.vars)]))),
-        cols = :subset)
-obj_gradient = coalesce.(obj_gradient, 0)
-obj_value = obj_bbl.f(Array(x0[string.(obj_bbl.vars)])...)
-
-# Descent direction
-d = @variable(m, d[1:length(gm_vars)])
-constrs = [@constraint(gm.model, sum(d .* Array(obj_gradient)) <= -1e-5), 
-           @constraint(gm.model, d .== gm_vars - sol_vals)] # unit vector
-@objective(gm.model, Min, sum(d .* Array(obj_gradient)))
-
-# Implementing a binary localsearch algorithm from the last start point 
-
-bbls = [bbl for bbl in gm.bbls if bbl != obj_bbl]
-constr_grads = DataFrame([Float64 for i=1:length(gm_vars)], string.(gm_vars))
-constr_vals = []
-bbl_constrs = []
-for bbl in bbls
-    var_vals = Array(x0[string.(bbl.vars)])
-    push!(constr_vals, bbl.f(var_vals...))
-    new_grad = DataFrame(string.(bbl.vars) .=> bbl.g(var_vals))
-    append!(constr_grads, new_grad, cols=:subset)
-end
-constr_grads = coalesce.(constr_grads, 0)
-
-# Make sure to restore feasibility in case of infeasibility,
-# and create a trust region 
-for i = 1:length(constr_vals)
-    push!(constrs, @constraint(gm.model, sum(Array(constr_grads[i,:]) .* d)  + constr_vals[i] >= 0))
-end
-
-# Finding the direction
-optimize!(gm.model)
-d_vals = getvalue.(d)
-d_length = sqrt(sum(d_vals.^2))
-d_rellength = sqrt(sum((d_vals ./ (var_max .- var_min).^2)))
-
-# Take a step
-if d_rellength >= 1e-3
-    d_vals = d_vals ./ d_rellength .* 1e-3
-end
-new_sol = DataFrame(string.(gm_vars) .=> Array(sol_vals) .+ d_vals)
-new_sol[!,:obj] = obj_bbl(new_sol)
-append!(gm.solution_history, new_sol)
-
+# Descending
+max_iterations = 10
+step_size = 1e-2
+descend(gm)
 
 # Plotting results
 
