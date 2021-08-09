@@ -224,22 +224,25 @@ x0 = gm.solution_history[end, :]
 
 # Objective computations
 obj_bbl = gm("objective")
-obj_gradient = DataFrame([Float64 for i=1:length(gm.vars)], string.(gm.vars))
-append!(obj_gradient, DataFrame(string.(obj_bbl.vars) .=> obj_bbl.g(Array(x0[string.(obj_bbl.vars)]))),
+gm_bounds = get_bounds(gm.bbls)
+gm_vars = all_variables(gm.bbls)
+sol_vals = Array(x0[string.(gm_vars)])
+obj_gradient = DataFrame([Float64 for i=1:length(gm_vars)], string.(gm_vars))
+append!(obj_gradient, DataFrame(string.(gm_vars) .=> obj_bbl.g(Array(x0[string.(obj_bbl.vars)]))),
         cols = :subset)
 obj_gradient = coalesce.(obj_gradient, 0)
 obj_value = obj_bbl.f(Array(x0[string.(obj_bbl.vars)])...)
 
 # Descent direction
-d = @variable(m, d[1:length(gm.vars)])
-constrs = [@constraint(gm.model, sum(d .* Array(obj_gradient)) <= -1e-5),
-           @constraint(gm.model, sum(d.^2) <= 1)] # unit vector
+d = @variable(m, d[1:length(gm_vars)])
+constrs = [@constraint(gm.model, sum(d .* Array(obj_gradient)) <= -1e-5), 
+           @constraint(gm.model, d .== gm_vars - sol_vals)] # unit vector
 @objective(gm.model, Min, sum(d .* Array(obj_gradient)))
 
 # Implementing a binary localsearch algorithm from the last start point 
 
 bbls = [bbl for bbl in gm.bbls if bbl != obj_bbl]
-constr_grads = DataFrame([Float64 for i=1:length(gm.vars)], string.(gm.vars))
+constr_grads = DataFrame([Float64 for i=1:length(gm_vars)], string.(gm_vars))
 constr_vals = []
 bbl_constrs = []
 for bbl in bbls
@@ -257,11 +260,14 @@ for i = 1:length(constr_vals)
 end
 
 # Finding the direction
-optimize!(gm)
+optimize!(gm.model)
 d_vals = getvalue.(d)
 
-# Implementing linesearch
+# Implementing linesearch (i.e. finding a good step size t)
+var_bounds = get_bounds(gm.vars)
+max_ts = 
 
+# Plotting results
 
 using Plots
 colors = ["yellow", "orange", "red"]
