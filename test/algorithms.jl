@@ -175,6 +175,124 @@ end
 
 # test_concave_regressors()
 
+function descend(gm::GlobalModel; max_iterations = 100, step_size = 1e-3, decay_rate = 2)
+    clear_tree_constraints!(gm)
+
+    # Initialization
+    obj_bbl = gm("objective")
+    bbls = gm.bbls
+    gm_bounds = get_bounds(gm.bbls)
+    vars = gm.vars
+    if !isnothing(obj_bbl) # Remove objective var if objective function in nonlinear.
+        vars = [var for var in vars if var != obj_bbl.dependent_var]
+        bbls = [bbl for bbl in gm.bbls if bbl != obj_bbl]
+    end
+    var_max = [maximum(gm_bounds[key]) for key in vars]
+    var_min = [minimum(gm_bounds[key]) for key in vars]
+    grad_shell = DataFrame([Float64 for i=1:length(vars)], string.(vars))
+
+    # Final checks
+    obj_gradient = copy(grad_shell)
+    if isnothing(obj_bbl)
+        if gm.objective isa VariableRef
+            append!(obj_gradient, DataFrame(string.(gm.objective) => 1), cols = :subset)
+        elseif gm.objective isa JuMP.GenericAffExpr
+            append!(obj_gradient, DataFrame(Dict(string(key) => value for (key,value) in gm.objective.terms)), cols = :subset)
+        end
+        obj_gradient = coalesce.(obj_gradient, 0)
+        # @objective(gm.model, Min, sum(d .* Array(obj_gradient[end,:])))
+    end
+    x0 = DataFrame(gm.solution_history[end, :])
+    if !isnothing(obj_bbl)
+        x0[:, "obj"] = obj_bbl(x0)
+    end
+    sol_vals = x0[:,string.(vars)]
+    feas_gap(gm, x0) # All the required evaluation happens here!
+    append!(gm.solution_history, x0)
+
+    # Descent direction
+    @variable(gm.model, d[1:length(vars)])
+
+    # Counting and book-keeping
+    ct = 0
+    d_improv = 1e5
+
+    # WHILE LOOP
+    @info("Starting gradient descent...")
+    while !all([bbl.feas_gap[end] for bbl in gm.bbls] .>= 0) ||
+        (ct < max_iterations && abs(d_improv) >= get_param(gm, :abstol)) || ct == 0
+        constrs = []
+        ct += 1
+        @info("Count $(ct)")
+
+        # Initializing descent direction
+        push!(constrs, @constraint(gm.model, d .== vars .- Array(sol_vals[end,:])))
+        if all([bbl.feas_gap[end] for bbl in gm.bbls] .>= 0)
+            push!(constrs, @constraint(gm.model, sum((d ./ (var_max .- var_min)).^2) <= 
+                    step_size/exp(decay_rate*(ct-1)/max_iterations)))
+            @objective(gm.model, Min, gm.objective)
+        else # project if the current solution is infeasible. 
+            @objective(gm.model, Min, gm.objective + JuMP.upper_bound(gm.objective)*sum((d ./ (var_max .- var_min)).^2))
+        end
+
+        # Linear objective gradient and constraints
+        if !isnothing(obj_bbl)
+            update_gradients(obj_bbl, [length(obj_bbl.Y)])
+            obj_gradient = copy(grad_shell)
+            append!(obj_gradient, 
+                DataFrame(obj_bbl.gradients[end,:]), cols = :subset) 
+            obj_gradient = coalesce.(obj_gradient, 0)
+            # @objective(gm.model, Min, sum(d .* Array(obj_gradient[end,:])))
+            # Update objective constraints
+            append!(constrs, [@constraint(gm.model, sum(d .* Array(obj_gradient[end,:])) <= -1e-8),
+                              @constraint(gm.model, sum(Array(obj_gradient[end,:]) .* d) + 
+                                            obj_bbl.dependent_var >= obj_bbl.Y[end])])
+        end
+
+        # Constraint evaluation
+        for bbl in bbls
+            update_gradients(bbl, [length(bbl.Y)])
+            constr_gradient = copy(grad_shell)
+            append!(constr_gradient, DataFrame(bbl.gradients[end,:]), cols = :subset)
+            constr_gradient = coalesce.(constr_gradient, 0)
+            if bbl isa BlackBoxClassifier # TODO: add LL cuts
+                push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + bbl.Y[end] >= 0))
+            elseif bbl isa BlackBoxRegressor
+                push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + bbl.dependent_var >= bbl.Y[end]))
+            end
+        end
+
+        # Finding the direction
+        optimize!(gm.model)
+        x0 = DataFrame(string.(vars) .=> getvalue.(vars))
+        if !isnothing(obj_bbl)
+            x0[!, :obj] = obj_bbl(x0)
+        end
+        sol_vals = x0[:,string.(vars)]
+        feas_gap(gm, x0)
+        append!(gm.solution_history, x0)
+
+        # Delete gradient constraints (TODO: perhaps add constraints to avoid cycling?)
+        for con in constrs
+            delete(gm.model, con)
+        end
+        d_improv = gm.solution_history[end-1, :obj] - gm.solution_history[end, :obj]
+    end
+
+    if ct >= max_iterations && abs(d_improv) >= get_param(gm, :abstol)
+        @info("Max iterations reached, but not converged! Please descend further, with reduced step sizes.")
+    end
+
+    # Reverting objective, and deleting vars
+    @objective(gm.model, Min, gm.objective)
+    delete(gm.model, d)
+
+    # Returning final solution
+    return gm.solution_history[end,:]
+end
+
+using ProgressMeter
+
 # Implementing gradient descent
 m = JuMP.Model()
 @variable(m, -1 <= x <= 4)
@@ -199,109 +317,30 @@ learn_constraint!(gm)
 add_tree_constraints!(gm)
 set_optimizer(gm, CPLEX_SILENT)
 optimize!(gm)
-
-function descend(gm::GlobalModel; max_iterations = 50, step_size = 1e-3)
-    clear_tree_constraints!(gm)
-
-    # Initialization
-    obj_bbl = gm("objective")
-    bbls = [bbl for bbl in gm.bbls if bbl != obj_bbl]
-    gm_bounds = get_bounds(gm.bbls)
-    gm_vars = all_variables(gm.bbls)
-    var_max = [maximum(gm_bounds[key]) for key in gm_vars]
-    var_min = [minimum(gm_bounds[key]) for key in gm_vars]
-
-    # Setting up descent direction variables
-    # Descent direction
-    d = @variable(m, d[1:length(gm_vars)])
-
-    # Counting and book-keeping
-    ct = 0
-    d_improv = 1e5
-    grad_shell = DataFrame([Float64 for i=1:length(gm_vars)], string.(gm_vars))
-    # WHILE LOOP
-    while (ct < max_iterations && abs(d_improv) >= get_param(gm, :abstol))
-        constrs = []
-        ct += 1
-        @info("Count $(ct)")
-        # Last solution (carried through each iteration)
-        x0 = DataFrame(gm.solution_history[end, :])
-        sol_vals = x0[:,string.(gm_vars)]
-
-        # Objective evaluation
-        eval!(obj_bbl, x0)
-        update_gradients(obj_bbl, [length(obj_bbl.Y)])
-
-        # Update gradient constraints
-        full_obj_gradient = copy(grad_shell)
-        append!(full_obj_gradient, DataFrame(obj_bbl.gradients[end,:]), cols = :subset)
-        full_obj_gradient = coalesce.(full_obj_gradient, 0)
-        append!(constrs, [@constraint(gm.model, sum(d .* Array(full_obj_gradient[end,:])) <= -1e-5), 
-                   @constraint(gm.model, d .== gm_vars .- Array(sol_vals[end,:]))])
-        @objective(gm.model, Min, sum(d .* Array(full_obj_gradient[end,:]))) # will rewrite constraints at every iterate
-
-        # Constraint evaluation
-        for bbl in bbls
-            eval!(bbl, x0)
-            update_gradients(bbl, [length(bbl.Y)])
-            full_constr_gradient = copy(grad_shell)
-            append!(full_constr_gradient, DataFrame(bbl.gradients[end,:]), cols = :subset)
-            full_constr_gradient = coalesce.(full_constr_gradient, 0)
-            push!(constrs, @constraint(gm.model, sum(Array(full_constr_gradient[end,:]) .* d)  + bbl.Y[end] >= 0))
-        end
-
-        # Finding the direction
-        optimize!(gm.model)
-        d_vals = getvalue.(d)
-        d_length = sqrt(sum(d_vals.^2))
-        d_rellength = sqrt(sum((d_vals ./ (var_max .- var_min)).^2))
-        # Take a step
-        if d_rellength >= step_size
-            d_vals = d_vals ./ d_rellength .* step_size
-        end
-        new_sol = DataFrame(string.(gm_vars) .=> Array(sol_vals[end,:]) .+ d_vals)
-        new_sol[!, :obj] = obj_bbl(new_sol)
-        append!(gm.solution_history, new_sol)
-
-        # Delete gradient constraints (TODO: perhaps add constraints to avoid cycling?)
-        for con in constrs
-            delete(gm.model, con)
-        end
-        d_improv = gm.solution_history[end-1, :obj] - gm.solution_history[end, :obj]
-    end
-
-    # Reverting objective, and deleting vars
-    @objective(gm.model, Min, gm.objective)
-    delete(gm.model, d)
-
-    # Returning final solution
-    return gm.solution_history[end,:]
-end
-
-# Descending
-max_iterations = 10
-step_size = 1e-2
+ax_iterations = 100; 
+step_size = 1e-3; 
+decay_rate = 2;
 descend(gm)
 
-# Plotting results
+# # Plotting results
 
-using Plots
-colors = ["yellow", "orange", "red"]
-plt = plot()
-plt = quiver!([gm.solution_history[end, "x"]], [gm.solution_history[end,"y"]], 
-    quiver = (obj_gradient[:, "x"]./sqrt.((obj_gradient[:, "x"].^2 .+ obj_gradient[:, "y"].^2)), 
-                obj_gradient[:, "y"]./sqrt.((obj_gradient[:, "x"].^2 .+ obj_gradient[:, "y"].^2))), 
-    markershape = :star5, color = "green", label = "+ Objective")
-for i=1:length(bbls)
-    bbl = bbls[i]
-    infeas_idxs = findall(x -> x .< 0, bbl.Y)
-    plt = scatter!(bbl.X[infeas_idxs,"x"], bbl.X[infeas_idxs, "y"], color = colors[i])
-    plt = quiver!([gm.solution_history[end, "x"]], [gm.solution_history[end,"y"]], 
-    quiver = (constr_grads[[i], "x"]./sqrt.((constr_grads[[i], "x"].^2 .+ constr_grads[[i], "y"].^2)), 
-                constr_grads[[i], "y"]./sqrt.((constr_grads[[i], "x"].^2 .+ constr_grads[[i], "y"].^2))),
-    markershape = :circle, color = colors[i], label = "+ BBL$(i)")
-end
-plt = quiver!([gm.solution_history[end, "x"]], [gm.solution_history[end,"y"]], 
-    quiver = ([d_vals[1]], [d_vals[2]]),
-    markershape = :square, color = "purple", label = "Descent direction")
-display(plt)
+# using Plots
+# colors = ["yellow", "orange", "red"]
+# plt = plot()
+# plt = quiver!([gm.solution_history[end, "x"]], [gm.solution_history[end,"y"]], 
+#     quiver = (obj_gradient[:, "x"]./sqrt.((obj_gradient[:, "x"].^2 .+ obj_gradient[:, "y"].^2)), 
+#                 obj_gradient[:, "y"]./sqrt.((obj_gradient[:, "x"].^2 .+ obj_gradient[:, "y"].^2))), 
+#     markershape = :star5, color = "green", label = "+ Objective")
+# for i=1:length(bbls)
+#     bbl = bbls[i]
+#     infeas_idxs = findall(x -> x .< 0, bbl.Y)
+#     plt = scatter!(bbl.X[infeas_idxs,"x"], bbl.X[infeas_idxs, "y"], color = colors[i])
+#     plt = quiver!([gm.solution_history[end, "x"]], [gm.solution_history[end,"y"]], 
+#     quiver = (constr_grads[[i], "x"]./sqrt.((constr_grads[[i], "x"].^2 .+ constr_grads[[i], "y"].^2)), 
+#                 constr_grads[[i], "y"]./sqrt.((constr_grads[[i], "x"].^2 .+ constr_grads[[i], "y"].^2))),
+#     markershape = :circle, color = colors[i], label = "+ BBL$(i)")
+# end
+# plt = quiver!([gm.solution_history[end, "x"]], [gm.solution_history[end,"y"]], 
+#     quiver = ([d_vals[1]], [d_vals[2]]),
+#     markershape = :square, color = "purple", label = "Descent direction")
+# display(plt)

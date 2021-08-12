@@ -11,7 +11,6 @@ nonlinear_model can contain JuMP.NonlinearConstraints.
     vars::Array{JuMP.VariableRef} = JuMP.all_variables(model)    # JuMP variables
     objective = JuMP.objective_function(model)                # Original objective function
     solution_history::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Solution history
-    feas_history::Array = []                                     # Constraint feasibility history
     cost::Array = []                                             # List of costs. 
     params::Dict = gm_defaults()                                 # GM settings
 end
