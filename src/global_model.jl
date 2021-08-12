@@ -413,8 +413,7 @@ Negative values -> constraint violation for BBCs,
 Positive values -> constraint violation for BBC equalities, 
                     regression overestimation for BBRs.
 """
-function feas_gap(gm::GlobalModel)
-    soln = solution(gm)
+function feas_gap(gm::GlobalModel, soln = solution(gm))
     for bbl in gm.bbls
         if bbl isa BlackBoxClassifier && !isnothing(bbl.constraint)
             eval!(bbl, soln)
@@ -429,14 +428,14 @@ function feas_gap(gm::GlobalModel)
             eval!(bbl, soln)
             maxY = maximum(filter(!isinf, bbl.Y))
             minY = minimum(filter(!isinf, bbl.Y))
-            optimum = JuMP.getvalue(bbl.dependent_var)
+            optimum = soln[:, string(bbl.dependent_var)][1]
             actual = bbl.Y[end]
             push!(bbl.optima, optimum)
             push!(bbl.actuals, actual)
             push!(bbl.feas_gap, (optimum-actual) / (maxY - minY))
             for ll in bbl.lls
                 eval!(bbl, DataFrame(string.(bbl.vars) .=> values(soln[1, string.(ll.vars)])))
-                optimum = JuMP.getvalue(ll.dependent_var)
+                optimum = soln[:, string(ll.dependent_var)][1]
                 actual = bbl.Y[end]
                 push!(ll.optima, optimum)
                 push!(ll.actuals, actual)
@@ -445,7 +444,7 @@ function feas_gap(gm::GlobalModel)
         elseif bbl isa BlackBoxClassifier && isnothing(bbl.constraint)
             push!(bbl.feas_gap, 0) # data constraints are always feasible
         elseif bbl isa BlackBoxRegressor && isnothing(bbl.constraint)
-            optimum = JuMP.getvalue(bbl.dependent_var)
+            optimum = soln[:, string(bbl.dependent_var)][1]
             push!(bbl.optima, optimum)
             push!(bbl.feas_gap, 0) # data constraints are always feasible
         end
