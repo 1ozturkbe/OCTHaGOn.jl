@@ -194,10 +194,18 @@ function descend(gm::GlobalModel;
     clear_tree_constraints!(gm)
 
     # Initialization
-    obj_bbl = gm("objective")
     bbls = gm.bbls
     gm_bounds = get_bounds(gm.bbls)
     vars = gm.vars
+    # Checking for a nonlinear objective
+    obj_bbl = Nothing
+    if gm.objective isa VariableRef
+        obj_bbl = gm.bbls[findall(x -> x.dependent_var == gm.objective, 
+                            [bbl for bbl in gm.bbls if bbl isa BlackBoxRegressor])]
+        @assert length(obj_bbl) == 1
+        obj_bbl = obj_bbl[1]
+    end
+        
     if !isnothing(obj_bbl) # Remove objective var if objective function in nonlinear.
         vars = [var for var in vars if var != obj_bbl.dependent_var]
         bbls = [bbl for bbl in gm.bbls if bbl != obj_bbl]
