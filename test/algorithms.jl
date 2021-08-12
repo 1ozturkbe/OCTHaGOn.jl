@@ -197,19 +197,22 @@ function descend(gm::GlobalModel;
     bbls = gm.bbls
     gm_bounds = get_bounds(gm.bbls)
     vars = gm.vars
+
     # Checking for a nonlinear objective
     obj_bbl = Nothing
     if gm.objective isa VariableRef
         obj_bbl = gm.bbls[findall(x -> x.dependent_var == gm.objective, 
                             [bbl for bbl in gm.bbls if bbl isa BlackBoxRegressor])]
-        @assert length(obj_bbl) == 1
-        obj_bbl = obj_bbl[1]
-    end
-        
-    if !isnothing(obj_bbl) # Remove objective var if objective function in nonlinear.
-        vars = [var for var in vars if var != obj_bbl.dependent_var]
-        bbls = [bbl for bbl in gm.bbls if bbl != obj_bbl]
-    end
+        if length(obj_bbl) == 1
+            obj_bbl = obj_bbl[1]
+            vars = [var for var in vars if var != obj_bbl.dependent_var]
+            bbls = [bbl for bbl in gm.bbls if bbl != obj_bbl]
+        elseif length(obj_bbl) > 1
+            throw(OCTException("GlobaModel $(gm.name) has more than one BlackBoxRegressor on the objective."))
+
+        end
+    end 
+    
     var_max = [maximum(gm_bounds[key]) for key in vars]
     var_min = [minimum(gm_bounds[key]) for key in vars]
     grad_shell = DataFrame([Float64 for i=1:length(vars)], string.(vars))
@@ -223,20 +226,19 @@ function descend(gm::GlobalModel;
             append!(obj_gradient, DataFrame(Dict(string(key) => value for (key,value) in gm.objective.terms)), cols = :subset)
         end
         obj_gradient = coalesce.(obj_gradient, 0)
-        # @objective(gm.model, Min, sum(d .* Array(obj_gradient[end,:])))
     end
+
+    # Last solution recheck, and actual objective computation
     x0 = DataFrame(gm.solution_history[end, :])
     if !isnothing(obj_bbl)
-        x0[:, "obj"] = obj_bbl(x0)
+        x0[:, string(gm.objective)] = obj_bbl(x0)
     end
     sol_vals = x0[:,string.(vars)]
-    feas_gap(gm, x0) # All the required evaluation happens here!
-    append!(gm.solution_history, x0)
+    feas_gap(gm, x0) # Checking feasibility gaps
+    append!(gm.solution_history, x0) # Objective "projection"
 
-    # Descent direction
-    @variable(gm.model, d[1:length(vars)])
-
-    # Counting and book-keeping
+    # Descent direction, counting and book-keeping
+    d = @variable(gm.model, [1:length(vars)])
     ct = 0
     d_improv = 1e5
 
@@ -254,7 +256,7 @@ function descend(gm::GlobalModel;
             push!(constrs, @constraint(gm.model, sum((d ./ (var_max .- var_min)).^2) <= 
                     step_size/exp(decay_rate*(ct-1)/max_iterations)))
             @objective(gm.model, Min, gm.objective)
-        else # project if the current solution is infeasible. 
+        else # Project if the current solution is infeasible. 
             @objective(gm.model, Min, gm.objective + JuMP.upper_bound(gm.objective)*sum((d ./ (var_max .- var_min)).^2))
         end
 
@@ -284,11 +286,11 @@ function descend(gm::GlobalModel;
             end
         end
 
-        # Finding the direction
+        # Optimizing the step, and finding next x0
         optimize!(gm.model)
         x0 = DataFrame(string.(vars) .=> getvalue.(vars))
         if !isnothing(obj_bbl)
-            x0[!, :obj] = obj_bbl(x0)
+            x0[!, string(gm.objective)] = obj_bbl(x0)
         end
         sol_vals = x0[:,string.(vars)]
         feas_gap(gm, x0)
@@ -298,11 +300,11 @@ function descend(gm::GlobalModel;
         for con in constrs
             delete(gm.model, con)
         end
-        d_improv = gm.solution_history[end-1, :obj] - gm.solution_history[end, :obj]
+        d_improv = gm.solution_history[end-1, string(gm.objective)] - gm.solution_history[end, string(gm.objective)]
     end
 
     if ct >= max_iterations && abs(d_improv) >= get_param(gm, :abstol)
-        @info("Max iterations reached, but not converged! Please descend further, with reduced step sizes.")
+        @info("Max iterations reached, but not converged! Please descend further, perhaps with reduced step sizes.")
     end
 
     # Reverting objective, and deleting vars
@@ -314,32 +316,16 @@ function descend(gm::GlobalModel;
 end
 
 # Implementing gradient descent
-m = JuMP.Model()
-@variable(m, -1 <= x <= 4)
-@variable(m, -1 <= y <= 4)
-@variable(m, obj)
-@objective(m, Min, obj)
-gm = GlobalModel(model = m)
-set_param(gm, :ignore_accuracy, true)
-set_param(gm, :ignore_feasibility, true)
+
+gm = speed_reducer()
 set_param(gm, :abstol, 1e-3)
-
-# add_nonlinear_constraint(gm, :(x -> 4*x[1]^3 + x[2]^2 + 2*x[1]^2*x[2]), dependent_var = obj)
-# add_nonlinear_constraint(gm, :(x -> 20 - 3*x[1]^2 - 5*x[2]^2))
-
-add_nonlinear_constraint(gm, :((x,y) -> 2*x^6 - 12.2*x^5 + 21.2*x^4 + 6.2*x - 6.4*x^3 - 4.7*x^2 + 
- y^6 - 11*y^5 + 43.3*y^4 - 10*y - 74.8*y^3 + 56.9*y^2 - 4.1*x*y - 0.1*y^2*x^2 + 0.4*y^2*x + 0.4*x^2*y), 
- name = "objective", dependent_var = obj)
-add_nonlinear_constraint(gm, :((x,y) -> 10.125 - (x-1.5)^4 - (y-1.5)^4), name = "h1")
-add_nonlinear_constraint(gm, :((x,y) -> (2.5 - x)^3 + (y+1.5)^3 - 15.75), name = "h2")
-
 uniform_sample_and_eval!(gm)
 learn_constraint!(gm)
 add_tree_constraints!(gm)
 set_optimizer(gm, CPLEX_SILENT)
 optimize!(gm)
 ax_iterations = 100; 
-step_size = 1e-3; 
+step_size = 1e-2; 
 decay_rate = 2;
 descend(gm)
 
