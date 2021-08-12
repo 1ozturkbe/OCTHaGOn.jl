@@ -161,23 +161,6 @@ function optimize_and_time!(m::Union{JuMP.Model, GlobalModel})
     println("Model solution time: " * string(time()-t1) * " seconds.")
 end
 
-# function refine_equality_tree()
-#     gm = nlp3(true)
-#     recipe(gm)
-#     feas_tol = get_param(gm, :tighttol)
-#     for bbl in gm.bbls
-#         if bbl.equality && abs(bbl.feas_gap[end]) >= feas_tol
-#             sol = DataFrame(gm.solution_history[end, string.(bbl.vars)])
-#             learn_constraint!(bbl, sample_weight = reweight(bbl, sol))
-#             update_tree_constraints!(gm, bbl)
-#         end
-#     end
-#     if bbr.feas_gap[end] <= 0 && bbr.feas_gap[end]/max_gap <= -feas_tol 
-#         update_tree_constraints!(gm, bbr)
-#     end
-#     @test true
-# end
-
 # test_baron_solve()
 
 # test_speed_params()
