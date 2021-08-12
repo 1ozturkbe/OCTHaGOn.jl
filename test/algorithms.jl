@@ -175,7 +175,22 @@ end
 
 # test_concave_regressors()
 
-function descend(gm::GlobalModel; max_iterations = 100, step_size = 1e-3, decay_rate = 2)
+"""
+    descend(gm::GlobalModel; 
+            max_iterations = 100, step_size = 1e-3, decay_rate = 2)
+
+Performs gradient descent on the last optimal solution in gm.solution_history.
+In case of infeasibility, first projects the feasible point using the local
+constraint gradients. 
+
+# Optional arguments:
+max_iterations: maximum number of gradient steps or projections.
+step_size: Size of 0-1 normalized Euclidian ball we can step. 
+decay_rate: Exponential coefficient of step size reduction. 
+
+"""
+function descend(gm::GlobalModel; 
+                 max_iterations = 100, step_size = 1e-3, decay_rate = 2)
     clear_tree_constraints!(gm)
 
     # Initialization
@@ -242,7 +257,6 @@ function descend(gm::GlobalModel; max_iterations = 100, step_size = 1e-3, decay_
             append!(obj_gradient, 
                 DataFrame(obj_bbl.gradients[end,:]), cols = :subset) 
             obj_gradient = coalesce.(obj_gradient, 0)
-            # @objective(gm.model, Min, sum(d .* Array(obj_gradient[end,:])))
             # Update objective constraints
             append!(constrs, [@constraint(gm.model, sum(d .* Array(obj_gradient[end,:])) <= -1e-8),
                               @constraint(gm.model, sum(Array(obj_gradient[end,:]) .* d) + 
@@ -291,8 +305,6 @@ function descend(gm::GlobalModel; max_iterations = 100, step_size = 1e-3, decay_
     return gm.solution_history[end,:]
 end
 
-using ProgressMeter
-
 # Implementing gradient descent
 m = JuMP.Model()
 @variable(m, -1 <= x <= 4)
@@ -302,6 +314,7 @@ m = JuMP.Model()
 gm = GlobalModel(model = m)
 set_param(gm, :ignore_accuracy, true)
 set_param(gm, :ignore_feasibility, true)
+set_param(gm, :abstol, 1e-3)
 
 # add_nonlinear_constraint(gm, :(x -> 4*x[1]^3 + x[2]^2 + 2*x[1]^2*x[2]), dependent_var = obj)
 # add_nonlinear_constraint(gm, :(x -> 20 - 3*x[1]^2 - 5*x[2]^2))
@@ -343,4 +356,7 @@ descend(gm)
 # plt = quiver!([gm.solution_history[end, "x"]], [gm.solution_history[end,"y"]], 
 #     quiver = ([d_vals[1]], [d_vals[2]]),
 #     markershape = :square, color = "purple", label = "Descent direction")
+
+# using Plots
+# plt = scatter(gm.solution_history[:,"x"], gm.solution_history[:,"y"])
 # display(plt)
