@@ -296,12 +296,12 @@ function descend(gm::GlobalModel;
             end
             if !isempty(bbl.lls)
                 n_lls = length(bbl.lls)
-                update_gradients(bbl, [length(bbl.Y) - n_lls:length(bbl.Y)-1])
+                update_gradients(bbl, collect(length(bbl.Y) - n_lls:length(bbl.Y)-1))
                 for i = 1:n_lls
                     ll = bbl.lls[i]
                     constr_gradient = copy(grad_shell)
                     append!(constr_gradient, # Changing the headers of the gradient 
-                        DataFrame(Array(bbl.gradients[end-n_lls-1+i,:]) .=> string.(ll.vars)), cols = :subset)
+                        DataFrame(string.(ll.vars) .=> Array(bbl.gradients[end-n_lls-1+i,:])), cols = :subset)
                     constr_gradient = coalesce.(constr_gradient, 0)
                     Y_val = bbl.Y[end-n_lls-1+i]
                     if bbl isa BlackBoxClassifier # TODO: add LL cuts
@@ -323,6 +323,9 @@ function descend(gm::GlobalModel;
 
         # Optimizing the step, and finding next x0
         optimize!(gm.model)
+        # @warn "Last solution was infeasible. Please check, reinitialize x0 with new trees," *
+        #         " or perhaps initialize with another x0."
+        # TODO: perhaps try another method to restore feasibility? 
         x0 = DataFrame(string.(vars) .=> getvalue.(vars))
         if !isnothing(obj_bbl)
             x0[!, string(gm.objective)] = obj_bbl(x0)
@@ -352,8 +355,9 @@ end
 
 # Implementing gradient descent
 
-# gm = sagemark_to_GlobalModel(25, false)
-gm = nlp2(true)
+gm = sagemark_to_GlobalModel(25, false)
+# gm = nlp3(true)
+# gm = speed_reducer()
 set_param(gm, :abstol, 1e-3)
 set_param(gm, :ignore_accuracy, true)
 uniform_sample_and_eval!(gm)
@@ -361,36 +365,7 @@ learn_constraint!(gm)
 add_tree_constraints!(gm)
 set_optimizer(gm, CPLEX_SILENT)
 optimize!(gm)
-ax_iterations = 100; 
-step_size = 1e-2; 
-decay_rate = 2;
 descend(gm)
 
 # Different problems to test different descent aspects
 # nlp2 for equalities
-
-# # Plotting results
-
-# using Plots
-# colors = ["yellow", "orange", "red"]
-# plt = plot()
-# plt = quiver!([gm.solution_history[end, "x"]], [gm.solution_history[end,"y"]], 
-#     quiver = (obj_gradient[:, "x"]./sqrt.((obj_gradient[:, "x"].^2 .+ obj_gradient[:, "y"].^2)), 
-#                 obj_gradient[:, "y"]./sqrt.((obj_gradient[:, "x"].^2 .+ obj_gradient[:, "y"].^2))), 
-#     markershape = :star5, color = "green", label = "+ Objective")
-# for i=1:length(bbls)
-#     bbl = bbls[i]
-#     infeas_idxs = findall(x -> x .< 0, bbl.Y)
-#     plt = scatter!(bbl.X[infeas_idxs,"x"], bbl.X[infeas_idxs, "y"], color = colors[i])
-#     plt = quiver!([gm.solution_history[end, "x"]], [gm.solution_history[end,"y"]], 
-#     quiver = (constr_grads[[i], "x"]./sqrt.((constr_grads[[i], "x"].^2 .+ constr_grads[[i], "y"].^2)), 
-#                 constr_grads[[i], "y"]./sqrt.((constr_grads[[i], "x"].^2 .+ constr_grads[[i], "y"].^2))),
-#     markershape = :circle, color = colors[i], label = "+ BBL$(i)")
-# end
-# plt = quiver!([gm.solution_history[end, "x"]], [gm.solution_history[end,"y"]], 
-#     quiver = ([d_vals[1]], [d_vals[2]]),
-#     markershape = :square, color = "purple", label = "Descent direction")
-
-# using Plots
-# plt = scatter(gm.solution_history[:,"x"], gm.solution_history[:,"y"])
-# display(plt)
