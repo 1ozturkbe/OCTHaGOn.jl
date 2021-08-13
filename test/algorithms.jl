@@ -280,9 +280,17 @@ function descend(gm::GlobalModel;
             append!(constr_gradient, DataFrame(bbl.gradients[end,:]), cols = :subset)
             constr_gradient = coalesce.(constr_gradient, 0)
             if bbl isa BlackBoxClassifier # TODO: add LL cuts
-                push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + bbl.Y[end] >= 0))
+                if bbl.equality
+                    push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + bbl.Y[end] == 0))
+                else
+                    push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + bbl.Y[end] >= 0))
+                end
             elseif bbl isa BlackBoxRegressor
-                push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + bbl.dependent_var >= bbl.Y[end]))
+                if bbl.equality
+                    push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + bbl.dependent_var == bbl.Y[end]))
+                else
+                    push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + bbl.dependent_var >= bbl.Y[end]))
+                end
             end
             if !isempty(bbl.lls)
                 n_lls = length(bbl.lls)
@@ -295,9 +303,17 @@ function descend(gm::GlobalModel;
                     constr_gradient = coalesce.(constr_gradient, 0)
                     Y_val = bbl.Y[end-n_lls-1+i]
                     if bbl isa BlackBoxClassifier # TODO: add LL cuts
-                        push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + Y_val >= 0))
+                        if bbl.equality
+                            push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + Y_val == 0))
+                        else
+                            push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + Y_val >= 0))
+                        end
                     elseif bbl isa BlackBoxRegressor
-                        push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + ll.dependent_var >= Y_val))
+                        if bbl.equality
+                            push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + ll.dependent_var == Y_val))
+                        else
+                            push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + ll.dependent_var >= Y_val))
+                        end
                     end
                 end
             end
