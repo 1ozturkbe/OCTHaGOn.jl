@@ -201,14 +201,15 @@ function descend(gm::GlobalModel;
     # Checking for a nonlinear objective
     obj_bbl = Nothing
     if gm.objective isa VariableRef
-        obj_bbl = gm.bbls[findall(x -> x.dependent_var == gm.objective, 
-                            [bbl for bbl in gm.bbls if bbl isa BlackBoxRegressor])]
+        obj_bbl = filter(x -> x.dependent_var == gm.objective, 
+                            [bbl for bbl in gm.bbls if bbl isa BlackBoxRegressor])
         if length(obj_bbl) == 1
             obj_bbl = obj_bbl[1]
             vars = [var for var in vars if var != obj_bbl.dependent_var]
             bbls = [bbl for bbl in gm.bbls if bbl != obj_bbl]
         elseif length(obj_bbl) > 1
-            throw(OCTException("GlobaModel $(gm.name) has more than one BlackBoxRegressor on the objective."))
+            throw(OCTException("GlobaModel $(gm.name) has more than one BlackBoxRegressor" *
+                               " on the objective variable."))
 
         end
     end 
