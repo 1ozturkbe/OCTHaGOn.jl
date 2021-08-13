@@ -199,11 +199,13 @@ function descend(gm::GlobalModel;
     gm_bounds = get_bounds(vars)
 
     # Checking for a nonlinear objective
-    obj_bbl = Nothing
+    obj_bbl = nothing
     if gm.objective isa VariableRef
         obj_bbl = filter(x -> x.dependent_var == gm.objective, 
                             [bbl for bbl in gm.bbls if bbl isa BlackBoxRegressor])
-        if length(obj_bbl) == 1
+        if isempty(obj_bbl)
+            obj_bbl = nothing
+        elseif length(obj_bbl) == 1
             obj_bbl = obj_bbl[1]
             vars = [var for var in vars if var != obj_bbl.dependent_var]
             bbls = [bbl for bbl in gm.bbls if bbl != obj_bbl]
@@ -351,7 +353,7 @@ end
 # Implementing gradient descent
 
 # gm = sagemark_to_GlobalModel(25, false)
-gm = nlp3(true)
+gm = nlp2(true)
 set_param(gm, :abstol, 1e-3)
 set_param(gm, :ignore_accuracy, true)
 uniform_sample_and_eval!(gm)
@@ -363,6 +365,9 @@ ax_iterations = 100;
 step_size = 1e-2; 
 decay_rate = 2;
 descend(gm)
+
+# Different problems to test different descent aspects
+# nlp2 for equalities
 
 # # Plotting results
 
