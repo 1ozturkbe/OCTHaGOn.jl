@@ -195,8 +195,8 @@ function descend(gm::GlobalModel;
 
     # Initialization
     bbls = gm.bbls
-    gm_bounds = get_bounds(gm.bbls)
     vars = gm.vars
+    gm_bounds = get_bounds(vars)
 
     # Checking for a nonlinear objective
     obj_bbl = Nothing
@@ -210,7 +210,6 @@ function descend(gm::GlobalModel;
         elseif length(obj_bbl) > 1
             throw(OCTException("GlobaModel $(gm.name) has more than one BlackBoxRegressor" *
                                " on the objective variable."))
-
         end
     end 
     
@@ -285,6 +284,23 @@ function descend(gm::GlobalModel;
             elseif bbl isa BlackBoxRegressor
                 push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + bbl.dependent_var >= bbl.Y[end]))
             end
+            if !isempty(bbl.lls)
+                n_lls = length(bbl.lls)
+                update_gradients(bbl, [length(bbl.Y) - n_lls:length(bbl.Y)-1])
+                for i = 1:n_lls
+                    ll = bbl.lls[i]
+                    constr_gradient = copy(grad_shell)
+                    append!(constr_gradient, # Changing the headers of the gradient 
+                        DataFrame(Array(bbl.gradients[end-n_lls-1+i,:]) .=> string.(ll.vars)), cols = :subset)
+                    constr_gradient = coalesce.(constr_gradient, 0)
+                    Y_val = bbl.Y[end-n_lls-1+i]
+                    if bbl isa BlackBoxClassifier # TODO: add LL cuts
+                        push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + Y_val >= 0))
+                    elseif bbl isa BlackBoxRegressor
+                        push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + ll.dependent_var >= Y_val))
+                    end
+                end
+            end
         end
 
         # Optimizing the step, and finding next x0
@@ -318,8 +334,10 @@ end
 
 # Implementing gradient descent
 
-gm = speed_reducer()
+# gm = sagemark_to_GlobalModel(25, false)
+gm = nlp3(true)
 set_param(gm, :abstol, 1e-3)
+set_param(gm, :ignore_accuracy, true)
 uniform_sample_and_eval!(gm)
 learn_constraint!(gm)
 add_tree_constraints!(gm)
