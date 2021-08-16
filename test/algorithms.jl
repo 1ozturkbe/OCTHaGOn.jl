@@ -257,7 +257,8 @@ function descend(gm::GlobalModel;
         if all([bbl.feas_gap[end] for bbl in gm.bbls] .>= 0)
             push!(constrs, @constraint(gm.model, sum((d ./ (var_max .- var_min)).^2) <= 
                     step_size/exp(decay_rate*(ct-1)/max_iterations)))
-            @objective(gm.model, Min, gm.objective)
+            @objective(gm.model, Min, sum(Array(obj_gradient[end,:]) .* d))
+                # @objective(gm.model, Min, gm.objective)
         else # Project if the current solution is infeasible. 
             @objective(gm.model, Min, gm.objective + JuMP.upper_bound(gm.objective)*sum((d ./ (var_max .- var_min)).^2))
         end
@@ -270,9 +271,8 @@ function descend(gm::GlobalModel;
                 DataFrame(obj_bbl.gradients[end,:]), cols = :subset) 
             obj_gradient = coalesce.(obj_gradient, 0)
             # Update objective constraints
-            append!(constrs, [@constraint(gm.model, sum(d .* Array(obj_gradient[end,:])) <= -1e-8),
-                              @constraint(gm.model, sum(Array(obj_gradient[end,:]) .* d) + 
-                                            obj_bbl.dependent_var >= obj_bbl.Y[end])])
+            append!(constrs, [@constraint(gm.model, sum(Array(obj_gradient[end,:]) .* d) + 
+                              obj_bbl.dependent_var >= obj_bbl.Y[end])])
         end
 
         # Constraint evaluation
@@ -356,9 +356,10 @@ end
 # Implementing gradient descent
 
 gm = sagemark_to_GlobalModel(25, false)
-# gm = nlp3(true)
+# gm = nlp2(true)
 # gm = speed_reducer()
-set_param(gm, :abstol, 1e-3)
+# gm = minlp(true)
+set_param(gm, :abstol, 1e-4)
 set_param(gm, :ignore_accuracy, true)
 uniform_sample_and_eval!(gm)
 learn_constraint!(gm)

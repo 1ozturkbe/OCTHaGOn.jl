@@ -606,7 +606,7 @@ end
 # Predator prey model with logistic function from http://www.math.lsa.umich.edu/~rauch/256/F2Lab5.pdf
 function test_linking()
     m = Model(CPLEX_SILENT)
-    t = 50
+    t = 30
     r = 0.2
     x1 = 0.6
     y1 = 0.5
@@ -631,14 +631,13 @@ function test_linking()
     set_upper_bound.(dy, 1)
     set_lower_bound.(dy, -1)
     gm = GlobalModel(model = m, name = "foxes_rabbits")
-    set_param(gm, :sample_coeff, 500)
-    add_nonlinear_constraint(gm, :((x, y) -> x[1]*(1-x[1]) -x[1]*y[1]/(x[1]+$(r))), 
-                            vars = [x[1], y[1]], dependent_var = dx[1], equality=true)
-    add_nonlinear_constraint(gm, :((x, y) -> $(r)*y[1]*(1-y[1]/x[1])), 
-                            vars = [x[1], y[1]], dependent_var = dy[1], equality=true)
+    add_nonlinear_constraint(gm, :((x, y, dx) -> dx[1] - (x[1]*(1-x[1]) -x[1]*y[1]/(x[1]+$(r)))), 
+                            vars = [x[1], y[1], dx[1]], equality=true)
+    add_nonlinear_constraint(gm, :((x, y, dy) -> dy[1] - $(r)*y[1]*(1-y[1]/x[1])), 
+                            vars = [x[1], y[1], dy[1]], equality=true)
     for i = 2:t-1
-        add_linked_constraint(gm, gm.bbls[1], [x[i], y[i]], dx[i])
-        add_linked_constraint(gm, gm.bbls[2], [x[i], y[i]], dy[i])
+        add_linked_constraint(gm, gm.bbls[1], [x[i], y[i], dx[i]])
+        add_linked_constraint(gm, gm.bbls[2], [x[i], y[i], dy[i]])
     end
     uniform_sample_and_eval!(gm)
     init_constraints = sum(length(all_constraints(gm.model, type[1], type[2])) 
@@ -647,7 +646,8 @@ function test_linking()
     learn_constraint!(gm)
     set_param(gm, :ignore_accuracy, true)
     add_tree_constraints!(gm)
-    # optimize!(gm)
+    optimize!(gm)
+
 
     # using Plots
     # # Plotting temporal population data
