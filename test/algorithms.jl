@@ -143,12 +143,7 @@ function recipe(gm::GlobalModel)
         add_tree_constraints!(gm, bbl)
     end
     optimize!(gm)    
-    add_infeasibility_cuts!(gm)
-    optimize!(gm)
-    while (gm.cost[end] - gm.cost[end-1]) > get_param(gm, :abstol)
-        add_infeasibility_cuts!(gm)
-        optimize!(gm)
-    end
+    descend(gm)
 end 
 
 function optimize_and_time!(m::Union{JuMP.Model, GlobalModel})
@@ -177,7 +172,7 @@ end
 
 """
     descend(gm::GlobalModel; 
-            max_iterations = 100, step_size = 1e-3, decay_rate = 2)
+            max_iterations = 100, step_penalty = 1e4, step_size = 1e-3, decay_rate = 2)
 
 Performs gradient descent on the last optimal solution in gm.solution_history.
 In case of infeasibility, first projects the feasible point using the local
@@ -185,12 +180,13 @@ constraint gradients.
 
 # Optional arguments:
 max_iterations: maximum number of gradient steps or projections.
+step_penalty: magnitude of penalty on step size during projections.
 step_size: Size of 0-1 normalized Euclidian ball we can step. 
 decay_rate: Exponential coefficient of step size reduction. 
 
 """
 function descend(gm::GlobalModel; 
-                 max_iterations = 100, step_size = 1e-3, decay_rate = 2)
+                 max_iterations = 100, step_penalty = 1e4, step_size = 1e-3, decay_rate = 2)
     clear_tree_constraints!(gm)
 
     # Initialization
@@ -243,26 +239,16 @@ function descend(gm::GlobalModel;
     d = @variable(gm.model, [1:length(vars)])
     ct = 0
     d_improv = 1e5
+    abstol = get_param(gm, :abstol)
 
     # WHILE LOOP
-    @info("Starting gradient descent...")
-    while !all([bbl.feas_gap[end] for bbl in gm.bbls] .>= 0) ||
-        (ct < max_iterations && abs(d_improv) >= get_param(gm, :abstol)) || ct == 0
+    @info("Starting projected gradient descent...")
+    while ((!all([bbl.feas_gap[end] for bbl in gm.bbls] .>= 0) ||
+         abs(d_improv) >= get_param(gm, :abstol)) && ct < max_iterations) || ct == 0
+        prev_obj = gm.cost[end]
         constrs = []
         ct += 1
-        @info("Count $(ct)")
-
-        # Initializing descent direction
-        push!(constrs, @constraint(gm.model, d .== vars .- Array(sol_vals[end,:])))
-        if all([bbl.feas_gap[end] for bbl in gm.bbls] .>= 0)
-            push!(constrs, @constraint(gm.model, sum((d ./ (var_max .- var_min)).^2) <= 
-                    step_size/exp(decay_rate*(ct-1)/max_iterations)))
-            @objective(gm.model, Min, sum(Array(obj_gradient[end,:]) .* d))
-                # @objective(gm.model, Min, gm.objective)
-        else # Project if the current solution is infeasible. 
-            @objective(gm.model, Min, gm.objective + JuMP.upper_bound(gm.objective)*sum((d ./ (var_max .- var_min)).^2))
-        end
-
+    
         # Linear objective gradient and constraints
         if !isnothing(obj_bbl)
             update_gradients(obj_bbl, [length(obj_bbl.Y)])
@@ -273,6 +259,16 @@ function descend(gm::GlobalModel;
             # Update objective constraints
             append!(constrs, [@constraint(gm.model, sum(Array(obj_gradient[end,:]) .* d) + 
                               obj_bbl.dependent_var >= obj_bbl.Y[end])])
+        end
+
+        # Initializing descent direction
+        push!(constrs, @constraint(gm.model, d .== vars .- Array(sol_vals[end,:])))
+        if all([bbl.feas_gap[end] for bbl in gm.bbls] .>= 0)
+            push!(constrs, @constraint(gm.model, sum((d ./ (var_max .- var_min)).^2) <= 
+                    step_size/exp(decay_rate*(ct-1)/max_iterations)))
+            @objective(gm.model, Min, sum(Array(obj_gradient[end,:]) .* d))
+        else # Project if the current solution is infeasible. 
+            @objective(gm.model, Min, sum(Array(obj_gradient[end,:]) .* d) + 1e4*sum((d ./ (var_max .- var_min)).^2))
         end
 
         # Constraint evaluation
@@ -346,7 +342,6 @@ function descend(gm::GlobalModel;
         for con in constrs
             delete(gm.model, con)
         end
-        d_improv = gm.solution_history[end-1, string(gm.objective)] - gm.solution_history[end, string(gm.objective)]
     end
 
     if ct >= max_iterations && abs(d_improv) >= abstol
@@ -369,18 +364,5 @@ end
 
 # Implementing gradient descent
 
-gm = sagemark_to_GlobalModel(25, false)
-# gm = nlp2(true)
-# gm = speed_reducer()
-# gm = minlp(true)
-set_param(gm, :abstol, 1e-4)
-set_param(gm, :ignore_accuracy, true)
-uniform_sample_and_eval!(gm)
-learn_constraint!(gm)
-add_tree_constraints!(gm)
-set_optimizer(gm, CPLEX_SILENT)
-optimize!(gm)
-descend(gm)
-
-# Different problems to test different descent aspects
-# nlp2 for equalities
+# gms = [minlp(true), pool1(true), nlp1(true), nlp2(true), nlp3(true)]
+# optimize_and_time!.(gms)
