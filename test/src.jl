@@ -203,6 +203,7 @@ function test_bbc()
     uniform_sample_and_eval!(bbl);
 
     # Sampling, learning and showing...
+    set_param(gm, :ignore_feasibility, true)
     learn_constraint!(bbl);
 
     # Check feasibility and accuracy

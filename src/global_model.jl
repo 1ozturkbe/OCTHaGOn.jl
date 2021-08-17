@@ -368,8 +368,6 @@ function evaluate_accuracy(bbr::BlackBoxRegressor)
     end
 end
 
-evaluate_accuracy(bbls::Array{BlackBoxLearner}) = evaluate_accuracy.(bbls)
-evaluate_accuracy(bbls::Array{BlackBoxClassifier}) = evaluate_accuracy.(bbls)
 evaluate_accuracy(gm::GlobalModel) = evaluate_accuracy.(gm.bbls)
 
 """ 
