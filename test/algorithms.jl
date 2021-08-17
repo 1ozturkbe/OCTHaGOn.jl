@@ -143,7 +143,7 @@ function recipe(gm::GlobalModel)
         add_tree_constraints!(gm, bbl)
     end
     optimize!(gm)    
-    descend(gm)
+    descend!(gm)
 end 
 
 function optimize_and_time!(m::Union{JuMP.Model, GlobalModel})
@@ -156,21 +156,33 @@ function optimize_and_time!(m::Union{JuMP.Model, GlobalModel})
     println("Model solution time: " * string(time()-t1) * " seconds.")
 end
 
-# test_baron_solve()
+function test_descent()
+    @test true
+end
 
-# test_speed_params()
+function test_recipe()
+    gm = minlp(true)
+    optimize_and_time!(gm)
+    @test true
 
-# test_classify_gradients()
+    # gms = [minlp(true), pool1(true), nlp1(true), nlp2(true), nlp3(true)]
+    # optimize_and_time!.(gms)
+end
 
-# test_infeasibility_cuts()
+test_baron_solve()
 
-# test_feasibility_sample()
+test_speed_params()
 
-# test_survey_method()
+test_classify_gradients()
 
-# test_concave_regressors()
+test_infeasibility_cuts()
 
-# Implementing gradient descent
+test_feasibility_sample()
 
-# gms = [minlp(true), pool1(true), nlp1(true), nlp2(true), nlp3(true)]
-# optimize_and_time!.(gms)
+test_survey_method()
+
+test_concave_regressors()
+
+test_descent()
+
+test_recipe()

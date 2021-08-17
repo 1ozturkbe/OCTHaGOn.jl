@@ -93,7 +93,7 @@ function tight_objective!(gm::GlobalModel)
 end
 
 """
-    descend(gm::GlobalModel; 
+    descend!(gm::GlobalModel; 
             max_iterations = 100, step_penalty = 1e4, step_size = 1e-3, decay_rate = 2)
 
 Performs gradient descent on the last optimal solution in gm.solution_history.
@@ -107,7 +107,7 @@ step_size: Size of 0-1 normalized Euclidian ball we can step.
 decay_rate: Exponential coefficient of step size reduction. 
 
 """
-function descend(gm::GlobalModel; 
+function descend!(gm::GlobalModel; 
                  max_iterations = 100, step_penalty = 1e4, step_size = 1e-3, decay_rate = 2)
     clear_tree_constraints!(gm)
 
