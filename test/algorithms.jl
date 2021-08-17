@@ -334,6 +334,14 @@ function descend(gm::GlobalModel;
         feas_gap(gm, x0)
         append!(gm.solution_history, x0)
 
+        # Measuring improvements
+        if !isnothing(obj_bbl)
+            push!(gm.cost, gm.solution_history[end, string(gm.objective)])
+        else
+            push!(gm.cost,  JuMP.getvalue(gm.objective))
+        end
+        d_improv = gm.cost[end-1] - gm.cost[end]
+
         # Delete gradient constraints (TODO: perhaps add constraints to avoid cycling?)
         for con in constrs
             delete(gm.model, con)
