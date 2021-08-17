@@ -203,7 +203,7 @@ function test_bbc()
     uniform_sample_and_eval!(bbl);
 
     # Sampling, learning and showing...
-    set_param(gm, :ignore_feasibility, true)
+    set_param(bbl, :ignore_feasibility, true)
     learn_constraint!(bbl);
 
     # Check feasibility and accuracy
@@ -647,8 +647,7 @@ function test_linking()
     learn_constraint!(gm)
     set_param(gm, :ignore_accuracy, true)
     add_tree_constraints!(gm)
-    optimize!(gm)
-
+    # optimize!(gm)
 
     # using Plots
     # # Plotting temporal population data
@@ -669,6 +668,7 @@ function test_oos()
     gm = oos_gm!()
     m = gm.model
     [set_param(bbl, :n_samples, 1000) for bbl in gm.bbls]
+    set_param(gm, :abstol, 1e-2)
     uniform_sample_and_eval!(gm, lh_iterations = 0)
     learn_constraint!(gm, max_depth = 6)
     add_tree_constraints!(gm)
