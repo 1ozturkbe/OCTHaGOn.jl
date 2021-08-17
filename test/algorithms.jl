@@ -349,8 +349,14 @@ function descend(gm::GlobalModel;
         d_improv = gm.solution_history[end-1, string(gm.objective)] - gm.solution_history[end, string(gm.objective)]
     end
 
-    if ct >= max_iterations && abs(d_improv) >= get_param(gm, :abstol)
-        @info("Max iterations reached, but not converged! Please descend further, perhaps with reduced step sizes.")
+    if ct >= max_iterations && abs(d_improv) >= abstol
+        @info("Max iterations reached, but descent not converged to tolerance!" * 
+              " Please descend further, perhaps with reduced step sizes.")
+    elseif ct >= max_iterations && !all([bbl.feas_gap[end] for bbl in gm.bbls] .>= 0)
+        @info("Max iterations reached, but solution is not feasible!" * 
+              " Please observe the cost evolution, descend again, or relax your constraints.")
+    else
+        @info("PGD converged in $(ct) iterations!")
     end
 
     # Reverting objective, and deleting vars
