@@ -517,7 +517,7 @@ function test_convex_objective()
         add_infeasibility_cuts!(gm)
         optimize!(gm)
     end
-    @test all([gm.cost[i] < gm.cost[i+1] for i= 1:length(gm.cost)-1]) 
+    @test all([gm.cost[i] <= gm.cost[i+1] for i= 1:length(gm.cost)-1]) 
     update_leaf_vexity(gm.bbls[1])
     @test gm.bbls[1].vexity[1][2] == 1.0
 end
@@ -647,7 +647,7 @@ function test_linking()
     learn_constraint!(gm)
     set_param(gm, :ignore_accuracy, true)
     add_tree_constraints!(gm)
-    # optimize!(gm)
+    # optimize!(gm) # Currently cannot converge. 
 
     # using Plots
     # # Plotting temporal population data
