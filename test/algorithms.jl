@@ -157,16 +157,38 @@ function optimize_and_time!(m::Union{JuMP.Model, GlobalModel})
 end
 
 function test_descent()
-    @test true
-end
-
-function test_recipe()
     gm = minlp(true)
-    optimize_and_time!(gm)
-    @test true
+    x0 = DataFrame(string.(gm.vars) .=> [0, 1, 0, 1, 0, 1, 5])
+    append!(gm.solution_history, x0)
+    append!(gm.cost, 5)
+    feas_gap(gm, x0)
+    descend!(gm, max_iterations = 400)
+    @test isapprox(gm.cost[end], 6.09; atol = 3)
 
-    # gms = [minlp(true), pool1(true), nlp1(true), nlp2(true), nlp3(true)]
-    # optimize_and_time!.(gms)
+    gm = pool1(true)
+    x0 = DataFrame(string.(gm.vars) .=> [4.0, 3.0, 1.0, 4.0, 0, 7, 0])
+    append!(gm.solution_history, x0)
+    append!(gm.cost, 100)
+    feas_gap(gm, x0)
+    descend!(gm, max_iterations = 100)
+    @test isapprox(gm.cost[end], 23; atol = 3)
+    
+    gm = nlp2(true)
+    x0 = DataFrame(string.(gm.vars) .=> [6.4, 3.8, 200])
+    append!(gm.solution_history, x0)
+    append!(gm.cost, 200)
+    feas_gap(gm, x0)
+    descend!(gm, max_iterations = 100)
+    @test isapprox(gm.cost[end], 201; atol = 3)
+
+    gm = nlp3(true)
+    x0 = DataFrame(string.(gm.vars) .=>
+    [1728.71, 16000.0, 69.9795, 3056.32,  2000.0,  91.323, 94.7197, 11.5857, 2.26271, 151.159, -1600.81])
+    append!(gm.solution_history, x0)
+    append!(gm.cost, -1600)
+    feas_gap(gm, x0)
+    descend!(gm, max_iterations = 100)
+    @test isapprox(gm.cost[end], -1161; atol = 4)
 end
 
 test_baron_solve()
@@ -184,5 +206,3 @@ test_survey_method()
 test_concave_regressors()
 
 test_descent()
-
-test_recipe()
