@@ -267,10 +267,10 @@ function descend!(gm::GlobalModel;
     end
 
     if ct >= max_iterations && abs(d_improv) >= abstol
-        @info("Max iterations reached, but descent not converged to tolerance!" * 
+        @info("Max iterations ($(ct)) reached, but descent not converged to tolerance!" * 
               " Please descend further, perhaps with reduced step sizes.")
     elseif ct >= max_iterations && !all([bbl.feas_gap[end] for bbl in gm.bbls] .>= 0)
-        @info("Max iterations reached, but solution is not feasible!" * 
+        @info("Max iterations ($(ct)) reached, but solution is not feasible!" * 
               " Please observe the cost evolution, descend again, or relax your constraints.")
     else
         @info("PGD converged in $(ct) iterations!")
