@@ -282,6 +282,8 @@ function descend!(gm::GlobalModel; kwargs...)
               " Please observe the cost evolution, descend again, or relax your constraints.")
     else
         @info("PGD converged in $(ct) iterations!")
+        fincost = round(gm.cost[end], digits = -Int(round(log10(abstol))))
+        @info("The optimal cost is $(fincost).")
     end
 
     # Reverting objective, and deleting vars
@@ -290,4 +292,30 @@ function descend!(gm::GlobalModel; kwargs...)
 
     # Returning final solution
     return gm.solution_history[end,:]
+end
+
+function globalsolve!(gm::GlobalModel)
+    @info "GlobalModel " * gm.name * "solution in progress..."
+    set_optimizer(gm, CPLEX_SILENT)
+    uniform_sample_and_eval!(gm)
+    set_param(gm, :ignore_accuracy, true)
+    set_param(gm, :ignore_feasibility, true)
+    @info "Training OptimalTreeLearners..."
+    for bbl in gm.bbls
+        learn_constraint!(bbl)
+        add_tree_constraints!(gm, bbl)
+    end
+    @info "Solving MIP..."
+    optimize!(gm)    
+    descend!(gm)
+end 
+
+function globalsolve_and_time!(m::Union{JuMP.Model, GlobalModel})
+    t1 = time()
+    if m isa JuMP.Model
+        optimize!(m);
+    else
+        globalsolve!(m)
+    end
+    println("Model solution time: " * string(time()-t1) * " seconds.")
 end

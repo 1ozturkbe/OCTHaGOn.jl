@@ -132,30 +132,6 @@ function test_concave_regressors(gm::GlobalModel = gear(true))
     @test init_constraints == sum(length(all_constraints(gm.model, type[1], type[2])) for type in JuMP.list_of_constraint_types(gm.model))
 end
 
-function recipe(gm::GlobalModel)
-    @info "GlobalModel " * gm.name * " in progress..."
-    set_optimizer(gm, CPLEX_SILENT)
-    uniform_sample_and_eval!(gm)
-    set_param(gm, :ignore_accuracy, true)
-    set_param(gm, :ignore_feasibility, true)
-    for bbl in gm.bbls
-        learn_constraint!(bbl)
-        add_tree_constraints!(gm, bbl)
-    end
-    optimize!(gm)    
-    descend!(gm)
-end 
-
-function optimize_and_time!(m::Union{JuMP.Model, GlobalModel})
-    t1 = time()
-    if m isa JuMP.Model
-        optimize!(m);
-    else
-        recipe(m)
-    end
-    println("Model solution time: " * string(time()-t1) * " seconds.")
-end
-
 function test_descent()
     gm = minlp(true)
     x0 = DataFrame(string.(gm.vars) .=> [0, 1, 0, 1, 0, 1, 5])
@@ -172,14 +148,6 @@ function test_descent()
     feas_gap(gm, x0)
     descend!(gm, max_iterations = 100)
     @test isapprox(gm.cost[end], 23; atol = 3)
-    
-    gm = nlp2(true)
-    x0 = DataFrame(string.(gm.vars) .=> [6.4, 3.8, 200])
-    append!(gm.solution_history, x0)
-    append!(gm.cost, 200)
-    feas_gap(gm, x0)
-    descend!(gm, max_iterations = 100)
-    @test isapprox(gm.cost[end], 201; atol = 3)
 
     gm = nlp3(true)
     x0 = DataFrame(string.(gm.vars) .=>
@@ -189,6 +157,12 @@ function test_descent()
     feas_gap(gm, x0)
     descend!(gm, max_iterations = 100)
     @test isapprox(gm.cost[end], -1161; atol = 4)
+end
+
+function test_recipe()
+    gm = nlp2(true)
+    globalsolve_and_time!(gm)
+    @test isapprox(gm.cost[end], 201; atol = 3)
 end
 
 test_baron_solve()

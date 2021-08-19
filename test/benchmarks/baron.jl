@@ -9,10 +9,10 @@ end
 BARON_PROBLEMS = [minlp, nlp1, nlp2, nlp3]
 
 bms = [p(false) for p in BARON_PROBLEMS]
-optimize_and_time!.(bms)
+globalsolve_and_time!.(bms)
 
 gms = [p(true) for p in BARON_PROBLEMS]
-optimize_and_time!.(gms)
+globalsolve_and_time!.(gms)
 
 # save_fit.(gms)
 # load_fit.(gms)
