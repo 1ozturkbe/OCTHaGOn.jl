@@ -152,14 +152,17 @@ function descend!(gm::GlobalModel; kwargs...)
         obj_gradient = coalesce.(obj_gradient, 0)
     end
 
-    # Last solution recheck, and actual objective computation
+    # x0 initialization, and actual objective computation
     x0 = DataFrame(gm.solution_history[end, :])
-    if !isnothing(obj_bbl)
-        x0[:, string(gm.objective)] = obj_bbl(x0)
-    end
     sol_vals = x0[:,string.(vars)]
-    feas_gap(gm, x0) # Checking feasibility gaps
-    append!(gm.solution_history, x0) # Objective "projection"
+    if !isnothing(obj_bbl)
+        actual_cost = obj_bbl(x0)
+        push!(gm.cost, actual_cost[1])
+        x0[:, string(gm.objective)] = actual_cost
+        sol_vals = x0[:,string.(vars)]
+        feas_gap(gm, x0) # Checking feasibility gaps with updated objective
+        append!(gm.solution_history, x0) # Pushing last solution
+    end
 
     # Descent direction, counting and book-keeping
     d = @variable(gm.model, [1:length(vars)])
