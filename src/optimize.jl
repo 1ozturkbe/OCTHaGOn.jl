@@ -93,28 +93,32 @@ function tight_objective!(gm::GlobalModel)
 end
 
 """
-    descend!(gm::GlobalModel; 
-            max_iterations = 100, step_penalty = 1e4, step_size = 1e-3, decay_rate = 2)
+    descend!(gm::GlobalModel; kwargs...)
 
 Performs gradient descent on the last optimal solution in gm.solution_history.
 In case of infeasibility, first projects the feasible point using the local
 constraint gradients. 
 
-# Optional arguments:
+# Optional kwargs:
 max_iterations: maximum number of gradient steps or projections.
 step_penalty: magnitude of penalty on step size during projections.
 step_size: Size of 0-1 normalized Euclidian ball we can step. 
 decay_rate: Exponential coefficient of step size reduction. 
 
 """
-function descend!(gm::GlobalModel; 
-                 max_iterations = 100, step_penalty = 1e4, step_size = 1e-3, decay_rate = 2)
-    clear_tree_constraints!(gm)
-
+function descend!(gm::GlobalModel; kwargs...)
     # Initialization
+    clear_tree_constraints!(gm) 
     bbls = gm.bbls
     vars = gm.vars
     gm_bounds = get_bounds(vars)
+
+    # Update descent algorithm parameters
+    if !isempty(kwargs) 
+        for item in kwargs
+            set_param(gm, kwargs[item.first], item.second)
+        end
+    end
 
     # Checking for a nonlinear objective
     obj_bbl = nothing
@@ -162,6 +166,10 @@ function descend!(gm::GlobalModel;
     ct = 0
     d_improv = 1e5
     abstol = get_param(gm, :abstol)
+    max_iterations = get_param(gm, :max_iterations)
+    step_penalty = get_param(gm, :step_penalty)
+    step_size = get_param(gm, :step_size) 
+    decay_rate = get_param(gm, :decay_rate)
 
     # WHILE LOOP
     @info("Starting projected gradient descent...")

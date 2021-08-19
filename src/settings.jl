@@ -27,7 +27,13 @@ function gm_defaults()
          :sample_density => 1e-5,
          :abstol => 1e-4,
          :tighttol => 1e-5,    # sets how close samples can be. 
-         :convex_constrs => false)
+         :convex_constrs => false,
+         # Params for gradient descent
+         :max_iterations => 100,
+         :step_size => 1e-3,
+         :step_penalty => 1e4,
+         :decay_rate => 2
+    )
 end
 
 """ Sets parameters within Dict. """
