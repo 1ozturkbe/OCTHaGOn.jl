@@ -116,7 +116,7 @@ function descend!(gm::GlobalModel; kwargs...)
     # Update descent algorithm parameters
     if !isempty(kwargs) 
         for item in kwargs
-            set_param(gm, kwargs[item.first], item.second)
+            set_param(gm, item.first, item.second)
         end
     end
 
@@ -268,6 +268,10 @@ function descend!(gm::GlobalModel; kwargs...)
         end
         d_improv = gm.cost[end-1] - gm.cost[end]
 
+        # Saving solution dict for JuMP-style recovery.
+        # TODO: do not regenerate soldict unless final solution. 
+        gm.soldict = Dict(key => JuMP.getvalue.(gm.model[key]) for (key, value) in gm.model.obj_dict)
+
         # Delete gradient constraints (TODO: perhaps add constraints to avoid cycling?)
         for con in constrs
             delete(gm.model, con)
@@ -289,13 +293,11 @@ function descend!(gm::GlobalModel; kwargs...)
     # Reverting objective, and deleting vars
     @objective(gm.model, Min, gm.objective)
     delete(gm.model, d)
-
-    # Returning final solution
-    return gm.solution_history[end,:]
+    return
 end
 
 function globalsolve!(gm::GlobalModel)
-    @info "GlobalModel " * gm.name * "solution in progress..."
+    @info "GlobalModel " * gm.name * " solution in progress..."
     set_optimizer(gm, CPLEX_SILENT)
     uniform_sample_and_eval!(gm)
     set_param(gm, :ignore_accuracy, true)

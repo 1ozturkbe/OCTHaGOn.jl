@@ -12,6 +12,7 @@ nonlinear_model can contain JuMP.NonlinearConstraints.
     objective = JuMP.objective_function(model)                # Original objective function
     solution_history::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Solution history
     cost::Array = []                                             # List of costs. 
+    soldict::Dict = Dict()                                       # For solution extraction
     params::Dict = gm_defaults()                                 # GM settings
 end
 

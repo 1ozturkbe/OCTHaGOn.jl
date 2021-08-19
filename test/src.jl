@@ -676,18 +676,19 @@ function test_oos()
     descend!(gm, max_iterations = 1, step_penalty = 1e8, step_size = 1e-4, decay_rate = 5)
 
     # Post-processing
-    plot_r = round.((getvalue.(m[:r_orbit]) .- op.rE)./1e3, sigdigits = 5)
-    ords = Int.(round.(getvalue.(m[:sat_order])))
-    times = round.(getvalue.(m[:t_maneuver])./(24*3600), sigdigits=3) # days
-    revs = round.(getvalue.(m[:N_orbit]), sigdigits=5)
-    refuels = round.(getvalue.(m[:fuel_needed]), sigdigits=5)
-    transfuels = round.(getvalue.(m[:masses][:,1] .- m[:masses][:,5]), sigdigits=5)
+    plot_r = round.((getvalue.(gm.soldict[:r_orbit]) .- op.rE)./1e3, sigdigits = 5)
+    ords = Int.(round.(getvalue.(gm.soldict[:sat_order])))
+    tas = round.(getvalue.(gm.soldict[:ta]), sigdigits=3)
+    times = round.(getvalue.(gm.soldict[:t_maneuver])./(24*3600), sigdigits=3) # days
+    revs = round.(getvalue.(gm.soldict[:N_orbit]), sigdigits=5)
+    refuels = round.(getvalue.(gm.soldict[:fuel_needed]), sigdigits=5)
+    transfuels = round.(getvalue.(gm.soldict[:masses][:,1] .- gm.soldict[:masses][:,5]), sigdigits=5)
     n_trans = op.n_sats - 1
 
     # # Printing results
     println("Orbit altitudes (km) : $(plot_r)")
     println("Satellite order: $(ords)")
-    println("True anomalies (radians): $(round.(getvalue.(m[:ta]), sigdigits=3))")
+    println("True anomalies (radians): $(tas)")
     println("Orbital revolutions: $(revs)")
     println("Time for maneuvers (days): $(times)")
     println("Maneuver fuel (kg): $(transfuels)")
