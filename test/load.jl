@@ -39,6 +39,8 @@ include(OCT.DATA_DIR * "oos.jl")
 
 include(OCT.DATA_DIR * "afpm.jl")
 
+include(OCT.DATA_DIR * "polynomial.jl")
+
 include(OCT.BARON_DIR * "gear.jl")
 
 include(OCT.BARON_DIR * "minlp.jl")

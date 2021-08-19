@@ -203,6 +203,7 @@ function test_bbc()
     uniform_sample_and_eval!(bbl);
 
     # Sampling, learning and showing...
+    set_param(bbl, :ignore_feasibility, true)
     learn_constraint!(bbl);
 
     # Check feasibility and accuracy
@@ -516,7 +517,7 @@ function test_convex_objective()
         add_infeasibility_cuts!(gm)
         optimize!(gm)
     end
-    @test all([gm.cost[i] < gm.cost[i+1] for i= 1:length(gm.cost)-1]) 
+    @test all([gm.cost[i] <= gm.cost[i+1] for i= 1:length(gm.cost)-1]) 
     update_leaf_vexity(gm.bbls[1])
     @test gm.bbls[1].vexity[1][2] == 1.0
 end
@@ -606,7 +607,7 @@ end
 # Predator prey model with logistic function from http://www.math.lsa.umich.edu/~rauch/256/F2Lab5.pdf
 function test_linking()
     m = Model(CPLEX_SILENT)
-    t = 50
+    t = 30
     r = 0.2
     x1 = 0.6
     y1 = 0.5
@@ -631,14 +632,13 @@ function test_linking()
     set_upper_bound.(dy, 1)
     set_lower_bound.(dy, -1)
     gm = GlobalModel(model = m, name = "foxes_rabbits")
-    set_param(gm, :sample_coeff, 500)
-    add_nonlinear_constraint(gm, :((x, y) -> x[1]*(1-x[1]) -x[1]*y[1]/(x[1]+$(r))), 
-                            vars = [x[1], y[1]], dependent_var = dx[1], equality=true)
-    add_nonlinear_constraint(gm, :((x, y) -> $(r)*y[1]*(1-y[1]/x[1])), 
-                            vars = [x[1], y[1]], dependent_var = dy[1], equality=true)
+    add_nonlinear_constraint(gm, :((x, y, dx) -> dx[1] - (x[1]*(1-x[1]) -x[1]*y[1]/(x[1]+$(r)))), 
+                            vars = [x[1], y[1], dx[1]], equality=true)
+    add_nonlinear_constraint(gm, :((x, y, dy) -> dy[1] - $(r)*y[1]*(1-y[1]/x[1])), 
+                            vars = [x[1], y[1], dy[1]], equality=true)
     for i = 2:t-1
-        add_linked_constraint(gm, gm.bbls[1], [x[i], y[i]], dx[i])
-        add_linked_constraint(gm, gm.bbls[2], [x[i], y[i]], dy[i])
+        add_linked_constraint(gm, gm.bbls[1], [x[i], y[i], dx[i]])
+        add_linked_constraint(gm, gm.bbls[2], [x[i], y[i], dy[i]])
     end
     uniform_sample_and_eval!(gm)
     init_constraints = sum(length(all_constraints(gm.model, type[1], type[2])) 
@@ -647,7 +647,7 @@ function test_linking()
     learn_constraint!(gm)
     set_param(gm, :ignore_accuracy, true)
     add_tree_constraints!(gm)
-    # optimize!(gm)
+    # optimize!(gm) # Currently cannot converge. 
 
     # using Plots
     # # Plotting temporal population data
@@ -668,24 +668,27 @@ function test_oos()
     gm = oos_gm!()
     m = gm.model
     [set_param(bbl, :n_samples, 1000) for bbl in gm.bbls]
+    set_param(gm, :abstol, 1e-2)
     uniform_sample_and_eval!(gm, lh_iterations = 0)
     learn_constraint!(gm, max_depth = 6)
     add_tree_constraints!(gm)
     optimize!(gm)
+    descend!(gm, max_iterations = 1, step_penalty = 1e8, step_size = 1e-4, decay_rate = 5)
 
     # Post-processing
-    plot_r = round.((getvalue.(m[:r_orbit]) .- op.rE)./1e3, sigdigits = 5)
-    ords = Int.(round.(getvalue.(m[:sat_order])))
-    times = round.(getvalue.(m[:t_maneuver])./(24*3600), sigdigits=3) # days
-    revs = round.(getvalue.(m[:N_orbit]), sigdigits=5)
-    refuels = round.(getvalue.(m[:fuel_needed]), sigdigits=5)
-    transfuels = round.(getvalue.(m[:masses][:,1] .- m[:masses][:,5]), sigdigits=5)
+    plot_r = round.((getvalue.(gm.soldict[:r_orbit]) .- op.rE)./1e3, sigdigits = 5)
+    ords = Int.(round.(getvalue.(gm.soldict[:sat_order])))
+    tas = round.(getvalue.(gm.soldict[:ta]), sigdigits=3)
+    times = round.(getvalue.(gm.soldict[:t_maneuver])./(24*3600), sigdigits=3) # days
+    revs = round.(getvalue.(gm.soldict[:N_orbit]), sigdigits=5)
+    refuels = round.(getvalue.(gm.soldict[:fuel_needed]), sigdigits=5)
+    transfuels = round.(getvalue.(gm.soldict[:masses][:,1] .- gm.soldict[:masses][:,5]), sigdigits=5)
     n_trans = op.n_sats - 1
 
     # # Printing results
     println("Orbit altitudes (km) : $(plot_r)")
     println("Satellite order: $(ords)")
-    println("True anomalies (radians): $(round.(getvalue.(m[:ta]), sigdigits=3))")
+    println("True anomalies (radians): $(tas)")
     println("Orbital revolutions: $(revs)")
     println("Time for maneuvers (days): $(times)")
     println("Maneuver fuel (kg): $(transfuels)")

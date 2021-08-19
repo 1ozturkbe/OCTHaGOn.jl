@@ -11,8 +11,8 @@ nonlinear_model can contain JuMP.NonlinearConstraints.
     vars::Array{JuMP.VariableRef} = JuMP.all_variables(model)    # JuMP variables
     objective = JuMP.objective_function(model)                # Original objective function
     solution_history::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Solution history
-    feas_history::Array = []                                     # Constraint feasibility history
     cost::Array = []                                             # List of costs. 
+    soldict::Dict = Dict()                                       # For solution extraction
     params::Dict = gm_defaults()                                 # GM settings
 end
 
@@ -369,8 +369,6 @@ function evaluate_accuracy(bbr::BlackBoxRegressor)
     end
 end
 
-evaluate_accuracy(bbls::Array{BlackBoxLearner}) = evaluate_accuracy.(bbls)
-evaluate_accuracy(bbls::Array{BlackBoxClassifier}) = evaluate_accuracy.(bbls)
 evaluate_accuracy(gm::GlobalModel) = evaluate_accuracy.(gm.bbls)
 
 """ 
@@ -413,39 +411,42 @@ Negative values -> constraint violation for BBCs,
 Positive values -> constraint violation for BBC equalities, 
                     regression overestimation for BBRs.
 """
-function feas_gap(gm::GlobalModel)
-    soln = solution(gm)
+function feas_gap(gm::GlobalModel, soln = solution(gm))
     for bbl in gm.bbls
         if bbl isa BlackBoxClassifier && !isnothing(bbl.constraint)
-            eval!(bbl, soln)
-            maxY = maximum(filter(!isinf, bbl.Y))
-            minY = minimum(filter(!isinf, bbl.Y))
-            push!(bbl.feas_gap, bbl.Y[end] ./ (maxY - minY))
-            for ll in bbl.lls
+            for ll in bbl.lls # LL feas_gaps evaluated first, for descent function
                 eval!(bbl, DataFrame(string.(bbl.vars) .=> values(soln[1, string.(ll.vars)])))
-                push!(ll.feas_gap, bbl.Y[end] ./ (maxY - minY))
+                push!(ll.feas_gap, bbl.Y[end] ./ (bbl.max_Y - bbl.min_Y))
             end
-        elseif bbl isa BlackBoxRegressor && !isnothing(bbl.constraint)
             eval!(bbl, soln)
-            maxY = maximum(filter(!isinf, bbl.Y))
-            minY = minimum(filter(!isinf, bbl.Y))
-            optimum = JuMP.getvalue(bbl.dependent_var)
-            actual = bbl.Y[end]
-            push!(bbl.optima, optimum)
-            push!(bbl.actuals, actual)
-            push!(bbl.feas_gap, (optimum-actual) / (maxY - minY))
-            for ll in bbl.lls
+            push!(bbl.feas_gap, bbl.Y[end] ./ (bbl.max_Y - bbl.min_Y))
+        elseif bbl isa BlackBoxRegressor && !isnothing(bbl.constraint)
+            for ll in bbl.lls # LL feas_gaps evaluated first, for descent function
                 eval!(bbl, DataFrame(string.(bbl.vars) .=> values(soln[1, string.(ll.vars)])))
-                optimum = JuMP.getvalue(ll.dependent_var)
+                optimum = soln[:, string(ll.dependent_var)][1]
                 actual = bbl.Y[end]
                 push!(ll.optima, optimum)
                 push!(ll.actuals, actual)
-                push!(ll.feas_gap, (optimum-actual) / (maxY - minY))
+                push!(ll.feas_gap, (optimum-actual) / ((bbl.max_Y - bbl.min_Y)))
             end
+            eval!(bbl, soln)
+            optimum = soln[:, string(bbl.dependent_var)][1]
+            actual = bbl.Y[end]
+            push!(bbl.optima, optimum)
+            push!(bbl.actuals, actual)
+            push!(bbl.feas_gap, (optimum-actual) / ((bbl.max_Y - bbl.min_Y)))
         elseif bbl isa BlackBoxClassifier && isnothing(bbl.constraint)
+            for ll in bbl.lls # LL feas_gaps evaluated first, for descent function
+                push!(ll.feas_gap, 0)
+            end
             push!(bbl.feas_gap, 0) # data constraints are always feasible
         elseif bbl isa BlackBoxRegressor && isnothing(bbl.constraint)
-            optimum = JuMP.getvalue(bbl.dependent_var)
+            for ll in bbl.lls # LL feas_gaps evaluated first, for descent function
+                optimum = soln[:, string(ll.dependent_var)][1]
+                push!(ll.optima, optimum)
+                push!(ll.feas_gap, 0) # data constraints are always feasible
+            end
+            optimum = soln[:, string(bbl.dependent_var)][1]
             push!(bbl.optima, optimum)
             push!(bbl.feas_gap, 0) # data constraints are always feasible
         end

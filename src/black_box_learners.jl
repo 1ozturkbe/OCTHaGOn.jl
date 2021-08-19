@@ -98,6 +98,8 @@ Optional arguments:
     vexity::Dict = Dict{Int64, Tuple}()                # Size and convexity of leaves
     knn_tree::Union{KDTree, Nothing} = nothing         # KNN tree
     params::Dict = bbr_defaults(length(vars))          # Relevant settings
+    max_Y::Real = 0.
+    min_Y::Real = 0.
 end
 
 function Base.show(io::IO, bbr::BlackBoxRegressor)
@@ -166,6 +168,8 @@ Optional arguments:
     accuracies::Array{Float64} = []                    # and the tree misclassification scores.
     knn_tree::Union{KDTree, Nothing} = nothing         # KNN tree
     params::Dict = bbc_defaults(length(vars))          # Relevant settings
+    max_Y::Real = 0.
+    min_Y::Real = 0.
 end
 
 function Base.show(io::IO, bbc::BlackBoxClassifier)
@@ -517,9 +521,7 @@ Threshold sets the border of being considered for convex regression.
 """
 function update_vexity(bbl::BlackBoxLearner, t::Int64 = 5)
     update_local_convexity(bbl)
-    maxY = maximum(filter(!isinf, bbl.Y))
-    minY = minimum(filter(!isinf, bbl.Y))
-    thresh = 1e-10 * (maxY - minY)
+    thresh = 1e-10 * (bbl.max_Y - bbl.min_Y)
     if bbl.local_convexity == 1.0
         if bbl isa BlackBoxRegressor
             # Checking against quasi_convexity with 5 random points

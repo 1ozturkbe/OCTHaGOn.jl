@@ -132,51 +132,38 @@ function test_concave_regressors(gm::GlobalModel = gear(true))
     @test init_constraints == sum(length(all_constraints(gm.model, type[1], type[2])) for type in JuMP.list_of_constraint_types(gm.model))
 end
 
-function recipe(gm::GlobalModel)
-    @info "GlobalModel " * gm.name * " in progress..."
-    set_optimizer(gm, CPLEX_SILENT)
-    uniform_sample_and_eval!(gm)
-    set_param(gm, :ignore_accuracy, true)
-    set_param(gm, :ignore_feasibility, true)
-    for bbl in gm.bbls
-        learn_constraint!(bbl)
-        add_tree_constraints!(gm, bbl)
-    end
-    optimize!(gm)    
-    add_infeasibility_cuts!(gm)
-    optimize!(gm)
-    while (gm.cost[end] - gm.cost[end-1]) > get_param(gm, :abstol)
-        add_infeasibility_cuts!(gm)
-        optimize!(gm)
-    end
-end 
+function test_descent()
+    gm = minlp(true)
+    x0 = DataFrame(string.(gm.vars) .=> [0, 1, 0, 1, 0, 1, 5])
+    append!(gm.solution_history, x0)
+    append!(gm.cost, 5)
+    feas_gap(gm, x0)
+    descend!(gm, max_iterations = 400)
+    @test isapprox(gm.cost[end], 6.09; atol = 3)
 
-function optimize_and_time!(m::Union{JuMP.Model, GlobalModel})
-    t1 = time()
-    if m isa JuMP.Model
-        optimize!(m);
-    else
-        recipe(m)
-    end
-    println("Model solution time: " * string(time()-t1) * " seconds.")
+    gm = pool1(true)
+    x0 = DataFrame(string.(gm.vars) .=> [4.0, 3.0, 1.0, 4.0, 0, 7, 0])
+    append!(gm.solution_history, x0)
+    append!(gm.cost, 100)
+    feas_gap(gm, x0)
+    descend!(gm, max_iterations = 100)
+    @test isapprox(gm.cost[end], 23; atol = 3)
+
+    gm = nlp3(true)
+    x0 = DataFrame(string.(gm.vars) .=>
+    [1728.71, 16000.0, 69.9795, 3056.32,  2000.0,  91.323, 94.7197, 11.5857, 2.26271, 151.159, -1600.81])
+    append!(gm.solution_history, x0)
+    append!(gm.cost, -1600)
+    feas_gap(gm, x0)
+    descend!(gm, max_iterations = 100)
+    @test isapprox(gm.cost[end], -1161; atol = 4)
 end
 
-# function refine_equality_tree()
-#     gm = nlp3(true)
-#     recipe(gm)
-#     feas_tol = get_param(gm, :tighttol)
-#     for bbl in gm.bbls
-#         if bbl.equality && abs(bbl.feas_gap[end]) >= feas_tol
-#             sol = DataFrame(gm.solution_history[end, string.(bbl.vars)])
-#             learn_constraint!(bbl, sample_weight = reweight(bbl, sol))
-#             update_tree_constraints!(gm, bbl)
-#         end
-#     end
-#     if bbr.feas_gap[end] <= 0 && bbr.feas_gap[end]/max_gap <= -feas_tol 
-#         update_tree_constraints!(gm, bbr)
-#     end
-#     @test true
-# end
+function test_recipe()
+    gm = nlp2(true)
+    globalsolve_and_time!(gm)
+    @test isapprox(gm.cost[end], 201; atol = 3)
+end
 
 test_baron_solve()
 
@@ -191,3 +178,5 @@ test_feasibility_sample()
 test_survey_method()
 
 test_concave_regressors()
+
+test_descent()

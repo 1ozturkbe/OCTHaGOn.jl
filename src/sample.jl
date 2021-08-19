@@ -162,11 +162,14 @@ function uniform_sample_and_eval!(bbl::BlackBoxLearner;
             end
         end
     end
+    bbl.max_Y = maximum(filter(!isinf, bbl.Y))
+    bbl.min_Y = minimum(filter(!isinf, bbl.Y))
+    # TODO: update these mx/min Y more frequently. 
     # Setting vague bounds for the dependent variable. 
     # This is the only big-M required in the formulation, adding 50% margin to all observed Y values. 
     if bbl isa BlackBoxRegressor
-        min_Y = minimum(bbl.Y)
-        max_Y = maximum(bbl.Y)
+        max_Y = bbl.max_Y
+        min_Y = bbl.min_Y
         lower_margined_bound = min_Y - (max_Y - min_Y)/2
         upper_margined_bound = max_Y + (max_Y - min_Y)/2
         if !JuMP.has_lower_bound(bbl.dependent_var)
