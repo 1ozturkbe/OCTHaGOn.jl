@@ -104,7 +104,13 @@ function generate_variables!(model::JuMP.Model, gams::Dict{String, Any})
     return vardict, constdict
 end
 
-""" Converts a GAMS optimization model to a GlobalModel."""
+""" 
+    GAMS_to_GlobalModel(GAMS_DIR::String, filename::String)
+
+Converts a GAMS optimization model to a GlobalModel.
+GAMS_DIR is the directory to look in, while the filename
+is the name of the .gms file. 
+"""
 function GAMS_to_GlobalModel(GAMS_DIR::String, filename::String)
     model = JuMP.Model()
     # Parsing GAMS Files

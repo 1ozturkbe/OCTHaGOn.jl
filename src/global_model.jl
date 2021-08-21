@@ -241,8 +241,8 @@ function add_nonlinear_or_compatible(gm::GlobalModel,
 end
 
 """
-    add_linked_constraint(bbc::BlackBoxClassifier, linked_vars::Array{JuMP.Variable})
-    add_linked_constraint(bbr::BlackBoxRegressor, linked_vars::Array{JuMP.Variable}, linked_dependent::JuMP.Variable)
+    add_linked_constraint(gm::GlobalModel, bbc::BlackBoxClassifier, linked_vars::Array{JuMP.Variable})
+    add_linked_constraint(gm::GlobalModel, bbr::BlackBoxRegressor, linked_vars::Array{JuMP.Variable}, linked_dependent::JuMP.Variable)
 
 Adds variables that obey the same constraint structure. 
 Use in case when a nonlinear constraint is repeated more than once, so that the underlying
