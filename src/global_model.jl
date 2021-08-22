@@ -217,11 +217,11 @@ function add_nonlinear_or_compatible(gm::GlobalModel,
             constr_expr = Base.invokelatest(fn, expr_vars...)
             if constr_expr isa JuMP.GenericAffExpr || get_param(gm, :convex_constrs)
                 if equality && !isnothing(dependent_var)
-                    @constraint(gm.model, constr_expr == dependent_var)
+                    @constraint(gm.model, dependent_var == constr_expr)
                 elseif equality
                     @constraint(gm.model, constr_expr == 0)
                 elseif !isnothing(dependent_var)
-                    @constraint(gm.model, constr_expr >= dependent_var)
+                    @constraint(gm.model, dependent_var >= constr_expr)
                 else 
                     @constraint(gm.model, constr_expr >= 0)
                 end
