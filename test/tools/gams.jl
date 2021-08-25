@@ -69,6 +69,8 @@ function generate_variables!(model::JuMP.Model, gams::Dict{String, Any})
                     JuMP.set_upper_bound.(model[Symbol(var)], 0)
                 elseif vinfo.typ == "binary"
                     JuMP.set_binary.(model[Symbol(var)])
+                    JuMP.set_lower_bound.(model[Symbol(var)], 0)
+                    JuMP.set_upper_bound.(model[Symbol(var)], 1)
                 elseif vinfo.typ == "integer"
                     JuMP.set_integer.(model[Symbol(var)])
                 else
