@@ -10,7 +10,7 @@ nonlinear_model can contain JuMP.NonlinearConstraints.
     bbls::Array{BlackBoxLearner} = BlackBoxLearner[]             # Constraints to be learned
     vars::Array{JuMP.VariableRef} = JuMP.all_variables(model)    # JuMP variables
     objective = JuMP.objective_function(model)                # Original objective function
-    solution_history::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Solution history
+    solution_history::DataFrame = DataFrame(string.(vars) .=> [Float64[] for i=1:length(vars)]) # Solution history
     cost::Array = []                                             # List of costs. 
     soldict::Dict = Dict()                                       # For solution extraction
     params::Dict = gm_defaults()                                 # GM settings
@@ -469,7 +469,7 @@ end
 function clear_data!(gm::GlobalModel)
     clear_tree_constraints!(gm, gm.bbls)
     clear_data!.(gm.bbls)
-    gm.solution_history = DataFrame([Float64 for i=1:length(gm.vars)], string.(gm.vars))
+    gm.solution_history = DataFrame(string.(gm.vars) .=> [Float64[] for i=1:length(gm.vars)])
 end
 
 update_vexity(gm::GlobalModel) = update_vexity.(gm.bbls)

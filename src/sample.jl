@@ -63,7 +63,7 @@ function boundary_sample(vars::Array{JuMP.VariableRef, 1}; n_samples::Int64 = 10
     else
         n_comb = 1e6
     end
-    nX = DataFrame([Float64 for i in vks], vks)
+    nX = DataFrame(vks .=> [Float64[] for i in vks])
     sample_indices = [];
     if n_comb >= fraction*n_samples 
         @info("Can't exhaustively sample the boundary of Constraint " * string(warn_string) * ".")
@@ -107,7 +107,7 @@ function knn_sample(bbl::BlackBoxClassifier; k::Int64 = 10, tighttol = 1e-5, sam
                             infeasible sample to be KNN-sampled!"))
     end
     vks = string.(bbl.vars)
-    df = DataFrame([Float64 for i in vks], vks)
+    df = DataFrame(vks .=> [Float64[] for i in vks])
     build_knn_tree(bbl);
     idxs, dists = find_knn(bbl, k=k);
     feas_class = classify_patches(bbl, idxs);

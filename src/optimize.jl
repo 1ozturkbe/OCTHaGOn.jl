@@ -139,7 +139,7 @@ function descend!(gm::GlobalModel; kwargs...)
     
     var_max = [maximum(gm_bounds[key]) for key in vars]
     var_min = [minimum(gm_bounds[key]) for key in vars]
-    grad_shell = DataFrame([Float64 for i=1:length(vars)], string.(vars))
+    grad_shell = DataFrame(string.(vars) .=> [Float64[] for i=1:length(vars)])
 
     # Final checks
     obj_gradient = copy(grad_shell)

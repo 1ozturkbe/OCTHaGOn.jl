@@ -71,12 +71,13 @@ Optional arguments:
     datamap::Union{Nothing,Array} = get_datamap(expr_vars, vars)     # ... with the required datamapping.
     f::Union{Nothing, Function} = functionify(constraint)         # ... and actually evaluated f'n
     g::Union{Nothing, Function} = gradientify(constraint, expr_vars)   # ... and its gradient f'n
-    X::DataFrame = DataFrame([Float64 
-                 for i=1:length(vars)], string.(vars)) # Function samples
+    X::DataFrame = DataFrame(string.(vars) .=> [Float64[] 
+    for i=1:length(vars)]) # Function samples
     Y::Array = []                                      # Function values
     gradients::Union{Nothing, DataFrame} = nothing     # Gradients 
     curvatures::Union{Nothing, Array} = nothing        # Curvature around the points
-    infeas_X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Infeasible samples, if any
+    infeas_X::DataFrame = DataFrame(string.(vars) .=> [Float64[] 
+    for i=1:length(vars)]) # Infeasible samples, if any
     equality::Bool = false                             # Equality check
     learners::Array{Union{IAI.OptimalTreeRegressor, IAI.OptimalTreeClassifier,
                           IAI.Heuristics.RandomForestRegressor}} = []     # Learners...
@@ -146,7 +147,7 @@ Optional arguments:
     datamap::Union{Nothing,Array} = get_datamap(expr_vars, vars)     # ... with the required datamapping.
     f::Union{Nothing, Function} = functionify(constraint)         # ... and actually evaluated f'n
     g::Union{Nothing, Function} = gradientify(constraint, expr_vars)   # ... and its gradient f'n
-    X::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars))
+    X::DataFrame = DataFrame(string.(vars) .=> [Float64[] for i=1:length(vars)])
                                                        # Function samples
     Y::Array = []                                      # Function values
     gradients::Union{Nothing, DataFrame} = nothing     # Gradients
@@ -216,12 +217,12 @@ function add_data!(bbc::BlackBoxClassifier, X::DataFrame, Y::Array)
         bbc.feas_ratio = (bbc.feas_ratio*size(bbc.X,1) + sum(Y .>= 0))/(size(bbc.X, 1) + length(Y))
     end
     if isnothing(bbc.gradients) && get_param(bbc, :gradients) # TODO: improve the gradient DF init. 
-        bbc.gradients = DataFrame([Union{Missing, Float64} for i=1:length(bbc.vars)], string.(bbc.vars)) 
+        bbc.gradients = DataFrame(string.(bbc.vars) .=> [Union{Missing, Float64}[] for i=1:length(bbc.vars)]) 
         bbc.curvatures = Union{Missing, Float64}[]
     end
     if !isnothing(bbc.gradients)
-        append!(bbc.gradients, DataFrame(missings(size(X, 1), 
-                                length(bbc.vars)), string.(bbc.vars)), cols=:intersect)
+        append!(bbc.gradients, DataFrame(string.(bbc.vars) .=> 
+            [missings(size(X, 1)) for i=1: length(bbc.vars)]), cols=:intersect)
         append!(bbc.curvatures, missings(size(X,1)))   
     end    
     append!(bbc.X, X, cols=:intersect)
@@ -241,23 +242,23 @@ function add_data!(bbr::BlackBoxRegressor, X::DataFrame, Y::Array)
     throw(OCTException("A majority of samples on BBR $(bbr.name) evaluated as infeasible. " * 
         "Please check your expressions. "))
     if isnothing(bbr.gradients) && get_param(bbr, :gradients) 
-        bbr.gradients = DataFrame([Union{Missing, Float64} for i=1:length(bbr.vars)], string.(bbr.vars)) 
+        bbr.gradients = DataFrame(string.(bbr.vars) .=> [Union{Missing, Float64}[] for i=1:length(bbr.vars)]) 
         bbr.curvatures = Union{Missing, Float64}[]
     end 
     if !isempty(infeas_idxs)
         append!(bbr.infeas_X, X[infeas_idxs, :], cols=:intersect)
         clean_X = delete!(X, infeas_idxs)
         if !isnothing(bbr.gradients)
-            append!(bbr.gradients, DataFrame(missings(size(clean_X, 1), 
-                                length(bbr.vars)), string.(bbr.vars)), cols=:intersect)
+            append!(bbr.gradients, DataFrame(string.(bbr.vars) .=> 
+                        [missings(size(clean_X, 1)) for i=1:length(bbr.vars)]), cols=:intersect)
             append!(bbr.curvatures, missings(size(clean_X,1)))
         end
         append!(bbr.X, clean_X, cols=:intersect)
         append!(bbr.Y, deleteat!(Y, infeas_idxs))
     else
         if !isnothing(bbr.gradients)
-            append!(bbr.gradients, DataFrame(missings(size(X, 1), 
-                               length(bbr.vars)), string.(bbr.vars)), cols=:intersect)
+            append!(bbr.gradients, DataFrame(string.(bbr.vars) .=> 
+                        [missings(size(X, 1)) for i=1:length(bbr.vars)]), cols=:intersect)
             append!(bbr.curvatures, missings(size(X,1)))
         end
         append!(bbr.X, X, cols=:intersect)
@@ -385,7 +386,7 @@ Deletes all data (NOT constraints) associated with object.
 Please clear constraints using the clear_tree_constraints! function. 
 """
 function clear_data!(bbc::BlackBoxClassifier)
-    bbc.X = DataFrame([Float64 for i=1:length(bbc.vars)], string.(bbc.vars))
+    bbc.X = DataFrame(string.(bbc.vars) .=> [Float64[] for i=1:length(bbc.vars)])
     bbc.Y = [];
     bbc.gradients = nothing
     bbc.curvatures = nothing
@@ -394,11 +395,11 @@ function clear_data!(bbc::BlackBoxClassifier)
 end
 
 function clear_data!(bbr::BlackBoxRegressor)
-    bbr.X = DataFrame([Float64 for i=1:length(bbr.vars)], string.(bbr.vars))
+    bbr.X = DataFrame(string.(bbr.vars) .=> [Float64[] for i=1:length(bbr.vars)])
     bbr.Y = []
     bbr.gradients = nothing
     bbr.curvatures = nothing
-    bbr.infeas_X = DataFrame([Float64 for i=1:length(bbr.vars)], string.(bbr.vars));
+    bbr.infeas_X = DataFrame(string.(bbr.vars) .=> [Float64[] for i=1:length(bbr.vars)]);
     clear_tree_data!(bbr)
                        
 end
