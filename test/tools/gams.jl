@@ -82,8 +82,11 @@ function generate_variables!(model::JuMP.Model, gams::Dict{String, Any})
                     inds = map(x->x.val, prop.indices)
                     nv = model[Symbol(var)][inds...]
                     c = val.val
-                    if prop.name ∈ ("l", "fx")
+                    if prop.name =="l"
                         JuMP.set_start_value(nv, c)
+                    elseif prop.name == "fx"
+                        JuMP.set_lower_bound(nv, c)
+                        JuMP.set_upper_bound(nv, c)
                     elseif prop.name == "lo"
                         JuMP.set_lower_bound(nv, c)
                     elseif prop.name == "up"
@@ -92,8 +95,11 @@ function generate_variables!(model::JuMP.Model, gams::Dict{String, Any})
                 else
                     nv = model[Symbol(var)]
                     c = val.val
-                    if prop.text ∈ ("l", "fx")
+                    if prop.text == "l"
                         JuMP.set_start_value(nv, c)
+                    elseif prop.text == "fx"
+                        JuMP.set_lower_bound(nv, c)
+                        JuMP.set_upper_bound(nv, c)
                     elseif prop.text == "lo"
                         JuMP.set_lower_bound(nv, c)
                     elseif prop.text == "up"
