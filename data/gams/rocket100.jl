@@ -16,9 +16,10 @@ function rocket100()
     symbs = [Symbol("x$(i)") for i=2:608]
     append!(x, [model[symb] for symb in symbs])
     model[:x] = x
+    @objective(model, Min, objvar)
     
     # Initializing GM
-    gm = GlobalModel(model = model, name = filename)
+    gm = GlobalModel(model = model, name = "rocket100.gms")
 
 
     # (Re)writing constraints
@@ -34,8 +35,36 @@ function rocket100()
         add_linked_constraint(gm, gm.bbls[end], [x[104+i], x[205+i]])
     end
 
-    @constraint(gm.model, - objvar >= x[204])
+    @constraint(gm.model, -objvar >= x[204])
     @objective(gm.model, Min, objvar)
+
+    add_nonlinear_constraint(gm, :(x -> -0.5*x[2]*(x[3] + x[4]) - x[104] + x[105]),
+                             name = "e204", vars = [x[2], x[3], x[4], x[104], x[105]], equality = true)
+    for i=1:99
+        add_linked_constraint(gm, gm.bbls[end], [x[2], x[3+i], x[4+i], x[104+i], x[105+i]])
+    end
+
+    add_nonlinear_constraint(gm, :(x -> -0.5*((x[408] - x[307]*x[206] - x[509])/x[307] + (x[407] - x[306]*x[205] - x[508])/x[306]) *
+                                   x[2] - x[3] + x[4]),
+                                   name = "e304", vars = [x[2], x[3], x[4], x[205], x[206], x[306], 
+                                                          x[307], x[407], x[408], x[508], x[509]], equality = true)
+
+    for i=1:99
+        add_linked_constraint(gm, gm.bbls[end], [x[2], x[3+i], x[4+i], x[205+i], x[206+i], x[306+i], 
+                                                 x[307+i], x[407+i], x[408+i], x[508+i], x[509+i]]) 
+    end
+
+    add_nonlinear_constraint(gm, :(x -> x[2]*(x[407] + x[408]) - x[306] + x[307]), 
+                                   name = "e404", vars = [x[2], x[306], x[307], x[407], x[408]], equality = true)
+
+    for i=1:99
+        add_linked_constraint(gm, gm.bbls[end], [x[2], x[306+i], x[307+i], x[407+i], x[408+i]])
+    end
 
     return gm
 end
+
+using Ipopt
+set_optimizer(gm.model, Ipopt.Optimizer)
+nonlinearize!(gm)
+optimize!(gm)

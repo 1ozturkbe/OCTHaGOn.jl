@@ -284,6 +284,8 @@ function descend!(gm::GlobalModel; kwargs...)
     if ct >= max_iterations && abs(d_improv) >= abstol
         @info("Max iterations ($(ct)) reached, but descent not converged to tolerance!" * 
               " Please descend further, perhaps with reduced step sizes.")
+        fincost = round(gm.cost[end], digits = -Int(round(log10(abstol))))
+        @info("Final cost is $(fincost).")
     elseif ct >= max_iterations && !all([bbl.feas_gap[end] for bbl in gm.bbls] .>= 0)
         @info("Max iterations ($(ct)) reached, but solution is not feasible!" * 
               " Please observe the cost evolution, descend again, or relax your constraints.")
