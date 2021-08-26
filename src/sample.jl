@@ -96,12 +96,12 @@ end
 
 
 """
-    knn_sample(bbl::BlackBoxClassifier; k::Int64 = 10, tighttol = 1e-5, sample_idxs = nothing)
+    knn_sample(bbl::BlackBoxClassifier; k::Int64 = 10, tighttol = 1e-6, sample_idxs = nothing)
 
 Does KNN and secant method based sampling once there is at least one feasible
     sample to a BlackBoxLearner.
 """
-function knn_sample(bbl::BlackBoxClassifier; k::Int64 = 10, tighttol = 1e-5, sample_idxs = nothing, sign = 1)
+function knn_sample(bbl::BlackBoxClassifier; k::Int64 = 10, tighttol = 1e-6, sample_idxs = nothing, sign = 1)
     if bbl.feas_ratio == 0. || bbl.feas_ratio == 1.0
         throw(OCTException("Constraint " * string(bbl.name) * " must have at least one feasible or
                             infeasible sample to be KNN-sampled!"))
@@ -140,7 +140,7 @@ Keyword arguments:
 """
 function uniform_sample_and_eval!(bbl::BlackBoxLearner;
                           boundary_fraction::Float64 = 0.5,
-                          lh_iterations::Int64 = 0, tighttol = 1.e-5)
+                          lh_iterations::Int64 = 0, tighttol = 1.e-6)
     @assert size(bbl.X, 1) == 0 #TODO: fix this w.r.t. data-driven constraints. 
     vks = string.(bbl.vars)
     n_dims = length(vks);
@@ -190,7 +190,7 @@ function uniform_sample_and_eval!(bbl::BlackBoxLearner;
     return 
 end
 
-function uniform_sample_and_eval!(bbls::Array{BlackBoxLearner}; lh_iterations = 0, tighttol = 1e-5) 
+function uniform_sample_and_eval!(bbls::Array{BlackBoxLearner}; lh_iterations = 0, tighttol = 1e-6) 
     for bbl in bbls 
         uniform_sample_and_eval!(bbl, lh_iterations = lh_iterations, tighttol = tighttol)
     end

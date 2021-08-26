@@ -26,13 +26,14 @@ function gm_defaults()
          :sample_coeff => 200,
          :sample_density => 1e-5,
          :abstol => 1e-4,
-         :tighttol => 1e-5,    # sets how close samples can be. 
+         :tighttol => 1e-6, # sets equality constraint tolerance. 
          :convex_constrs => false,
          # Params for gradient descent
          :max_iterations => 100,
          :step_size => 1e-3,
-         :step_penalty => 1e4,
-         :decay_rate => 2
+         :step_penalty => 1e6,
+         :decay_rate => 2,
+         :equality_penalty => 1e10,
     )
 end
 
