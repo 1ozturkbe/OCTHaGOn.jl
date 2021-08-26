@@ -465,6 +465,26 @@ function print_feas_gaps(gm::GlobalModel)
     return
 end
 
+""" Shows feasibility of last solution w.r.t. each approximated constraint. """
+function is_feasible(bbl::Union{BlackBoxLearner, LinkedLearner}, tighttol = 1e-6)
+    if bbl.equality
+        return abs(bbl.feas_gap[end]) <= tighttol
+    else
+        return bbl.feas_gap[end] >= 0
+    end
+end
+
+""" Returns the feasibility of the GlobalModel. """
+function is_feasible(gm::GlobalModel)
+    for bbl in gm.bbls
+        is_feasible(bbl) || return false
+        for ll in bbl.lls
+            is_feasible(ll) || return false
+        end
+    end
+    return true
+end
+
 """ Clears all sampling, training and optimization data from GlobalModel."""
 function clear_data!(gm::GlobalModel)
     clear_tree_constraints!(gm, gm.bbls)
