@@ -473,3 +473,37 @@ function clear_data!(gm::GlobalModel)
 end
 
 update_vexity(gm::GlobalModel) = update_vexity.(gm.bbls)
+
+function print_details(gm::GlobalModel)
+    @info "GlobalModel $(name) has:"
+    n_vars = length(gm.vars)
+    @info "$(n_vars) variables,"
+    all_types = list_of_constraint_types(gm.model)
+    l_vartypes = [JuMP.VariableRef, JuMP.GenericAffExpr{Float64, VariableRef}]
+    l_constrs = []
+    nl_constrs = []
+    l_constypes = [MOI.GreaterThan{Float64}, MOI.LessThan{Float64}, MOI.EqualTo{Float64}]
+    for (vartype, constype) in all_types
+        constrs_of_type = JuMP.all_constraints(gm.model, vartype, constype)
+        if any(vartype .== l_vartypes) && any(constype .== l_constypes)
+            append!(l_constrs, constrs_of_type)
+        else
+            append!(nl_constrs, constrs_of_type)
+        end
+    end
+    @info "$(length(l_constrs)) linear constraints."
+    @info "$(length(nl_constrs)) nonlinear constraints."
+
+    n_eqs = length(findall(x -> x.equality, gm.bbls))
+    n_ineqs = length(gm.bbls) - n_eqs
+    obj_bbl = filter(x -> x.dependent_var == gm.objective, 
+    [bbl for bbl in gm.bbls if bbl isa BlackBoxRegressor])
+    @info "$(n_ineqs - length(obj_bbl)) black box inequalities,"
+    @info "$(n_eqs) black box equalities."
+    if isempty(obj_bbl)
+        @info "And a linear objective."
+    else
+        @info "And a nonlinear objective."
+    end
+    return
+end
