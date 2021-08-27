@@ -315,20 +315,30 @@ function descend!(gm::GlobalModel; kwargs...)
     delete(gm.model, d)
     return
 end
-function globalsolve!(gm::GlobalModel)
+
+""" Complete solution procedure for GlobalModel. """
+function OCT.globalsolve!(gm::GlobalModel, solver = CPLEX_SILENT)
     @info "GlobalModel " * gm.name * " solution in progress..."
-    set_optimizer(gm, CPLEX_SILENT)
-    uniform_sample_and_eval!(gm)
+    set_optimizer(gm.model, solver)
+    for bbl in gm.bbls
+        if !is_sampled(bbl)
+            uniform_sample_and_eval!(bbl)
+        end
+    end
     set_param(gm, :ignore_accuracy, true)
     set_param(gm, :ignore_feasibility, true)
     @info "Training OptimalTreeLearners..."
     for bbl in gm.bbls
-        learn_constraint!(bbl)
-        add_tree_constraints!(gm, bbl)
+        if isempty(bbl.learners)
+            learn_constraint!(bbl)
+        end
+        if isempty(bbl.mi_constraints) 
+            add_tree_constraints!(gm, bbl)
+        end
     end
     @info "Solving MIP..."
     optimize!(gm)    
-    descend!(gm)
+    descend!(gm) 
 end 
 
 function globalsolve_and_time!(m::Union{JuMP.Model, GlobalModel})
