@@ -92,8 +92,9 @@ function tight_objective!(gm::GlobalModel)
     @objective(gm.model, Min, gm.objective)
 end
 
+
 """
-    descend!(gm::GlobalModel; kwargs...)
+descend!(gm::GlobalModel; kwargs...)
 
 Performs gradient descent on the last optimal solution in gm.solution_history.
 In case of infeasibility, first projects the feasible point using the local
@@ -141,6 +142,9 @@ function descend!(gm::GlobalModel; kwargs...)
     var_min = [minimum(gm_bounds[key]) for key in vars]
     grad_shell = DataFrame(string.(vars) .=> [Float64[] for i=1:length(vars)])
 
+    # Add relaxation variables
+    add_relaxation_variables!(gm)
+
     # Final checks
     obj_gradient = copy(grad_shell)
     if isnothing(obj_bbl)
@@ -168,16 +172,17 @@ function descend!(gm::GlobalModel; kwargs...)
     d = @variable(gm.model, [1:length(vars)])
     ct = 0
     d_improv = 1e5
+    feas = is_feasible(gm)
     abstol = get_param(gm, :abstol)
     max_iterations = get_param(gm, :max_iterations)
     step_penalty = get_param(gm, :step_penalty)
+    equality_penalty = get_param(gm, :equality_penalty)
     step_size = get_param(gm, :step_size) 
     decay_rate = get_param(gm, :decay_rate)
 
     # WHILE LOOP
     @info("Starting projected gradient descent...")
-    while ((!all([bbl.feas_gap[end] for bbl in gm.bbls] .>= 0) ||
-         abs(d_improv) >= get_param(gm, :abstol)) && ct < max_iterations) || ct == 0
+    while (!feas || d_improv >= get_param(gm, :abstol) || ct == 0) && ct < max_iterations
         prev_obj = gm.cost[end]
         constrs = []
         ct += 1
@@ -194,17 +199,8 @@ function descend!(gm::GlobalModel; kwargs...)
                               obj_bbl.dependent_var >= obj_bbl.Y[end])])
         end
 
-        # Initializing descent direction
-        push!(constrs, @constraint(gm.model, d .== vars .- Array(sol_vals[end,:])))
-        if all([bbl.feas_gap[end] for bbl in gm.bbls] .>= 0)
-            push!(constrs, @constraint(gm.model, sum((d ./ (var_max .- var_min)).^2) <= 
-                    step_size/exp(decay_rate*(ct-1)/max_iterations)))
-            @objective(gm.model, Min, sum(Array(obj_gradient[end,:]) .* d))
-        else # Project if the current solution is infeasible. 
-            @objective(gm.model, Min, sum(Array(obj_gradient[end,:]) .* d) + 1e4*sum((d ./ (var_max .- var_min)).^2))
-        end
-
         # Constraint evaluation
+        errors = 0
         for bbl in bbls
             update_gradients(bbl, [length(bbl.Y)])
             constr_gradient = copy(grad_shell)
@@ -212,13 +208,17 @@ function descend!(gm::GlobalModel; kwargs...)
             constr_gradient = coalesce.(constr_gradient, 0)
             if bbl isa BlackBoxClassifier # TODO: add LL cuts
                 if bbl.equality
-                    push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + bbl.Y[end] == 0))
+                    push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + bbl.Y[end] >= -bbl.relax_var))
+                    push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + bbl.Y[end] <= bbl.relax_var))
+                    errors += bbl.relax_var.^2
                 else
                     push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + bbl.Y[end] >= 0))
                 end
             elseif bbl isa BlackBoxRegressor
                 if bbl.equality
-                    push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + bbl.dependent_var == bbl.Y[end]))
+                    push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + bbl.dependent_var >= bbl.Y[end] - bbl.relax_var))
+                    push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + bbl.dependent_var <= bbl.Y[end] + bbl.relax_var))
+                    errors += bbl.relax_var.^2
                 else
                     push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + bbl.dependent_var >= bbl.Y[end]))
                 end
@@ -235,13 +235,17 @@ function descend!(gm::GlobalModel; kwargs...)
                     Y_val = bbl.Y[end-n_lls-1+i]
                     if bbl isa BlackBoxClassifier # TODO: add LL cuts
                         if bbl.equality
-                            push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + Y_val == 0))
+                            push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + Y_val >= -ll.relax_var))
+                            push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + Y_val <= ll.relax_var))
+                            errors += ll.relax_var.^2
                         else
                             push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + Y_val >= 0))
                         end
                     elseif bbl isa BlackBoxRegressor
                         if bbl.equality
-                            push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + ll.dependent_var == Y_val))
+                            push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + ll.dependent_var >= Y_val - ll.relax_var))
+                            push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + ll.dependent_var <= Y_val + ll.relax_var))
+                            error += ll.relax_var.^2
                         else
                             push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + ll.dependent_var >= Y_val))
                         end
@@ -250,11 +254,19 @@ function descend!(gm::GlobalModel; kwargs...)
             end
         end
 
+        # Initializing descent direction
+        push!(constrs, @constraint(gm.model, d .== vars .- Array(sol_vals[end,:])))
+        if feas # Small gradient step
+            push!(constrs, @constraint(gm.model, sum((d ./ (var_max .- var_min)).^2) <= 
+                step_size/exp(decay_rate*(ct-1)/max_iterations)))
+            @objective(gm.model, Min, sum(Array(obj_gradient[end,:]) .* d) + equality_penalty*errors)
+
+        else    # Projection step
+            @objective(gm.model, Min, sum(Array(obj_gradient[end,:]) .* d) + step_penalty*sum((d ./ (var_max .- var_min)).^2) + equality_penalty*errors)
+        end
+
         # Optimizing the step, and finding next x0
         optimize!(gm.model)
-        # @warn "Last solution was infeasible. Please check, reinitialize x0 with new trees," *
-        #         " or perhaps initialize with another x0."
-        # TODO: perhaps try another method to restore feasibility? 
         x0 = DataFrame(string.(vars) .=> getvalue.(vars))
         if !isnothing(obj_bbl)
             x0[!, string(gm.objective)] = obj_bbl(x0)
@@ -270,6 +282,9 @@ function descend!(gm::GlobalModel; kwargs...)
             push!(gm.cost,  JuMP.getvalue(gm.objective))
         end
         d_improv = gm.cost[end-1] - gm.cost[end]
+
+        # Feasibility check
+        feas = is_feasible(gm)
 
         # Saving solution dict for JuMP-style recovery.
         # TODO: do not regenerate soldict unless final solution. 
@@ -291,7 +306,7 @@ function descend!(gm::GlobalModel; kwargs...)
               " Please observe the cost evolution, descend again, or relax your constraints.")
     else
         @info("PGD converged in $(ct) iterations!")
-        fincost = round(gm.cost[end], digits = -Int(round(log10(abstol))))
+        fincost = round(gm.cost[end], digits = -Int(round(log10(abstol)))-1)
         @info("The optimal cost is $(fincost).")
     end
 
@@ -300,7 +315,6 @@ function descend!(gm::GlobalModel; kwargs...)
     delete(gm.model, d)
     return
 end
-
 function globalsolve!(gm::GlobalModel)
     @info "GlobalModel " * gm.name * " solution in progress..."
     set_optimizer(gm, CPLEX_SILENT)

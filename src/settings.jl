@@ -33,7 +33,7 @@ function gm_defaults()
          :step_size => 1e-3,
          :step_penalty => 1e6,
          :decay_rate => 2,
-         :equality_penalty => 1e10,
+         :equality_penalty => 1e8,
     )
 end
 
