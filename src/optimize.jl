@@ -172,6 +172,7 @@ function descend!(gm::GlobalModel; kwargs...)
     d = @variable(gm.model, [1:length(vars)])
     ct = 0
     d_improv = 1e5
+    prev_feas = false
     feas = is_feasible(gm)
     abstol = get_param(gm, :abstol)
     max_iterations = get_param(gm, :max_iterations)
@@ -182,7 +183,9 @@ function descend!(gm::GlobalModel; kwargs...)
 
     # WHILE LOOP
     @info("Starting projected gradient descent...")
-    while (!feas || d_improv >= get_param(gm, :abstol) || ct == 0) && ct < max_iterations
+    while (!feas || !prev_feas ||
+        (prev_feas && feas && d_improv >= get_param(gm, :abstol)) ||
+        ct == 0) && ct < max_iterations
         prev_obj = gm.cost[end]
         constrs = []
         ct += 1
@@ -245,7 +248,7 @@ function descend!(gm::GlobalModel; kwargs...)
                         if bbl.equality
                             push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + ll.dependent_var >= Y_val - ll.relax_var))
                             push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + ll.dependent_var <= Y_val + ll.relax_var))
-                            error += ll.relax_var.^2
+                            errors += ll.relax_var.^2
                         else
                             push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + ll.dependent_var >= Y_val))
                         end
@@ -284,6 +287,7 @@ function descend!(gm::GlobalModel; kwargs...)
         d_improv = gm.cost[end-1] - gm.cost[end]
 
         # Feasibility check
+        prev_feas = feas
         feas = is_feasible(gm)
 
         # Saving solution dict for JuMP-style recovery.
