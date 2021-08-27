@@ -132,7 +132,7 @@ module OptimalConstraintTree
         # Checks and exceptions
         feasibility, check_accuracy, check_feasibility, 
         check_bounds,  check_sampled, check_if_trained,
-        OCTException, is_feasible, 
+        OCTException, is_feasible, is_sampled, 
 
         # Clean-up
         clear_data!, clear_tree_data!,

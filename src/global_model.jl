@@ -485,6 +485,11 @@ function is_feasible(gm::GlobalModel)
     return true
 end
 
+""" Checks whether a BBL or GM is sampled."""
+is_sampled(bbl::BlackBoxLearner) = size(bbl.X,1) != 0
+
+is_sampled(gm::GlobalModel) = all(is_sampled(bbl) for bbl in gm.bbls)
+
 """ Clears all sampling, training and optimization data from GlobalModel."""
 function clear_data!(gm::GlobalModel)
     clear_tree_constraints!(gm, gm.bbls)
