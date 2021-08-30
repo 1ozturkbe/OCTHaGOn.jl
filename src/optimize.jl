@@ -211,19 +211,25 @@ function descend!(gm::GlobalModel; kwargs...)
             constr_gradient = coalesce.(constr_gradient, 0)
             if bbl isa BlackBoxClassifier # TODO: add LL cuts
                 if bbl.equality
-                    push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + bbl.Y[end] >= -bbl.relax_var))
+                    push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + bbl.Y[end] + bbl.relax_var >= 0))
                     push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + bbl.Y[end] <= bbl.relax_var))
                     errors += bbl.relax_var.^2
-                else
+                elseif is_feasible(bbl)
                     push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + bbl.Y[end] >= 0))
+                else
+                    push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + bbl.Y[end] + bbl.relax_var >= 0))
+                    errors += bbl.relax_var.^2
                 end
             elseif bbl isa BlackBoxRegressor
                 if bbl.equality
-                    push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + bbl.dependent_var >= bbl.Y[end] - bbl.relax_var))
+                    push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + bbl.dependent_var + bbl.relax_var >= bbl.Y[end]))
                     push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + bbl.dependent_var <= bbl.Y[end] + bbl.relax_var))
                     errors += bbl.relax_var.^2
-                else
+                elseif is_feasible(bbl)
                     push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + bbl.dependent_var >= bbl.Y[end]))
+                else
+                    push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + bbl.Y[end] + bbl.relax_var >= 0))
+                    errors += bbl.relax_var.^2
                 end
             end
             if !isempty(bbl.lls)
@@ -238,19 +244,24 @@ function descend!(gm::GlobalModel; kwargs...)
                     Y_val = bbl.Y[end-n_lls-1+i]
                     if bbl isa BlackBoxClassifier # TODO: add LL cuts
                         if bbl.equality
-                            push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + Y_val >= -ll.relax_var))
-                            push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + Y_val <= ll.relax_var))
+                            push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + Y_val + ll.relax_var >= 0))
+                            push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + Y_val <= ll.relax_var))
                             errors += ll.relax_var.^2
-                        else
+                        elseif is_feasible(ll)
                             push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + Y_val >= 0))
+                        else
+                            push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + Y_val + ll.relax_var >= 0))
+                            errors += ll.relax_var.^2
                         end
                     elseif bbl isa BlackBoxRegressor
                         if bbl.equality
-                            push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + ll.dependent_var >= Y_val - ll.relax_var))
+                            push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + ll.dependent_var + ll.relax_var >= Y_val))
                             push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + ll.dependent_var <= Y_val + ll.relax_var))
                             errors += ll.relax_var.^2
-                        else
+                        elseif is_feasible(ll)
                             push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + ll.dependent_var >= Y_val))
+                        else
+                            push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + ll.dependent_var + ll.relax_var >= Y_val))
                         end
                     end
                 end
@@ -263,7 +274,6 @@ function descend!(gm::GlobalModel; kwargs...)
             push!(constrs, @constraint(gm.model, sum((d ./ (var_max .- var_min)).^2) <= 
                 step_size/exp(decay_rate*(ct-1)/max_iterations)))
             @objective(gm.model, Min, sum(Array(obj_gradient[end,:]) .* d) + equality_penalty*errors)
-
         else    # Projection step
             @objective(gm.model, Min, sum(Array(obj_gradient[end,:]) .* d) + step_penalty*sum((d ./ (var_max .- var_min)).^2) + equality_penalty*errors)
         end
@@ -321,7 +331,7 @@ function descend!(gm::GlobalModel; kwargs...)
 end
 
 """ Complete solution procedure for GlobalModel. """
-function OCT.globalsolve!(gm::GlobalModel, solver = CPLEX_SILENT)
+function globalsolve!(gm::GlobalModel, solver = CPLEX_SILENT)
     @info "GlobalModel " * gm.name * " solution in progress..."
     set_optimizer(gm.model, solver)
     for bbl in gm.bbls

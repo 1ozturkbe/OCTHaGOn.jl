@@ -31,7 +31,7 @@ function gm_defaults()
          # Params for gradient descent
          :max_iterations => 100,
          :step_size => 1e-3,
-         :step_penalty => 1e6,
+         :step_penalty => 1e8,
          :decay_rate => 2,
          :equality_penalty => 1e10,
     )

@@ -466,7 +466,7 @@ function print_feas_gaps(gm::GlobalModel)
 end
 
 """ Shows feasibility of last solution w.r.t. each approximated constraint. """
-function is_feasible(bbl::Union{BlackBoxLearner, LinkedLearner}, tighttol = 1e-6)
+function is_feasible(bbl::Union{BlackBoxLearner, LinkedLearner}, tighttol = 1e-8)
     if bbl.equality
         return abs(bbl.feas_gap[end]) <= tighttol
     else
