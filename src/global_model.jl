@@ -382,6 +382,7 @@ function JuMP.optimize!(gm::GlobalModel; kwargs...)
     feas_gap(gm) # Computes the feasibility gaps of all constraints.
     push!(gm.cost, JuMP.getobjectivevalue(gm.model)) # Updates the final cost.
     active_leaves(gm) # Updates the active leaves of all approximations. 
+    gm.soldict = Dict(key => JuMP.getvalue.(gm.model[key]) for (key, value) in gm.model.obj_dict)
     return
 end
 
