@@ -96,12 +96,12 @@ end
 
 
 """
-    knn_sample(bbl::BlackBoxClassifier; k::Int64 = 10, tighttol = 1e-6, sample_idxs = nothing)
+    knn_sample(bbl::BlackBoxClassifier; k::Int64 = 10, sample_density = 1e-5, sample_idxs = nothing)
 
 Does KNN and secant method based sampling once there is at least one feasible
     sample to a BlackBoxLearner.
 """
-function knn_sample(bbl::BlackBoxClassifier; k::Int64 = 10, tighttol = 1e-6, sample_idxs = nothing, sign = 1)
+function knn_sample(bbl::BlackBoxClassifier; k::Int64 = 10, sample_density = 1e-5, sample_idxs = nothing, sign = 1)
     if bbl.feas_ratio == 0. || bbl.feas_ratio == 1.0
         throw(OCTException("Constraint " * string(bbl.name) * " must have at least one feasible or
                             infeasible sample to be KNN-sampled!"))
@@ -118,7 +118,7 @@ function knn_sample(bbl::BlackBoxClassifier; k::Int64 = 10, tighttol = 1e-6, sam
     for i = 1:length(negatives) # This loop is for making sure that every possible root is sampled only once.
         if feas_class[negatives[i]] == "mixed"
             nodes = [idxs[negatives[i]][j] for j=1:length(idxs[negatives[i]]) 
-                            if (bbl.Y[idxs[negatives[i]][j]] >= 0 && dists[negatives[i]][j] >= tighttol)]
+                            if (bbl.Y[idxs[negatives[i]][j]] >= 0 && dists[negatives[i]][j] >= sample_density)]
             push!(nodes, negatives[i])
             np = secant_method(bbl.X[nodes, :], bbl.Y[nodes, :])
             append!(df, np)
@@ -140,7 +140,7 @@ Keyword arguments:
 """
 function uniform_sample_and_eval!(bbl::BlackBoxLearner;
                           boundary_fraction::Float64 = 0.5,
-                          lh_iterations::Int64 = 0, tighttol = 1.e-6)
+                          lh_iterations::Int64 = 0, sample_density = 1.e-5)
     @assert size(bbl.X, 1) == 0 #TODO: fix this w.r.t. data-driven constraints. 
     vks = string.(bbl.vars)
     n_dims = length(vks);
@@ -156,7 +156,7 @@ function uniform_sample_and_eval!(bbl::BlackBoxLearner;
             throw(OCTException(string(bbl.name) * " has zero feasible samples. " *
                                "Please find at least one feasible sample, seed the data and KNN sample."))
         else
-            df = knn_sample(bbl, k= maximum([10, 2*length(bbl.vars) + 1]), tighttol = tighttol)
+            df = knn_sample(bbl, k= maximum([10, 2*length(bbl.vars) + 1]), sample_density = sample_density)
             if size(df, 1) > 0
                 eval!(bbl, df)
             end
@@ -190,15 +190,15 @@ function uniform_sample_and_eval!(bbl::BlackBoxLearner;
     return 
 end
 
-function uniform_sample_and_eval!(bbls::Array{BlackBoxLearner}; lh_iterations = 0, tighttol = 1e-6) 
+function uniform_sample_and_eval!(bbls::Array{BlackBoxLearner}; lh_iterations = 0, sample_density = 1e-5) 
     for bbl in bbls 
-        uniform_sample_and_eval!(bbl, lh_iterations = lh_iterations, tighttol = tighttol)
+        uniform_sample_and_eval!(bbl, lh_iterations = lh_iterations, sample_density = sample_density)
     end
     return
 end
 
 uniform_sample_and_eval!(gm::GlobalModel; lh_iterations::Int64 = get_param(gm, :lh_iterations)) = 
-        uniform_sample_and_eval!(gm.bbls; lh_iterations = lh_iterations, tighttol = get_param(gm, :tighttol))
+        uniform_sample_and_eval!(gm.bbls; lh_iterations = lh_iterations, sample_density = get_param(gm, :sample_density))
 
 """
     last_leaf_sample(bbl::BlackBoxLearner)
