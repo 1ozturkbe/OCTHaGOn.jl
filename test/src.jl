@@ -673,8 +673,8 @@ function test_oos()
     learn_constraint!(gm, max_depth = 6)
     add_tree_constraints!(gm)
     optimize!(gm)
-    descend!(gm, max_iterations = 1, step_penalty = 1e12, step_size = 1e-4, decay_rate = 2)
-
+    descend!(gm)
+    
     # Post-processing
     plot_r = round.((getvalue.(gm.soldict[:r_orbit]) .- op.rE)./1e3, sigdigits = 5)
     ords = Int.(round.(getvalue.(gm.soldict[:sat_order])))
