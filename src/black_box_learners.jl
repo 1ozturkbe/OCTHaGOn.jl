@@ -99,8 +99,8 @@ Optional arguments:
     vexity::Dict = Dict{Int64, Tuple}()                # Size and convexity of leaves
     knn_tree::Union{KDTree, Nothing} = nothing         # KNN tree
     params::Dict = bbr_defaults(length(vars))          # Relevant settings
-    max_Y::Real = 0.
-    min_Y::Real = 0.
+    max_Y::Union{Nothing, Real} = nothing
+    min_Y::Union{Nothing, Real} = nothing
 end
 
 function Base.show(io::IO, bbr::BlackBoxRegressor)
@@ -169,8 +169,8 @@ Optional arguments:
     accuracies::Array{Float64} = []                    # and the tree misclassification scores.
     knn_tree::Union{KDTree, Nothing} = nothing         # KNN tree
     params::Dict = bbc_defaults(length(vars))          # Relevant settings
-    max_Y::Real = 0.
-    min_Y::Real = 0.
+    max_Y::Union{Nothing, Real} = nothing
+    min_Y::Union{Nothing, Real} = nothing
 end
 
 function Base.show(io::IO, bbc::BlackBoxClassifier)
