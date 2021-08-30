@@ -24,16 +24,16 @@ function gm_defaults()
          :ignore_accuracy => false,
          :lh_iterations => 5,
          :sample_coeff => 200,
-         :sample_density => 1e-5,
+         :sample_density => 1e-5, # sets maximum sample density in Euclidian distance
          :abstol => 1e-4,
-         :tighttol => 1e-6, # sets equality constraint tolerance. 
+         :tighttol => 1e-8, # sets equality constraint tolerance. 
          :convex_constrs => false,
          # Params for gradient descent
          :max_iterations => 100,
          :step_size => 1e-3,
          :step_penalty => 1e6,
          :decay_rate => 2,
-         :equality_penalty => 1e8,
+         :equality_penalty => 1e10,
     )
 end
 
