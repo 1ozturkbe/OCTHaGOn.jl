@@ -335,7 +335,13 @@ function descend!(gm::GlobalModel; kwargs...)
         @info "Max iterations ($(ct)) reached."
         if prev_feas && feas
             @info "Solution is not converged to tolerance $(abstol)!" 
-        else
+        elseif (feas && !prev_feas) && (abs(d_improv) <= 100*get_param(gm, :abstol))
+            @info "Solution is feasible and likely cycling, but the solution is close. Reduce step size and descend again. "
+        elseif (!feas && prev_feas) && (abs(d_improv) <= 100*get_param(gm, :abstol))
+            @info "Solution is infeasible and likely cycling, but the solution is close. Reduce step size and descend again. "
+        elseif ((feas && !prev_feas) || (prev_feas && !feas))
+            @info "Solution is likely cycling, with > $(abstol) changes in cost. Reduce step size and descend again."
+        elseif !feas && !prev_feas
             @info "Solution is infeasible to tolerance $(get_param(gm, :tighttol))."
         end
         @info("Final cost is $(fincost).")
