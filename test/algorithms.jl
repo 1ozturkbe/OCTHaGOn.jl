@@ -137,7 +137,7 @@ function test_descent()
     uniform_sample_and_eval!(gm) # descent requires some samples
     x0 = DataFrame(string.(gm.vars) .=> [0, 1, 0, 1, 0, 1, 5.69])
     append!(gm.solution_history, x0)
-    append!(gm.cost, 5)
+    append!(gm.cost, 5.69)
     feas_gap(gm, x0)
     descend!(gm)
     @test isapprox(gm.cost[end], 6.09; atol = 3)

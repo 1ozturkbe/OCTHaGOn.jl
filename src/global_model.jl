@@ -471,7 +471,7 @@ function is_feasible(bbl::Union{BlackBoxLearner, LinkedLearner}, tighttol = 1e-8
     if bbl.equality
         return abs(bbl.feas_gap[end]) <= tighttol
     else
-        return bbl.feas_gap[end] >= 0
+        return bbl.feas_gap[end] >= -tighttol
     end
 end
 

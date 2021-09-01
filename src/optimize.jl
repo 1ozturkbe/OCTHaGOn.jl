@@ -233,22 +233,22 @@ function descend!(gm::GlobalModel; kwargs...)
                     push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + bbl.Y[end] + bbl.relax_var >= 0))
                     push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + bbl.Y[end] <= bbl.relax_var))
                     errors += bbl.relax_var.^2
-                elseif is_feasible(bbl)
-                    push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + bbl.Y[end] >= 0))
-                else
+                elseif !is_feasible(bbl) || (is_feasible(bbl) && bbl.feas_gap[end] <= 0)
                     push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + bbl.Y[end] + bbl.relax_var >= 0))
                     errors += bbl.relax_var.^2
+                else # feasible to zero tolerance
+                    push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + bbl.Y[end] >= 0))
                 end
             elseif bbl isa BlackBoxRegressor
                 if bbl.equality
                     push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + bbl.dependent_var + bbl.relax_var >= bbl.Y[end]))
                     push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + bbl.dependent_var <= bbl.Y[end] + bbl.relax_var))
                     errors += bbl.relax_var.^2
-                elseif is_feasible(bbl)
-                    push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + bbl.dependent_var >= bbl.Y[end]))
-                else
+                elseif !is_feasible(bbl) || (is_feasible(bbl) && bbl.feas_gap[end] <= 0)
                     push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + bbl.Y[end] + bbl.relax_var >= 0))
                     errors += bbl.relax_var.^2
+                else # feasible to zero tolerance
+                    push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + bbl.dependent_var >= bbl.Y[end]))
                 end
             end
             if !isempty(bbl.lls)
@@ -266,21 +266,21 @@ function descend!(gm::GlobalModel; kwargs...)
                             push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + Y_val + ll.relax_var >= 0))
                             push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + Y_val <= ll.relax_var))
                             errors += ll.relax_var.^2
-                        elseif is_feasible(ll)
-                            push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + Y_val >= 0))
-                        else
+                        elseif !is_feasible(ll) || (is_feasible(ll) && ll.feas_gap[end] <= 0)
                             push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + Y_val + ll.relax_var >= 0))
                             errors += ll.relax_var.^2
+                        else # feasible to zero tolerance
+                            push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + Y_val >= 0))
                         end
                     elseif bbl isa BlackBoxRegressor
                         if bbl.equality
                             push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + ll.dependent_var + ll.relax_var >= Y_val))
                             push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + ll.dependent_var <= Y_val + ll.relax_var))
                             errors += ll.relax_var.^2
-                        elseif is_feasible(ll)
-                            push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + ll.dependent_var >= Y_val))
-                        else
+                        elseif !is_feasible(ll) || (is_feasible(ll) && ll.feas_gap[end] <= 0)
                             push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + ll.dependent_var + ll.relax_var >= Y_val))
+                        else # feasible to zero tolerance
+                            push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + ll.dependent_var >= Y_val))
                         end
                     end
                 end
@@ -329,17 +329,18 @@ function descend!(gm::GlobalModel; kwargs...)
         end
     end
 
-    if ct >= max_iterations && abs(d_improv) >= abstol
-        @info("Max iterations ($(ct)) reached, but descent not converged to tolerance!" * 
-              " Please descend further, perhaps with reduced step sizes.")
-        fincost = round(gm.cost[end], digits = -Int(round(log10(abstol))))
+    fincost = round(gm.cost[end], digits = -Int(round(log10(abstol))))
+    # Termination criteria
+    if ct >= max_iterations
+        @info "Max iterations ($(ct)) reached."
+        if prev_feas && feas
+            @info "Solution is not converged to tolerance $(abstol)!" 
+        else
+            @info "Solution is infeasible to tolerance $(get_param(gm, :tighttol))."
+        end
         @info("Final cost is $(fincost).")
-    elseif ct >= max_iterations && !all([bbl.feas_gap[end] for bbl in gm.bbls] .>= 0)
-        @info("Max iterations ($(ct)) reached, but solution is not feasible!" * 
-              " Please observe the cost evolution, descend again, or relax your constraints.")
-    else
+    else 
         @info("PGD converged in $(ct) iterations!")
-        fincost = round(gm.cost[end], digits = -Int(round(log10(abstol)))-1)
         @info("The optimal cost is $(fincost).")
     end
 
