@@ -112,7 +112,7 @@ function descend!(gm::GlobalModel; kwargs...)
     clear_tree_constraints!(gm) 
     bbls = gm.bbls
     vars = gm.vars
-    gm_bounds = get_bounds(vars)
+    bounds = get_bounds(vars)
 
     # Update descent algorithm parameters
     if !isempty(kwargs) 
@@ -137,9 +137,7 @@ function descend!(gm::GlobalModel; kwargs...)
                                " on the objective variable."))
         end
     end 
-    
-    var_max = [maximum(gm_bounds[key]) for key in vars]
-    var_min = [minimum(gm_bounds[key]) for key in vars]
+
     grad_shell = DataFrame(string.(vars) .=> [Float64[] for i=1:length(vars)])
 
     # Add relaxation variables
@@ -170,6 +168,27 @@ function descend!(gm::GlobalModel; kwargs...)
 
     # Descent direction, counting and book-keeping
     d = @variable(gm.model, [1:length(vars)])
+    var_max = []
+    var_min = []
+    max_val = -Inf
+    min_val = Inf
+    for key in vars
+        push!(var_max, maximum(bounds[key]))
+        push!(var_min, minimum(bounds[key]))
+        if !isinf(var_max[end]) 
+            max_val = maximum([var_max[end], max_val])
+        end
+        if !isinf(var_min[end])
+            min_val = minimum([var_min[end], min_val])
+        end
+    end
+    if any(isinf.(var_max)) || any(isinf.(var_min))
+        @warn "Unbounded variables detected. " *
+              "PGD may fail to converge to a local minimum."
+        replace!(var_max, Inf => max_val)
+        replace!(var_min, Inf => min_val)
+    end
+
     ct = 0
     d_improv = 1e5
     prev_feas = false
@@ -198,8 +217,8 @@ function descend!(gm::GlobalModel; kwargs...)
                 DataFrame(obj_bbl.gradients[end,:]), cols = :subset) 
             obj_gradient = coalesce.(obj_gradient, 0)
             # Update objective constraints
-            append!(constrs, [@constraint(gm.model, sum(Array(obj_gradient[end,:]) .* d) + 
-                              obj_bbl.dependent_var >= obj_bbl.Y[end])])
+            push!(constrs, @constraint(gm.model, sum(Array(obj_gradient[end,:]) .* d) + 
+                              obj_bbl.dependent_var >= obj_bbl.Y[end]))
         end
 
         # Constraint evaluation
