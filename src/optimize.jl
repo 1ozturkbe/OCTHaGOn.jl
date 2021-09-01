@@ -186,7 +186,7 @@ function descend!(gm::GlobalModel; kwargs...)
         @warn "Unbounded variables detected. " *
               "PGD may fail to converge to a local minimum."
         replace!(var_max, Inf => max_val)
-        replace!(var_min, Inf => min_val)
+        replace!(var_min, -Inf => min_val)
     end
 
     ct = 0
