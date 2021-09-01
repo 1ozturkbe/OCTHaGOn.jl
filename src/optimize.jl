@@ -168,26 +168,20 @@ function descend!(gm::GlobalModel; kwargs...)
 
     # Descent direction, counting and book-keeping
     d = @variable(gm.model, [1:length(vars)])
-    var_max = []
-    var_min = []
-    max_val = -Inf
-    min_val = Inf
+    var_diff = []
+    max_diff = 0
     for key in vars
-        push!(var_max, maximum(bounds[key]))
-        push!(var_min, minimum(bounds[key]))
-        if !isinf(var_max[end]) 
-            max_val = maximum([var_max[end], max_val])
-        end
-        if !isinf(var_min[end])
-            min_val = minimum([var_min[end], min_val])
+        push!(var_diff, maximum(bounds[key]) - minimum(bounds[key]))
+        if !isinf(var_diff[end])
+            max_diff = maximum([var_diff[end], max_diff])
         end
     end
-    if any(isinf.(var_max)) || any(isinf.(var_min))
+    if any(isinf.(var_diff))
         @warn "Unbounded variables detected. " *
               "PGD may fail to converge to a local minimum."
-        replace!(var_max, Inf => max_val)
-        replace!(var_min, -Inf => min_val)
+        replace!(var_diff, Inf => max_diff)
     end
+    replace!(var_diff, 0 => 1) # Sanitizing fixed values. 
 
     ct = 0
     d_improv = 1e5
@@ -290,11 +284,11 @@ function descend!(gm::GlobalModel; kwargs...)
         # Initializing descent direction
         push!(constrs, @constraint(gm.model, d .== vars .- Array(sol_vals[end,:])))
         if feas # Small gradient step
-            push!(constrs, @constraint(gm.model, sum((d ./ (var_max .- var_min)).^2) <= 
+            push!(constrs, @constraint(gm.model, sum((d ./ var_diff).^2) <= 
                 step_size/exp(decay_rate*(ct-1)/max_iterations)))
             @objective(gm.model, Min, sum(Array(obj_gradient[end,:]) .* d) + equality_penalty*errors)
         else    # Projection step
-            @objective(gm.model, Min, sum(Array(obj_gradient[end,:]) .* d) + step_penalty*sum((d ./ (var_max .- var_min)).^2) + equality_penalty*errors)
+            @objective(gm.model, Min, sum(Array(obj_gradient[end,:]) .* d) + step_penalty*sum((d ./ var_diff).^2) + equality_penalty*errors)
         end
 
         # Optimizing the step, and finding next x0
