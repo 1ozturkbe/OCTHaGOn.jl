@@ -256,7 +256,7 @@ function add_linked_constraint(gm::GlobalModel, bbc::BlackBoxClassifier, vars::A
         clear_tree_constraints!(gm, bbc)
         @info "Cleared constraints from BBC $(bbc.name) since it was relinked."
     end
-    push!(bbc.lls, LinkedClassifier(vars = vars))
+    push!(bbc.lls, LinkedClassifier(vars = vars, equality = bbc.equality))
     return
 end
 
@@ -268,7 +268,8 @@ function add_linked_constraint(gm::GlobalModel, bbr::BlackBoxRegressor, vars::Ar
         clear_tree_constraints!(gm, bbr)
         @info "Cleared constraints from BBR $(bbr.name) since it was relinked."
     end
-    push!(bbr.lls, LinkedRegressor(vars = vars, dependent_var = dependent_var))
+    push!(bbr.lls, LinkedRegressor(vars = vars, dependent_var = dependent_var, 
+                                   equality = bbr.equality))
     return
 end
 

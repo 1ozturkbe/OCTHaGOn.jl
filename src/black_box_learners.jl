@@ -6,6 +6,7 @@
     leaf_variables::Dict = Dict{Int64, Tuple{JuMP.VariableRef, Array}}() 
     active_leaves::Array = []                          # leaf of last solution
     feas_gap::Array = []                               # Feasibility gaps of solutions   
+    equality::Bool = false
 end
 
 function Base.show(io::IO, lc::LinkedClassifier)
@@ -24,6 +25,7 @@ end
     optima::Array = []
     actuals::Array = []
     feas_gap::Array = []                               # Feasibility gaps of solutions   
+    equality::Bool = false
 end
 
 function Base.show(io::IO, lr::LinkedRegressor)
