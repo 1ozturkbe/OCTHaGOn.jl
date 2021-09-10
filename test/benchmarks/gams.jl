@@ -45,12 +45,16 @@ name = "himmel16.gms"
 gm = GAMS_to_GlobalModel(OCT.GAMS_DIR * "\\gms\\", name)
 JuMP.set_upper_bound.(gm.vars, ones(length(gm.vars))) # himmel16
 JuMP.set_lower_bound.(gm.vars, -ones(length(gm.vars))) # himmel16
-globalsolve_and_time!(gm)
 
 # ALL SET TO GO 
 name = "kall_circles_c6b.gms"
 gm = GAMS_to_GlobalModel(OCT.GAMS_DIR * "\\gms\\", name)
+time1 = time()
+set_param(gm, :abstol, 1e-5)
+uniform_sample_and_eval!(gm)
+learn_constraint!(gm, max_depth=7)
 globalsolve_and_time!(gm)
+@info "Time elapsed: $(time()-time1)"
 
 # ALL SET TO GO 
 name = "pointpack08.gms"
@@ -71,10 +75,14 @@ globalsolve_and_time!(gm)
 # ALL SET TO GO 
 name = "o9_ar4_1.gms"
 gm = GAMS_to_GlobalModel(OCT.GAMS_DIR * "\\gms\\", name)
-set_param(gm, :max_iterations, 300)
+time1 = time()
+set_param(gm, :abstol, 1e-5)
+uniform_sample_and_eval!(gm)
+learn_constraint!(gm, max_depth=7)
 globalsolve_and_time!(gm)
+@info "Time elapsed: $(time()-time1)"
 
-# ALL SET
+# ALL SET, but no comparative solver
 name = "sfacloc2_3_80.gms"
 gm = GAMS_to_GlobalModel(OCT.GAMS_DIR * "\\gms\\", name)
 set_param(gm, :max_iterations, 500)

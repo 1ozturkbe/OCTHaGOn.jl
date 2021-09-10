@@ -668,15 +668,10 @@ function test_oos()
     gm = oos_gm!()
     m = gm.model
     uniform_sample_and_eval!(gm)
-    learn_constraint!(gm)
+    learn_constraint!(gm, max_depth=6)
     add_tree_constraints!(gm)
     optimize!(gm)
     clear_tree_constraints!(gm)
-    set_param(gm, :abstol, 1e-2)
-    set_param(gm, :tighttol, 1e-3)
-    set_param(gm, :step_size, 1e-4)
-    set_param(gm, :step_penalty, 1e12)
-    set_param(gm, :equality_penalty, 1e14)
     descend!(gm)
 
     # Experiments

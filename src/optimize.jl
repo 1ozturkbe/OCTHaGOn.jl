@@ -27,7 +27,7 @@ Populates relax_var attributes of all substructs.
 function add_relaxation_variables!(gm::GlobalModel, bbl::Union{BlackBoxLearner, LinkedLearner})
     if bbl.relax_var isa Real
         bbl.relax_var = @variable(gm.model)
-        @constraint(gm.model, bbl.relax_var >= 0)  
+        set_lower_bound(bbl.relax_var, 0)  
     end
     if !isempty(bbl.mi_constraints)
         clear_tree_constraints!(gm, bbl)
