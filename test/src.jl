@@ -674,14 +674,6 @@ function test_oos()
     clear_tree_constraints!(gm)
     descend!(gm)
 
-    # Experiments
-    gm = oos_gm!()
-    uniform_sample_and_eval!(gm)
-    bbr = gm.bbls[5]
-    learn_constraint!(bbr)
-    add_tree_constraints!(gm, bbr)
-    clear_tree_constraints!(gm)
-
     # Post-processing
     plot_r = round.((getvalue.(gm.soldict[:r_orbit]) .- op.rE)./1e3, sigdigits = 5)
     ords = Int.(round.(getvalue.(gm.soldict[:sat_order])))
