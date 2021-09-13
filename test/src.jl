@@ -606,8 +606,8 @@ end
 # Fox and rabbit nonlinear population dynamics 
 # Predator prey model with logistic function from http://www.math.lsa.umich.edu/~rauch/256/F2Lab5.pdf
 function test_linking()
-    m = Model(with_optimizer(CPLEX.Optimizer, CPX_PARAM_SCRIND = 0, 
-                             CPX_PARAM_TILIM = 4)) # Time Limited
+    m = Model(CPLEX_SILENT)
+    MOI.set(gm.model, MOI.RawParameter("CPX_PARAM_DETTILIM"), 1)
     t = 30
     r = 0.2
     x1 = 0.6
@@ -643,7 +643,7 @@ function test_linking()
     end
     init_constraints = sum(length(all_constraints(gm.model, type[1], type[2])) 
         for type in JuMP.list_of_constraint_types(gm.model))
-    set_param(gm, :max_iterations, 15)
+    set_param(gm, :max_iterations, 20)
     add_relaxation_variables!(gm)
     relax_objective!(gm)
     globalsolve!(gm)
