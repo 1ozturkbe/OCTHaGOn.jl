@@ -476,7 +476,7 @@ function test_basic_gm()
     # Adding new variables for each nonlinear constraint
     @test sum(length(all_constraints(gm.model, type[1], type[2])) 
             for type in JuMP.list_of_constraint_types(gm.model)) == 10
-    relaxed_objective!(gm)
+    relax_objective!(gm)
     surveysolve(gm)
     @test [getvalue(bbl.relax_var) for bbl in gm.bbls] == zeros(length(gm.bbls))
     clear_relaxation_variables!(gm)
@@ -643,6 +643,8 @@ function test_linking()
     init_constraints = sum(length(all_constraints(gm.model, type[1], type[2])) 
         for type in JuMP.list_of_constraint_types(gm.model))
     set_param(gm, :max_iterations, 15)
+    add_relaxation_variables!(gm)
+    relax_objective!(gm)
     globalsolve!(gm)
     @test true
     

@@ -73,7 +73,7 @@ clear_relaxation_variables!(gm::GlobalModel) = clear_relaxation_variables!(gm, g
 """
 Includes relaxation variables in objective function 
 """
-function relaxed_objective!(gm::GlobalModel, M::Real = 1e8)
+function relax_objective!(gm::GlobalModel, M::Real = 1e8)
     no = 0
     for bbl in gm.bbls
         no += M*bbl.relax_var
