@@ -524,9 +524,13 @@ function print_details(gm::GlobalModel)
     n_eqs = length(findall(x -> x.equality, gm.bbls))
     n_ineqs = length(gm.bbls) - n_eqs
     obj_bbl = filter(x -> x.dependent_var == gm.objective, 
-    [bbl for bbl in gm.bbls if bbl isa BlackBoxRegressor])
+        [bbl for bbl in gm.bbls if bbl isa BlackBoxRegressor])
     @info "$(n_ineqs - length(obj_bbl)) black box inequalities,"
-    @info "$(n_eqs) black box equalities."
+    @info "$(n_eqs) black box equalities,"
+    n_lls = sum(length(bbl.lls) for bbl in gm.bbls)
+    if n_lls > 0
+        @info "$(n_lls) linked constraints,"
+    end
     if isempty(obj_bbl)
         @info "And a linear objective."
     else
