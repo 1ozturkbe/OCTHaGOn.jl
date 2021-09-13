@@ -150,8 +150,13 @@ function descend!(gm::GlobalModel; kwargs...)
             append!(obj_gradient, DataFrame(string.(gm.objective) => 1), cols = :subset)
         elseif gm.objective isa JuMP.GenericAffExpr
             append!(obj_gradient, DataFrame(Dict(string(key) => value for (key,value) in gm.objective.terms)), cols = :subset)
+        else
+            @warn "Type of objective $(gm.objective) is unsupported."
         end
         obj_gradient = coalesce.(obj_gradient, 0)
+    end
+    if isempty(obj_gradient)
+        obj_gradient = DataFrame(string.(vars) .=> zeros(length(vars)))
     end
 
     # x0 initialization, and actual objective computation
