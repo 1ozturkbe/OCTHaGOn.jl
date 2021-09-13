@@ -606,7 +606,8 @@ end
 # Fox and rabbit nonlinear population dynamics 
 # Predator prey model with logistic function from http://www.math.lsa.umich.edu/~rauch/256/F2Lab5.pdf
 function test_linking()
-    m = Model(CPLEX_SILENT)
+    m = Model(with_optimizer(CPLEX.Optimizer, CPX_PARAM_SCRIND = 0, 
+                             CPX_PARAM_TILIM = 4)) # Time Limited
     t = 30
     r = 0.2
     x1 = 0.6
