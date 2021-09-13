@@ -502,7 +502,7 @@ end
 update_vexity(gm::GlobalModel) = update_vexity.(gm.bbls)
 
 function print_details(gm::GlobalModel)
-    @info "GlobalModel $(name) has:"
+    @info "GlobalModel $(gm.name) has:"
     n_vars = length(gm.vars)
     @info "$(n_vars) variables,"
     all_types = list_of_constraint_types(gm.model)

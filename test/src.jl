@@ -666,13 +666,14 @@ end
 function test_oos()
     op = oos_params()
     gm = oos_gm!()
+    print_details(gm)
     m = gm.model
     uniform_sample_and_eval!(gm)
     learn_constraint!(gm, max_depth=6)
     add_tree_constraints!(gm)
     optimize!(gm)
     clear_tree_constraints!(gm)
-    descend!(gm)
+    descend!(gm, max_iterations = 1)
 
     # Post-processing
     plot_r = round.((getvalue.(gm.soldict[:r_orbit]) .- op.rE)./1e3, sigdigits = 5)

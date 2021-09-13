@@ -222,7 +222,7 @@ function descend!(gm::GlobalModel; kwargs...)
             constr_gradient = copy(grad_shell)
             append!(constr_gradient, DataFrame(bbl.gradients[end,:]), cols = :subset)
             constr_gradient = coalesce.(constr_gradient, 0)
-            if bbl isa BlackBoxClassifier # TODO: add LL cuts
+            if bbl isa BlackBoxClassifier
                 if bbl.equality
                     push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + bbl.Y[end] + bbl.relax_var >= 0))
                     push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + bbl.Y[end] <= bbl.relax_var))
@@ -255,7 +255,7 @@ function descend!(gm::GlobalModel; kwargs...)
                         DataFrame(string.(ll.vars) .=> Array(bbl.gradients[end-n_lls-1+i,:])), cols = :subset)
                     constr_gradient = coalesce.(constr_gradient, 0)
                     Y_val = bbl.Y[end-n_lls-1+i]
-                    if bbl isa BlackBoxClassifier # TODO: add LL cuts
+                    if bbl isa BlackBoxClassifier
                         if bbl.equality
                             push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + Y_val + ll.relax_var >= 0))
                             push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + Y_val <= ll.relax_var))
