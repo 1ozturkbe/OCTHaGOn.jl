@@ -640,14 +640,9 @@ function test_linking()
         add_linked_constraint(gm, gm.bbls[1], [x[i], y[i], dx[i]])
         add_linked_constraint(gm, gm.bbls[2], [x[i], y[i], dy[i]])
     end
-    uniform_sample_and_eval!(gm)
     init_constraints = sum(length(all_constraints(gm.model, type[1], type[2])) 
         for type in JuMP.list_of_constraint_types(gm.model))
-    # Usually would want to train the dynamics better, but for speed this is better!
-    learn_constraint!(gm)
-    set_param(gm, :ignore_accuracy, true)
-    add_tree_constraints!(gm)
-    # optimize!(gm) # Currently cannot converge. 
+    globalsolve!(gm)
 
     # using Plots
     # # Plotting temporal population data
