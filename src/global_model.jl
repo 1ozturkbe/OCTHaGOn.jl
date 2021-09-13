@@ -10,7 +10,7 @@ nonlinear_model can contain JuMP.NonlinearConstraints.
     bbls::Array{BlackBoxLearner} = BlackBoxLearner[]             # Constraints to be learned
     vars::Array{JuMP.VariableRef} = JuMP.all_variables(model)    # JuMP variables
     objective = JuMP.objective_function(model)                # Original objective function
-    solution_history::DataFrame = DataFrame([Float64 for i=1:length(vars)], string.(vars)) # Solution history
+    solution_history::DataFrame = DataFrame(string.(vars) .=> [Float64[] for i=1:length(vars)]) # Solution history
     cost::Array = []                                             # List of costs. 
     soldict::Dict = Dict()                                       # For solution extraction
     params::Dict = gm_defaults()                                 # GM settings
@@ -217,11 +217,11 @@ function add_nonlinear_or_compatible(gm::GlobalModel,
             constr_expr = Base.invokelatest(fn, expr_vars...)
             if constr_expr isa JuMP.GenericAffExpr || get_param(gm, :convex_constrs)
                 if equality && !isnothing(dependent_var)
-                    @constraint(gm.model, constr_expr == dependent_var)
+                    @constraint(gm.model, dependent_var == constr_expr)
                 elseif equality
                     @constraint(gm.model, constr_expr == 0)
                 elseif !isnothing(dependent_var)
-                    @constraint(gm.model, constr_expr >= dependent_var)
+                    @constraint(gm.model, dependent_var >= constr_expr)
                 else 
                     @constraint(gm.model, constr_expr >= 0)
                 end
@@ -241,8 +241,8 @@ function add_nonlinear_or_compatible(gm::GlobalModel,
 end
 
 """
-    add_linked_constraint(bbc::BlackBoxClassifier, linked_vars::Array{JuMP.Variable})
-    add_linked_constraint(bbr::BlackBoxRegressor, linked_vars::Array{JuMP.Variable}, linked_dependent::JuMP.Variable)
+    add_linked_constraint(gm::GlobalModel, bbc::BlackBoxClassifier, linked_vars::Array{JuMP.Variable})
+    add_linked_constraint(gm::GlobalModel, bbr::BlackBoxRegressor, linked_vars::Array{JuMP.Variable}, linked_dependent::JuMP.Variable)
 
 Adds variables that obey the same constraint structure. 
 Use in case when a nonlinear constraint is repeated more than once, so that the underlying
@@ -256,7 +256,7 @@ function add_linked_constraint(gm::GlobalModel, bbc::BlackBoxClassifier, vars::A
         clear_tree_constraints!(gm, bbc)
         @info "Cleared constraints from BBC $(bbc.name) since it was relinked."
     end
-    push!(bbc.lls, LinkedClassifier(vars = vars))
+    push!(bbc.lls, LinkedClassifier(vars = vars, equality = bbc.equality))
     return
 end
 
@@ -268,7 +268,8 @@ function add_linked_constraint(gm::GlobalModel, bbr::BlackBoxRegressor, vars::Ar
         clear_tree_constraints!(gm, bbr)
         @info "Cleared constraints from BBR $(bbr.name) since it was relinked."
     end
-    push!(bbr.lls, LinkedRegressor(vars = vars, dependent_var = dependent_var))
+    push!(bbr.lls, LinkedRegressor(vars = vars, dependent_var = dependent_var, 
+                                   equality = bbr.equality))
     return
 end
 
@@ -382,6 +383,7 @@ function JuMP.optimize!(gm::GlobalModel; kwargs...)
     feas_gap(gm) # Computes the feasibility gaps of all constraints.
     push!(gm.cost, JuMP.getobjectivevalue(gm.model)) # Updates the final cost.
     active_leaves(gm) # Updates the active leaves of all approximations. 
+    gm.soldict = Dict(key => JuMP.getvalue.(gm.model[key]) for (key, value) in gm.model.obj_dict)
     return
 end
 
@@ -465,11 +467,74 @@ function print_feas_gaps(gm::GlobalModel)
     return
 end
 
+""" Shows feasibility of last solution w.r.t. each approximated constraint. """
+function is_feasible(bbl::Union{BlackBoxLearner, LinkedLearner}, tighttol = 1e-8)
+    if bbl.equality
+        return abs(bbl.feas_gap[end]) <= tighttol
+    else
+        return bbl.feas_gap[end] >= -tighttol
+    end
+end
+
+""" Returns the feasibility of the GlobalModel. """
+function is_feasible(gm::GlobalModel)
+    for bbl in gm.bbls
+        is_feasible(bbl) || return false
+        for ll in bbl.lls
+            is_feasible(ll) || return false
+        end
+    end
+    return true
+end
+
+""" Checks whether a BBL or GM is sampled."""
+is_sampled(bbl::BlackBoxLearner) = size(bbl.X,1) != 0
+
+is_sampled(gm::GlobalModel) = all(is_sampled(bbl) for bbl in gm.bbls)
+
 """ Clears all sampling, training and optimization data from GlobalModel."""
 function clear_data!(gm::GlobalModel)
     clear_tree_constraints!(gm, gm.bbls)
     clear_data!.(gm.bbls)
-    gm.solution_history = DataFrame([Float64 for i=1:length(gm.vars)], string.(gm.vars))
+    gm.solution_history = DataFrame(string.(gm.vars) .=> [Float64[] for i=1:length(gm.vars)])
 end
 
 update_vexity(gm::GlobalModel) = update_vexity.(gm.bbls)
+
+function print_details(gm::GlobalModel)
+    @info "GlobalModel $(gm.name) has:"
+    n_vars = length(gm.vars)
+    @info "$(n_vars) variables,"
+    all_types = list_of_constraint_types(gm.model)
+    l_vartypes = [JuMP.VariableRef, JuMP.GenericAffExpr{Float64, VariableRef}]
+    l_constrs = []
+    nl_constrs = []
+    l_constypes = [MOI.GreaterThan{Float64}, MOI.LessThan{Float64}, MOI.EqualTo{Float64}]
+    for (vartype, constype) in all_types
+        constrs_of_type = JuMP.all_constraints(gm.model, vartype, constype)
+        if any(vartype .== l_vartypes) && any(constype .== l_constypes)
+            append!(l_constrs, constrs_of_type)
+        else
+            append!(nl_constrs, constrs_of_type)
+        end
+    end
+    @info "$(length(l_constrs)) linear constraints."
+    @info "$(length(nl_constrs)) nonlinear constraints."
+
+    n_eqs = length(findall(x -> x.equality, gm.bbls))
+    n_ineqs = length(gm.bbls) - n_eqs
+    obj_bbl = filter(x -> x.dependent_var == gm.objective, 
+        [bbl for bbl in gm.bbls if bbl isa BlackBoxRegressor])
+    @info "$(n_ineqs - length(obj_bbl)) black box inequalities,"
+    @info "$(n_eqs) black box equalities,"
+    n_lls = sum(length(bbl.lls) for bbl in gm.bbls)
+    if n_lls > 0
+        @info "$(n_lls) linked constraints,"
+    end
+    if isempty(obj_bbl)
+        @info "And a linear objective."
+    else
+        @info "And a nonlinear objective."
+    end
+    return
+end

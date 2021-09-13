@@ -103,7 +103,7 @@ function check_accuracy(bbc::BlackBoxClassifier)
     return bbc.accuracies[end] >= get_param(bbc, :threshold_accuracy)
 end
 
-check_accuracy(bbr::BlackBoxRegressor) = 1. # TODO: use MSE
+check_accuracy(bbr::BlackBoxRegressor) = 1. # TODO: use MSE?
 
 function check_sampled(bbl::BlackBoxLearner)
     size(bbl.X, 1) == 0 && throw(OCTException(string("BlackBoxLearner ", bbl.name, " must be sampled first.")))

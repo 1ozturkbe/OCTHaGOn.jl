@@ -134,28 +134,31 @@ end
 
 function test_descent()
     gm = minlp(true)
-    x0 = DataFrame(string.(gm.vars) .=> [0, 1, 0, 1, 0, 1, 5])
+    uniform_sample_and_eval!(gm) # descent requires some samples
+    x0 = DataFrame(string.(gm.vars) .=> [0, 1, 0, 1, 0, 1, 5.69])
     append!(gm.solution_history, x0)
-    append!(gm.cost, 5)
+    append!(gm.cost, 5.69)
     feas_gap(gm, x0)
-    descend!(gm, max_iterations = 400)
+    descend!(gm)
     @test isapprox(gm.cost[end], 6.09; atol = 3)
 
     gm = pool1(true)
+    uniform_sample_and_eval!(gm)
     x0 = DataFrame(string.(gm.vars) .=> [4.0, 3.0, 1.0, 4.0, 0, 7, 0])
     append!(gm.solution_history, x0)
     append!(gm.cost, 100)
     feas_gap(gm, x0)
-    descend!(gm, max_iterations = 100)
+    descend!(gm)
     @test isapprox(gm.cost[end], 23; atol = 3)
 
     gm = nlp3(true)
+    uniform_sample_and_eval!(gm)
     x0 = DataFrame(string.(gm.vars) .=>
     [1728.71, 16000.0, 69.9795, 3056.32,  2000.0,  91.323, 94.7197, 11.5857, 2.26271, 151.159, -1600.81])
     append!(gm.solution_history, x0)
     append!(gm.cost, -1600)
     feas_gap(gm, x0)
-    descend!(gm, max_iterations = 100)
+    descend!(gm)
     @test isapprox(gm.cost[end], -1161; atol = 4)
 end
 

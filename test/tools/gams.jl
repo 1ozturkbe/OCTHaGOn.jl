@@ -69,6 +69,8 @@ function generate_variables!(model::JuMP.Model, gams::Dict{String, Any})
                     JuMP.set_upper_bound.(model[Symbol(var)], 0)
                 elseif vinfo.typ == "binary"
                     JuMP.set_binary.(model[Symbol(var)])
+                    JuMP.set_lower_bound.(model[Symbol(var)], 0)
+                    JuMP.set_upper_bound.(model[Symbol(var)], 1)
                 elseif vinfo.typ == "integer"
                     JuMP.set_integer.(model[Symbol(var)])
                 else
@@ -80,8 +82,11 @@ function generate_variables!(model::JuMP.Model, gams::Dict{String, Any})
                     inds = map(x->x.val, prop.indices)
                     nv = model[Symbol(var)][inds...]
                     c = val.val
-                    if prop.name ∈ ("l", "fx")
+                    if prop.name =="l"
                         JuMP.set_start_value(nv, c)
+                    elseif prop.name == "fx"
+                        JuMP.set_lower_bound(nv, c)
+                        JuMP.set_upper_bound(nv, c)
                     elseif prop.name == "lo"
                         JuMP.set_lower_bound(nv, c)
                     elseif prop.name == "up"
@@ -90,8 +95,11 @@ function generate_variables!(model::JuMP.Model, gams::Dict{String, Any})
                 else
                     nv = model[Symbol(var)]
                     c = val.val
-                    if prop.text ∈ ("l", "fx")
+                    if prop.text == "l"
                         JuMP.set_start_value(nv, c)
+                    elseif prop.text == "fx"
+                        JuMP.set_lower_bound(nv, c)
+                        JuMP.set_upper_bound(nv, c)
                     elseif prop.text == "lo"
                         JuMP.set_lower_bound(nv, c)
                     elseif prop.text == "up"
@@ -104,7 +112,13 @@ function generate_variables!(model::JuMP.Model, gams::Dict{String, Any})
     return vardict, constdict
 end
 
-""" Converts a GAMS optimization model to a GlobalModel."""
+""" 
+    GAMS_to_GlobalModel(GAMS_DIR::String, filename::String)
+
+Converts a GAMS optimization model to a GlobalModel.
+GAMS_DIR is the directory to look in, while the filename
+is the name of the .gms file. 
+"""
 function GAMS_to_GlobalModel(GAMS_DIR::String, filename::String)
     model = JuMP.Model()
     # Parsing GAMS Files

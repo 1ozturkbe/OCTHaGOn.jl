@@ -66,7 +66,7 @@ end
 function secant_method(X::DataFrame, Y::Array)
     """ Generates samples estimated to be near a zero from X and Y data with mixed feasibility. """
     feas = Y .>= 0;
-    np = DataFrame([Float64 for i in propertynames(X)], propertynames(X))
+    np = DataFrame(propertynames(X) .=> [Float64[] for i in propertynames(X)])
     for i = 1:length(feas)
         for j = i+1:length(feas)
             if feas[i] + feas[j] == 1

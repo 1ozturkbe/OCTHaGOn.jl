@@ -126,13 +126,13 @@ module OptimalConstraintTree
 
         # Algorithms
         add_infeasibility_cuts!, boundify, surveysolve,
-        relaxed_objective!, tight_objective!, descend!,
-        globalsolve!, globalsolve_and_time!,
+        relaxed_objective!, tight_objective!,
+        globalsolve!, globalsolve_and_time!, descend!,
 
         # Checks and exceptions
         feasibility, check_accuracy, check_feasibility, 
         check_bounds,  check_sampled, check_if_trained,
-        OCTException,
+        OCTException, is_feasible, is_sampled, 
 
         # Clean-up
         clear_data!, clear_tree_data!,
@@ -161,6 +161,6 @@ module OptimalConstraintTree
 
         # Small scripts
         vars_from_expr, vars_from_constraint, flat,
-        power, sqr, normalized_data
+        power, sqr, normalized_data, print_details
 end
 
