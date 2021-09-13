@@ -642,18 +642,22 @@ function test_linking()
     end
     init_constraints = sum(length(all_constraints(gm.model, type[1], type[2])) 
         for type in JuMP.list_of_constraint_types(gm.model))
+    set_param(gm, :max_iterations, 15)
     globalsolve!(gm)
-
+    @test true
+    
+    # # Plotting temporal population data (for visual debugging)
     # using Plots
-    # # Plotting temporal population data
-    # plot(getvalue.(x), label = "Prey")
-    # plot!(getvalue.(y), label = "Predators", xlabel = "Time", ylabel = "Normalized population")
+    # plot(gm.soldict[:x], label = "Prey")
+    # plot!(gm.soldict[:y], label = "Predators", xlabel = "Time", ylabel = "Normalized population")
     # # OR simultaneously in the population dimensions
-    # plot(getvalue.(m[:x]), getvalue.(m[:y]), xlabel = "Prey", ylabel = "Predators", label = 1:t, legend = false)
-    # @test true
+    # plot(gm.soldict[:x], gm.soldict[:y],
+    #     xlabel = "Prey", ylabel = "Predators", 
+    #     label = 1:t, legend = false)
 
     # Checking constraint clearing
     clear_tree_constraints!(gm)
+    clear_relaxation_variables!(gm)
     @test init_constraints == sum(length(all_constraints(gm.model, type[1], type[2])) 
         for type in JuMP.list_of_constraint_types(gm.model))
 end
