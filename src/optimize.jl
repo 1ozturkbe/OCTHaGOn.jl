@@ -273,6 +273,7 @@ function descend!(gm::GlobalModel; kwargs...)
                             errors += ll.relax_var.^2
                         elseif !is_feasible(ll) || (is_feasible(ll) && ll.feas_gap[end] <= 0)
                             push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + ll.dependent_var + ll.relax_var >= Y_val))
+                            errors += ll.relax_var.^2
                         else # feasible to zero tolerance
                             push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + ll.dependent_var >= Y_val))
                         end
