@@ -478,10 +478,11 @@ end
 
 """ Returns the feasibility of the GlobalModel. """
 function is_feasible(gm::GlobalModel)
+    tighttol = get_param(gm, :tighttol)
     for bbl in gm.bbls
-        is_feasible(bbl) || return false
+        is_feasible(bbl, tighttol) || return false
         for ll in bbl.lls
-            is_feasible(ll) || return false
+            is_feasible(ll, tighttol) || return false
         end
     end
     return true

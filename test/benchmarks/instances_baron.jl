@@ -24,6 +24,6 @@ while !eof(file)
  globalsolve_and_time!(gm)
 
  add_relaxation_variables!(gm)
- relaxed_objective!(gm)
+ relax_objective!(gm)
  add_tree_constraints!(gm)
  optimize!(gm)
