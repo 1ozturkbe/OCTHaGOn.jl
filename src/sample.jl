@@ -141,7 +141,7 @@ Keyword arguments:
 function uniform_sample_and_eval!(bbl::BlackBoxLearner;
                           boundary_fraction::Float64 = 0.5,
                           lh_iterations::Int64 = 0, sample_density = 1.e-5)
-    @assert size(bbl.X, 1) == 0 #TODO: fix this w.r.t. data-driven constraints. 
+    @assert size(bbl.X, 1) == 0 # TODO: fix this w.r.t. data-driven constraints. 
     vks = string.(bbl.vars)
     n_dims = length(vks);
     check_bounds(get_bounds(bbl))
@@ -197,8 +197,11 @@ function uniform_sample_and_eval!(bbls::Array{BlackBoxLearner}; lh_iterations = 
     return
 end
 
-uniform_sample_and_eval!(gm::GlobalModel; lh_iterations::Int64 = get_param(gm, :lh_iterations)) = 
-        uniform_sample_and_eval!(gm.bbls; lh_iterations = lh_iterations, sample_density = get_param(gm, :sample_density))
+function uniform_sample_and_eval!(gm::GlobalModel)
+    @info "Sampling..."
+    uniform_sample_and_eval!(gm.bbls; lh_iterations = get_param(gm, :lh_iterations), sample_density = get_param(gm, :sample_density))
+    return
+end
 
 """
     last_leaf_sample(bbl::BlackBoxLearner)
