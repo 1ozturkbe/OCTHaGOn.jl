@@ -73,7 +73,7 @@ clear_relaxation_variables!(gm::GlobalModel) = clear_relaxation_variables!(gm, g
 """
 Includes relaxation variables in objective function 
 """
-function relaxed_objective!(gm::GlobalModel, M::Real = 1e8)
+function relax_objective!(gm::GlobalModel, M::Real = 1e8)
     no = 0
     for bbl in gm.bbls
         no += M*bbl.relax_var
@@ -150,8 +150,13 @@ function descend!(gm::GlobalModel; kwargs...)
             append!(obj_gradient, DataFrame(string.(gm.objective) => 1), cols = :subset)
         elseif gm.objective isa JuMP.GenericAffExpr
             append!(obj_gradient, DataFrame(Dict(string(key) => value for (key,value) in gm.objective.terms)), cols = :subset)
+        else
+            @warn "Type of objective $(gm.objective) is unsupported."
         end
         obj_gradient = coalesce.(obj_gradient, 0)
+    end
+    if isempty(obj_gradient)
+        obj_gradient = DataFrame(string.(vars) .=> zeros(length(vars)))
     end
 
     # x0 initialization, and actual objective computation

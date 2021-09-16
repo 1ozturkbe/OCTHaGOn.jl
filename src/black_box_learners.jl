@@ -107,9 +107,9 @@ end
 
 function Base.show(io::IO, bbr::BlackBoxRegressor)
     if bbr.equality
-        println(io, "BlackBoxRegressor EQUALITY" * bbr.name * " with $(length(bbr.vars)) independent variables, ")
+        println(io, "BlackBoxRegressor EQUALITY " * bbr.name * " with $(length(bbr.vars)) independent variables, ")
     else
-        println(io, "BlackBoxRegressor inequality" * bbr.name * " with $(length(bbr.vars)) independent variables, ")
+        println(io, "BlackBoxRegressor inequality " * bbr.name * " with $(length(bbr.vars)) independent variables, ")
     end
     println(io, "and dependent variable $(bbr.dependent_var).")
     println(io, "Sampled $(length(bbr.Y)) times, and has $(length(bbr.learners)) trained ORTs.")

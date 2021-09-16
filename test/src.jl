@@ -476,7 +476,7 @@ function test_basic_gm()
     # Adding new variables for each nonlinear constraint
     @test sum(length(all_constraints(gm.model, type[1], type[2])) 
             for type in JuMP.list_of_constraint_types(gm.model)) == 10
-    relaxed_objective!(gm)
+    relax_objective!(gm)
     surveysolve(gm)
     @test [getvalue(bbl.relax_var) for bbl in gm.bbls] == zeros(length(gm.bbls))
     clear_relaxation_variables!(gm)
@@ -607,7 +607,7 @@ end
 # Predator prey model with logistic function from http://www.math.lsa.umich.edu/~rauch/256/F2Lab5.pdf
 function test_linking()
     m = Model(CPLEX_SILENT)
-    t = 30
+    t = 15
     r = 0.2
     x1 = 0.6
     y1 = 0.5
@@ -640,25 +640,27 @@ function test_linking()
         add_linked_constraint(gm, gm.bbls[1], [x[i], y[i], dx[i]])
         add_linked_constraint(gm, gm.bbls[2], [x[i], y[i], dy[i]])
     end
-    uniform_sample_and_eval!(gm)
     init_constraints = sum(length(all_constraints(gm.model, type[1], type[2])) 
         for type in JuMP.list_of_constraint_types(gm.model))
-    # Usually would want to train the dynamics better, but for speed this is better!
-    learn_constraint!(gm)
-    set_param(gm, :ignore_accuracy, true)
-    add_tree_constraints!(gm)
-    # optimize!(gm) # Currently cannot converge. 
-
+    set_param(gm, :max_iterations, 20)
+    set_param(gm, :tighttol, 1e-4)
+    add_relaxation_variables!(gm)
+    relax_objective!(gm)
+    globalsolve!(gm)
+    @test true
+    
+    # # Plotting temporal population data (for visual debugging)
     # using Plots
-    # # Plotting temporal population data
-    # plot(getvalue.(x), label = "Prey")
-    # plot!(getvalue.(y), label = "Predators", xlabel = "Time", ylabel = "Normalized population")
+    # plot(gm.soldict[:x], label = "Prey")
+    # plot!(gm.soldict[:y], label = "Predators", xlabel = "Time", ylabel = "Normalized population")
     # # OR simultaneously in the population dimensions
-    # plot(getvalue.(m[:x]), getvalue.(m[:y]), xlabel = "Prey", ylabel = "Predators", label = 1:t, legend = false)
-    # @test true
+    # plot(gm.soldict[:x], gm.soldict[:y],
+    #     xlabel = "Prey", ylabel = "Predators", 
+    #     label = 1:t, legend = false)
 
     # Checking constraint clearing
     clear_tree_constraints!(gm)
+    clear_relaxation_variables!(gm)
     @test init_constraints == sum(length(all_constraints(gm.model, type[1], type[2])) 
         for type in JuMP.list_of_constraint_types(gm.model))
 end
