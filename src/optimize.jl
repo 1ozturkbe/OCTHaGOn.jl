@@ -193,6 +193,7 @@ function descend!(gm::GlobalModel; kwargs...)
     prev_feas = false
     feas = is_feasible(gm)
     abstol = get_param(gm, :abstol)
+    tighttol = get_param(gm, :tighttol)
     max_iterations = get_param(gm, :max_iterations)
     step_penalty = get_param(gm, :step_penalty)
     equality_penalty = get_param(gm, :equality_penalty)
@@ -228,7 +229,7 @@ function descend!(gm::GlobalModel; kwargs...)
             append!(constr_gradient, DataFrame(bbl.gradients[end,:]), cols = :subset)
             constr_gradient = coalesce.(constr_gradient, 0)
             if bbl isa BlackBoxClassifier
-                error_diff = abs(bbl.Y[end])
+                error_diff = maximum([tighttol, abs(bbl.Y[end])])
                 if bbl.equality
                     push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + bbl.Y[end] + error_diff * bbl.relax_var >= 0))
                     push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + bbl.Y[end] <= error_diff * bbl.relax_var))
@@ -240,7 +241,7 @@ function descend!(gm::GlobalModel; kwargs...)
                     push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + bbl.Y[end] >= 0))
                 end
             elseif bbl isa BlackBoxRegressor
-                error_diff = abs(bbl.optima[end] - bbl.actuals[end])
+                error_diff = maximum([tighttol, abs(bbl.optima[end] - bbl.actuals[end])])
                 if bbl.equality
                     push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + bbl.dependent_var + error_diff * bbl.relax_var >= bbl.Y[end]))
                     push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + bbl.dependent_var <= bbl.Y[end] + error_diff * bbl.relax_var))
@@ -249,7 +250,7 @@ function descend!(gm::GlobalModel; kwargs...)
                     push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + bbl.Y[end] + error_diff * bbl.relax_var >= 0))
                     errors += bbl.relax_var.^2
                 else # feasible to zero tolerance
-                    push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + error_diff * bbl.dependent_var >= bbl.Y[end]))
+                    push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + bbl.dependent_var >= bbl.Y[end]))
                 end
             end
             if !isempty(bbl.lls)
@@ -263,7 +264,7 @@ function descend!(gm::GlobalModel; kwargs...)
                     constr_gradient = coalesce.(constr_gradient, 0)
                     Y_val = bbl.Y[end-n_lls-1+i]
                     if bbl isa BlackBoxClassifier
-                        error_diff = abs(Y_val)
+                        error_diff = maximum([tighttol, abs(Y_val)])
                         if bbl.equality
                             push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + Y_val + error_diff * ll.relax_var >= 0))
                             push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + Y_val <= error_diff * ll.relax_var))
@@ -275,7 +276,7 @@ function descend!(gm::GlobalModel; kwargs...)
                             push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + Y_val >= 0))
                         end
                     elseif bbl isa BlackBoxRegressor
-                        error_diff = abs(ll.optima[end] - ll.actuals[end])
+                        error_diff = maximum([tighttol, abs(ll.optima[end] - ll.actuals[end])])
                         if bbl.equality
                             push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + ll.dependent_var + error_diff * ll.relax_var >= Y_val))
                             push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + ll.dependent_var <= Y_val + error_diff * ll.relax_var))
@@ -339,14 +340,14 @@ function descend!(gm::GlobalModel; kwargs...)
         @info "Max iterations ($(ct)) reached."
         if prev_feas && feas
             @info "Solution is not converged to tolerance $(abstol)!" 
-        elseif (feas && !prev_feas) && (abs(d_improv) <= 100*get_param(gm, :abstol))
+        elseif (feas && !prev_feas) && (abs(d_improv) <= 100*abstol)
             @info "Solution is feasible and likely cycling, but the solution is close. Reduce step size and descend again. "
-        elseif (!feas && prev_feas) && (abs(d_improv) <= 100*get_param(gm, :abstol))
+        elseif (!feas && prev_feas) && (abs(d_improv) <= 100*abstol)
             @info "Solution is infeasible and likely cycling, but the solution is close. Reduce step size and descend again. "
         elseif ((feas && !prev_feas) || (prev_feas && !feas))
             @info "Solution is likely cycling, with > $(abstol) changes in cost. Reduce step size and descend again."
         elseif !feas && !prev_feas
-            @info "Solution is infeasible to tolerance $(get_param(gm, :tighttol))."
+            @info "Solution is infeasible to tolerance $(tighttol)."
         end
         @info("Final cost is $(fincost).")
     else 

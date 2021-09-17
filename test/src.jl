@@ -675,7 +675,7 @@ function test_oos()
     add_tree_constraints!(gm)
     optimize!(gm)
     clear_tree_constraints!(gm)
-    descend!(gm, max_iterations = 1)
+    descend!(gm, max_iterations = 10, tighttol = 1e-5)
 
     # Post-processing
     plot_r = round.((getvalue.(gm.soldict[:r_orbit]) .- op.rE)./1e3, sigdigits = 5)

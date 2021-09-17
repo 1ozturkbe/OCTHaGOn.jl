@@ -45,6 +45,7 @@ name = "himmel16.gms"
 gm = GAMS_to_GlobalModel(OCT.GAMS_DIR * "\\gms\\", name)
 JuMP.set_upper_bound.(gm.vars, ones(length(gm.vars))) # himmel16
 JuMP.set_lower_bound.(gm.vars, -ones(length(gm.vars))) # himmel16
+globalsolve_and_time!(gm)
 
 # ALL SET TO GO 
 name = "kall_circles_c6b.gms"
