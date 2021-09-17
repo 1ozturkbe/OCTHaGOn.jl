@@ -228,26 +228,28 @@ function descend!(gm::GlobalModel; kwargs...)
             append!(constr_gradient, DataFrame(bbl.gradients[end,:]), cols = :subset)
             constr_gradient = coalesce.(constr_gradient, 0)
             if bbl isa BlackBoxClassifier
+                error_diff = abs(bbl.Y[end])
                 if bbl.equality
-                    push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + bbl.Y[end] + bbl.relax_var >= 0))
-                    push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + bbl.Y[end] <= bbl.relax_var))
+                    push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + bbl.Y[end] + error_diff * bbl.relax_var >= 0))
+                    push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + bbl.Y[end] <= error_diff * bbl.relax_var))
                     errors += bbl.relax_var.^2
                 elseif !is_feasible(bbl) || (is_feasible(bbl) && bbl.feas_gap[end] <= 0)
-                    push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + bbl.Y[end] + bbl.relax_var >= 0))
+                    push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + bbl.Y[end] + error_diff * bbl.relax_var >= 0))
                     errors += bbl.relax_var.^2
                 else # feasible to zero tolerance
                     push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + bbl.Y[end] >= 0))
                 end
             elseif bbl isa BlackBoxRegressor
+                error_diff = abs(bbl.optima[end] - bbl.actuals[end])
                 if bbl.equality
-                    push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + bbl.dependent_var + bbl.relax_var >= bbl.Y[end]))
-                    push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + bbl.dependent_var <= bbl.Y[end] + bbl.relax_var))
+                    push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + bbl.dependent_var + error_diff * bbl.relax_var >= bbl.Y[end]))
+                    push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + bbl.dependent_var <= bbl.Y[end] + error_diff * bbl.relax_var))
                     errors += bbl.relax_var.^2
                 elseif !is_feasible(bbl) || (is_feasible(bbl) && bbl.feas_gap[end] <= 0)
-                    push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + bbl.Y[end] + bbl.relax_var >= 0))
+                    push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + bbl.Y[end] + error_diff * bbl.relax_var >= 0))
                     errors += bbl.relax_var.^2
                 else # feasible to zero tolerance
-                    push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + bbl.dependent_var >= bbl.Y[end]))
+                    push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + error_diff * bbl.dependent_var >= bbl.Y[end]))
                 end
             end
             if !isempty(bbl.lls)
@@ -261,23 +263,25 @@ function descend!(gm::GlobalModel; kwargs...)
                     constr_gradient = coalesce.(constr_gradient, 0)
                     Y_val = bbl.Y[end-n_lls-1+i]
                     if bbl isa BlackBoxClassifier
+                        error_diff = abs(Y_val)
                         if bbl.equality
-                            push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + Y_val + ll.relax_var >= 0))
-                            push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + Y_val <= ll.relax_var))
+                            push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + Y_val + error_diff * ll.relax_var >= 0))
+                            push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + Y_val <= error_diff * ll.relax_var))
                             errors += ll.relax_var.^2
                         elseif !is_feasible(ll) || (is_feasible(ll) && ll.feas_gap[end] <= 0)
-                            push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + Y_val + ll.relax_var >= 0))
+                            push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + Y_val + error_diff * ll.relax_var >= 0))
                             errors += ll.relax_var.^2
                         else # feasible to zero tolerance
                             push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + Y_val >= 0))
                         end
                     elseif bbl isa BlackBoxRegressor
+                        error_diff = abs(ll.optima[end] - ll.actuals[end])
                         if bbl.equality
-                            push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + ll.dependent_var + ll.relax_var >= Y_val))
-                            push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + ll.dependent_var <= Y_val + ll.relax_var))
+                            push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + ll.dependent_var + error_diff * ll.relax_var >= Y_val))
+                            push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + ll.dependent_var <= Y_val + error_diff * ll.relax_var))
                             errors += ll.relax_var.^2
                         elseif !is_feasible(ll) || (is_feasible(ll) && ll.feas_gap[end] <= 0)
-                            push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + ll.dependent_var + ll.relax_var >= Y_val))
+                            push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + ll.dependent_var + error_diff * ll.relax_var >= Y_val))
                             errors += ll.relax_var.^2
                         else # feasible to zero tolerance
                             push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + ll.dependent_var >= Y_val))
