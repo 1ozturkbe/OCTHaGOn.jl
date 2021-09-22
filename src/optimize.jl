@@ -362,9 +362,8 @@ function descend!(gm::GlobalModel; kwargs...)
 end
 
 """ Complete solution procedure for GlobalModel. """
-function globalsolve!(gm::GlobalModel, solver = CPLEX_SILENT)
+function globalsolve!(gm::GlobalModel)
     @info "GlobalModel " * gm.name * " solution in progress..."
-    set_optimizer(gm.model, solver)
     for bbl in gm.bbls
         if !is_sampled(bbl)
             uniform_sample_and_eval!(bbl)
