@@ -607,7 +607,7 @@ end
 # Predator prey model with logistic function from http://www.math.lsa.umich.edu/~rauch/256/F2Lab5.pdf
 function test_linking()
     m = Model(CPLEX_SILENT)
-    t = 15
+    t = 20
     r = 0.2
     x1 = 0.6
     y1 = 0.5
@@ -674,8 +674,13 @@ function test_oos()
     learn_constraint!(gm, max_depth=6)
     add_tree_constraints!(gm)
     optimize!(gm)
+    bin_vals = round.(JuMP.getvalue.(gm.model[:xx]))
+    unset_binary.(gm.model[:xx])
+    delete_lower_bound.(gm.model[:xx])
+    delete_upper_bound.(gm.model[:xx])
+    fix.(gm.model[:xx], bin_vals)
     clear_tree_constraints!(gm)
-    descend!(gm, max_iterations = 10, tighttol = 1e-5)
+    descend!(gm, max_iterations = 1, tighttol = 1e-5)
 
     # Post-processing
     plot_r = round.((getvalue.(gm.soldict[:r_orbit]) .- op.rE)./1e3, sigdigits = 5)
