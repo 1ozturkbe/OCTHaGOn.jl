@@ -161,7 +161,6 @@ Adds cuts reducing infeasibility of BBC inequalities.
 """
 function add_infeasibility_cuts!(gm::GlobalModel)
     #TODO: CHECK REGRESSION EQUALITIES.
-    #TODO: ADD CUTS TO LINKEDCONSTRAINTS. 
     var_vals = solution(gm)
     cut_count = 0
     feas_tol = get_param(gm, :tighttol)
