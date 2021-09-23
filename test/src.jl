@@ -607,7 +607,7 @@ end
 # Predator prey model with logistic function from http://www.math.lsa.umich.edu/~rauch/256/F2Lab5.pdf
 function test_linking()
     m = Model(CPLEX_SILENT)
-    t = 15
+    t = 20
     r = 0.2
     x1 = 0.6
     y1 = 0.5
@@ -643,7 +643,9 @@ function test_linking()
     init_constraints = sum(length(all_constraints(gm.model, type[1], type[2])) 
         for type in JuMP.list_of_constraint_types(gm.model))
     set_param(gm, :max_iterations, 20)
-    set_param(gm, :tighttol, 1e-4)
+    set_param(gm, :tighttol, 1e-3)
+    set_param(gm, :equality_penalty, 1e5)
+    set_param(gm, :step_penalty, 1e4)
     add_relaxation_variables!(gm)
     relax_objective!(gm)
     globalsolve!(gm)
@@ -674,8 +676,14 @@ function test_oos()
     learn_constraint!(gm, max_depth=6)
     add_tree_constraints!(gm)
     optimize!(gm)
+    bin_vals = round.(JuMP.getvalue.(gm.model[:xx]))
+    unset_binary.(gm.model[:xx])
+    delete_lower_bound.(gm.model[:xx])
+    delete_upper_bound.(gm.model[:xx])
+    fix.(gm.model[:xx], bin_vals)
     clear_tree_constraints!(gm)
-    descend!(gm, max_iterations = 1)
+    # NOTE: PGD may fail due to CPLEX issues. 
+    descend!(gm, max_iterations = 2, tighttol = 1e-5, step_penalty = 1e8, equality_penalty = 1e6)
 
     # Post-processing
     plot_r = round.((getvalue.(gm.soldict[:r_orbit]) .- op.rE)./1e3, sigdigits = 5)
