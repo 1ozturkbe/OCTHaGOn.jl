@@ -233,9 +233,11 @@ function descend!(gm::GlobalModel; kwargs...)
                 if bbl.equality
                     push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + bbl.Y[end] + error_diff * bbl.relax_var >= 0))
                     push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + bbl.Y[end] <= error_diff * bbl.relax_var))
+                    push!(constrs, @constraint(gm.model, bbl.relax_var <= 1))
                     errors += bbl.relax_var^2
                 elseif !is_feasible(bbl) || (is_feasible(bbl) && bbl.feas_gap[end] <= 0)
                     push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + bbl.Y[end] + error_diff * bbl.relax_var >= 0))
+                    push!(constrs, @constraint(gm.model, bbl.relax_var <= 1))
                     errors += bbl.relax_var^2
                 else # feasible to zero tolerance
                     push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + bbl.Y[end] >= 0))
@@ -245,9 +247,11 @@ function descend!(gm::GlobalModel; kwargs...)
                 if bbl.equality
                     push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + bbl.dependent_var + error_diff * bbl.relax_var >= bbl.Y[end]))
                     push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + bbl.dependent_var <= bbl.Y[end] + error_diff * bbl.relax_var))
+                    push!(constrs, @constraint(gm.model, bbl.relax_var <= 1))
                     errors += bbl.relax_var^2
                 elseif !is_feasible(bbl) || (is_feasible(bbl) && bbl.feas_gap[end] <= 0)
                     push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + bbl.Y[end] + error_diff * bbl.relax_var >= 0))
+                    push!(constrs, @constraint(gm.model, bbl.relax_var <= 1))
                     errors += bbl.relax_var^2
                 else # feasible to zero tolerance
                     push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + bbl.dependent_var >= bbl.Y[end]))
@@ -268,9 +272,11 @@ function descend!(gm::GlobalModel; kwargs...)
                         if bbl.equality
                             push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + Y_val + error_diff * ll.relax_var >= 0))
                             push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + Y_val <= error_diff * ll.relax_var))
+                            push!(constrs, @constraint(gm.model, ll.relax_var <= 1))
                             errors += ll.relax_var^2
                         elseif !is_feasible(ll) || (is_feasible(ll) && ll.feas_gap[end] <= 0)
                             push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + Y_val + error_diff * ll.relax_var >= 0))
+                            push!(constrs, @constraint(gm.model, ll.relax_var <= 1))
                             errors += ll.relax_var^2
                         else # feasible to zero tolerance
                             push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + Y_val >= 0))
@@ -280,9 +286,11 @@ function descend!(gm::GlobalModel; kwargs...)
                         if bbl.equality
                             push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + ll.dependent_var + error_diff * ll.relax_var >= Y_val))
                             push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + ll.dependent_var <= Y_val + error_diff * ll.relax_var))
+                            push!(constrs, @constraint(gm.model, ll.relax_var <= 1))
                             errors += ll.relax_var^2
                         elseif !is_feasible(ll) || (is_feasible(ll) && ll.feas_gap[end] <= 0)
                             push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + ll.dependent_var + error_diff * ll.relax_var >= Y_val))
+                            push!(constrs, @constraint(gm.model, ll.relax_var <= 1))
                             errors += ll.relax_var^2
                         else # feasible to zero tolerance
                             push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + ll.dependent_var >= Y_val))
