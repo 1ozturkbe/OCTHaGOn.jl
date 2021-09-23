@@ -683,7 +683,7 @@ function test_oos()
     fix.(gm.model[:xx], bin_vals)
     clear_tree_constraints!(gm)
     # NOTE: PGD may fail due to CPLEX issues. 
-    descend!(gm, max_iterations = 10, tighttol = 1e-5, step_penalty = 1e8, equality_penalty = 1e6)
+    descend!(gm, max_iterations = 2, tighttol = 1e-5, step_penalty = 1e8, equality_penalty = 1e6)
 
     # Post-processing
     plot_r = round.((getvalue.(gm.soldict[:r_orbit]) .- op.rE)./1e3, sigdigits = 5)

@@ -13,10 +13,12 @@ globalsolve_and_time!(gm)
 name = "ex7_2_3.gms"
 gm = GAMS_to_GlobalModel(OCT.GAMS_DIR * "\\gms\\", name)
 set_param(gm, :step_penalty, 1e12)
+set_optimizer(gm.model, CPLEX_SILENT)
 globalsolve_and_time!(gm)
 
 name = "ex8_4_3.gms"
 gm = GAMS_to_GlobalModel(OCT.GAMS_DIR * "\\gms\\", name)
+set_optimizer(gm.model, CPLEX_SILENT)
 globalsolve_and_time!(gm)
 
 # LOGARITHM CAUSING ISSUES
@@ -24,27 +26,23 @@ name = "ramsey.gms"
 gm = GAMS_to_GlobalModel(OCT.GAMS_DIR * "\\gms\\", name)
 JuMP.set_upper_bound.(gm.vars, 4*ones(length(gm.vars))) # ramsey
 JuMP.set_lower_bound.(all_variables(gm.bbls), zeros(length(all_variables(gm.bbls)))) # ramsey
+set_optimizer(gm.model, CPLEX_SILENT)
 globalsolve_and_time!(gm)
 
 # Causing errors in hyperplane splits
 name = "wastepaper4.gms"
 gm = GAMS_to_GlobalModel(OCT.GAMS_DIR * "\\gms\\", name)
+set_optimizer(gm.model, CPLEX_SILENT)
 globalsolve_and_time!(gm)
-
-# No idea yet? All o fthe ones below. 
-name = "multiplants_mtg1a.gms"
-gm = GAMS_to_GlobalModel(OCT.GAMS_DIR * "\\gms\\", name)
-globalsolve_and_time!(gm)
-
-# TAKES FOREVER...
-name = "genpooling_meyer04.gms"
-gm = GAMS_to_GlobalModel(OCT.GAMS_DIR * "\\gms\\", name)
 
 # ALL SET TO GO 
 name = "himmel16.gms"
 gm = GAMS_to_GlobalModel(OCT.GAMS_DIR * "\\gms\\", name)
 JuMP.set_upper_bound.(gm.vars, ones(length(gm.vars))) # himmel16
 JuMP.set_lower_bound.(gm.vars, -ones(length(gm.vars))) # himmel16
+set_optimizer(gm, CPLEX_SILENT)
+set_param(gm, :step_penalty, 1e4)
+set_param(gm, :equality_penalty, 1e6)
 globalsolve_and_time!(gm)
 
 # ALL SET TO GO 
@@ -54,6 +52,7 @@ time1 = time()
 set_param(gm, :abstol, 1e-5)
 uniform_sample_and_eval!(gm)
 learn_constraint!(gm, max_depth=7)
+set_optimizer(gm.model, CPLEX_SILENT)
 globalsolve_and_time!(gm)
 @info "Time elapsed: $(time()-time1)"
 
@@ -61,16 +60,19 @@ globalsolve_and_time!(gm)
 name = "pointpack08.gms"
 gm = GAMS_to_GlobalModel(OCT.GAMS_DIR * "\\gms\\", name)
 bound!(gm.model, gm.model[:obj] => [-0.5, 0.5])
+set_optimizer(gm, CPLEX_SILENT)
 globalsolve_and_time!(gm)
 
 # ALL SET TO GO 
 name = "flay05m.gms"
 gm = GAMS_to_GlobalModel(OCT.GAMS_DIR * "\\gms\\", name)
+set_optimizer(gm, CPLEX_SILENT)
 globalsolve_and_time!(gm)
 
-# FIXING THIS ASAP, DUE TO THE WAY D IS COMPUTED. 
+# ALL SET TO GO
 name = "fo9.gms"
 gm = GAMS_to_GlobalModel(OCT.GAMS_DIR * "\\gms\\", name)
+set_optimizer(gm, CPLEX_SILENT)
 globalsolve_and_time!(gm)
 
 # ALL SET TO GO 
@@ -80,6 +82,7 @@ time1 = time()
 set_param(gm, :abstol, 1e-5)
 uniform_sample_and_eval!(gm)
 learn_constraint!(gm, max_depth=7)
+set_optimizer(gm.model, CPLEX_SILENT)
 globalsolve_and_time!(gm)
 @info "Time elapsed: $(time()-time1)"
 
