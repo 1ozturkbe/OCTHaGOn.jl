@@ -29,7 +29,7 @@ MOI.Silent() = true;
 
 include(OCT.PROJECT_ROOT * "/test/tools/gams.jl");
 
-include(OCT.PROJECT_ROOT * "/test/tools/sagemark.jl");
+include(OCT.PROJECT_ROOT * "/test/tools/signomial.jl");
 
 include(OCT.PROJECT_ROOT * "/test/tools/models.jl")
 

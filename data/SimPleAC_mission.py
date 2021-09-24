@@ -3,6 +3,7 @@ from gpkit import Model, Variable, SignomialsEnabled, SignomialEquality, VarKey,
 
 # Importing atmospheric model
 from gpkitmodels.SP.atmosphere.atmosphere import Atmosphere
+import sageopt
 from sageopt.interop.gpkit import gpkit_model_to_sageopt_model
 # SimPleAC with mission design and flight segments, and lapse rate and BSFC model (3.4.2)
 
@@ -343,12 +344,11 @@ if __name__ == "__main__":
 
     # GPkit solution and solution storage
     # sol = m.localsolve(verbosity = 4)
-    #print sol.table()
-    for vk in m.varkeys:
+    # print sol.table()
+    # for vk in m.varkeys:
 
     # Sageopt processing
     sm = gpkit_model_to_sageopt_model(m)
-
     f = sm['f']
     gp_ineqs = sm['gp_gts']
     X = sageopt.infer_domain(f, gp_ineqs, [])
@@ -358,7 +358,7 @@ if __name__ == "__main__":
     # Solve the sageopt model and check optimality
     #
     prob.solve(solver='ECOS', verbose=False)
-    self.assertAlmostEqual(prob.value, 0.5, places=3)
-    soln = sig_solrec(prob)[0]
-    soln = local_refine(f, sp_ineqs + gp_ineqs, [], x0=soln)
-    self.assertAlmostEqual(f(soln), 0.5, places=3)
+    # self.assertAlmostEqual(prob.value, 0.5, places=3)
+    # soln = sig_solrec(prob)[0]
+    # soln = local_refine(f, sp_ineqs + gp_ineqs, [], x0=soln)
+    # self.assertAlmostEqual(f(soln), 0.5, places=3)
