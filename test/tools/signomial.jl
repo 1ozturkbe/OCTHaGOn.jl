@@ -8,8 +8,8 @@ Tests tools.
 
 using PyCall
 
+""" Turns exponential to JuMP.NonlinearExpression. """
 function alphac_to_expr(model, alpha, c, lse::Bool = false)
-    """ Turns exponential to JuMP.NonlinearExpression. """
     n_terms, n_vars = size(alpha)
     idxs = unique([i[2] for i in findall(i->i != 0, alpha)]);
     vars = JuMP.all_variables(model)[idxs];
@@ -20,8 +20,8 @@ function alphac_to_expr(model, alpha, c, lse::Bool = false)
     end
 end
 
+""" Turns univariate exponential to JuMP variable bounds. """
 function alphac_to_varbound!(model, alpha, c, lse::Bool = false)
-    """ Turns univariate exponential to JuMP variable bounds. """
     idx = unique([j for j in findall(j->j != 0, alpha)])[1]; #idx[1] is monomial index,
     var = JuMP.all_variables(model)[idx[2]];                 #idx[2] is variable index.
     val = -((sum(c)-c[idx[1]]) / c[idx[1]])^(1/alpha[idx]);
@@ -33,15 +33,17 @@ function alphac_to_varbound!(model, alpha, c, lse::Bool = false)
     end
 end
 
+
+"""
+    sagemark_to_GlobalModel(idx, lse::Bool = false)
+
+Imports sagebenchmarks example from literature.solved and returns as a function_model.
+Arguments:
+    idx:: number of benchmark
+Returns:
+    gm:: a function_model
+"""
 function sagemark_to_GlobalModel(idx, lse::Bool = false)
-    """
-    Imports sagebenchmarks example from literature.solved and
-    returns as a function_model.
-    Arguments:
-        idx:: number of benchmark
-    Returns:
-        gm:: a function_model
-    """
     sagemarks = pyimport("sagebenchmarks.literature.solved");
     signomials, solver, run_fn = sagemarks.get_example(idx);
     f, greaters, equals = signomials;
