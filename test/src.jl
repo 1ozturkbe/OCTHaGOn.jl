@@ -557,10 +557,13 @@ function test_rfs()
         end
     end
     optimize!(gm)
+    descend!(gm)
     clear_tree_constraints!(gm)
+    clear_relaxation_variables!(gm)
+    # TODO: for some reason, relaxation variables are not removed from just clear_tree_constraints! Figure out. 
     # TODO: fix this test. On the backburner though, since RFs are not fully supported. 
-    # @test init_constraints == sum(length(all_constraints(gm.model, type[1], type[2])) 
-    #                                 for type in JuMP.list_of_constraint_types(gm.model))
+    @test init_constraints == sum(length(all_constraints(gm.model, type[1], type[2])) 
+                                    for type in JuMP.list_of_constraint_types(gm.model))
 end
 
 """ Tests convexity checking. """
