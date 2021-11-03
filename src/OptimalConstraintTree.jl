@@ -26,6 +26,7 @@ module OptimalConstraintTree
     const SOL_DIR = PROJECT_ROOT * "\\data\\solutions\\"
     const TREE_DIR = PROJECT_ROOT * "\\data\\trees\\"
     const CPLEX_SILENT = with_optimizer(CPLEX.Optimizer, CPX_PARAM_SCRIND = 0)
+    const CPLEX_MIOTREE = with_optimizer(CPLEX.Optimizer, CPX_PARAM_SCRIND = 0, CPX_PARAM_TILIM = 20)
 
     const valid_lowers = ["reg", "lower", "upperlower"]
     const valid_uppers = ["reg", "upper", "upperlower"]
@@ -50,6 +51,8 @@ module OptimalConstraintTree
     include("root_finding.jl")
 
     include("iai_wrappers.jl")
+
+    include("training.jl")
 
     include("global_model.jl")
     
@@ -85,6 +88,10 @@ module OptimalConstraintTree
 
         # CONSTRAINT LEARNING
 
+        # Tree building
+        BinaryNode, leftchild, rightchild, children, printnode,
+        generate_binary_tree, MIOTree_defaults, MIOTree, 
+
         # Bound finding
         find_bounds!, find_linear_bounds!,
 
@@ -106,7 +113,10 @@ module OptimalConstraintTree
         nonlinearize!,
         set_param, get_param, 
 
-        # Learning 
+        # Tree generation and learning
+        generate_tree_model,
+        is_leaf, get_classification_label, 
+        get_split_weights, get_split_threshold,
         learn_constraint!, 
         base_regressor, base_classifier, base_rf_regressor, base_rf_classifier,
         fit_regressor_kwargs, fit_classifier_kwargs, 

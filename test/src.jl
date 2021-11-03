@@ -215,6 +215,39 @@ function test_bbc()
     @test true
 end
 
+""" Tests MIO-based tree learning. """
+function test_training()
+    path = "data/iris.data"
+    csv_data = CSV.File(path, header=false)
+    iris_names = ["sepal_len", "sepal_wid", "petal_len", "petal_wid", "class"]
+    df = DataFrame(csv_data.columns, Symbol.(iris_names))
+    dropmissing!(df)
+
+    # Checking MIOTree 
+    d = MIOTree_defaults()
+    d = MIOTree_defaults(:max_depth => 4, :cp => 1e-5)
+    @test d[:max_depth] == 4
+    @test get_param(d, :cp) == 1e-5
+    @test_throws ErrorException mt = MIOTree()
+    mt = MIOTree(CPLEX_SILENT, max_depth = 2)
+    set_param(mt, :max_depth, 4)
+    @test maximum(collect(keys(mt.levels))) == 4
+
+    X = Matrix(df[:,1:4])
+    Y =  Array(df[:, "class"])
+    generate_tree_model(mt, X, Y)
+    @test is_leaf(mt.levels[4][1])
+    @test !is_leaf(mt.levels[2][1])
+
+    set_param(mt, :max_time, 10)
+    optimize!(mt)
+
+    # Practicing pruning the tree
+    as = getvalue.(mt.model[:a])
+    bs = getvalue.(mt.model[:b])
+    @test true
+end
+
 """ Testing some IAI kwarging. """
 function test_kwargs()
     # Classification kwargs first...
@@ -752,6 +785,8 @@ test_linearize()
 test_nonlinearize()
 
 test_bbc()
+
+test_training()
 
 test_kwargs()
 
