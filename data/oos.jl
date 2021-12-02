@@ -70,15 +70,15 @@ function oos_gm!(op = oos_params())
     @constraint(m, [i=1:n], fuel_needed[i] == sum(xx[i, :] .* op.fuel_required))
 
     # Mass conservation constraints (linear)
-    @constraint(m, wet_mass >= masses[1, 1] + fuel_needed[1])
+    @constraint(m, wet_mass == masses[1, 1] + fuel_needed[1])
     for i=1:n-1
         @constraint(m, masses[i, 1] >= masses[i, 2])
         @constraint(m, masses[i, 2] >= masses[i, 3])
         @constraint(m, masses[i, 3] >= masses[i, 4])
         @constraint(m, masses[i, 4] >= masses[i, 5])
     end
-    @constraint(m, [i=1:n-2], masses[i, 5] >= masses[i+1, 1] + fuel_needed[i+1])
-    @constraint(m, masses[n-1, 5] >= op.dry_mass + fuel_needed[n])
+    @constraint(m, [i=1:n-2], masses[i, 5] == masses[i+1, 1] + fuel_needed[i+1])
+    @constraint(m, masses[n-1, 5] == op.dry_mass + fuel_needed[n])
 
     # Maneuver time constraints (linear)
     @constraint(m, [i=1:n-1], dt_orbit[i] == period_orbit[i] - op.period_sat)
