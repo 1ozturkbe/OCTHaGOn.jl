@@ -1,5 +1,3 @@
-include("test/load.jl")
-
 # Loading BARON examples (that haven't been loaded yet)
 for i in ["nlp1.jl", "nlp2.jl", "nlp3.jl"]
     include(OCT.BARON_DIR * i)
