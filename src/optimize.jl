@@ -209,10 +209,10 @@ function descend!(gm::GlobalModel; kwargs...)
         constrs = []
         ct += 1
         if step_penalty == 0
-            step_penalty = 1e4*abs(prev_obj)
+            step_penalty = maximum([1e3, 1e4*abs(prev_obj)])
         end
         if equality_penalty == 0
-            equality_penalty = 1e6*abs(prev_obj)
+            equality_penalty = 100*step_penalty
         end
     
         # Linear objective gradient and constraints
