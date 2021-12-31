@@ -89,8 +89,8 @@ module OptimalConstraintTree
         # CONSTRAINT LEARNING
 
         # Tree building
-        BinaryNode, leftchild, rightchild, children, printnode,
-        generate_binary_tree, MIOTree_defaults, MIOTree, 
+        BinaryNode, leftchild, rightchild, children, alloffspring, printnode,
+        generate_binary_tree, MIOTree_defaults, MIOTree, build_MIOTree,
 
         # Bound finding
         find_bounds!, find_linear_bounds!,
@@ -114,7 +114,8 @@ module OptimalConstraintTree
         set_param, get_param, 
 
         # Tree generation and learning
-        generate_tree_model,
+        generate_tree_model, delete_children!, prune!, 
+        score, complexity,
         is_leaf, get_classification_label, 
         get_split_weights, get_split_threshold,
         learn_constraint!, 
