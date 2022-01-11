@@ -13,21 +13,24 @@
 
 function minlp(gm::Bool = false)
     m = JuMP.Model()
-    @variable(m, 0 <= y[1:3] <= 1, Int)
-    @variable(m, x[1:3] >= 0)
+    @variable(m, x[1:6] >= 0)
+    JuMP.set_binary.(x[4:6])
     JuMP.set_upper_bound(x[1], 2)
     JuMP.set_upper_bound(x[2], 2)
     JuMP.set_upper_bound(x[3], 1)
+    JuMP.set_upper_bound(x[4], 1)
+    JuMP.set_upper_bound(x[5], 1)
+    JuMP.set_upper_bound(x[6], 1)
     
     @constraint(m, c3, x[2] - x[1] <= 0)
-    @constraint(m, c4, x[2] - 2*y[1] <= 0)
-    @constraint(m, c5, x[1] - x[2] - 2*y[2] <= 0)
-    @constraint(m, c6, y[1] + y[2] <= 1)
+    @constraint(m, c4, x[2] - 2*x[4] <= 0)
+    @constraint(m, c5, x[1] - x[2] - 2*x[5] <= 0)
+    @constraint(m, c6, x[4] + x[5] <= 1)
 
     if !gm
         @NLconstraint(m, c1, 0.8*log(x[2] + 1) + 0.96*log(x[1] - x[2] + 1) - 0.8*x[3] >= 0)
-        @NLconstraint(m, c2, log(x[2] + 1) + 1.2*log(x[1] - x[2] + 1) - x[3] - 2*y[3] >= -2)
-        @NLobjective(m, Min, 5*y[1] + 6*y[2] + 8*y[3] + 10*x[1] - 7*x[3] - 18*log(x[2] + 1) -
+        @NLconstraint(m, c2, log(x[2] + 1) + 1.2*log(x[1] - x[2] + 1) - x[3] - 2*x[6] >= -2)
+        @NLobjective(m, Min, 5*x[4] + 6*x[5] + 8*x[6] + 10*x[1] - 7*x[3] - 18*log(x[2] + 1) -
                              19.2*log(x[1] - x[2] + 1) + 10)
         set_optimizer(m, BARON_SILENT)
         return m
@@ -38,9 +41,9 @@ function minlp(gm::Bool = false)
         set_optimizer(gm, CPLEX_SILENT)
         add_nonlinear_constraint(gm, :(x -> 0.8*log(x[2] + 1) + 0.96*log(x[1] - x[2] + 1) - 0.8*x[3]),
                                  name = "c1")
-        add_nonlinear_constraint(gm, :((x,y) -> log(x[2] + 1) + 1.2*log(x[1] - x[2] + 1) - x[3] - 2*y[3] + 2),
+        add_nonlinear_constraint(gm, :(x -> log(x[2] + 1) + 1.2*log(x[1] - x[2] + 1) - x[3] - 2*x[6] + 2),
                                  name = "c2")
-        add_nonlinear_constraint(gm, :((x, y) -> 5*y[1] + 6*y[2] + 8*y[3] + 10*x[1] - 7*x[3] - 18*log(x[2] + 1) -
+        add_nonlinear_constraint(gm, :(x -> 5*x[4] + 6*x[5] + 8*x[6] + 10*x[1] - 7*x[3] - 18*log(x[2] + 1) -
                              19.2*log(x[1] - x[2] + 1) + 10),
                                  name = "objective", dependent_var = obj)
         return gm
