@@ -45,6 +45,8 @@ include(OCT.BARON_DIR * "gear.jl")
 
 include(OCT.BARON_DIR * "minlp.jl")
 
+include(OCT.BARON_DIR * "minlp_demo.jl")
+
 include(OCT.BARON_DIR * "nlp1.jl")
 
 include(OCT.BARON_DIR * "nlp2.jl")

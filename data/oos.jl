@@ -94,13 +94,13 @@ function oos_gm!(op = oos_params())
                                                                       exp(1/($(op.g)*$(op.Isp)) * 
                                 sqrt($(op.mu)/$(op.r_sat))*(sqrt(2 * r_orbit[1]/($(op.r_sat) + r_orbit[1]))-1))])), 
                                 vars = [r_orbit[1]], dependent_var = dmass_entry[1],
-                                name = "dmass_entry")
+                                name = "dmass_entry", equality = true)
     add_nonlinear_constraint(gm, :((r_orbit) -> maximum([exp(1/($(op.g)*$(op.Isp)) * 
                                 sqrt($(op.mu)/$(op.r_sat))*(1 - sqrt(2 * r_orbit[1]/($(op.r_sat) + r_orbit[1])))),
                                                                       exp(1/($(op.g)*$(op.Isp)) * 
                                 sqrt($(op.mu)/r_orbit[1])*(1 - sqrt(2 * $(op.r_sat)/($(op.r_sat) + r_orbit[1]))))])), 
                                 vars = [r_orbit[1]], dependent_var = dmass_exit[1],
-                                name = "dmass_exit")
+                                name = "dmass_exit", equality = true)
     for i = 2:n-1
         add_linked_constraint(gm, gm.bbls[end-1], [r_orbit[i]], dmass_entry[i])
         add_linked_constraint(gm, gm.bbls[end], [r_orbit[i]], dmass_exit[i])
@@ -111,7 +111,7 @@ function oos_gm!(op = oos_params())
         vars = [masses[1, 2], fractional_dmasses[1,1]], 
         dependent_var = masses[1,1],
         expr_vars = [masses[1, 2], fractional_dmasses[1,1]],
-        name = "mass_fraction")
+        name = "mass_fraction", equality = true)
     for j=2:4
         add_linked_constraint(gm, gm.bbls[end], [masses[1, j+1], fractional_dmasses[1,j]], masses[1,j])
     end
@@ -130,7 +130,7 @@ function oos_gm!(op = oos_params())
     # Transfer time constraint
     add_nonlinear_constraint(gm, :(r_orbit -> 2*pi*sqrt(($(op.r_sat) + r_orbit[1])^3/(8*$(op.mu)))), 
         vars = [r_orbit[1]], dependent_var = dt_transfer_orbit[1],
-        name = "transfer_time")
+        name = "transfer_time", equality = true)
     [add_linked_constraint(gm, gm.bbls[end], [r_orbit[i]], dt_transfer_orbit[i]) for i=2:n-1]
 
     # Orbital revolutions constraint (equality)
@@ -143,7 +143,7 @@ function oos_gm!(op = oos_params())
     add_nonlinear_constraint(gm, :((dt_transfer_orbit, N_orbit, period_orbit) -> 
             (dt_transfer_orbit[1] + N_orbit[1] * period_orbit[1])), 
             vars = [dt_transfer_orbit[1], N_orbit[1], period_orbit[1]], dependent_var = t_maneuver[1],
-            name = "maneuver_time")
+            name = "maneuver_time", equality = true)
     [add_linked_constraint(gm, gm.bbls[end], [dt_transfer_orbit[i], N_orbit[i], period_orbit[i]], t_maneuver[i])
         for i=2:n-1]
 
