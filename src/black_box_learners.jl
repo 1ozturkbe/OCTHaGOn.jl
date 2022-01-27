@@ -245,7 +245,7 @@ function add_data!(bbr::BlackBoxRegressor, X::DataFrame, Y::Array)
     @assert length(Y) == size(X, 1)
     infeas_idxs = findall(x -> isinf(x), Y)
     length(infeas_idxs) >= 0.5*length(Y) &&
-    throw(OCTException("A majority of samples on BBR $(bbr.name) evaluated as infeasible. " * 
+    throw(OCTHaGOnException("A majority of samples on BBR $(bbr.name) evaluated as infeasible. " * 
         "Please check your expressions. "))
     if isnothing(bbr.gradients) && get_param(bbr, :gradients) 
         bbr.gradients = DataFrame(string.(bbr.vars) .=> [Union{Missing, Float64}[] for i=1:length(bbr.vars)]) 
@@ -287,7 +287,7 @@ function evaluate(bbl::BlackBoxLearner, data::Union{Dict, DataFrame})
         rhs_const = get_constant(constr_obj.set)
         vals = [JuMP.value(constr_obj.func, i -> clean_data[!,string(i)][j]) for j=1:size(clean_data,1)]
         if any(isinf.(vals)) || any(isnan.(vals))
-            throw(OCTException(string("Constraint ", bbl.constraint, " returned an infinite or NaN value.",
+            throw(OCTHaGOnException(string("Constraint ", bbl.constraint, " returned an infinite or NaN value.",
                                       "Please check your variable definitions in bbl ", bbl, " . ")))
         end
         if isnothing(rhs_const)
@@ -456,7 +456,7 @@ Returns the index of currently active lower bounding tree of BBR.
 """
 function active_lower_tree(bbr::BlackBoxRegressor)
     if length(bbr.active_trees) > 2
-        throw(OCTException("Regressor $(bbr.name) has too many active trees. There is a bug in the update. "))
+        throw(OCTHaGOnException("Regressor $(bbr.name) has too many active trees. There is a bug in the update. "))
     elseif length(bbr.active_trees) == 1
         if collect(values(bbr.active_trees))[1].first in valid_lowers
             return collect(keys(bbr.active_trees))[1]

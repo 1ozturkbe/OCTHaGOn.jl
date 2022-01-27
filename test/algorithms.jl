@@ -113,9 +113,9 @@ function test_concave_regressors(gm::GlobalModel = gear(true))
                 treekeys = collect(keys(bbr.active_trees))
                 treevalues = collect(values(bbr.active_trees))
                 if length(treevalues) >= 2
-                    @test Pair(treevalues[1].first, treevalues[2].first) in OCT.valid_pairs
+                    @test Pair(treevalues[1].first, treevalues[2].first) in OCTHaGOn.valid_pairs
                 elseif length(treevalues) == 1
-                    @test treevalues[1].first in OCT.valid_singles || treevalues[1].first == "upper"
+                    @test treevalues[1].first in OCTHaGOn.valid_singles || treevalues[1].first == "upper"
                 end
                 clear_tree_constraints!(gm)
                 n_constraints = sum(length(all_constraints(gm.model, type[1], type[2])) for type in JuMP.list_of_constraint_types(gm.model))

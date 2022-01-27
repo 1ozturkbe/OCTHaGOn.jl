@@ -2,8 +2,7 @@ using CSV, DataFrames, Statistics, Random
 using Gurobi, JuMP
 using Test
 
-include("../src/OptimalConstraintTree.jl")
-global OCT = OptimalConstraintTree
+include("../src/OCTHaGOn.jl")
 global PROJECT_ROOT = @__DIR__
 
 function train_transonic_tree()
@@ -18,7 +17,7 @@ function train_transonic_tree()
     (train_X, train_y), (test_X, test_y) = IAI.split_data(:regression, Matrix(X), Matrix(Y), train_proportion=.999);
 
     # Training tree
-    lnr = OCT.base_otr()
+    lnr = OCTHaGOn.base_otr()
     IAI.set_params!(lnr, hyperplane_config=(sparsity=1,))
     IAI.fit!(lnr, train_X, train_y)
     IAI.write_json(string(PROJECT_ROOT, "/data/transonic_tree.json"), lnr)
@@ -33,8 +32,8 @@ function transonic_mio_model()
     M = [0.4, 0.5, 0.6, 0.7, 0.8, 0.9];
     cl = Array(range(0.35, stop=0.70, step=0.05));
     vks = [Symbol("x",i) for i=1:4];
-    pwlDict = OCT.pwl_constraint_data(lnr, vks);
-    upperDict, lowerDict = OCT.trust_region_data(lnr, vks);
+    pwlDict = OCTHaGOn.pwl_constraint_data(lnr, vks);
+    upperDict, lowerDict = OCTHaGOn.trust_region_data(lnr, vks);
     # Generate MIO constraints from aerodynamics data
     m = Model()
     set_optimizer(m, CPLEX_SILENT);
@@ -48,7 +47,7 @@ function transonic_mio_model()
     @constraint(m, x[3] <= log(maximum(M)))
     @constraint(m, log(minimum(cl)) <= x[4])
     @constraint(m, x[4] <= log(maximum(cl)))
-    OCT.add_regr_constraints!(m, x, y, lnr, vks, M=100., eq=true);
+    OCTHaGOn.add_regr_constraints!(m, x, y, lnr, vks, M=100., eq=true);
     # Setting optimization constraints (as a demonstration)
     # Re, thickness, M, cl
     @constraint(m, x[1] >= log(20000))

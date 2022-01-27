@@ -10,13 +10,13 @@ def import_tests():
     """Get a list of all robust unit test TestCases"""
     tests = []
 
-    from OptimalConstraintTree.testing import test_constraintify
+    from OCTHaGOn.testing import test_constraintify
     tests += test_constraintify.TESTS
 
-    from OptimalConstraintTree.testing import test_ort_models
+    from OCTHaGOn.testing import test_ort_models
     tests += test_ort_models.TESTS
 
-    from OptimalConstraintTree.testing import test_sample
+    from OCTHaGOn.testing import test_sample
     tests += test_sample.TESTS
 
     return tests

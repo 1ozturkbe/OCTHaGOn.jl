@@ -106,7 +106,7 @@ end
 check_accuracy(bbr::BlackBoxRegressor) = 1. # TODO: use MSE?
 
 function check_sampled(bbl::BlackBoxLearner)
-    size(bbl.X, 1) == 0 && throw(OCTException(string("BlackBoxLearner ", bbl.name, " must be sampled first.")))
+    size(bbl.X, 1) == 0 && throw(OCTHaGOnException(string("BlackBoxLearner ", bbl.name, " must be sampled first.")))
     return 
 end
 
@@ -225,7 +225,7 @@ function learn_constraint!(bbc::BlackBoxClassifier; kwargs...)
         push!(bbc.accuracies, IAI.score(lnr, bbc.X, bbc.Y .>= 0)) # TODO: add ability to specify criterion. 
         push!(bbc.learner_kwargs, Dict(kwargs))
     else
-        throw(OCTException("Not enough feasible samples for BlackBoxClassifier " * string(bbc.name) * "."))
+        throw(OCTHaGOnException("Not enough feasible samples for BlackBoxClassifier " * string(bbc.name) * "."))
     end
     return
 end
@@ -288,7 +288,7 @@ function learn_constraint!(bbr::BlackBoxRegressor, threshold::Pair = Pair("reg",
         push!(bbr.accuracies, IAI.score(lnr, bbr.X, bbr.Y))
     elseif threshold.first == "rfreg"
         lnr = base_rf_regressor()
-        bbr.local_convexity < 0.75 || throw(OCTException("Cannot use RandomForestRegressor " *
+        bbr.local_convexity < 0.75 || throw(OCTHaGOnException("Cannot use RandomForestRegressor " *
         "on BBR $(bbr.name) since it is almost convex."))
         IAI.set_params!(lnr; minbucket = 
             maximum([2*length(bbr.vars)/length(bbr.Y), lnr.minbucket]),
@@ -305,7 +305,7 @@ function learn_constraint!(bbr::BlackBoxRegressor, threshold::Pair = Pair("reg",
         push!(bbr.ul_data, boundify(lnr, bbr.X, bbr.Y))
         push!(bbr.accuracies, IAI.score(lnr, bbr.X, bbr.Y))
     else
-        throw(OCTException("$(threshold.first) is not a valid learner type for" *
+        throw(OCTHaGOnException("$(threshold.first) is not a valid learner type for" *
             " thresholded learning of BBR $(bbr.name)."))
     end    
     return

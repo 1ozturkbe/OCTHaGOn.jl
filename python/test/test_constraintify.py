@@ -9,14 +9,14 @@ from gpkitmodels.SP.SimPleAC.SimPleAC_mission import *
 from interpretableai import iai
 import pickle
 
-from OptimalConstraintTree.constraint_tree import ConstraintTree
-from OptimalConstraintTree.global_model import GlobalModel
-from OptimalConstraintTree.sample import gen_X
-from OptimalConstraintTree.tools import (find_signomials, prep_SimPleAC,
+from OCTHaGOn.constraint_tree import ConstraintTree
+from OCTHaGOn.global_model import GlobalModel
+from OCTHaGOn.sample import gen_X
+from OCTHaGOn.tools import (find_signomials, prep_SimPleAC,
                                         get_varkeys, get_bounds, \
                                         bound_variables, \
                                         constraint_from_gpfit, HiddenPrints)
-from OptimalConstraintTree.testing.run_tests import run_tests
+from OCTHaGOn.testing.run_tests import run_tests
 
 class TestConstraintify(unittest.TestCase):
     def test_monomials_from_pwl_data(self):

@@ -3,7 +3,7 @@ all_tests:
 - Julia version: 
 - Author: Berk
 - Date: 2020-07-01
-Note: All tests should be run from a julia REPR within the OptimalConstraintTree folder, using:
+Note: All tests should be run from a julia REPR within the OCTHaGOn folder, using:
       julia --project=.
       include("test/all.jl")
       
@@ -14,16 +14,16 @@ Note: All tests should be run from a julia REPR within the OptimalConstraintTree
 
 include("load.jl");
 
-@testset "OptimalConstraintTree" begin
-    include(string(OptimalConstraintTree.PROJECT_ROOT, "/test/src.jl"))
+@testset "OCTHaGOn" begin
+    include(string(OCTHaGOn.PROJECT_ROOT, "/test/src.jl"))
 
-    include(string(OptimalConstraintTree.PROJECT_ROOT, "/test/imports.jl"))
+    include(string(OCTHaGOn.PROJECT_ROOT, "/test/imports.jl"))
 
-#     include(string(OptimalConstraintTree.PROJECT_ROOT, "/test/cbf.jl"))
+#     include(string(OCTHaGOn.PROJECT_ROOT, "/test/cbf.jl"))
 
-    include(string(OptimalConstraintTree.PROJECT_ROOT, "/test/algorithms.jl"))
+    include(string(OCTHaGOn.PROJECT_ROOT, "/test/algorithms.jl"))
 
-#     include(string(OptimalConstraintTree.PROJECT_ROOT, "/test/lse.jl"))
+#     include(string(OCTHaGOn.PROJECT_ROOT, "/test/lse.jl"))
 
 end
 

@@ -181,7 +181,7 @@ function add_nonlinear_constraint(gm::GlobalModel,
             return
         end
     elseif constraint isa JuMP.ConstraintRef
-        !isnothing(dependent_var) && throw(OCTException("Constraint " * name * " is of type $(string(typeof(constraint))) " *
+        !isnothing(dependent_var) && throw(OCTHaGOnException("Constraint " * name * " is of type $(string(typeof(constraint))) " *
                                                         "and cannot have a dependent variable " * string(dependent_var) * "."))
         new_bbl = BlackBoxClassifier(constraint = constraint, vars = vars, expr_vars = expr_vars,
                                         equality = equality, name = name)
@@ -250,7 +250,7 @@ approximator is replicated without rebuilding the tree approximation.
 Note that the bounds used for sampling are for the original variables!!
 """
 function add_linked_constraint(gm::GlobalModel, bbc::BlackBoxClassifier, vars::Array{JuMP.VariableRef})
-    length(vars) == length(bbc.vars) || throw(OCTException("BBC $(bbc.name) does not" *
+    length(vars) == length(bbc.vars) || throw(OCTHaGOnException("BBC $(bbc.name) does not" *
     " have the same number of variables as linked variables $(vars)."))
     if !isempty(bbc.mi_constraints)
         clear_tree_constraints!(gm, bbc)
@@ -262,7 +262,7 @@ end
 
 function add_linked_constraint(gm::GlobalModel, bbr::BlackBoxRegressor, vars::Array{JuMP.VariableRef}, 
                                 dependent_var::JuMP.VariableRef)
-    length(vars) == length(bbr.vars) || throw(OCTException("BBR $(bbr.name) does not" *
+    length(vars) == length(bbr.vars) || throw(OCTHaGOnException("BBR $(bbr.name) does not" *
     " have the same number of variables as linked variables $(vars)"))
     if !isempty(bbr.mi_constraints)
         clear_tree_constraints!(gm, bbr)
@@ -354,7 +354,7 @@ function evaluate_accuracy(bbc::BlackBoxClassifier)
         @warn(string("Accuracy of BlackBoxClassifier ", bbc.name, " is tautological."))
         return 1.
     elseif isempty(bbc.learners)
-        throw(OCTException(string("BlackBoxClassifier ", bbc.name, " has not been trained yet.")))
+        throw(OCTHaGOnException(string("BlackBoxClassifier ", bbc.name, " has not been trained yet.")))
     else
         return bbc.accuracies[end]
     end
@@ -364,7 +364,7 @@ function evaluate_accuracy(bbr::BlackBoxRegressor)
     if bbr.convex && !bbr.equality
         return 1.
     elseif isempty(bbr.learners)
-        throw(OCTException(string("BlackBoxRegressor ", bbr.name, " has not been trained yet.")))
+        throw(OCTHaGOnException(string("BlackBoxRegressor ", bbr.name, " has not been trained yet.")))
     else
         return bbr.accuracies[active_lower_tree(bbr)] 
     end

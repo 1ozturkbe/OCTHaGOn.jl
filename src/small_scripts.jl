@@ -43,7 +43,7 @@ sqr(var) = var^2
 """ Checks outer-boundedness of values of a Dict. """
 function check_bounds(bounds::Dict)
     if any(isinf.(Iterators.flatten(values(bounds))))
-        throw(OCTException("Unbounded variables in model!"))
+        throw(OCTHaGOnException("Unbounded variables in model!"))
     else
         return
     end
@@ -60,9 +60,9 @@ Returns:
     Dict of ID maps
 """
 function get_varmap(expr_vars::Array, vars::Array)
-    length(flat(expr_vars)) >= length(vars) || throw(OCTException(string("Insufficiently many input
+    length(flat(expr_vars)) >= length(vars) || throw(OCTHaGOnException(string("Insufficiently many input
         variables declared in ", vars, ".")))
-    unique(vars) == vars || throw(OCTException(string("Nonunique variables among ", vars, ".")))
+    unique(vars) == vars || throw(OCTHaGOnException(string("Nonunique variables among ", vars, ".")))
     if expr_vars == vars
         return collect(1:length(vars))
     end
@@ -72,7 +72,7 @@ function get_varmap(expr_vars::Array, vars::Array)
             try
                 varmap[findall(x -> x == expr_vars[i], vars)[1]] = (i,0)
             catch
-                throw(OCTException(string("Scalar variable ", expr_vars[i], " was not properly declared in vars.")))
+                throw(OCTHaGOnException(string("Scalar variable ", expr_vars[i], " was not properly declared in vars.")))
             end
         else
             for j=1:length(expr_vars[i])
@@ -84,7 +84,7 @@ function get_varmap(expr_vars::Array, vars::Array)
             end
         end
     end
-    length(varmap) == length(vars) || throw(OCTException(string("Could not properly map
+    length(varmap) == length(vars) || throw(OCTHaGOnException(string("Could not properly map
                                             expr_vars: ", expr_vars,
                                             "to vars: ", vars, ".")))
     return varmap
@@ -102,7 +102,7 @@ function get_datamap(expr_vars::Array, vars::Array)
         if length(idx) == 1
             push!(datamap, idx[1])
         else
-            throw(OCTException("There was an issue with getting data mapping."))
+            throw(OCTHaGOnException("There was an issue with getting data mapping."))
         end
     end
     return datamap

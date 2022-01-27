@@ -2,7 +2,7 @@
 test_src:
 - Author: Berk
 - Date: 2020-06-16
-This tests everything to do with the core of the OptimalConstraintTree code,
+This tests everything to do with the core of the OCTHaGOn code,
 without *many* machine learning components
 =#
 
@@ -31,9 +31,9 @@ function test_expressions()
 
     # Testing "flattening of expressions" for nonlinearization
     expr_vars = vars_from_expr(expr, model)
-    @test OCT.get_var_ranges(expr_vars) == [(1:5),(6:8),9]
-    @test OCT.zeroarray([(1:5),(6:8),9]) == [zeros(5), zeros(3), 0]
-    flat_expr = :((x...) -> $(expr)([x[i] for i in $(OCT.get_var_ranges(expr_vars))]...))
+    @test OCTHaGOn.get_var_ranges(expr_vars) == [(1:5),(6:8),9]
+    @test OCTHaGOn.zeroarray([(1:5),(6:8),9]) == [zeros(5), zeros(3), 0]
+    flat_expr = :((x...) -> $(expr)([x[i] for i in $(OCTHaGOn.get_var_ranges(expr_vars))]...))
     fn = functionify(flat_expr)
     @test Base.invokelatest(fn, [1,2,3,4,1,5,-6,-7,7]...) == Base.invokelatest(f, ([1,2,3,4,1], [5,-6,-7], 7)...)
     @test Base.invokelatest(fn, flat(expr_vars)...) == res
@@ -41,8 +41,8 @@ function test_expressions()
     # Testing proper mapping for expressions
     flatvars = flat([y[2], z, x[1:4]])
     vars = vars_from_expr(expr, model)
-    @test OCT.get_varmap(vars, flatvars) == [(2,2), (3,0), (1,1), (1, 2), (1,3), (1,4)]
-    @test OCT.get_datamap(vars, flatvars) == [7, 9, 1, 2, 3, 4]
+    @test OCTHaGOn.get_varmap(vars, flatvars) == [(2,2), (3,0), (1,1), (1, 2), (1,3), (1,4)]
+    @test OCTHaGOn.get_datamap(vars, flatvars) == [7, 9, 1, 2, 3, 4]
     
     # Testing gradientify
     grad = gradientify(expr, vars_from_expr(expr, model))
@@ -53,7 +53,7 @@ function test_expressions()
     con = @constraint(model, Base.invokelatest(f, (x,y,z)...) >= 1) # also on JuMP constraints
     gradfn = gradientify(con, expr_vars)
     @test all(gradfn(ones(9)) .≈ grad(ones(9)))
-    @test_throws OCTException gradientify(@constraint(model, [x[1] x[2];
+    @test_throws OCTHaGOnException gradientify(@constraint(model, [x[1] x[2];
                                                               x[3] x[4]] in PSDCone()), x[1:4])
 
     # Testing vars_from_constraint as well
@@ -90,8 +90,8 @@ function test_bounds()
 
     # Check infeasible bounds
     new_bound = x[4] => [-10,-6]
-    @test_throws OCTException OCT.check_infeasible_bound(new_bound)
-    @test_throws OCTException bound!(model, new_bound)
+    @test_throws OCTHaGOnException OCTHaGOn.check_infeasible_bound(new_bound)
+    @test_throws OCTHaGOnException bound!(model, new_bound)
 
     # Check unbounds
     @test all(collect(values(get_unbounds(model)))[i] == [-2., Inf] for i = 1:4)
@@ -182,10 +182,10 @@ function test_bbc()
     bbl = bbls[1]
 
     # Check unbounded sampling
-    @test_throws OCTException X = lh_sample(bbl, n_samples=100);
+    @test_throws OCTHaGOnException X = lh_sample(bbl, n_samples=100);
 
     # Check knn_sampling without previous samples
-    @test_throws OCTException knn_sample(bbl)
+    @test_throws OCTHaGOnException knn_sample(bbl)
 
     # Check evaluation of samples
     samples = DataFrame(randn(10, length(bbl.vars)),string.(bbl.vars))
@@ -196,7 +196,7 @@ function test_bbc()
     bound!(model, Dict(z => [-Inf, 10]))
     X_bound = boundary_sample(bbl);
     @test size(X_bound, 1) == 2^(length(bbl.vars)+1)
-    @test_throws OCTException knn_sample(bbl)
+    @test_throws OCTHaGOnException knn_sample(bbl)
     X_lh = lh_sample(bbl, lh_iterations=3);
 
     # Check sample_and_eval
@@ -410,7 +410,7 @@ function test_bbr()
         @test size(df, 1) == get_param(bbc, :n_samples)
     end
     update_tree_constraints!(gm, bbcs[1])
-    @test_throws OCTException last_leaf_sample(bbcs[1])
+    @test_throws OCTHaGOnException last_leaf_sample(bbcs[1])
 
     @test all(Array(gm.solution_history[:,"obj"]) .≈ gm.solution_history[1, "obj"])
 
@@ -465,7 +465,7 @@ function test_basic_gm()
     @test all([length(bbl.learners) == 0 for bbl in gm.bbls])
 
     # Testing surveysolve, and add_infeasibility_cuts for 
-    @test_throws OCTException surveysolve(gm) # no data error
+    @test_throws OCTHaGOnException surveysolve(gm) # no data error
     uniform_sample_and_eval!(gm)
     surveysolve(gm)
     update_leaf_vexity(gm.bbls[1])

@@ -38,7 +38,7 @@ function bound_to_data!(m::JuMP.Model,
     try 
         vars = [m[Symbol(key)] for key in names(X)]
     catch UndefVarError
-        throw(OCTException("Please make sure the keys of X match with variables in model $(gm)."))
+        throw(OCTHaGOnException("Please make sure the keys of X match with variables in model $(gm)."))
     end
     ranges = Dict(m[Symbol(key)] => [minimum((X[!, Symbol(key)])), maximum((X[!, Symbol(key)]))] for key in names(X))
     bound!(m, ranges);

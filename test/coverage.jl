@@ -6,7 +6,7 @@ test_coverage:
 =#
 
 # Run julia --project=. --code-coverage test/all.jl
-# Then restart julia from within OptimalConstraintTree and run this file.
+# Then restart julia from within OCTHaGOn and run this file.
 global PROJECT_ROOT = @__DIR__
 ENV["CODECOV_TOKEN"]="16d10cc5-d038-4ca4-868f-73d8b5ded063"
 using Coverage
@@ -21,7 +21,7 @@ coverage = merge_coverage_counts(coverage, filter!(
 # Get total coverage for all Julia files
 covered_lines, total_lines = get_summary(coverage)
 # Or process a single file
-@show get_summary(process_file(joinpath("src", "OptimalConstraintTree.jl")))
+@show get_summary(process_file(joinpath("src", "OCTHaGOn.jl")))
 println("Covered lines: ", covered_lines)
 println("Total lines: ", total_lines)
 println("Ratio: ", covered_lines/total_lines)

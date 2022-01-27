@@ -1,8 +1,8 @@
-"""Standard Python setup script for OptimalConstraintTree"""
+"""Standard Python setup script for OCTHaGOn"""
 from setuptools import setup
 
 LONG_DESCRIPTION = """
-OptimalConstraintTree is a Python package for
+OCTHaGOn is a Python package for
 generating optimization compatible constraints from data using
 machine learning, and solving the resulting global
 optimization problems.
@@ -32,18 +32,18 @@ SOFTWARE.
 """
 
 setup(
-    name="OptimalConstraintTree",
+    name="OCTHaGOn",
     description="Package for generating optimization compatible "
                 "constraints from data.",
     author="Berk Ozturk",
     author_email="bozturk@mit.edu",
-    url="https://github.com/1ozturkbe/OptimalConstraintTree",
+    url="https://github.com/1ozturkbe/OCTHaGOn",
     install_requires=["gpkit >= 0.9", "interpretableai", "pyDOE", "progressbar",
                       "gpfit", "julia >= 0.5.0", "time", "copy", "pandas"],
     version="0.1.0",
-    package_dir={"OptimalConstraintTree": "python"},
-    packages=["OptimalConstraintTree",
-              "OptimalConstraintTree.test"],
+    package_dir={"OCTHaGOn": "python"},
+    packages=["OCTHaGOn",
+              "OCTHaGOn.test"],
     license=LICENSE,
     long_description=LONG_DESCRIPTION,
 )

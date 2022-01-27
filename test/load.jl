@@ -5,6 +5,9 @@ load:
 - Date: 2020-09-04
 =#
 
+using Pkg
+Pkg.activate("test")
+
 using DataFrames
 using JuMP
 using BARON
@@ -17,40 +20,39 @@ using MathOptInterface
 using Test
 using Random
 
-include("../src/OptimalConstraintTree.jl")
-using .OptimalConstraintTree
-global OCT = OptimalConstraintTree
+include("../src/OCTHaGOn.jl")
+using .OCTHaGOn
 global MOI = MathOptInterface
 global BARON_SILENT = with_optimizer(BARON.Optimizer, OutputFlag = 0)
-global CPLEX_SILENT = OCT.CPLEX_SILENT
+global CPLEX_SILENT = OCTHaGOn.CPLEX_SILENT
 # global GUROBI_SILENT = with_optimizer(Gurobi.Optimizer, OutputFlag = 0, Gurobi.Env())
 Random.seed!(1);
 MOI.Silent() = true;
 
-include(OCT.PROJECT_ROOT * "/test/tools/gams.jl");
+include(OCTHaGOn.PROJECT_ROOT * "/test/tools/gams.jl");
 
-include(OCT.PROJECT_ROOT * "/test/tools/sagemark.jl");
+include(OCTHaGOn.PROJECT_ROOT * "/test/tools/sagemark.jl");
 
-include(OCT.PROJECT_ROOT * "/test/tools/models.jl")
+include(OCTHaGOn.PROJECT_ROOT * "/test/tools/models.jl")
 
-include(OCT.DATA_DIR * "speed_reducer.jl")
+include(OCTHaGOn.DATA_DIR * "speed_reducer.jl")
 
-include(OCT.DATA_DIR * "oos.jl")
+include(OCTHaGOn.DATA_DIR * "oos.jl")
 
-include(OCT.DATA_DIR * "afpm.jl")
+include(OCTHaGOn.DATA_DIR * "afpm.jl")
 
-include(OCT.DATA_DIR * "polynomial.jl")
+include(OCTHaGOn.DATA_DIR * "polynomial.jl")
 
-include(OCT.BARON_DIR * "gear.jl")
+include(OCTHaGOn.BARON_DIR * "gear.jl")
 
-include(OCT.BARON_DIR * "minlp.jl")
+include(OCTHaGOn.BARON_DIR * "minlp.jl")
 
-include(OCT.BARON_DIR * "minlp_demo.jl")
+include(OCTHaGOn.BARON_DIR * "minlp_demo.jl")
 
-include(OCT.BARON_DIR * "nlp1.jl")
+include(OCTHaGOn.BARON_DIR * "nlp1.jl")
 
-include(OCT.BARON_DIR * "nlp2.jl")
+include(OCTHaGOn.BARON_DIR * "nlp2.jl")
 
-include(OCT.BARON_DIR * "nlp3.jl")
+include(OCTHaGOn.BARON_DIR * "nlp3.jl")
 
-include(OCT.BARON_DIR * "pool1.jl")
+include(OCTHaGOn.BARON_DIR * "pool1.jl")

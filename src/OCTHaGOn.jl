@@ -1,10 +1,8 @@
-module OptimalConstraintTree
+module OCTHaGOn
     using Combinatorics
     using CPLEX
-    using CSV
     using DataFrames
     using ForwardDiff
-    using JLD
     using JuMP
     using LatinHypercubeSampling
     using LinearAlgebra
@@ -16,8 +14,6 @@ module OptimalConstraintTree
     using NearestNeighbors
     using Parameters
     using ProgressMeter
-    using Random
-    using StatsBase
 
     const PROJECT_ROOT = dirname(dirname(@__FILE__))
     const DATA_DIR = PROJECT_ROOT * "\\data\\"
@@ -132,7 +128,7 @@ module OptimalConstraintTree
         # Checks and exceptions
         feasibility, check_accuracy, check_feasibility, 
         check_bounds,  check_sampled, check_if_trained,
-        OCTException, is_feasible, is_sampled, 
+        OCTHaGOnException, is_feasible, is_sampled, 
 
         # Clean-up
         clear_data!, clear_tree_data!,

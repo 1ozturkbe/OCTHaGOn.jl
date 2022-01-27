@@ -148,7 +148,7 @@ function functionify(constraint)
     if constraint isa Expr
         f = eval(constraint)
         f isa Function && return f
-        throw(OCTException(string("functionify(", f, ") is not a valid function.")))
+        throw(OCTHaGOnException(string("functionify(", f, ") is not a valid function.")))
     else
         return nothing
     end
@@ -190,7 +190,7 @@ function vars_from_constraint(con::JuMP.ConstraintRef)
     elseif confunc isa VariableRef
         return [confunc]
     else
-        throw(OCTException("Only affine or quadratic constraints are current supported."))
+        throw(OCTHaGOnException("Only affine or quadratic constraints are current supported."))
     end
 end
 
@@ -246,7 +246,7 @@ function gradientify(con::JuMP.ConstraintRef, expr_vars::Array)
         return gradfn
     else
         throw(
-        OCTException("Currently, only supporting gradients of affine or quadratic JuMP constraints. Please " *
+        OCTHaGOnException("Currently, only supporting gradients of affine or quadratic JuMP constraints. Please " *
                      "submit your constraint as a Expr instead and try again. "))
     end
 end
@@ -285,7 +285,7 @@ function check_infeasible_bound(bound::Pair)
     @assert val isa Array
     model_bounds = get_bound(key)
     if minimum(model_bounds) >= maximum(val) || maximum(model_bounds) <= minimum(val)
-        throw(OCTException("Infeasible bounds."))
+        throw(OCTHaGOnException("Infeasible bounds."))
     else
         return [maximum([minimum(model_bounds), minimum(val)]),
                     minimum([maximum(model_bounds), maximum(val)])]
@@ -315,7 +315,7 @@ function bound!(model::JuMP.Model, bound::Pair)
                 bound!(model, var => bound.second)
             end
         else
-            throw(OCTException("Bound with fetch_variable has failed. Try bounding using JuMP.VariableRefs!"))
+            throw(OCTHaGOnException("Bound with fetch_variable has failed. Try bounding using JuMP.VariableRefs!"))
         end
     end
     return

@@ -8,7 +8,7 @@ from gpkit import SignomialEquality
 from gpkit.nomials import PosynomialInequality
 from gpkit.keydict import KeySet
 
-from OptimalConstraintTree.tools import mergeDict, check_units, bound_variables
+from OCTHaGOn.tools import mergeDict, check_units, bound_variables
 
 import numpy as np
 
