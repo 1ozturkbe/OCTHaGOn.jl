@@ -17,7 +17,7 @@ moi_obj = JuMP.getobjectivevalue(model);
 @test moi_obj ≈ -1.0792654303
 
 # Testing CBF import to ModelData
-md = OptimalConstraintTree.CBF_to_ModelData(filename);
+md = OCTHaGOn.CBF_to_ModelData(filename);
 md.name = "shortfall_20_15"
 find_bounds!(md, all_bounds = true);
 update_bounds!(md, lbs = Dict(md.vks .=> 0.));

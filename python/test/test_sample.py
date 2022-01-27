@@ -3,12 +3,12 @@ import numpy as np
 from numpy.random import exponential as xp
 from gpkit import Variable, units
 import unittest
-from OptimalConstraintTree.testing.run_tests import run_tests
+from OCTHaGOn.testing.run_tests import run_tests
 import pickle
 
-from OptimalConstraintTree.testing.test_ort_models import prep_SimPleAC
-from OptimalConstraintTree.sample import sample_gpobj, sample_gpmodel
-from OptimalConstraintTree.sample import gen_X
+from OCTHaGOn.testing.test_ort_models import prep_SimPleAC
+from OCTHaGOn.sample import sample_gpobj, sample_gpmodel
+from OCTHaGOn.sample import gen_X
 
 class TestSample(unittest.TestCase):
     """ Tests sampling methods. """

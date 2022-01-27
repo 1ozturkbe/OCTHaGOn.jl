@@ -24,7 +24,7 @@ function test_sagemark_to_GlobalModel()
 
     @test gm_lse.bbls[1](log_inp)[1] ≈ gm.bbls[1](inp)[1] ≈ [inp[gm.vars[3]] ^ 0.8 * inp[gm.vars[4]] ^ 1.2][1]
 
-    # Checking OCTException for sampling unbounded model
+    # Checking OCTHaGOnException for sampling unbounded model
     uniform_sample_and_eval!(gm)
     @test true
 end
@@ -36,7 +36,7 @@ function test_gams_to_GlobalModel()
     gms = Dict()
     for filename in filenames
         try
-            gm = GAMS_to_GlobalModel(OCT.GAMS_DIR, filename)
+            gm = GAMS_to_GlobalModel(OCTHaGOn.GAMS_DIR, filename)
 #             println("    Problem NL constraints: " * string(length(gm.bbls)))
             types = JuMP.list_of_constraint_types(gm.model)
             if !isempty(types)
@@ -44,13 +44,13 @@ function test_gams_to_GlobalModel()
 #                 println("    Problem total constraints: " * string(total_constraints))
             end
         catch
-            throw(OCTException(filename * " has an import issue."))
+            throw(OCTHaGOnException(filename * " has an import issue."))
         end
     end
 
     # Testing problem import.
     filename = "problem3.13.gms"
-    gm =  GAMS_to_GlobalModel(OCT.GAMS_DIR, filename)
+    gm =  GAMS_to_GlobalModel(OCTHaGOn.GAMS_DIR, filename)
     x = gm.model[:x]
     @test length(gm.vars) == 8
     @test all(bound == [0,100] for bound in values(get_bounds(Array{JuMP.VariableRef}(flat(gm.model[:x])))))

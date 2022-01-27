@@ -12,8 +12,8 @@ from gpkit.keydict import KeyDict
 import progressbar
 import pickle
 
-from OptimalConstraintTree.tools import clean_subs
-from OptimalConstraintTree.tools import HiddenPrints
+from OCTHaGOn.tools import clean_subs
+from OCTHaGOn.tools import HiddenPrints
 
 def sample_gpobj(gpobj, bounds, samples, criterion="corr"):
     """

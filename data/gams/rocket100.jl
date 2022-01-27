@@ -1,8 +1,8 @@
 function rocket100()
     model = JuMP.Model()
     # Parsing GAMS Files
-    lexed = GAMSFiles.lex(OCT.GAMS_DIR * "rocket100.gms")
-    gams = GAMSFiles.parsegams(OCT.GAMS_DIR * "rocket100.gms")
+    lexed = GAMSFiles.lex(OCTHaGOn.GAMS_DIR * "rocket100.gms")
+    gams = GAMSFiles.parsegams(OCTHaGOn.GAMS_DIR * "rocket100.gms")
     GAMSFiles.parseconsts!(gams)
 
     vars = GAMSFiles.getvars(gams["variables"])

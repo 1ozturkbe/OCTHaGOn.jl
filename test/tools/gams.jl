@@ -74,7 +74,7 @@ function generate_variables!(model::JuMP.Model, gams::Dict{String, Any})
                 elseif vinfo.typ == "integer"
                     JuMP.set_integer.(model[Symbol(var)])
                 else
-                    throw(OCTException("Type $(vinfo.typ) unknown for variable $(var)."))
+                    throw(OCTHaGOnException("Type $(vinfo.typ) unknown for variable $(var)."))
                 end
             end
             for (prop, val) in vinfo.assignments
@@ -159,7 +159,7 @@ function GAMS_to_GlobalModel(GAMS_DIR::String, filename::String)
             constkeys = find_vars_in_eq(eq, constdict)
             const_pairs = Dict(constkey => model[constkey] for constkey in constkeys)
             for (constkey, constval) in const_pairs
-                constr_expr = OCT.substitute(constr_expr, :($constkey) => constval)
+                constr_expr = OCTHaGOn.substitute(constr_expr, :($constkey) => constval)
             end
             # Designate free variables
             varkeys = find_vars_in_eq(eq, vardict)
@@ -173,11 +173,11 @@ function GAMS_to_GlobalModel(GAMS_DIR::String, filename::String)
                 add_nonlinear_or_compatible(gm, constr_fn, vars = vars, expr_vars = [vardict[varkey] for varkey in varkeys],
                                         equality = is_equality(eq), name = gm.name * "_" * GAMSFiles.getname(key))
             else
-                constr_expr = OCT.substitute(constr_expr, :($(Symbol(gams["minimizing"]))) => 0)
+                constr_expr = OCTHaGOn.substitute(constr_expr, :($(Symbol(gams["minimizing"]))) => 0)
                 # ASSUMPTION: objvar has positive coefficient, and is on the greater size. 
                 op = GAMSFiles.eqops[GAMSFiles.getname(eq)]
                 if !(op in [:<, :>])
-                    throw(OCTException("Please make sure GAMS model has objvar on the greater than size of inequalities, " *
+                    throw(OCTHaGOnException("Please make sure GAMS model has objvar on the greater than size of inequalities, " *
                                         " with a leading coefficient of 1."))
                 end
                 varkeys = filter!(x -> x != Symbol(gams["minimizing"]), varkeys)
@@ -199,7 +199,7 @@ function GAMS_to_GlobalModel(GAMS_DIR::String, filename::String)
             constkeys = find_vars_in_eq(eq, constdict)
             const_pairs = Dict(Symbol(constkey) => model[constkey] for constkey in constkeys)
             for (constkey, constval) in const_pairs
-                constr_expr = OCT.substitute(constr_expr, :($constkey) => constval)
+                constr_expr = OCTHaGOn.substitute(constr_expr, :($constkey) => constval)
             end
             # Designate free variables
             varkeys = find_vars_in_eq(eq, vardict)
@@ -213,7 +213,7 @@ function GAMS_to_GlobalModel(GAMS_DIR::String, filename::String)
             for idx in idxs
                 new_fn = copy(constr_fn)
                 for ax_number in 1:length(axs)
-                    new_fn = OCT.substitute(new_fn, Symbol(key.indices[ax_number].text) => idx[ax_number]);
+                    new_fn = OCTHaGOn.substitute(new_fn, Symbol(key.indices[ax_number].text) => idx[ax_number]);
                 end
                 push!(constr_fns, new_fn)
             end

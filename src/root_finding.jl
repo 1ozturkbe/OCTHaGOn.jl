@@ -87,7 +87,7 @@ end
 Classify curvature of KNN patches, over given point indices. 
 """
 function classify_curvature(bbl::BlackBoxLearner, idxs = collect(1:size(bbl.X, 1)))
-    size(bbl.X, 1) > 0 || throw(OCTException("Must sample Learner $(bbl.name) first."))
+    size(bbl.X, 1) > 0 || throw(OCTHaGOnException("Must sample Learner $(bbl.name) first."))
     build_knn_tree(bbl);
     knn_idxs, dists = find_knn(bbl, k=length(bbl.vars) + 1);
     if any(ismissing.(bbl.gradients[idxs,1])) # Only need to check the first element

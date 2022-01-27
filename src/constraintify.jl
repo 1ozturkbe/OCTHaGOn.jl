@@ -33,8 +33,8 @@ end
 Generates MI constraints from gm.learners, and adds them to gm.model.
 """
 function add_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier, idx = length(bbc.learners))
-    isempty(bbc.mi_constraints) || throw(OCTException("BBC $(bbc.name) already has associated MI approximation."))
-    isempty(bbc.leaf_variables) || throw(OCTException("BBC $(bbc.name) already has associated MI variables."))
+    isempty(bbc.mi_constraints) || throw(OCTHaGOnException("BBC $(bbc.name) already has associated MI approximation."))
+    isempty(bbc.leaf_variables) || throw(OCTHaGOnException("BBC $(bbc.name) already has associated MI variables."))
     if bbc.feas_ratio == 1.0 # Just a placeholder to show that the tree is "trained". 
         z_feas = @variable(gm.model, binary = true)
         bbc.mi_constraints = Dict(1 => [@constraint(gm.model, z_feas == 1)])
@@ -43,15 +43,15 @@ function add_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier, idx = l
         bbc.mi_constraints, bbc.leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[idx];
                                             equality = bbc.equality, lcs = bbc.lls)
     elseif size(bbc.X, 1) == 0
-        throw(OCTException("Constraint " * string(bbc.name) * " has not been sampled yet, and is thus untrained."))
+        throw(OCTHaGOnException("Constraint " * string(bbc.name) * " has not been sampled yet, and is thus untrained."))
     elseif isempty(bbc.learners)
-        throw(OCTException("Constraint " * string(bbc.name) * " must be learned before tree constraints
+        throw(OCTHaGOnException("Constraint " * string(bbc.name) * " must be learned before tree constraints
                             can be generated."))
     elseif bbc.feas_ratio == 0.0
-        throw(OCTException("Constraint " * string(bbc.name) * " is INFEASIBLE but you tried to include it in
+        throw(OCTHaGOnException("Constraint " * string(bbc.name) * " is INFEASIBLE but you tried to include it in
             your global problem. Find at least one feasible solution, train and try again."))
     elseif !get_param(gm, :ignore_accuracy) && !check_accuracy(bbc)
-        throw(OCTException("Constraint " * string(bbc.name) * " is inaccurately approximated. "))
+        throw(OCTHaGOnException("Constraint " * string(bbc.name) * " is inaccurately approximated. "))
     else
         bbc.mi_constraints, bbc.leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[idx];
                                             equality = bbc.equality, lcs = bbc.lls)
@@ -64,7 +64,7 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
     mi_constraints = Dict{Int64, Array{JuMP.ConstraintRef}}()
     leaf_variables = Dict{Int64, Tuple{JuMP.VariableRef, Array, JuMP.VariableRef}}()
     if size(bbr.X, 1) == 0 && !get_param(bbr, :reloaded)
-        throw(OCTException("Constraint " * string(bbr.name) * " has not been sampled yet, and is thus untrained."))
+        throw(OCTHaGOnException("Constraint " * string(bbr.name) * " has not been sampled yet, and is thus untrained."))
     elseif bbr.convex && !bbr.equality
         clear_tree_constraints!(gm, bbr)
         mi_constraints = Dict(1 => [])
@@ -88,41 +88,41 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
         bbr.active_leaves = [1]
         return
     elseif isempty(bbr.learners)
-        throw(OCTException("Constraint " * string(bbr.name) * " must be learned before tree constraints
+        throw(OCTHaGOnException("Constraint " * string(bbr.name) * " must be learned before tree constraints
                             can be generated."))
     elseif isempty(bbr.ul_data)
-        throw(OCTException("Constraint " * string(bbr.name) * " is a Regressor, 
+        throw(OCTHaGOnException("Constraint " * string(bbr.name) * " is a Regressor, 
         but doesn't have a ORT and/or OCT with upper/lower bounding approximators!"))
     end
     if !isempty(bbr.lls)
         bbr.thresholds[idx].first == "reg" || 
-            throw(OCTException("BBRs with LinkedRegressors are only allowed ORT approximators."))
+            throw(OCTHaGOnException("BBRs with LinkedRegressors are only allowed ORT approximators."))
         length(bbr.active_trees) == 0 || 
-            throw(OCTException("BBRs with LinkedRegressors cannot have more than one active tree."))
+            throw(OCTHaGOnException("BBRs with LinkedRegressors cannot have more than one active tree."))
     elseif bbr.thresholds[idx].first == "reg"
         (isempty(bbr.leaf_variables) || !isnothing(bbr.thresholds[idx].second)) ||
-            throw(OCTException("Please clear previous tree constraints from $(gm.name) " *
+            throw(OCTHaGOnException("Please clear previous tree constraints from $(gm.name) " *
                 "before adding an unthresholded regression constraints."))
         if !isnothing(bbr.thresholds[idx].second) && !isempty(bbr.active_trees)
             bbr.thresholds[active_upper_tree(bbr)].second == bbr.thresholds[idx].second || 
-                throw(OCTException("Upper-thresholded regressors must be preceeded by upper classifiers " * 
+                throw(OCTHaGOnException("Upper-thresholded regressors must be preceeded by upper classifiers " * 
                                     "of the same threshold for $(bbr.name)."))
         end
     elseif bbr.thresholds[idx].first == "rfreg"
         isempty(bbr.leaf_variables) ||
-            throw(OCTException("Please clear previous tree constraints from $(gm.name) " *
+            throw(OCTHaGOnException("Please clear previous tree constraints from $(gm.name) " *
             "before adding an random forest regressor constraints."))
-            !isempty(bbr.lls) && throw(OCTException("Random Forests cannot be used to approximate " *
+            !isempty(bbr.lls) && throw(OCTHaGOnException("Random Forests cannot be used to approximate " *
                         "linked BBR $(bbr.name)."))
         isnothing(bbr.thresholds[idx].second) ||
-            throw(OCTException("RandomForestRegressors are not allowed upper bounds."))
+            throw(OCTHaGOnException("RandomForestRegressors are not allowed upper bounds."))
         bbr.equality && 
-            throw(OCTException("RandomForest cannot approximate BBR $(bbr.name) since it is an equality constraint."))
+            throw(OCTHaGOnException("RandomForest cannot approximate BBR $(bbr.name) since it is an equality constraint."))
     elseif bbr.thresholds[idx].first == "upper"
-        all(collect(keys(bbr.mi_constraints)) .>= 0)  || throw(OCTException("Please clear previous upper tree constraints from $(gm.name) " *
+        all(collect(keys(bbr.mi_constraints)) .>= 0)  || throw(OCTHaGOnException("Please clear previous upper tree constraints from $(gm.name) " *
                                                           "before adding new constraints."))
     elseif bbr.thresholds[idx].first == "lower"
-        all(collect(keys(bbr.mi_constraints)) .<= 0) || throw(OCTException("Please clear previous lower tree constraints from $(gm.name) " *
+        all(collect(keys(bbr.mi_constraints)) .<= 0) || throw(OCTHaGOnException("Please clear previous lower tree constraints from $(gm.name) " *
                                                             "before adding new constraints."))
     end
     if bbr.thresholds[idx].first == "rfreg"
@@ -366,7 +366,7 @@ function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuM
         end
         return mi_constraints, leaf_variables
     elseif lnr isa OptimalTreeClassifier
-        isempty(lrs) || throw(OCTException("Bug: Cannot use OCTs to approximate linked BBRs."))
+        isempty(lrs) || throw(OCTHaGOnException("Bug: Cannot use OCTs to approximate linked BBRs."))
         # Add a binary variable for each leaf
         all_leaves = find_leaves(lnr)
         # Add a binary variable for each leaf
@@ -415,7 +415,7 @@ function clear_upper_constraints!(gm, bbr::Union{BlackBoxRegressor, LinkedRegres
                     delete(gm.model, constr)
                 else
                     push!(leaf_constrs, constr) # make sure to put the constraint back. 
-                    throw(OCTException("Bug: Constraints could not be removed."))
+                    throw(OCTHaGOnException("Bug: Constraints could not be removed."))
                 end
             end
             delete!(bbr.mi_constraints, leaf_key)
@@ -427,18 +427,18 @@ function clear_upper_constraints!(gm, bbr::Union{BlackBoxRegressor, LinkedRegres
                 if is_valid(gm.model, leaf_var)
                     delete(gm.model, leaf_var)
                 else
-                    throw(OCTException("Bug: Variables could not be removed."))
+                    throw(OCTHaGOnException("Bug: Variables could not be removed."))
                 end
             end
             if is_valid(gm.model, bin_var)
                 delete(gm.model, bin_var)
             else
-                throw(OCTException("Bug: Binary variable could not be removed."))
+                throw(OCTHaGOnException("Bug: Binary variable could not be removed."))
             end
             if is_valid(gm.model, aux_dep)
                 delete(gm.model, aux_dep)
             else
-                throw(OCTException("Bug: Aux dependent variable could not be removed."))
+                throw(OCTHaGOnException("Bug: Aux dependent variable could not be removed."))
             end
             delete!(bbr.leaf_variables, leaf_key)
         end
@@ -463,7 +463,7 @@ function clear_lower_constraints!(gm, bbr::Union{BlackBoxRegressor, LinkedRegres
                     delete(gm.model, constr)
                 else
                     push!(leaf_constrs, constr) # make sure to put the constraint back. 
-                    throw(OCTException("Bug: Constraints could not be removed."))
+                    throw(OCTHaGOnException("Bug: Constraints could not be removed."))
                 end
             end
             delete!(bbr.mi_constraints, leaf_key)
@@ -475,18 +475,18 @@ function clear_lower_constraints!(gm, bbr::Union{BlackBoxRegressor, LinkedRegres
                 if is_valid(gm.model, leaf_var)
                     delete(gm.model, leaf_var)
                 else
-                    throw(OCTException("Bug: Variables could not be removed."))
+                    throw(OCTHaGOnException("Bug: Variables could not be removed."))
                 end
             end
             if is_valid(gm.model, bin_var)
                 delete(gm.model, bin_var)
             else
-                throw(OCTException("Bug: Binary variable could not be removed."))
+                throw(OCTHaGOnException("Bug: Binary variable could not be removed."))
             end
             if is_valid(gm.model, aux_dep)
                 delete(gm.model, aux_dep)
             else
-                throw(OCTException("Bug: Aux dependent variable could not be removed."))
+                throw(OCTHaGOnException("Bug: Aux dependent variable could not be removed."))
             end
             delete!(bbr.leaf_variables, leaf_key)
         end
@@ -519,7 +519,7 @@ function clear_tree_constraints!(gm::GlobalModel, bbc::Union{BlackBoxClassifier,
                 delete(gm.model, constr)
             else
                 push!(leaf_constrs, constr) # make sure to put the constraint back. 
-                throw(OCTException("Bug: Constraints could not be removed."))
+                throw(OCTHaGOnException("Bug: Constraints could not be removed."))
             end
         end
         delete!(bbc.mi_constraints, leaf_key)
@@ -529,13 +529,13 @@ function clear_tree_constraints!(gm::GlobalModel, bbc::Union{BlackBoxClassifier,
             if is_valid(gm.model, leaf_var)
                 delete(gm.model, leaf_var)
             else
-                throw(OCTException("Bug: Variables could not be removed."))
+                throw(OCTHaGOnException("Bug: Variables could not be removed."))
             end
         end
         if is_valid(gm.model, bin_var)
             delete(gm.model, bin_var)
         else
-            throw(OCTException("Bug: Binary variable could not be removed."))
+            throw(OCTHaGOnException("Bug: Binary variable could not be removed."))
         end
         delete!(bbc.leaf_variables, leaf_key)
     end
@@ -617,12 +617,12 @@ function update_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx =
         elseif hypertype in valid_uppers
             clear_upper_constraints!(gm, bbr)
         else
-            throw(OCTException("Hypertype $(hypertype) not recognized."))
+            throw(OCTHaGOnException("Hypertype $(hypertype) not recognized."))
         end
         add_tree_constraints!(gm, bbr, idx)
         return 
     else
-        throw(OCTException("$(gm.name) has too many active lower/upper bounding regressors."))
+        throw(OCTHaGOnException("$(gm.name) has too many active lower/upper bounding regressors."))
     end
 end
 

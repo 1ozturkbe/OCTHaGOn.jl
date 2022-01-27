@@ -103,7 +103,7 @@ Does KNN and secant method based sampling once there is at least one feasible
 """
 function knn_sample(bbl::BlackBoxClassifier; k::Int64 = 10, sample_density = 1e-5, sample_idxs = nothing, sign = 1)
     if bbl.feas_ratio == 0. || bbl.feas_ratio == 1.0
-        throw(OCTException("Constraint " * string(bbl.name) * " must have at least one feasible or
+        throw(OCTHaGOnException("Constraint " * string(bbl.name) * " must have at least one feasible or
                             infeasible sample to be KNN-sampled!"))
     end
     vks = string.(bbl.vars)
@@ -153,7 +153,7 @@ function uniform_sample_and_eval!(bbl::BlackBoxLearner;
         if bbl.feas_ratio == 1.0
             @info(string(bbl.name) * " was not KNN sampled since it has no infeasible samples.")
         elseif bbl.feas_ratio == 0.0
-            throw(OCTException(string(bbl.name) * " has zero feasible samples. " *
+            throw(OCTHaGOnException(string(bbl.name) * " has zero feasible samples. " *
                                "Please find at least one feasible sample, seed the data and KNN sample."))
         else
             df = knn_sample(bbl, k= maximum([10, 2*length(bbl.vars) + 1]), sample_density = sample_density)
@@ -210,7 +210,7 @@ Gets Latin Hypercube samples that fall in the leaf of the last solution.
 """
 function last_leaf_sample(bbc::BlackBoxClassifier, n_samples = get_param(bbc, :n_samples))
     isempty(bbc.active_leaves) &&         
-        throw(OCTException("BBC $(bbc.name) needs to be optimized first, to figure out its active leaves."))
+        throw(OCTHaGOnException("BBC $(bbc.name) needs to be optimized first, to figure out its active leaves."))
     if !bbc.equality
         last_leaf = bbc.active_leaves[1]
         idxs = findall(x -> x .>= 0.5, IAI.apply(bbc.learners[end], bbc.X) .== last_leaf)
@@ -233,7 +233,7 @@ end
 
 function last_leaf_sample(bbr::BlackBoxRegressor, n_samples = get_param(bbr, :n_samples))
     if isempty(bbr.active_leaves)
-        throw(OCTException("BBR $(bbr.name) needs to be optimized first, to figure out its active leaves."))
+        throw(OCTHaGOnException("BBR $(bbr.name) needs to be optimized first, to figure out its active leaves."))
     elseif length(bbr.active_trees) == 2
         upper_leaf, lower_leaf = sort(bbr.active_leaves)
         upper_leafneighbor = [];
@@ -265,7 +265,7 @@ function last_leaf_sample(bbr::BlackBoxRegressor, n_samples = get_param(bbr, :n_
         X = scaleLHC(plan, [(lbs[i], ubs[i]) for i=1:length(lbs)]);
         return DataFrame(truncate_sigfigs(X), string.(bbr.vars))
     else 
-        throw(OCTException("No active trees found in BBR $(bbr.name) while attempting to leaf-sample."))
+        throw(OCTHaGOnException("No active trees found in BBR $(bbr.name) while attempting to leaf-sample."))
     end
 end
 

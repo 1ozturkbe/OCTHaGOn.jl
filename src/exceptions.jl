@@ -1,6 +1,6 @@
-struct OCTException <: Exception
+struct OCTHaGOnException <: Exception
     var::String
 end
 
-Base.showerror(io::IO, e::OCTException) = print(io, e.var)
+Base.showerror(io::IO, e::OCTHaGOnException) = print(io, e.var)
 

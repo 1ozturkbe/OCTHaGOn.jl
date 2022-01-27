@@ -129,14 +129,14 @@ actual_cvx = Dict(key => value for (key, value) in actual_cvx if !isempty(value)
 # gms = Dict()
 # for filename in filenames
 #     try
-#         gm = GAMS_to_GlobalModel(OCT.GAMS_DIR, filename)
+#         gm = GAMS_to_GlobalModel(OCTHaGOn.GAMS_DIR, filename)
 #         types = JuMP.list_of_constraint_types(gm.model)
 #         if !isempty(types)
 #             total_constraints = sum(length(all_constraints(gm.model, type[1], type[2])) for type in types)
 #         end
 #         gms[filename] = gm
 #     catch
-#         throw(OCTException(filename * " has an import issue."))
+#         throw(OCTHaGOnException(filename * " has an import issue."))
 #     end
 # end
 

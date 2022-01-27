@@ -10,12 +10,12 @@ from gpkit.small_scripts import mag
 from gpkit import VectorVariable, Variable, units, Model
 from gpfit.fit import fit
 import unittest
-from OptimalConstraintTree.testing.run_tests import run_tests
+from OCTHaGOn.testing.run_tests import run_tests
 
-from OptimalConstraintTree.constraint_tree import ConstraintTree
-from OptimalConstraintTree.sample import sample_gpobj, gen_X
-from OptimalConstraintTree.train import train_trees
-from OptimalConstraintTree.tools import HiddenPrints, prep_SimPleAC
+from OCTHaGOn.constraint_tree import ConstraintTree
+from OCTHaGOn.sample import sample_gpobj, gen_X
+from OCTHaGOn.train import train_trees
+from OCTHaGOn.tools import HiddenPrints, prep_SimPleAC
 
 FILE_DIR = os.path.dirname(os.path.realpath(__file__)) + "/"
 

@@ -51,7 +51,7 @@ add_relaxation_variables!(gm::GlobalModel) = add_relaxation_variables!(gm, gm.bb
 function clear_relaxation_variables!(gm::GlobalModel, bbl::Union{BlackBoxLearner, LinkedLearner})
     if bbl.relax_var isa JuMP.VariableRef
         is_valid(gm.model, bbl.relax_var) || 
-            throw(OCTException("$(bbl.relax_var) is not a valid variable of  $(gm.model)."))
+            throw(OCTHaGOnException("$(bbl.relax_var) is not a valid variable of  $(gm.model)."))
         delete(gm.model, bbl.relax_var)
         bbl.relax_var = 0
     end
@@ -133,7 +133,7 @@ function descend!(gm::GlobalModel; kwargs...)
             vars = [var for var in vars if var != obj_bbl.dependent_var]
             bbls = [bbl for bbl in gm.bbls if bbl != obj_bbl]
         elseif length(obj_bbl) > 1
-            throw(OCTException("GlobaModel $(gm.name) has more than one BlackBoxRegressor" *
+            throw(OCTHaGOnException("GlobaModel $(gm.name) has more than one BlackBoxRegressor" *
                                " on the objective variable."))
         end
     end 

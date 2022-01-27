@@ -7,8 +7,8 @@ from gpkit.exceptions import (InvalidGPConstraint, Infeasible,
                               InvalidSGPConstraint)
 from gpkit.small_scripts import mag
 
-from OptimalConstraintTree.constraint_tree import ConstraintTree
-from OptimalConstraintTree.tools import flatten, HiddenPrints, get_active_bounds
+from OCTHaGOn.constraint_tree import ConstraintTree
+from OCTHaGOn.tools import flatten, HiddenPrints, get_active_bounds
 
 EPS = 1e-6
 

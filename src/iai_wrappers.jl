@@ -93,7 +93,7 @@ function check_if_trained(lnr::IAI.OptimalTreeLearner)
         n_nodes = IAI.get_num_nodes(lnr);
     catch err
         if isa(err, UndefRefError)
-            throw(OCTException("Trees require training before being used in constraints!"))
+            throw(OCTHaGOnException("Trees require training before being used in constraints!"))
         else
             rethrow(err)
         end

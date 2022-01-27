@@ -3,7 +3,7 @@
 venv
 test_reports
 build
-OptimalConstraintTree.egg-info
+OCTHaGOn.egg-info
 Manifest.toml
 dist
 __pycache__

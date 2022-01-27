@@ -43,7 +43,7 @@ function set_param(gm::Dict, key::Symbol, val, checks = true)
         gm[key] = val
         return
     elseif checks
-        throw(OCTException("Parameter with key " * string(key) * " is invalid."))
+        throw(OCTHaGOnException("Parameter with key " * string(key) * " is invalid."))
     else 
         return
     end
@@ -54,6 +54,6 @@ function get_param(gm::Dict, key::Symbol)
     if haskey(gm, key)
         return gm[key]
     else
-        throw(OCTException("Parameter with key " * string(key) * " is invalid."))
+        throw(OCTHaGOnException("Parameter with key " * string(key) * " is invalid."))
     end
 end

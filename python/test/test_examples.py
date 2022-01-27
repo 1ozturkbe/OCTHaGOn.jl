@@ -2,7 +2,7 @@ import numpy as np
 from gpkit import Variable, Model, VectorVariable, SignomialsEnabled
 
 import unittest
-from OptimalConstraintTree.testing.run_tests import run_tests
+from OCTHaGOn.testing.run_tests import run_tests
 
 class TestExamples(unittest.TestCase):
     def test_example1(self):
