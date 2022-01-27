@@ -135,7 +135,7 @@ end
 function test_descent()
     gm = minlp(true)
     uniform_sample_and_eval!(gm) # descent requires some samples
-    x0 = DataFrame(string.(gm.vars) .=> [0, 1, 0, 1, 0, 1, 5.69])
+    x0 = DataFrame(string.(gm.vars) .=> [1, 0, 1, 0, 1, 0, 5.8])
     append!(gm.solution_history, x0)
     append!(gm.cost, 5.69)
     feas_gap(gm, x0)

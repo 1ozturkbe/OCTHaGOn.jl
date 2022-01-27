@@ -5,8 +5,8 @@ test_coverage:
 - Date: 2020-07-24
 =#
 
-# run julia --project=. --code-coverage test/all.jl first
-# Restart julia from within OptimalConstraintTree and run this file.
+# Run julia --project=. --code-coverage test/all.jl
+# Then restart julia from within OptimalConstraintTree and run this file.
 global PROJECT_ROOT = @__DIR__
 ENV["CODECOV_TOKEN"]="16d10cc5-d038-4ca4-868f-73d8b5ded063"
 using Coverage
