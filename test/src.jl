@@ -676,7 +676,7 @@ function test_oos()
     print_details(gm)
     m = gm.model
     uniform_sample_and_eval!(gm)
-    learn_constraint!(gm, max_depth=6)
+    learn_constraint!(gm, max_depth=8)
     add_tree_constraints!(gm)
     optimize!(gm)
     bin_vals = round.(JuMP.getvalue.(gm.model[:xx]))

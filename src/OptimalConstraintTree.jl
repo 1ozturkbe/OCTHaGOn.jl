@@ -106,7 +106,7 @@ module OptimalConstraintTree
         nonlinearize!,
         set_param, get_param, 
 
-        # Learning 
+        # Tree generation and learning
         learn_constraint!, 
         base_regressor, base_classifier, base_rf_regressor, base_rf_classifier,
         fit_regressor_kwargs, fit_classifier_kwargs, 
