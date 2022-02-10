@@ -107,8 +107,3 @@ XML2_jll = "02c8fc9c-b97f-50b9-bbe4-9be30ff0a78a"
 ZipFile = "a5390f91-8eb1-5f08-bee0-b1d1ffed6cea"
 Zlib_jll = "83775a58-1f1d-513f-b197-d71354ab007a"
 glmnet_jll = "78c6b45d-5eaf-5d68-bcfb-a5a2cb06c27f"
-
-[targets]
-test = "Test"
-
-[extras]
