@@ -27,7 +27,7 @@ __pycache__
 *.jld
 *.zip
 *.ini
-
+/*.ipynb
 tatus
 /dump/
 /bugreport/

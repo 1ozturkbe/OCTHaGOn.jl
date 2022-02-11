@@ -14,6 +14,7 @@ nonlinear_model can contain JuMP.NonlinearConstraints.
     cost::Array = []                                             # List of costs. 
     soldict::Dict = Dict()                                       # For solution extraction
     params::Dict = gm_defaults()                                 # GM settings
+    og_objective = nothing                                       # Used to hold the original objective (LHS of dependent constraint)
 end
 
 function Base.show(io::IO, gm::GlobalModel)
@@ -209,7 +210,8 @@ function add_nonlinear_or_compatible(gm::GlobalModel,
                      expr_vars::Union{Nothing, Array} = nothing,
                      dependent_var::Union{Nothing, JuMP.VariableRef} = nothing,
                      name::String = gm.name * "_" * string(length(gm.bbls) + 1),
-                     equality::Bool = false)
+                     equality::Bool = false,
+                     is_objective::Bool = true)
     vars, expr_vars = determine_vars(gm, constraint, vars = vars, expr_vars = expr_vars)
     fn = functionify(constraint)
     if fn isa Function
@@ -232,6 +234,10 @@ function add_nonlinear_or_compatible(gm::GlobalModel,
             add_nonlinear_constraint(gm, constraint, vars = vars, expr_vars = expr_vars, 
                                      dependent_var = dependent_var,
                                      name = name, equality = equality)
+        end
+
+        if is_objective
+            gm.og_objective = constraint
         end
     else
         add_nonlinear_constraint(gm, constraint, vars = vars, expr_vars = expr_vars, 

@@ -308,6 +308,7 @@ function evaluate(bbl::BlackBoxLearner, data::Union{Dict, DataFrame})
             try
                 push!(vals, Base.invokelatest(bbl.f, (arr...)))
             catch DomainError
+                #stacktrace(catch_backtrace())
                 push!(vals, -Inf)
             end
         end
