@@ -15,13 +15,14 @@ makedocs(sitename = "OCTHaGOn",
         "Installation" => "installation.md",
         "Basic usage" => "basic.md",
         "API reference" => [
+            "api/datastructures.md",
             "api/helpers.md"
         ]
     ]
 )
 
-deploydocs(
-    repo = "github.com/1ozturkbe/OCTHaGOn.jl.git",
-    target = "build",
-    push_preview = true,
-)
+# deploydocs(
+#     repo = "github.com/1ozturkbe/OCTHaGOn.jl.git",
+#     target = "build",
+#     push_preview = true,
+# )
