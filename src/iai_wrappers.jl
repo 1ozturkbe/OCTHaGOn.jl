@@ -16,7 +16,6 @@ Returns:
     Dict[leaf_number] containing [B0, B]
 """
 function pwl_constraint_data(lnr::IAI.OptimalTreeLearner, vks)
-
     all_leaves = find_leaves(lnr)
     pwlConstraintDict = Dict()
     for i = 1:size(all_leaves, 1)
