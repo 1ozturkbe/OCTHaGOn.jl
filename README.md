@@ -12,4 +12,4 @@ which is free with an academic license as well.
 Documentation is pending, and the code and testing are under development. 
 If you have any burning questions or applications, please create an issue! 
 
-[![codecov.io](http://codecov.io/github/1ozturkbe/OCTHaGOn/coverage.svg?branch=master)](http://codecov.io/github/1ozturkbe/OCTHaGOn?branch=master)
+[![codecov](https://codecov.io/gh/1ozturkbe/OCTHaGOn.jl/branch/master/graph/badge.svg?token=3ODJZJN3WT)](https://codecov.io/gh/1ozturkbe/OCTHaGOn.jl)
