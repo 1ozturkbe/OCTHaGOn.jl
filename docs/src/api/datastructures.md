@@ -1,5 +1,7 @@
 # Data Structures
 
+Work in progress...
+
 ```@docs
 GlobalModel
 BlackBoxLearner

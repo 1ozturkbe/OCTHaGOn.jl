@@ -12,13 +12,13 @@ OCTHaGOn requires an installation of Interpretable AI (IAI) for its various mach
 
 ### Installing CPLEX
 
-CPLEX is a mixed-integer optimization that can be found [here](https://www.ibm.com/uk-en/products/ilog-cplex-optimization-studio). It is free to solve optimization problems with up to 1000 variables and constraints, available via [signing up](https://www.ibm.com/account/reg/uk-en/signup?formid=urx-20028), and also available [via a free academic license](https://academic.ibm.com/a2mt/email-auth) for larger problems. 
+CPLEX is a mixed-integer optimizer that can be found [here](https://www.ibm.com/uk-en/products/ilog-cplex-optimization-studio). It is free to solve optimization problems with up to 1000 variables and constraints, available via [signing up](https://www.ibm.com/account/reg/uk-en/signup?formid=urx-20028), and also available [via a free academic license](https://academic.ibm.com/a2mt/email-auth) for larger problems. 
 
 ## Quickest build
 
 Once the above steps are complete, we recommend using the following set of commands as the path of least resistance to getting started. 
 
-Navigate to where you would like to put OCTHaGOn, and call the following commands
+Navigate to where you would like to put OCTHaGOn, and call the following commands to instantiate and check all of the dependencies. 
 
 ```
 git clone https://github.com/1ozturkbe/OCTHaGOn.jl.git
@@ -28,7 +28,7 @@ using Pkg
 Pkg.instantiate()
 ```
 
-All of the dependencies should have been verified automatically. Call the following to precompile all packages and load OCTHaGOn to your environment:
+Call the following to precompile all packages and load OCTHaGOn to your environment:
 
 ```julia
 include("src/OCTHaGOn.jl")
@@ -44,3 +44,5 @@ Pkg.instantiate()
 include("test/load.jl")
 include("test/src.jl")
 ```
+
+Please see [Basic usage](@ref) for an simple application of OCTHaGOn to a MINLP!
