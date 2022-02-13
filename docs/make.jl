@@ -24,8 +24,7 @@ makedocs(sitename = "OCTHaGOn",
     ]
 )
 
-# deploydocs(
-#     repo = "github.com/1ozturkbe/OCTHaGOn.jl.git",
-#     target = "build",
-#     push_preview = true,
-# )
+# deploydocs(deps = nothing, make = nothing, 
+#   repo = "github.com/1ozturkbe/OCTHaGOn.jl.git",
+#   target = "build",
+#   push_preview = true)
