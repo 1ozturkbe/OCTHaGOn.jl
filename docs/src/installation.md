@@ -28,10 +28,10 @@ using Pkg
 Pkg.instantiate()
 ```
 
-All of the dependencies should have been verified automatically. Call the following to load OCTHaGOn to your environment:
+All of the dependencies should have been verified automatically. Call the following to precompile all packages and load OCTHaGOn to your environment:
 
 ```julia
-include("src/OCTHaGOn.jl)
+include("src/OCTHaGOn.jl")
 using .OCTHaGOn
 ```
 
