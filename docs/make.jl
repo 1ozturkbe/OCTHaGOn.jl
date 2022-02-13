@@ -15,6 +15,9 @@ makedocs(sitename = "OCTHaGOn",
         "Installation" => "installation.md",
         "Basic usage" => "basic.md",
         "API reference" => [
+            "api/constraints.md",
+            "api/sampling.md",
+            "api/iai_wrappers.md",
             "api/datastructures.md",
             "api/helpers.md"
         ]
