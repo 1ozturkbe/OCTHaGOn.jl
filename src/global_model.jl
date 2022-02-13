@@ -277,7 +277,7 @@ end
     nonlinearize!(gm::GlobalModel, bbls::Array{BlackBoxLearner})
     nonlinearize!(gm::GlobalModel)
 
-Turns gm.model into the nonlinear representation.
+Turns gm.model into the nonlinear representation of global optimization problem.
 NOTE: to get back to MI-compatible forms, must rebuild model from scratch.
 """
 function nonlinearize!(gm::GlobalModel, bbls::Array{BlackBoxLearner})
