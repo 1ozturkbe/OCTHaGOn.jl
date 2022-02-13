@@ -244,10 +244,10 @@ end
     add_linked_constraint(gm::GlobalModel, bbc::BlackBoxClassifier, linked_vars::Array{JuMP.Variable})
     add_linked_constraint(gm::GlobalModel, bbr::BlackBoxRegressor, linked_vars::Array{JuMP.Variable}, linked_dependent::JuMP.Variable)
 
-Adds variables that obey the same constraint structure. 
-Use in case when a nonlinear constraint is repeated more than once, so that the underlying
-approximator is replicated without rebuilding the tree approximation. 
-Note that the bounds used for sampling are for the original variables!!
+Adds a linked constraint of the same structure as the BBC/BBR. 
+When a nonlinear constraint is repeated more than once, this function allows the underlying
+approximator to be replicated without retraining trees for each constraint.  
+Note that the bounds used for sampling are for the original variables of the BBC/BBR, so be careful!
 """
 function add_linked_constraint(gm::GlobalModel, bbc::BlackBoxClassifier, vars::Array{JuMP.VariableRef})
     length(vars) == length(bbc.vars) || throw(OCTHaGOnException("BBC $(bbc.name) does not" *
@@ -277,8 +277,8 @@ end
     nonlinearize!(gm::GlobalModel, bbls::Array{BlackBoxLearner})
     nonlinearize!(gm::GlobalModel)
 
-Turns gm.model into the nonlinear representation.
-NOTE: to get back to MI-compatible forms, must rebuild model from scratch.
+Turns gm.model into the nonlinear representation of global optimization problem.
+NOTE: to get back to MI-compatible forms, must regenerate GlobalModel from scratch.
 """
 function nonlinearize!(gm::GlobalModel, bbls::Array{BlackBoxLearner})
     for (i, bbl) in enumerate(bbls)
@@ -315,7 +315,7 @@ function bound!(model::GlobalModel, bounds::Union{Pair,Dict})
     bound!(model.model, bounds)
 end
 
-"""Separates and returns linear and nonlinear constraints in a model. """
+""" Separates and returns linear and nonlinear constraints in a model. """
 function classify_constraints(model::Union{GlobalModel, JuMP.Model})
     jump_model = model
     if model isa GlobalModel
@@ -405,9 +405,9 @@ function solution(m::JuMP.Model)
 end
 
 """ 
-    feas_gap(gm::GlobalModel)
+    feas_gap(gm::GlobalModel, soln = solution(gm))
 
-Evaluates relative feasibility gap at solution. 
+Evaluates relative feasibility gap of each nonlinear constraint at the given solution. 
 Negative values -> constraint violation for BBCs, 
                     regression underestimation for BBRs. 
 Positive values -> constraint violation for BBC equalities, 
@@ -456,6 +456,7 @@ function feas_gap(gm::GlobalModel, soln = solution(gm))
     return
 end
 
+""" Prints the last feasibility gap of each constraint. """
 function print_feas_gaps(gm::GlobalModel)
     @info "Feasibility gaps:"
     for bbl in gm.bbls
@@ -488,12 +489,12 @@ function is_feasible(gm::GlobalModel)
     return true
 end
 
-""" Checks whether a BBL or GM is sampled."""
+""" Checks whether a BBL or GM is sampled. """
 is_sampled(bbl::BlackBoxLearner) = size(bbl.X,1) != 0
 
 is_sampled(gm::GlobalModel) = all(is_sampled(bbl) for bbl in gm.bbls)
 
-""" Clears all sampling, training and optimization data from GlobalModel."""
+""" Clears all sampling, training and optimization data from GlobalModel. """
 function clear_data!(gm::GlobalModel)
     clear_tree_constraints!(gm, gm.bbls)
     clear_data!.(gm.bbls)
@@ -502,6 +503,7 @@ end
 
 update_vexity(gm::GlobalModel) = update_vexity.(gm.bbls)
 
+""" Prints relevant details of a GlobalModel. """
 function print_details(gm::GlobalModel)
     @info "GlobalModel $(gm.name) has:"
     n_vars = length(gm.vars)

@@ -51,6 +51,7 @@ JSONSchema = "7d188eb4-7ad8-530c-ae41-71a32a6d4692"
 JuMP = "4076af6c-e467-56ae-b986-b466b2749572"
 LatinHypercubeSampling = "a5e1c1ea-c99a-51d3-a14d-a9a37257b02d"
 Libiconv_jll = "94ce4f54-9a6c-5748-9c1c-f9c7231a4531"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 LogExpFunctions = "2ab3a3ac-af41-5b50-aa03-7779005ae688"
 MLJModelInterface = "e80e1ace-859a-464e-9ed9-23947d8ae3ea"
 MacroTools = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
@@ -108,7 +109,5 @@ ZipFile = "a5390f91-8eb1-5f08-bee0-b1d1ffed6cea"
 Zlib_jll = "83775a58-1f1d-513f-b197-d71354ab007a"
 glmnet_jll = "78c6b45d-5eaf-5d68-bcfb-a5a2cb06c27f"
 
-[targets]
-test = "Test"
-
-[extras]
+[compat]
+julia = "1.5"
