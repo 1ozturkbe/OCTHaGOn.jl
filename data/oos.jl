@@ -27,7 +27,7 @@ function oos_gm!(op = oos_params())
     op.transfer_time = [2*pi*sqrt((op.r_sat + r)^3/(8*op.mu)) for r in op.r_orbits]
 
     # Starting a JuMP.Model
-    m = Model(CPLEX_SILENT)
+    m = Model(SOLVER_SILENT)
 
     @variable(m, 1.0025 >= dmass_entry[i=1:n-1] >= 1)
     @variable(m, 1.0025 >= dmass_exit[i=1:n-1] >= 1)

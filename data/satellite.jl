@@ -3,7 +3,7 @@ Satellite optimization problem from from [Norheim, 2020]
 Known optimum is 3.15 kg mass. 
 =#
 
-function satellite(solver = CPLEX_SILENT)
+function satellite(solver = OCTHaGOn.SOLVER_SILENT)
     m = JuMP.Model(with_optimizer(solver))
 
     # Available components

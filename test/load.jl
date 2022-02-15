@@ -24,7 +24,7 @@ include("../src/OCTHaGOn.jl")
 using .OCTHaGOn
 global MOI = MathOptInterface
 global BARON_SILENT = with_optimizer(BARON.Optimizer, OutputFlag = 0)
-global CPLEX_SILENT = OCTHaGOn.CPLEX_SILENT
+global SOLVER_SILENT = with_optimizer(CPLEX.Optimizer, CPX_PARAM_SCRIND = 0)
 # global GUROBI_SILENT = with_optimizer(Gurobi.Optimizer, OutputFlag = 0, Gurobi.Env())
 Random.seed!(1);
 MOI.Silent() = true;

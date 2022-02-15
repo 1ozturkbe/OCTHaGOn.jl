@@ -1,6 +1,6 @@
 """ A small pooling problem. """
-function pool1(gm::Bool = false)
-    m = JuMP.Model(with_optimizer(CPLEX_SILENT))
+function pool1(oct::Bool = false)
+    m = JuMP.Model(with_optimizer(SOLVER_SILENT))
     @variable(m, 0 <= x[1:7])
     lbs = Dict(x[2] => 3, x[3] => 1, x[4] => 2)
     [JuMP.set_lower_bound(key, value) for (key, value) in lbs]
@@ -11,7 +11,7 @@ function pool1(gm::Bool = false)
            "e2_1" => x[1]^2-x[2]^2+x[4]^2 - 3, "e2_2" => 100 - x[1]^2-x[2]^2+x[4]^2,
            "e3_1" => x[1]+x[2]-5*x[3]+2*x[4] - 10, "e3_2" => 20 - x[1]+x[2]-5*x[3]+2*x[4],
            "e4" => -x[4] + x[6]^2 - 4*x[7]^2)
-    if gm
+    if oct
         gm = GlobalModel(model = m, name = "pool1")
         add_nonlinear_constraint(gm, :(x -> 12 - x[3]^2+x[4]^2), name = "e1")
         add_nonlinear_constraint(gm, :(x -> x[1]^2-x[2]^2+x[4]^2 - 3), name = "e2_1")
@@ -24,7 +24,6 @@ function pool1(gm::Bool = false)
         for (key, eq) in eqs
             @constraint(m, eq >= 0)
         end
-        set_optimizer(m, BARON_SILENT)
         return m
     end
 end

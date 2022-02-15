@@ -46,11 +46,11 @@ function find_bounds!(gm::GlobalModel; bbls::Array{BlackBoxLearner} = gm.bbls, a
 end
 
 """ 
-    ridge_regress(X::DataFrame, Y::Array; solver = CPLEX_SILENT, rho::Float64 = 0., weights = ones(length(Y)))
+    ridge_regress(X::DataFrame, Y::Array, solver::MOI.OptimizerWithAttributes = SOLVER_SILENT; rho::Float64 = 0., weights = ones(length(Y)))
 
 Performs ridge regression on data. 
 """
-function ridge_regress(X::DataFrame, Y::Array; solver = CPLEX_SILENT, rho::Float64 = 0., weights = ones(length(Y)))
+function ridge_regress(X::DataFrame, Y::Array, solver::MOI.OptimizerWithAttributes = SOLVER_SILENT; rho::Float64 = 0., weights = ones(length(Y)))
     m = JuMP.Model(with_optimizer(solver))
     normalized_X, lbs, ubs = normalized_data(X);
     @variable(m, x[1:size(X,2)])
@@ -61,11 +61,11 @@ function ridge_regress(X::DataFrame, Y::Array; solver = CPLEX_SILENT, rho::Float
 end
 
 """ 
-    u_regress(X::DataFrame, Y::Array; solver = CPLEX_SILENT)
+    u_regress(X::DataFrame, Y::Array, solver::MOI.OptimizerWithAttributes = SOLVER_SILENT)
 
 Finds upper regressors of data that are conservative. 
 """
-function u_regress(X::DataFrame, Y::Array; solver = CPLEX_SILENT)
+function u_regress(X::DataFrame, Y::Array, solver::MOI.OptimizerWithAttributes = SOLVER_SILENT)
     if size(X, 1) < 2*size(X, 2)
         @warn("Upper regression doesn't have enough data, thus returning constant bounds. ")
         return maximum(Y), zeros(size(X,2))
@@ -88,11 +88,11 @@ function u_regress(X::DataFrame, Y::Array; solver = CPLEX_SILENT)
 end
 
 """ 
-    l_regress(X::DataFrame, Y::Array; solver = CPLEX_SILENT)
+    l_regress(X::DataFrame, Y::Array, solver::MOI.OptimizerWithAttributes = SOLVER_SILENT)
 
 Finds lower regressors of data that are conservative. 
 """
-function l_regress(X::DataFrame, Y::Array; solver = CPLEX_SILENT)
+function l_regress(X::DataFrame, Y::Array, solver::MOI.OptimizerWithAttributes = SOLVER_SILENT)
     if size(X, 1) < 2*size(X, 2)
         @warn("Lower regression doesn't have enough data, thus returning constant bounds. ")
         return minimum(Y), zeros(size(X,2))
@@ -115,11 +115,11 @@ function l_regress(X::DataFrame, Y::Array; solver = CPLEX_SILENT)
 end
 
 """ 
-    svm(X::DataFrame, Y::Array, threshold = 0; solver = CPLEX_SILENT)
+    svm(X::DataFrame, Y::Array, solver::MOI.OptimizerWithAttributes = SOLVER_SILENT, threshold = 0)
 
 Finds the unregularized SVM split, where threshold is the allowable error. 
 """
-function svm(X::Matrix, Y::Array, threshold = 0; solver = CPLEX_SILENT)
+function svm(X::Matrix, Y::Array, solver::MOI.OptimizerWithAttributes = SOLVER_SILENT, threshold = 0)
     m = JuMP.Model(with_optimizer(solver))
     @variable(m, error[1:length(Y)] >= 0)
     @variable(m, β[1:size(X, 2)])

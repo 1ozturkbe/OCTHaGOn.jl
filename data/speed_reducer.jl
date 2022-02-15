@@ -2,7 +2,7 @@
 Ray, T. (2003). Golinski’s speed reducer problem revisited. AIAA Journal, 41(3), 556–558. https://doi.org/10.2514/2.1984
 =#
 
-function speed_reducer(solver = CPLEX_SILENT)
+function speed_reducer(solver = OCTHaGOn.SOLVER_SILENT)
     m = JuMP.Model(with_optimizer(solver))
     @variable(m, x[1:8])
     @objective(m, Min, x[8])

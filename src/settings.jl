@@ -34,6 +34,7 @@ function gm_defaults()
          :step_penalty => 0.,
          :decay_rate => 2.,
          :equality_penalty => 0.,
+         :solver => MOI.AbstractOptimizer
     )
 end
 
