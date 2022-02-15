@@ -126,12 +126,12 @@ function get_random_trees(lnr::IAI.Heuristics.RandomForestLearner)
 end
 
 """ 
-    boundify(lnr::OptimalTreeRegressor, X::DataFrame, Y, solver::MOI.OptimizerWithAttributes = SOLVER_SILENT)
-    boundify(lnr::IAI.Heuristics.RandomForestRegressor, X::DataFrame, Y, solver::MOI.OptimizerWithAttributes = SOLVER_SILENT)
-    boundify(lnr::OptimalTreeClassifier, X::DataFrame, Y, hypertype::String = "lower", solver::MOI.OptimizerWithAttributes = SOLVER_SILENT)
+    boundify(lnr::OptimalTreeRegressor, X::DataFrame, Y, solver::MOI.OptimizerWithAttributes)
+    boundify(lnr::IAI.Heuristics.RandomForestRegressor, X::DataFrame, Y, solver::MOI.OptimizerWithAttributes)
+    boundify(lnr::OptimalTreeClassifier, X::DataFrame, Y, hypertype::String = "lower", solver::MOI.OptimizerWithAttributes)
 Returns bounding hyperplanes of an OptimalTreeLearner.
 """
-function boundify(lnr::IAI.OptimalTreeRegressor, X::DataFrame, Y, solver::MOI.OptimizerWithAttributes = SOLVER_SILENT)
+function boundify(lnr::IAI.OptimalTreeRegressor, X::DataFrame, Y, solver::MOI.OptimizerWithAttributes)
     feas_leaves = find_leaves(lnr)
     leaf_idx = IAI.apply(lnr, X)
     ul_data = Dict()
@@ -143,7 +143,7 @@ function boundify(lnr::IAI.OptimalTreeRegressor, X::DataFrame, Y, solver::MOI.Op
     return ul_data
 end
 
-function boundify(lnr::IAI.OptimalTreeClassifier, X::DataFrame, Y, solver::MOI.OptimizerWithAttributes = SOLVER_SILENT, hypertype::String = "lower")
+function boundify(lnr::IAI.OptimalTreeClassifier, X::DataFrame, Y, solver::MOI.OptimizerWithAttributes, hypertype::String = "lower")
     all_leaves = find_leaves(lnr)
     leaf_idx = IAI.apply(lnr, X)
     data = Dict()

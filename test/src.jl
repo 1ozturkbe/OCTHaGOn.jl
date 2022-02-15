@@ -243,9 +243,9 @@ end
 function test_regress()
     X = DataFrame(:x => 3*rand(100) .- 1, :y => 3*rand(100) .- 1);
     Y = Array(X[!,:x].^3 .* sin.(X[!,:y]));
-    α0, α = u_regress(X, Y)
-    β0, β = l_regress(X, Y)
-    γ0, γ = ridge_regress(X, Y)
+    α0, α = u_regress(X, Y, SOLVER_SILENT)
+    β0, β = l_regress(X, Y, SOLVER_SILENT)
+    γ0, γ = ridge_regress(X, Y, SOLVER_SILENT)
     lowers = β0 .+ Matrix(X) * β;
     uppers = α0 .+ Matrix(X) * α;
     best_fit = γ0 .+ Matrix(X) * γ;
