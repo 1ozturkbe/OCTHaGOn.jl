@@ -140,8 +140,7 @@ end
 """
     functionify(constraint)
 
-Blunt function that returns an "evaluate-able" function from an Expr, or
-nothing for a JuMP.ConstraintRef.
+Returns an "evaluate-able" function from an Expr, or nothing for a JuMP.ConstraintRef.
 Can extend in the future to other elements.
 """
 function functionify(constraint)
@@ -157,8 +156,8 @@ end
 """
     vars_from_expr(expr::Expression, model::JuMP.Model)
 
-Returns the JuMP Variables that are associated with a given function.
-Note: Function Expr's must be defined with a single input or a tuple of inputs, eg:
+Returns the JuMP Variables that are associated with a given expression.
+Note: Expr's must be defined with a single input or a tuple of inputs, eg:
 
     ex = :(x -> 5*x)
     ex = :((x, y, z) -> sum(x[i] for i=1:4) - y[1] * y[2] + z)

@@ -255,7 +255,6 @@ function test_regress()
 
     X = DataFrame(:x => rand(100), :y => rand(100))
     Y = X[!,:y] - X[!,:x] .+ 0.1
-    solver = OCTHaGOn.SOLVER_SILENT
     β0, β = svm(Matrix(X), Y, SOLVER_SILENT)
     predictions = Matrix(X) * β .+ β0 
     @test sum((predictions-Y).^2) <= 1e-10
