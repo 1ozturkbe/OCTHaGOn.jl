@@ -18,6 +18,7 @@ makedocs(sitename = "OCTHaGOn",
             "api/datastructures.md",
             "api/constraints.md",
             "api/sampling.md",
+            "api/jump_utils.md",
             "api/iai_wrappers.md",
             "api/mi_approximation.md",
             "api/helpers.md"
