@@ -1,6 +1,6 @@
+include("check_solvers.jl")
 module OCTHaGOn
     using Combinatorics
-    using CPLEX
     using DataFrames
     using ForwardDiff
     using JuMP
@@ -15,18 +15,21 @@ module OCTHaGOn
     using Parameters
     using ProgressMeter
 
+    const MOI = MathOptInterface
+    const VALID_OPTIMIZERS = [:Cbc, :CPLEX, :Gurobi, :GLPK, :Mosek, :SCIP]
+    const SOLVER = # THIS ISN'T WORKING...
+
+    function silenced_solver(solver::MOI.AbstractOptimizer)
+        return with_optimizer(solver, CPX_PARAM_SCRIND = 0) 
+    end
+    const SOLVER_SILENT = silenced_solver(SOLVER)
+
     const PROJECT_ROOT = dirname(dirname(@__FILE__))
     const DATA_DIR = PROJECT_ROOT * "\\data\\"
     const BARON_DIR = PROJECT_ROOT * "\\data\\baron\\"
     const GAMS_DIR = PROJECT_ROOT * "\\data\\gams\\"  
     const SOL_DIR = PROJECT_ROOT * "\\data\\solutions\\"
     const TREE_DIR = PROJECT_ROOT * "\\data\\trees\\"
-    const SOLVER_SILENT = with_optimizer(CPLEX.Optimizer, CPX_PARAM_SCRIND = 0)
-    # const MOIU = MOI.Utilities
-    # const SOLVER_SILENT = MOIU.CachingOptimizer(
-    #     MOIU.UniversalFallback(MOIU.Model{Float64}()),
-    #     MOIU.AUTOMATIC,
-    # )
 
     const valid_lowers = ["reg", "lower", "upperlower"]
     const valid_uppers = ["reg", "upper", "upperlower"]

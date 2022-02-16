@@ -1,12 +1,13 @@
+valid_optimizers = [:Cbc, :CPLEX, :Gurobi, :GLPK, :Mosek, :SCIP]
 if !haskey(ENV, "OCTHaGOn_SOLVER")
     loadedModules(m::Module = Main) = filter(x -> eval(x) isa Module && x ≠ Symbol(m), names(m, imported = true))
     pkgs = loadedModules()
 
-    optims = intersect(pkgs, VALID_OPTIMIZERS)
+    optims = intersect(pkgs, valid_optimizers)
 
     if isempty(optims)
         throw(ErrorException("OCTHaGOn found no valid mixed-integer optimizers. " *
-        "Please choose an optimizer among $(VALID_OPTIMIZERS), and call `Pkg.add(*); using *` " *
+        "Please choose an optimizer among $(valid_optimizers), and call `Pkg.add(*); using *` " *
         "before calling OCTHaGOn."))
     elseif length(optims) == 1
         ENV["OCTHaGOn_SOLVER"] = String(optims[1])
