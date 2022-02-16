@@ -5,12 +5,19 @@ These functions act on JuMP structures to be able to implement OCTHaGOn.
 ```@docs
 bound!
 bounded_aux
+classify_constraints
+distance_to_set
 fetch_variable
 get_bounds
-get_unbounds
 get_constant
+get_unbounds
 linearize_objective!
-classify_constraints
 restrict_to_set
-distance_to_set
+```
+
+The following functions extend JuMP functions to act on OCTHaGOn's structs. 
+
+```@docs
+all_variables
+set_optimizer
 ```
