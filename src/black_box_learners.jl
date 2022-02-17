@@ -34,6 +34,7 @@ function Base.show(io::IO, lr::LinkedRegressor)
     println(io, "and dependent variable: $(lr.dependent_var)")
 end
 
+""" Superclass of LinkedClassifier and LinkedRegressor."""
 LinkedLearner = Union{LinkedClassifier, LinkedRegressor}
 
 """

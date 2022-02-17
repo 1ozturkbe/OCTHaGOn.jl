@@ -57,7 +57,7 @@ bound_to_data!(gm::GlobalModel, X::DataFrame) = bound_to_data!(gm.model, X)
                      equality::Bool = false)
 
  Adds a data-driven constraint to GlobalModel. Data driven BBLs
-do not allow of resampling. 
+do not allow for resampling. 
 """
 function add_datadriven_constraint(gm::GlobalModel,
                      X::DataFrame, Y::Array;

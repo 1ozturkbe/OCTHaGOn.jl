@@ -3,6 +3,7 @@
 .vscode
 venv
 test_reports
+docs/build
 build
 OCTHaGOn.egg-info
 Manifest.toml

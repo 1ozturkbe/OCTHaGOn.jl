@@ -139,6 +139,9 @@ module OCTHaGOn
 
         # HELPERS
 
+        # IAI helpers, 
+        pwl_constraint_data, trust_region_data,
+
         # Functions on JuMP/MathOptInterface objects
         fetch_variable, get_bounds, get_unbounds,
         bounded_aux, 
