@@ -11,6 +11,7 @@ module OCTHaGOn
     using MathOptInterface
     using MathOptSetDistances
     using Missings
+    using MLDataUtils
     using NearestNeighbors
     using Parameters
     using ProgressMeter
@@ -62,6 +63,9 @@ module OCTHaGOn
     include("optimize.jl")
 
     include("plot.jl")
+
+    include("eval_metrics.jl")
+
         
         # STRUCTS
     export GlobalModel, BlackBoxLearner, BlackBoxClassifier, BlackBoxRegressor, 

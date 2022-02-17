@@ -164,7 +164,8 @@ Optional arguments:
     vexity::Dict = Dict{Int64, Tuple}()                # Size and convexity of leaves
     equality::Bool = false                             # Equality check
     learners::Array{Union{IAI.OptimalTreeClassifier,
-                          IAI.Heuristics.RandomForestClassifier}} = []    # Learners...
+                          IAI.Heuristics.RandomForestClassifier,
+                          SVM_Classifier}} = []    # Learners...
     learner_kwargs = []                                # And their kwargs... 
     mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}() # and their corresponding MI constraints,
     leaf_variables::Dict = Dict{Int64, Tuple{JuMP.VariableRef, Array}}() # and their leaf variables 
@@ -177,6 +178,7 @@ Optional arguments:
     params::Dict = bbc_defaults(length(vars))          # Relevant settings
     max_Y::Union{Nothing, Real} = nothing
     min_Y::Union{Nothing, Real} = nothing
+    alg_list::Array{String} = ["OCT"]                  # List of algs used to approximate the constraint (e.g. 'CART','OCT','RF')
 end
 
 function Base.show(io::IO, bbc::BlackBoxClassifier)

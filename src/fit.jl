@@ -1,3 +1,5 @@
+
+
 """ Helper function for merging learner arguments. """
 function merge_kwargs(valid_keys; kwargs...)
     nkwargs = Dict{Symbol, Any}() 
@@ -201,32 +203,112 @@ function boundify(lnr::IAI.Heuristics.RandomForestClassifier,
     return data
 end
 
-"""
-    learn_constraint!(bbl::Union{GlobalModel, BlackBoxLearner, Array}; kwargs...)
 
-Constructs a constraint tree from a BlackBoxLearner and dumps in bbo.learners.
-Arguments:
-    bbl: OCT structs (GM, bbl, Array{bbl})
-    kwargs: arguments for learners and fits.
-"""
-function learn_constraint!(bbc::BlackBoxClassifier; kwargs...)
-    check_sampled(bbc)
-    set_param(bbc, :reloaded, false) # Makes sure that we know trees are retrained. 
-    lnr = base_classifier()
+function learn_constraint_IAI!(lnr, bbc::BlackBoxClassifier; kwargs...)
+
     IAI.set_params!(lnr; minbucket = 
-        maximum([2*length(bbc.vars)/length(bbc.Y), lnr.minbucket]))
+    maximum([2*length(bbc.vars)/length(bbc.Y), lnr.minbucket]))
     if bbc.equality # Equalities are approximated more aggressively.
         IAI.set_params!(lnr; max_depth = 6, ls_num_tree_restarts = 30, fast_num_support_restarts = 15)
     end
     IAI.set_params!(lnr; classifier_kwargs(; kwargs...)...)
+
+    (X_train, y_train), (X_test, y_test) = splitobs((bbc.X, bbc.Y .>= 0); at = 0.67)
+    X_train = DataFrame(X_train)
+    X_test = DataFrame(X_test)
     if check_feasibility(bbc) || get_param(bbc, :ignore_feasibility)
-        lnr = learn_from_data!(bbc.X, bbc.Y .>= 0, lnr; fit_classifier_kwargs(; kwargs...)...)
-        push!(bbc.learners, lnr)
-        push!(bbc.accuracies, IAI.score(lnr, bbc.X, bbc.Y .>= 0)) # TODO: add ability to specify criterion. 
-        push!(bbc.learner_kwargs, Dict(kwargs))
+        lnr = learn_from_data!(X_train,y_train, lnr; fit_classifier_kwargs(; kwargs...)...)
+        score = IAI.score(lnr, X_test, y_test)
+
+        return lnr, score, Dict(kwargs)
+        # push!(bbc.learners, lnr)
+        # push!(bbc.accuracies, IAI.score(lnr, bbc.X, bbc.Y .>= 0)) # TODO: add ability to specify criterion. 
+        # push!(bbc.learner_kwargs, Dict(kwargs))
     else
         throw(OCTHaGOnException("Not enough feasible samples for BlackBoxClassifier " * string(bbc.name) * "."))
     end
+end
+
+
+function learn_constraint_SVM!(bbc::BlackBoxClassifier; kwargs...)
+    if check_feasibility(bbc) || get_param(bbc, :ignore_feasibility)
+
+        #score = IAI.score(lnr, bbc.X, bbc.Y .>= 0)
+
+        (X_train, y_train), (X_test, y_test) = splitobs((bbc.X, bbc.Y .>= 0); at = 0.67)
+
+        (β0, β) = svm(Matrix(X_train), 1*(y_train .>= 0))
+        
+        y_pred = 1*(Matrix(X_test) * β .+ β0 .> 0.5 )
+
+        score = roc_auc_score(y_test, y_pred)
+
+        lnr = SVM_Classifier(β0=β0, β=β)
+
+        return lnr, score, Dict(kwargs)
+    else
+        throw(OCTHaGOnException("Not enough feasible samples for BlackBoxClassifier " * string(bbc.name) * "."))
+    end
+end
+
+"""
+    learn_constraint!(bbl::Union{GlobalModel, BlackBoxLearner, Array}; kwargs...)
+
+Constructs a constraint tree from a BlackBoxLearner and dumps in bbo.learners.
+The models used for constraint approximation are specified in bbc.alg_list 
+or in the argument `algs` (if the argument algs is provided, then this argument
+is used, otherwise, will be used).
+If more than 1 models are specified, then this function
+finds the best model (in terms of AUC) and uses that to approximate the
+constraint
+Arguments:
+    bbl: OCT structs (GM, bbl, Array{bbl})
+    algs: A list of the different models that will be used for learning.
+          Possible values are "OCT","CART","RF".
+          Example use: algs=["CART", "RF", "RF"]
+          If this argument is not specified, then
+          its value is determined by the field bbc.alg_list
+    kwargs: arguments for learners and fits.
+"""
+function learn_constraint!(bbc::BlackBoxClassifier, algs::Union{Nothing, Array{String}} = nothing; kwargs...)
+    check_sampled(bbc)
+    set_param(bbc, :reloaded, false) # Makes sure that we know trees are retrained. 
+
+    if isnothing(algs) 
+        algs = bbc.alg_list
+    end
+
+    best_score = -Inf
+    best_alg_name = nothing
+    best_model = nothing
+
+    for alg in algs
+        
+        if alg in ["CART", "OCT"]
+            # Use IAI
+            lnr = IAI_LEARNER_DICT["classification"][alg]()
+            lnr, score, args = learn_constraint_IAI!(lnr, bbc; kwargs...)
+        elseif alg == "SVM"
+            lnr, score, args = learn_constraint_SVM!(bbc; kwargs...)
+        else
+            throw(OCTHaGOnException("$(alg) model is not supported for classification."))
+        end
+        
+        @info "Trained $(alg) with AUC=$(score)"
+        if score >= best_score
+            best_alg_name = alg
+            best_score  = score
+            best_model = (lnr, score, args)
+        end
+    end
+
+    lnr, score, args = best_model
+    @info "Best model: $(best_alg_name) with AUC=$(score)"
+    
+    push!(bbc.learners, lnr)
+    push!(bbc.accuracies, score) # TODO: add ability to specify criterion. 
+    push!(bbc.learner_kwargs, args)
+
     return
 end
 

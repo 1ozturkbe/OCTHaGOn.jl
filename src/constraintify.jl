@@ -175,10 +175,17 @@ add_tree_constraints!(gm::GlobalModel) = add_tree_constraints!(gm, gm.bbls)
         x:: JuMPVariables (features in lnr)
     NOTE: mic and lv are only nonempty if we are adding an OCT approximation of a BBR. 
 """
-function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::IAI.OptimalTreeLearner;
+function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::Union{IAI.OptimalTreeLearner, SVM_Classifier};
                                equality::Bool = false, 
                                relax_var::Union{Real, JuMP.VariableRef} = 0,
                                lcs::Array = [], mic::Dict = Dict(), lv::Dict = Dict())
+
+    if lnr isa SVM_Classifier
+        println(x)
+        β0, β = lnr.β0, lnr.β
+        @constraint(m, x'*β .+ 0.5 >=0)
+        return Dict(), Dict()
+    end
     check_if_trained(lnr);
     all_leaves = find_leaves(lnr)
     # Add a binary variable for each leaf

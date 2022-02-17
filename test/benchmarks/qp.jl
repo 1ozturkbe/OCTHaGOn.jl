@@ -3,6 +3,8 @@ include("../load.jl")
 
 using LinearAlgebra, Random, BARON, Pkg
 
+algs = ["SVM", "CART", "OCT"]
+
 function create_negative_definite_matrix(N)
     # Create a random matrix
     A = rand(N, N)
@@ -57,7 +59,7 @@ function create_noncvx_qp_models(n_vars, n_constr, linear_objective=true; seed=1
         
         # Add constraints
         for constr in constr_expr
-            OCTHaGOn.add_nonlinear_constraint(gm, constr, vars=x[1:N], expr_vars=[x[1:N]])
+            OCTHaGOn.add_nonlinear_constraint(gm, constr, vars=x[1:N], expr_vars=[x[1:N]], alg_list=algs)
         end
         
         OCTHaGOn.set_param(gm, :ignore_accuracy, true)
@@ -154,8 +156,8 @@ df_results = DataFrame()
 # Solve negative-definite QP with different 
 # number of variables (N) and different number 
 # of constraints (M)
-for N=[5, 10, 15]
-    for M=[1, 5, 10]
+for N=[5, 10, 20, 30, 40, 50, 60, 70]
+    for M=[2, 5, 10, 15]
         try
             println("Solving with (N, M)=($(N),$(M))")
             gm, gb = create_noncvx_qp_models(N, M;seed=1)
@@ -167,6 +169,7 @@ for N=[5, 10, 15]
             end
         catch
             println("Error solving (N, M)=($(N),$(M))")
+            println(catch_backtrace())
         end
     end
 end

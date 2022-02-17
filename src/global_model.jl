@@ -165,12 +165,14 @@ function add_nonlinear_constraint(gm::GlobalModel,
                      expr_vars::Union{Nothing, Array} = nothing,
                      dependent_var::Union{Nothing, JuMP.VariableRef} = nothing,
                      name::String = "bbl" * string(length(gm.bbls) + 1),
-                     equality::Bool = false)
+                     equality::Bool = false, 
+                     alg_list::Array{String} = ["OCT"])
+
     vars, expr_vars = determine_vars(gm, constraint, vars = vars, expr_vars = expr_vars)
     if constraint isa Expr
         if isnothing(dependent_var)
             new_bbl = BlackBoxClassifier(constraint = constraint, vars = vars, expr_vars = expr_vars,
-                                         equality = equality, name = name)
+                                         equality = equality, name = name, alg_list = alg_list)
             set_param(new_bbl, :n_samples, Int(ceil(get_param(gm, :sample_coeff)*sqrt(length(vars)))))
             push!(gm.bbls, new_bbl)
             return

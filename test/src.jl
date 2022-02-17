@@ -542,6 +542,8 @@ NOTE: Although rfreg is tested, IT IS NOT A SUPPORTED FEATURE SINCE IT
 IS NOT USEFUL FOR MOST PROBLEMS. """
 function test_rfs()
     gm = minlp(true)
+
+    set_param(gm, :ignore_accuracy, true)
     set_optimizer(gm, CPLEX_SILENT)
     uniform_sample_and_eval!(gm)
     init_constraints = sum(length(all_constraints(gm.model, type[1], type[2])) 
@@ -742,36 +744,36 @@ function test_oos()
     # set_optimizer(m, Ipopt.Optimizer)
 end
 
-test_expressions()
+# test_expressions()
 
-test_variables()
+# test_variables()
 
-test_bounds()
+# test_bounds()
 
-test_sets()
+# test_sets()
 
-test_linearize()
+# test_linearize()
 
-test_nonlinearize()
+# test_nonlinearize()
 
-test_bbc()
+# test_bbc()
 
-test_kwargs()
+# test_kwargs()
 
-test_regress()
+# test_regress()
 
-test_bbr()
+# test_bbr()
 
-test_basic_gm()
+# test_basic_gm()
 
-test_convex_objective()
+# test_convex_objective()
 
-test_data_driven()
+# test_data_driven()
 
 test_rfs()
 
-test_convexcheck()
+# test_convexcheck()
 
-test_linking()
+# test_linking()
 
-test_oos()
+# test_oos()
