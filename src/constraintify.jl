@@ -508,8 +508,7 @@ end
     clear_tree_constraints!(gm::GlobalModel, bbls::Array{BlackBoxLearner})
     clear_tree_constraints!(gm::GlobalModel)
 
-Clears the constraints bbl.mi_constraints 
-as well as bbl.leaf_variables in GlobalModel. 
+Clears the MI-approximating constraints and variables in GlobalModel and its sub-structs.
 """
 function clear_tree_constraints!(gm::GlobalModel, bbc::Union{BlackBoxClassifier, LinkedClassifier})
     for (leaf_key, leaf_constrs) in bbc.mi_constraints

@@ -128,8 +128,12 @@ function distance_to_set(val::Union{Array{<:Real},<:Real}, set::MOI.AbstractSet)
     return MathOptSetDistances.distance_to_set(MathOptSetDistances.DefaultDistance(), val, set)
 end
 
+"""
+    $(TYPEDSIGNATURES)
+
+Returns constant of MOI.AbstractSet, if it exists. 
+"""
 function get_constant(set::MOI.AbstractSet)
-    """Returns constant of MOI.Abstract Set, if it exists..."""
     try
         MOI.constant(set)
     catch
@@ -138,7 +142,7 @@ function get_constant(set::MOI.AbstractSet)
 end
 
 """
-    functionify(constraint)
+    $(TYPEDSIGNATURES)
 
 Returns an "evaluate-able" function from an Expr, or nothing for a JuMP.ConstraintRef.
 Can extend in the future to other elements.

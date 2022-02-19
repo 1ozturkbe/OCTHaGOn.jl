@@ -156,7 +156,9 @@ end
                      name::String = gm.name * " " * string(length(gm.bbls) + 1),
                      equality::Bool = false)
 
- Adds a new nonlinear constraint to Global Model. Standard method for adding bbls.
+ Adds a new nonlinear constraint to Global Model. Standard method for adding BlackBoxClassifiers and BlackBoxRegressors. 
+
+ NOTE: If adding constraints via an `Expr`
 """
 function add_nonlinear_constraint(gm::GlobalModel,
                      constraint::Union{JuMP.ConstraintRef, Expr};

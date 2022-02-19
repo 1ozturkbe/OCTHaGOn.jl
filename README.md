@@ -1,4 +1,4 @@
-# OCTHaGOn
+# OCTHAGON
 
 [![codecov](https://codecov.io/gh/1ozturkbe/OCTHaGOn.jl/branch/master/graph/badge.svg?token=3ODJZJN3WT)](https://codecov.io/gh/1ozturkbe/OCTHaGOn.jl) [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://1ozturkbe.github.io/OCTHaGOn.jl)
 

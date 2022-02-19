@@ -1,8 +1,8 @@
-# Mixed-integer approximation
-
-Work in progress...
+# Mixed-integer approximators
 
 These are the functions that help generate MI approximations of global optimization problems using the BlackBoxLearners. 
+
+Work in progress...
 
 ```@docs
 add_feas_constraints!

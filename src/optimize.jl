@@ -48,6 +48,11 @@ end
 
 add_relaxation_variables!(gm::GlobalModel) = add_relaxation_variables!(gm, gm.bbls)
 
+"""
+    $(TYPEDSIGNATURES)
+
+Clears slack variables in GlobalModel. 
+"""
 function clear_relaxation_variables!(gm::GlobalModel, bbl::Union{BlackBoxLearner, LinkedLearner})
     if bbl.relax_var isa JuMP.VariableRef
         is_valid(gm.model, bbl.relax_var) || 
@@ -71,7 +76,9 @@ end
 clear_relaxation_variables!(gm::GlobalModel) = clear_relaxation_variables!(gm, gm.bbls)
 
 """
-Includes relaxation variables in objective function 
+    $(TYPEDSIGNATURES)
+
+Includes relaxation variables in as a linear penalty in the objective function. 
 """
 function relax_objective!(gm::GlobalModel, M::Real = 1e8)
     no = 0
@@ -92,20 +99,18 @@ function tight_objective!(gm::GlobalModel)
     @objective(gm.model, Min, gm.objective)
 end
 
-
 """
-descend!(gm::GlobalModel; kwargs...)
+    $(TYPEDSIGNATURES)
 
 Performs gradient descent on the last optimal solution in gm.solution_history.
 In case of infeasibility, first projects the feasible point using the local
 constraint gradients. 
 
-# Optional kwargs:
+Optional kwargs:
 max_iterations: maximum number of gradient steps or projections.
 step_penalty: magnitude of penalty on step size during projections.
 step_size: Size of 0-1 normalized Euclidian ball we can step. 
 decay_rate: Exponential coefficient of step size reduction. 
-
 """
 function descend!(gm::GlobalModel; kwargs...)
     # Initialization

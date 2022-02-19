@@ -1,6 +1,6 @@
-# JuMP Utilities
+# JuMP and MathOptInterface utilities
 
-These functions act on JuMP structures to be able to implement OCTHaGOn. 
+These functions act on JuMP and MOI structures to be able to implement OCTHaGOn. 
 
 ```@docs
 bound!
