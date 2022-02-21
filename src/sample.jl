@@ -45,9 +45,8 @@ end
     boundary_sample(vars::Array{JuMP.VariableRef, 1}; n_samples = 100, fraction::Float64 = 0.5,
                          warn_string::String = "")
 
-*Smartly* samples the constraint along the variable boundaries.
-    NOTE: Because we are sampling symmetrically for lower and upper bounds,
-    the choose coefficient has to be less than ceil(half of number of dims).
+Samples a BlackBoxLearner on the corners of the variable hypercube. 
+Samples a subset of corners for learners with large number of variables. 
 """
 function boundary_sample(vars::Array{JuMP.VariableRef, 1}; n_samples::Int64 = 100, fraction::Float64 = 0.5,
                          warn_string::String = "")
@@ -98,8 +97,8 @@ end
 """
     knn_sample(bbl::BlackBoxClassifier; k::Int64 = 10, sample_density = 1e-5, sample_idxs = nothing)
 
-Does KNN and secant method based sampling once there is at least one feasible
-    sample to a BlackBoxLearner.
+Implements KNN sampling on a BlackBoxLearner. 
+Note: must have at least one in/feasible point for the algorithm. 
 """
 function knn_sample(bbl::BlackBoxClassifier; k::Int64 = 10, sample_density = 1e-5, sample_idxs = nothing, sign = 1)
     if bbl.feas_ratio == 0. || bbl.feas_ratio == 1.0
@@ -128,15 +127,9 @@ function knn_sample(bbl::BlackBoxClassifier; k::Int64 = 10, sample_density = 1e-
 end
 
 """
-    uniform_sample_and_eval!(bbl::Union{BlackBoxLearner, GlobalModel, Array{BlackBoxLearner}};
-                              boundary_fraction::Float64 = 0.5,
-                              lh_iterations::Int64 = 0)
+    $(TYPEDSIGNATURES)
 
-Uniform samples and evaluates a BlackBoxLearner.
-Furthermore, sets the big-M value. 
-Keyword arguments:
-    boundary_fraction: maximum ratio of boundary samples
-    lh_iterations: number of GA populations for LHC sampling (0 is a random LH.)
+Samples and evaluates nonlinear constraints using full suite of methods. 
 """
 function uniform_sample_and_eval!(bbl::BlackBoxLearner;
                           boundary_fraction::Float64 = 0.5,
@@ -204,7 +197,7 @@ function uniform_sample_and_eval!(gm::GlobalModel)
 end
 
 """
-    last_leaf_sample(bbl::BlackBoxLearner)
+    $(TYPEDSIGNATURES)
 
 Gets Latin Hypercube samples that fall in the leaf of the last solution.
 """

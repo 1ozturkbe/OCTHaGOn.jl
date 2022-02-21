@@ -59,12 +59,11 @@ end
 
 Wrapper around IAI.fit! for constraint learning.
 Arguments:
-    lnr: OptimalTreeClassifier or OptimalTreeRegressor
-    X: matrix of feature data
-    Y: matrix of constraint data.
-Returns:
-    lnr: Fitted Learner corresponding to the data
-NOTE: kwargs get unpacked here, all the way from learn_constraint!.
+-lnr: OptimalTreeClassifier or OptimalTreeRegressor
+-X: matrix of feature data
+-Y: matrix of constraint data.
+Returns fitted Learner corresponding to the data. 
+NOTE: kwargs from `learn_constraint!` get unpacked here.
 """
 function learn_from_data!(X::DataFrame, Y::AbstractArray, lnr::Union{IAI.OptimalTreeLearner, 
                                                                      IAI.Heuristics.RandomForestLearner}, 

@@ -37,7 +37,11 @@ function gm_defaults()
     )
 end
 
-""" Sets parameters within Dict. """
+""" 
+    $(TYPEDSIGNATURES) 
+
+Sets the value of a parameter. 
+"""
 function set_param(gm::Dict, key::Symbol, val, checks = true)
     if haskey(gm, key) && val isa typeof(gm[key])
         gm[key] = val
@@ -49,7 +53,11 @@ function set_param(gm::Dict, key::Symbol, val, checks = true)
     end
 end
 
-""" gets parameters within Dict. """
+""" 
+    $(TYPEDSIGNATURES)
+
+Returns the value of a parameter. 
+"""
 function get_param(gm::Dict, key::Symbol)
     if haskey(gm, key)
         return gm[key]

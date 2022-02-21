@@ -277,16 +277,17 @@ function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::I
 end
 
 """
-    add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuMP.VariableRef, lnr::IAI.OptimalTreeClassifier, 
+    add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuMP.VariableRef, lnr::IAI.OptimalTreeLearner, 
             ul_data::Dict; equality::Bool = false)
 
 Creates a set of MIO constraints from a OptimalTreeClassifier that thresholds a BlackBoxRegressor.
+
 Arguments:
-- m:: JuMP Model
-- x:: independent JuMP.Variable (features in lnr)
-- y:: dependent JuMP.Variable (output of lnr)
-- lnr:: A fitted OptimalTreeRegressor
-- ul_data:: Upper and lower bounding hyperplanes for data in leaves of lnr
+- m: JuMP.Model
+- x:: independent JuMP.Variables (features of learner)
+- y:: dependent JuMP.Variables
+- lnr:: A fitted OptimalTreeLearner
+- ul_data:: Upper and lower bounding hyperplanes for data in leaves of lnr (empty by default)
 """
 function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuMP.VariableRef, 
 lnr::IAI.OptimalTreeLearner,

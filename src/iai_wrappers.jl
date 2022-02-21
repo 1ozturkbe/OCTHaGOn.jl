@@ -8,12 +8,11 @@ find_leaves(lnr::OptimalTreeLearner) = [i for i=1:IAI.get_num_nodes(lnr) if IAI.
 """
     pwl_constraint_data(lnr::IAI.OptimalTreeLearner, vks)
 
-Creates PWL dataset from a OptimalTreeLearner
+Returns the regression weights from an OptimalTreeLearner by leaf. 
 Arguments:
-    lnr: OptimalTreeLearner
-    vks: headers of DataFrame X, i.e. varkeys
-Returns:
-    Dict[leaf_number] containing [B0, B]
+- lnr: OptimalTreeLearner
+- vks: headers of DataFrame X, i.e. varkeys
+Returns Dict[leaf_number] containing [B0, B].
 """
 function pwl_constraint_data(lnr::IAI.OptimalTreeLearner, vks)
     all_leaves = find_leaves(lnr)
@@ -38,12 +37,11 @@ end
 """
     trust_region_data(lnr:: IAI.OptimalTreeLearner, vks)
 
-Creates trust region from a OptimalTreeLearner
+Returns the hyperplane data from an OptimalTreeLearner. 
 Arguments:
-    lnr: OptimalTreeLearner
-    vks: headers of DataFrame X, i.e. varkeys
-Returns:
-    Dict[leaf_number] containing [B0, B]
+- lnr: OptimalTreeLearner
+- vks: headers of DataFrame X, i.e. varkeys
+Returns Dict[leaf_number] containing [B0, B]. 
 """
 function trust_region_data(lnr:: IAI.OptimalTreeLearner, vks)
     all_leaves = find_leaves(lnr)

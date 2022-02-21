@@ -242,10 +242,10 @@ end
     add_linked_constraint(gm::GlobalModel, bbc::BlackBoxClassifier, linked_vars::Array{JuMP.Variable})
     add_linked_constraint(gm::GlobalModel, bbr::BlackBoxRegressor, linked_vars::Array{JuMP.Variable}, linked_dependent::JuMP.Variable)
 
-Adds a linked constraint of the same structure as the BBC/BBR. 
+Adds a linked constraint of the same structure as the BlackBoxLearner. 
 When a nonlinear constraint is repeated more than once, this function allows the underlying
 approximator to be replicated without retraining trees for each constraint.  
-Note that the bounds used for sampling are for the original variables of the BBC/BBR, so be careful!
+Note that the bounds used for sampling are for the original variables of the BlackBoxLearner, so be careful!
 """
 function add_linked_constraint(gm::GlobalModel, bbc::BlackBoxClassifier, vars::Array{JuMP.VariableRef})
     length(vars) == length(bbc.vars) || throw(OCTHaGOnException("BBC $(bbc.name) does not" *
