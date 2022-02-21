@@ -1,8 +1,5 @@
 """
-Contains all required info to be able to generate a global optimization problem.
-NOTE: proper construction is to use add_nonlinear_constraint to add bbls.
-model must be a mixed integer convex model.
-nonlinear_model can contain JuMP.NonlinearConstraints.
+Contains all constraints and data to solve the global optimization optimization problem. Add linear constraints to a `GlobalModel` through `JuMP.@constraint(gm.model, ...)`, and nonlinear constraints using `add_nonlinear_constraint`.
 """
 @with_kw mutable struct GlobalModel
     model::JuMP.Model                                            # Associated JuMP.Model
@@ -89,7 +86,7 @@ function JuMP.set_optimizer(gm::GlobalModel, optimizer_factory)
 end
 
 """
-    get_bounds(model::Union{JuMP.Model, BlackBoxLearner, Array{BlackBoxLearner})
+    $(TYPEDSIGNATURES)
 
 Returns bounds of all variables.
 """
@@ -99,8 +96,7 @@ function get_bounds(model::Union{GlobalModel, JuMP.Model, BlackBoxLearner,
 end
 
 """
-    get_unbounds(model::Union{GlobalModel, JuMP.Model, BlackBoxLearner, 
-                 Array{BlackBoxLearner}})
+    $(TYPEDSIGNATURES)
 
 Returns only unbounded variables. 
 """
@@ -110,10 +106,7 @@ function get_unbounds(model::Union{GlobalModel, JuMP.Model, BlackBoxLearner,
 end
 
 """
-    determine_vars(gm::GlobalModel,
-                        constraint::Union{JuMP.ConstraintRef, Expr};
-                        vars::Union{Nothing, Array{JuMP.VariableRef, 1}} = nothing,
-                        expr_vars::Union{Nothing, Array} = nothing)
+    $(TYPEDSIGNATURES)
 
 Takes on parsing and allocation of variables depending on user input. 
 """
@@ -198,13 +191,13 @@ function add_nonlinear_constraint(gm::GlobalModel,
 end
 
 """
-    add_nonlinear_or_compatible(gm::GlobalModel,
-                         constraint::Union{JuMP.ConstraintRef, Expr};
-                         vars::Union{Nothing, Array{JuMP.VariableRef, 1}} = nothing,
-                         expr_vars::Union{Nothing, Array} = nothing,
-                         dependent_var::Union{Nothing, JuMP.VariableRef} = nothing,
-                         name::String = gm.name * "_" * string(length(gm.bbls) + 1),
-                         equality::Bool = false)
+    function add_nonlinear_or_compatible(gm::GlobalModel,
+        constraint::Union{JuMP.ConstraintRef, Expr};
+        vars::Union{Nothing, Array{JuMP.VariableRef, 1}} = nothing,
+        expr_vars::Union{Nothing, Array} = nothing,
+        dependent_var::Union{Nothing, JuMP.VariableRef} = nothing,
+        name::String = gm.name * "_" * string(length(gm.bbls) + 1),
+        equality::Bool = false)
 
 Extends `add_nonlinear_constraint` to recognize JuMP compatible linear constraints and add them as linear JuMP constraints instead.
 """
