@@ -2,6 +2,7 @@ module OCTHaGOn
     using Combinatorics
     using CPLEX
     using DataFrames
+    using DocStringExtensions
     using ForwardDiff
     using JuMP
     using LatinHypercubeSampling
@@ -15,13 +16,17 @@ module OCTHaGOn
     using Parameters
     using ProgressMeter
 
+    const MOI = MathOptInterface
+    const VALID_OPTIMIZERS = [:Cbc, :CPLEX, :Gurobi, :GLPK, :Mosek, :SCIP]
+    const SOLVER = CPLEX.Optimizer
+    const SOLVER_SILENT = with_optimizer(SOLVER, CPX_PARAM_SCRIND = 0) 
+
     const PROJECT_ROOT = dirname(dirname(@__FILE__))
     const DATA_DIR = PROJECT_ROOT * "\\data\\"
     const BARON_DIR = PROJECT_ROOT * "\\data\\baron\\"
     const GAMS_DIR = PROJECT_ROOT * "\\data\\gams\\"  
     const SOL_DIR = PROJECT_ROOT * "\\data\\solutions\\"
     const TREE_DIR = PROJECT_ROOT * "\\data\\trees\\"
-    const CPLEX_SILENT = with_optimizer(CPLEX.Optimizer, CPX_PARAM_SCRIND = 0)
 
     const valid_lowers = ["reg", "lower", "upperlower"]
     const valid_uppers = ["reg", "upper", "upperlower"]
@@ -159,7 +164,7 @@ module OCTHaGOn
         alphac_to_expr, alphac_to_objexpr, alphac_to_varbound!,
 
         # Small scripts
-        vars_from_expr, vars_from_constraint, flat,
-        power, sqr, normalized_data, print_details
-end
+        deconstruct, flat, get_datamap, get_var_ranges, get_varmap,
+        power, sqr, merge_kwargs, normalized_data, print_details, substitute, vars_from_expr, vars_from_constraint 
+    end
 

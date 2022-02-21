@@ -17,7 +17,7 @@ function afpm_model()
     Y_feas = log.(Y[feas_idxs, :])
  
     # Creating model with relevant variables, and geometry constraints
-    m = Model(with_optimizer(CPLEX_SILENT))
+    m = Model(with_optimizer(OCTHaGOn.SOLVER_SILENT))
     add_variables_from_data!(m, X)
     bound_to_data!(m, X_feas)
     add_variables_from_data!(m, Y)

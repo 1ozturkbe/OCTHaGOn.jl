@@ -1,4 +1,4 @@
-""" Contains data for a constraint that is repeated. """
+""" Contains data for a constraint that is repeated. Add to GlobalModel using `add_linked_constraint`."""
 @with_kw mutable struct LinkedClassifier
     vars::Array{JuMP.VariableRef,1}                    # JuMP variables (flat)
     relax_var::Union{Real, JuMP.VariableRef} = 0.      # slack variable        
@@ -14,7 +14,7 @@ function Base.show(io::IO, lc::LinkedClassifier)
     println(io, "variables: $(lc.vars) ") # TODO: improve printing
 end
 
-""" Contains data for a constraint that is repeated. """
+""" Contains data for a constraint that is repeated. Add to GlobalModel using `add_linked_constraint`."""
 @with_kw mutable struct LinkedRegressor
     vars::Array{JuMP.VariableRef,1}                    # JuMP variables (flat)
     dependent_var::JuMP.VariableRef                    # Dependent variable
@@ -34,35 +34,14 @@ function Base.show(io::IO, lr::LinkedRegressor)
     println(io, "and dependent variable: $(lr.dependent_var)")
 end
 
-""" Superclass of LinkedClassifier and LinkedRegressor."""
+""" Union of LinkedClassifier and LinkedRegressor."""
 LinkedLearner = Union{LinkedClassifier, LinkedRegressor}
 
 """
-    @with_kw mutable struct BlackBoxRegressor
+    $(TYPEDSIGNATURES)
 
-Allows for approximation of constraints using OCTs.
-To be added to GlobalModel.bbls using functions:
-    add_nonlinear_constraints
-    add_nonlinear_or_compatible
-
-    Mandatory arguments are:
-        vars::Array{JuMP.VariableRef,1}
-        dependent_var::JuMP.VariableRef
-
-Other arguments may be necessary for proper functioning:
-    For data-driven constraints, need:
-        X::DataFrame
-        Y:: Array
-    For constraint functions, need :
-        constraint::Union{JuMP.ConstraintRef, Expr}
-
-Optional arguments:
-    expr_vars::Union{Array, Nothing}
-        JuMP variables as function arguments (i.e. vars rolled up into vector forms).
-        vars ⋐ flat(expr_vars)
-    name::String
-    equality::Bool
-        Specifies whether function should be satisfied to an equality
+Allows for approximation of continuous functions or objectives using ORTs. 
+Can be added to GlobalModel using `add_nonlinear_constraint` or `add_nonlinear_or_compatible`.
 """
 @with_kw mutable struct BlackBoxRegressor
     constraint::Union{Nothing, JuMP.ConstraintRef, Expr}        # The "raw" constraint
@@ -120,30 +99,10 @@ function Base.show(io::IO, bbr::BlackBoxRegressor)
 end
 
 """
-    @with_kw mutable struct BlackBoxClassifier
+    $(TYPEDSIGNATURES)
 
 Allows for approximation of constraints using OCTs.
-To be added to GlobalModel.bbls using functions:
-    add_nonlinear_constraints
-    add_nonlinear_or_compatible
-
-Mandatory arguments are:
-    vars::Array{JuMP.VariableRef,1}
-
-Other arguments may be necessary for proper functioning:
-    For data-driven constraints, need:
-        X::DataFrame
-        Y:: Array
-    For constraint functions, need :
-        constraint::Union{JuMP.ConstraintRef, Expr}
-
-Optional arguments:
-    expr_vars::Union{Array, Nothing}
-        JuMP variables as function arguments (i.e. vars rolled up into vector forms).
-        vars ⋐ flat(expr_vars)
-    name::String
-    equality::Bool
-        Specifies whether function should be satisfied to an equality
+Can be added to GlobalModel using `add_nonlinear_constraint` or `add_nonlinear_or_compatible`.
 """
 @with_kw mutable struct BlackBoxClassifier
     constraint::Union{Nothing, JuMP.ConstraintRef, Expr} # The "raw" constraint
@@ -203,7 +162,7 @@ function Base.show(io::IO, bbc::BlackBoxClassifier)
     end
 end
 
-""" BBL type is for function definitions! """
+""" Union of BlackBoxClassifier and BlackBoxRegressor types. """
 BlackBoxLearner = Union{BlackBoxClassifier, BlackBoxRegressor}
 
 set_param(bbl::BlackBoxLearner, key::Symbol, val) = set_param(bbl.params, key, val)
@@ -212,9 +171,9 @@ get_param(bbl::BlackBoxLearner, key::Symbol) = get_param(bbl.params, key)
 get_param(bbls::Array{BlackBoxLearner}, key::Symbol) = [get_param(bbl, key) for bbl in bbls]
 
 """
-    add_data!(bbc::BlackBoxClassifier, X::DataFrame, Y::Array)
+    $(TYPEDSIGNATURES)
 
-Adds data to BlackBoxClassifier.
+Adds data to BlackBoxLearner.
 """
 function add_data!(bbc::BlackBoxClassifier, X::DataFrame, Y::Array)
     @assert length(Y) == size(X, 1)
@@ -237,11 +196,6 @@ function add_data!(bbc::BlackBoxClassifier, X::DataFrame, Y::Array)
     return
 end
 
-"""
-    add_data!(bbr::BlackBoxRegressor, X::DataFrame, Y::Array)
-
-Adds data to BlackBoxRegressor.
-"""
 function add_data!(bbr::BlackBoxRegressor, X::DataFrame, Y::Array)
     @assert length(Y) == size(X, 1)
     infeas_idxs = findall(x -> isinf(x), Y)
@@ -275,10 +229,10 @@ function add_data!(bbr::BlackBoxRegressor, X::DataFrame, Y::Array)
 end
 
 """
-    evaluate(bbl::BlackBoxLearner, data::Union{Dict, DataFrame})
+    $(TYPEDSIGNATURES)
 
 Evaluates constraint violation on data in the variables, and returns distance from set.
-        Note that the keys of the Dict have to be uniform.
+        Note that the keys of the Dict have to be of the same type. 
 """
 function evaluate(bbl::BlackBoxLearner, data::Union{Dict, DataFrame})
     @assert !isnothing(bbl.constraint)
@@ -386,11 +340,10 @@ function clear_tree_data!(bbr::BlackBoxRegressor)
 end
 
 """ 
-    clear_data!(bbc::BlackBoxClassifier)
-    clear_data!(bbr::BlackBoxRegressor)    
+    $(TYPEDSIGNATURES)    
 
 Deletes all data (NOT constraints) associated with object. 
-Please clear constraints using the clear_tree_constraints! function. 
+Please clear constraints using the `clear_tree_constraints!` function. 
 """
 function clear_data!(bbc::BlackBoxClassifier)
     bbc.X = DataFrame(string.(bbc.vars) .=> [Float64[] for i=1:length(bbc.vars)])

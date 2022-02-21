@@ -59,12 +59,11 @@ end
 
 Wrapper around IAI.fit! for constraint learning.
 Arguments:
-    lnr: OptimalTreeClassifier or OptimalTreeRegressor
-    X: matrix of feature data
-    Y: matrix of constraint data.
-Returns:
-    lnr: Fitted Learner corresponding to the data
-NOTE: kwargs get unpacked here, all the way from learn_constraint!.
+-lnr: OptimalTreeClassifier or OptimalTreeRegressor
+-X: matrix of feature data
+-Y: matrix of constraint data.
+Returns fitted Learner corresponding to the data. 
+NOTE: kwargs from `learn_constraint!` get unpacked here.
 """
 function learn_from_data!(X::DataFrame, Y::AbstractArray, lnr::Union{IAI.OptimalTreeLearner, 
                                                                      IAI.Heuristics.RandomForestLearner}, 
@@ -126,24 +125,24 @@ function get_random_trees(lnr::IAI.Heuristics.RandomForestLearner)
 end
 
 """ 
-    boundify(lnr::OptimalTreeRegressor, X::DataFrame, Y; solver = CPLEX_SILENT)
-    boundify(lnr::IAI.Heuristics.RandomForestRegressor, X::DataFrame, Y; solver = CPLEX_SILENT)
-    boundify(lnr::OptimalTreeClassifier, X::DataFrame, Y, hypertype::String = "lower"; solver = CPLEX_SILENT)
+    boundify(lnr::OptimalTreeRegressor, X::DataFrame, Y, solver::MOI.OptimizerWithAttributes)
+    boundify(lnr::IAI.Heuristics.RandomForestRegressor, X::DataFrame, Y, solver::MOI.OptimizerWithAttributes)
+    boundify(lnr::OptimalTreeClassifier, X::DataFrame, Y, hypertype::String = "lower", solver::MOI.OptimizerWithAttributes)
 Returns bounding hyperplanes of an OptimalTreeLearner.
 """
-function boundify(lnr::IAI.OptimalTreeRegressor, X::DataFrame, Y; solver = CPLEX_SILENT)
+function boundify(lnr::IAI.OptimalTreeRegressor, X::DataFrame, Y, solver::MOI.OptimizerWithAttributes)
     feas_leaves = find_leaves(lnr)
     leaf_idx = IAI.apply(lnr, X)
     ul_data = Dict()
     for leaf in feas_leaves
         idx = findall(x -> x == leaf, leaf_idx)
-        ul_data[-leaf] = u_regress(X[idx,:], Y[idx]; solver = solver) # negative leaf shows upper bounding
-        ul_data[leaf] = l_regress(X[idx,:], Y[idx]; solver = solver)
+        ul_data[-leaf] = u_regress(X[idx,:], Y[idx], solver) # negative leaf shows upper bounding
+        ul_data[leaf] = l_regress(X[idx,:], Y[idx], solver)
     end
     return ul_data
 end
 
-function boundify(lnr::IAI.OptimalTreeClassifier, X::DataFrame, Y, hypertype::String = "lower"; solver = CPLEX_SILENT)
+function boundify(lnr::IAI.OptimalTreeClassifier, X::DataFrame, Y, solver::MOI.OptimizerWithAttributes, hypertype::String = "lower")
     all_leaves = find_leaves(lnr)
     leaf_idx = IAI.apply(lnr, X)
     data = Dict()
@@ -151,16 +150,16 @@ function boundify(lnr::IAI.OptimalTreeClassifier, X::DataFrame, Y, hypertype::St
     for leaf in feas_leaves
         idx = findall(x -> x == leaf, leaf_idx)
         if hypertype == "upper"
-            data[-leaf] = u_regress(X[idx,:], Y[idx]; solver = solver)
+            data[-leaf] = u_regress(X[idx,:], Y[idx], solver)
         elseif hypertype == "lower"
-            data[leaf] = l_regress(X[idx,:], Y[idx]; solver = solver)
+            data[leaf] = l_regress(X[idx,:], Y[idx], solver)
         end
     end
     return data
 end
 
 function boundify(lnr::IAI.Heuristics.RandomForestRegressor,
-                  X::DataFrame, Y; solver = CPLEX_SILENT)
+                  X::DataFrame, Y, solver::MOI.OptimizerWithAttributes)
     trees = get_random_trees(lnr)
     data = Dict()
     for i=1:length(trees)
@@ -170,8 +169,8 @@ function boundify(lnr::IAI.Heuristics.RandomForestRegressor,
         leaf_idx = IAI.apply(tree, X)
         for leaf in all_leaves
             idx = findall(x -> x == leaf, leaf_idx)
-            ul_data[-leaf] = u_regress(X[idx,:], Y[idx]; solver = solver) # negative leaf shows upper bounding
-            ul_data[leaf] = l_regress(X[idx,:], Y[idx]; solver = solver)
+            ul_data[-leaf] = u_regress(X[idx,:], Y[idx], solver) # negative leaf shows upper bounding
+            ul_data[leaf] = l_regress(X[idx,:], Y[idx], solver)
         end
         data[i] = ul_data
     end
@@ -179,7 +178,7 @@ function boundify(lnr::IAI.Heuristics.RandomForestRegressor,
 end
 
 function boundify(lnr::IAI.Heuristics.RandomForestClassifier,
-                    X::DataFrame, Y, hypertype::String = "lower"; solver = CPLEX_SILENT)
+                    X::DataFrame, Y, solver::MOI.OptimizerWithAttributes, hypertype::String = "lower")
     trees = get_random_trees(lnr)
     data = Dict()
     for i=1:length(trees)
@@ -191,9 +190,9 @@ function boundify(lnr::IAI.Heuristics.RandomForestClassifier,
         for leaf in feas_leaves
             idx = findall(x -> x == leaf, leaf_idx)
             if hypertype == "upper"
-                ul_data[-leaf] = u_regress(X[idx,:], Y[idx]; solver = solver)
+                ul_data[-leaf] = u_regress(X[idx,:], Y[idx], solver)
             elseif hypertype == "lower"
-                ul_data[leaf] = l_regress(X[idx,:], Y[idx]; solver = solver)
+                ul_data[leaf] = l_regress(X[idx,:], Y[idx], solver)
             end
         end 
         data[i] = ul_data
@@ -244,14 +243,14 @@ function learn_constraint!(bbr::BlackBoxRegressor, threshold::Pair = Pair("reg",
         ul_data = Dict()
         if threshold.first == "upper" # Upper bounding classifier with upper bounds in leaves
             lnr = learn_from_data!(bbr.X, bbr.Y .<= threshold.second, lnr; fit_classifier_kwargs(; kwargs...)...)
-            merge!(ul_data, boundify(lnr, bbr.X, bbr.Y, "upper"))
+            merge!(ul_data, boundify(lnr, bbr.X, bbr.Y, SOLVER_SILENT, "upper"))
         elseif threshold.first == "lower" # Lower bounding classifier with lower bounds in leaves
             lnr = learn_from_data!(bbr.X, bbr.Y .>= threshold.second, lnr; fit_classifier_kwargs(; kwargs...)...)
-            merge!(ul_data, boundify(lnr, bbr.X, bbr.Y, "lower"))
+            merge!(ul_data, boundify(lnr, bbr.X, bbr.Y, SOLVER_SILENT, "lower"))
         elseif threshold.first == "upperlower" # Upper bounding classifier with bounds in each leaf
             lnr = learn_from_data!(bbr.X, bbr.Y .<= threshold.second, lnr; fit_classifier_kwargs(; kwargs...)...)
-            merge!(ul_data, boundify(lnr, bbr.X, bbr.Y, "lower"))
-            merge!(ul_data, boundify(lnr, bbr.X, bbr.Y, "upper"))
+            merge!(ul_data, boundify(lnr, bbr.X, bbr.Y, SOLVER_SILENT, "lower"))
+            merge!(ul_data, boundify(lnr, bbr.X, bbr.Y, SOLVER_SILENT, "upper"))
         end
         push!(bbr.learners, lnr);
         push!(bbr.learner_kwargs, Dict(kwargs))
@@ -284,7 +283,7 @@ function learn_constraint!(bbr::BlackBoxRegressor, threshold::Pair = Pair("reg",
         push!(bbr.learners, lnr);
         push!(bbr.learner_kwargs, Dict(kwargs))
         push!(bbr.thresholds, threshold)
-        push!(bbr.ul_data, boundify(lnr, bbr.X, bbr.Y))
+        push!(bbr.ul_data, boundify(lnr, bbr.X, bbr.Y, SOLVER_SILENT))
         push!(bbr.accuracies, IAI.score(lnr, bbr.X, bbr.Y))
     elseif threshold.first == "rfreg"
         lnr = base_rf_regressor()
@@ -302,7 +301,7 @@ function learn_constraint!(bbr::BlackBoxRegressor, threshold::Pair = Pair("reg",
         push!(bbr.learners, lnr);
         push!(bbr.learner_kwargs, Dict(kwargs))
         push!(bbr.thresholds, threshold)
-        push!(bbr.ul_data, boundify(lnr, bbr.X, bbr.Y))
+        push!(bbr.ul_data, boundify(lnr, bbr.X, bbr.Y, SOLVER_SILENT))
         push!(bbr.accuracies, IAI.score(lnr, bbr.X, bbr.Y))
     else
         throw(OCTHaGOnException("$(threshold.first) is not a valid learner type for" *

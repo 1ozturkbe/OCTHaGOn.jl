@@ -55,7 +55,6 @@ function test_expressions()
     @test all(gradfn(ones(9)) .≈ grad(ones(9)))
     @test_throws OCTHaGOnException gradientify(@constraint(model, [x[1] x[2];
                                                               x[3] x[4]] in PSDCone()), x[1:4])
-
     # Testing vars_from_constraint as well
     @test all([var in [x[1], x[2], x[3], x[4], y[1], y[2], z] for var in vars_from_constraint(con)])
     m = pool1(false)
@@ -141,7 +140,7 @@ end
 
 function test_nonlinearize(gm::GlobalModel = minlp(true))
     nonlinearize!(gm)
-    set_optimizer(gm, CPLEX_SILENT)
+    set_optimizer(gm, SOLVER_SILENT)
     @test_throws ErrorException("The solver does not support nonlinear problems (i.e., NLobjective and NLconstraint).") optimize!(gm)
     @test true
 end
@@ -244,9 +243,9 @@ end
 function test_regress()
     X = DataFrame(:x => 3*rand(100) .- 1, :y => 3*rand(100) .- 1);
     Y = Array(X[!,:x].^3 .* sin.(X[!,:y]));
-    α0, α = u_regress(X, Y)
-    β0, β = l_regress(X, Y)
-    γ0, γ = ridge_regress(X, Y)
+    α0, α = u_regress(X, Y, SOLVER_SILENT)
+    β0, β = l_regress(X, Y, SOLVER_SILENT)
+    γ0, γ = ridge_regress(X, Y, SOLVER_SILENT)
     lowers = β0 .+ Matrix(X) * β;
     uppers = α0 .+ Matrix(X) * α;
     best_fit = γ0 .+ Matrix(X) * γ;
@@ -256,8 +255,7 @@ function test_regress()
 
     X = DataFrame(:x => rand(100), :y => rand(100))
     Y = X[!,:y] - X[!,:x] .+ 0.1
-    solver = CPLEX_SILENT
-    β0, β = svm(Matrix(X), Y)
+    β0, β = svm(Matrix(X), Y, SOLVER_SILENT)
     predictions = Matrix(X) * β .+ β0 
     @test sum((predictions-Y).^2) <= 1e-10
 end
@@ -265,7 +263,7 @@ end
 """ Tests various ways to train a regressor. """
 function test_bbr()
     gm = minlp(true)
-    set_optimizer(gm, CPLEX_SILENT)
+    set_optimizer(gm, SOLVER_SILENT)
     uniform_sample_and_eval!(gm)
     bbr = gm.bbls[3]
 
@@ -426,7 +424,7 @@ end
 """ Tests basic functionalities in GMs. """
 function test_basic_gm()
     gm = sagemark_to_GlobalModel(3, false)
-    set_optimizer(gm, CPLEX_SILENT)
+    set_optimizer(gm, SOLVER_SILENT)
 
     # Actually trying to optimize...
     find_bounds!(gm, all_bounds=true)
@@ -542,7 +540,7 @@ NOTE: Although rfreg is tested, IT IS NOT A SUPPORTED FEATURE SINCE IT
 IS NOT USEFUL FOR MOST PROBLEMS. """
 function test_rfs()
     gm = minlp(true)
-    set_optimizer(gm, CPLEX_SILENT)
+    set_optimizer(gm, SOLVER_SILENT)
     uniform_sample_and_eval!(gm)
     init_constraints = sum(length(all_constraints(gm.model, type[1], type[2])) 
         for type in JuMP.list_of_constraint_types(gm.model))
@@ -609,7 +607,7 @@ end
 # Fox and rabbit nonlinear population dynamics 
 # Predator prey model with logistic function from http://www.math.lsa.umich.edu/~rauch/256/F2Lab5.pdf
 function test_linking()
-    m = Model(CPLEX_SILENT)
+    m = Model(SOLVER_SILENT)
     t = 20
     r = 0.2
     x1 = 0.6

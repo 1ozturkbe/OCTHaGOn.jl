@@ -63,8 +63,3 @@ function rocket100()
 
     return gm
 end
-
-using Ipopt
-set_optimizer(gm.model, Ipopt.Optimizer)
-nonlinearize!(gm)
-optimize!(gm)

@@ -1,8 +1,5 @@
 """
-Contains all required info to be able to generate a global optimization problem.
-NOTE: proper construction is to use add_nonlinear_constraint to add bbls.
-model must be a mixed integer convex model.
-nonlinear_model can contain JuMP.NonlinearConstraints.
+Contains all constraints and data to solve the global optimization optimization problem. Add linear constraints to a `GlobalModel` through `JuMP.@constraint(gm.model, ...)`, and nonlinear constraints using `add_nonlinear_constraint`.
 """
 @with_kw mutable struct GlobalModel
     model::JuMP.Model                                            # Associated JuMP.Model
@@ -89,7 +86,7 @@ function JuMP.set_optimizer(gm::GlobalModel, optimizer_factory)
 end
 
 """
-    get_bounds(model::Union{JuMP.Model, BlackBoxLearner, Array{BlackBoxLearner})
+    $(TYPEDSIGNATURES)
 
 Returns bounds of all variables.
 """
@@ -99,8 +96,7 @@ function get_bounds(model::Union{GlobalModel, JuMP.Model, BlackBoxLearner,
 end
 
 """
-    get_unbounds(model::Union{GlobalModel, JuMP.Model, BlackBoxLearner, 
-                 Array{BlackBoxLearner}})
+    $(TYPEDSIGNATURES)
 
 Returns only unbounded variables. 
 """
@@ -110,10 +106,7 @@ function get_unbounds(model::Union{GlobalModel, JuMP.Model, BlackBoxLearner,
 end
 
 """
-    determine_vars(gm::GlobalModel,
-                        constraint::Union{JuMP.ConstraintRef, Expr};
-                        vars::Union{Nothing, Array{JuMP.VariableRef, 1}} = nothing,
-                        expr_vars::Union{Nothing, Array} = nothing)
+    $(TYPEDSIGNATURES)
 
 Takes on parsing and allocation of variables depending on user input. 
 """
@@ -156,7 +149,13 @@ end
                      name::String = gm.name * " " * string(length(gm.bbls) + 1),
                      equality::Bool = false)
 
- Adds a new nonlinear constraint to Global Model. Standard method for adding bbls.
+ Adds a new nonlinear constraint to Global Model. Standard method for adding BlackBoxClassifiers and BlackBoxRegressors. 
+
+ Note: If adding constraints via an `Expr`, please define the appropriate vector indices. Eg. 
+    `expr = :((x) -> -x[1:\$(N)]'*\$(Q)*x[1:\$(N)] - \$(c)'*x[1:\$(N)])`,
+instead of 
+    `expr = :((x) -> -x'*\$(Q)*x - \$(c)'*x)`,
+to avoid vectorization errors.
 """
 function add_nonlinear_constraint(gm::GlobalModel,
                      constraint::Union{JuMP.ConstraintRef, Expr};
@@ -192,16 +191,15 @@ function add_nonlinear_constraint(gm::GlobalModel,
 end
 
 """
-    add_nonlinear_or_compatible(gm::GlobalModel,
-                         constraint::Union{JuMP.ConstraintRef, Expr};
-                         vars::Union{Nothing, Array{JuMP.VariableRef, 1}} = nothing,
-                         expr_vars::Union{Nothing, Array} = nothing,
-                         dependent_var::Union{Nothing, JuMP.VariableRef} = nothing,
-                         name::String = gm.name * "_" * string(length(gm.bbls) + 1),
-                         equality::Bool = false)
+    function add_nonlinear_or_compatible(gm::GlobalModel,
+        constraint::Union{JuMP.ConstraintRef, Expr};
+        vars::Union{Nothing, Array{JuMP.VariableRef, 1}} = nothing,
+        expr_vars::Union{Nothing, Array} = nothing,
+        dependent_var::Union{Nothing, JuMP.VariableRef} = nothing,
+        name::String = gm.name * "_" * string(length(gm.bbls) + 1),
+        equality::Bool = false)
 
-Extents add_nonlinear_constraint to recognize JuMP compatible constraints and add them
-as normal JuMP constraints
+Extends `add_nonlinear_constraint` to recognize JuMP compatible linear constraints and add them as linear JuMP constraints instead.
 """
 function add_nonlinear_or_compatible(gm::GlobalModel,
                      constraint::Union{JuMP.ConstraintRef, Expr};
@@ -244,10 +242,10 @@ end
     add_linked_constraint(gm::GlobalModel, bbc::BlackBoxClassifier, linked_vars::Array{JuMP.Variable})
     add_linked_constraint(gm::GlobalModel, bbr::BlackBoxRegressor, linked_vars::Array{JuMP.Variable}, linked_dependent::JuMP.Variable)
 
-Adds a linked constraint of the same structure as the BBC/BBR. 
+Adds a linked constraint of the same structure as the BlackBoxLearner. 
 When a nonlinear constraint is repeated more than once, this function allows the underlying
 approximator to be replicated without retraining trees for each constraint.  
-Note that the bounds used for sampling are for the original variables of the BBC/BBR, so be careful!
+Note that the bounds used for sampling are for the original variables of the BlackBoxLearner, so be careful!
 """
 function add_linked_constraint(gm::GlobalModel, bbc::BlackBoxClassifier, vars::Array{JuMP.VariableRef})
     length(vars) == length(bbc.vars) || throw(OCTHaGOnException("BBC $(bbc.name) does not" *

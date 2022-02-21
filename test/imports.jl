@@ -59,7 +59,7 @@ end
 
 # function test_load_fits()
 #     gm = sagemark_to_GlobalModel(3, false)
-#     set_optimizer(gm, CPLEX_SILENT)
+#     set_optimizer(gm, SOLVER_SILENT)
 #     # Testing finding bounds of bounded model
 #     @test isnothing(get_unbounds(gm.bbls))
 #     @test isnothing(find_bounds!(gm))

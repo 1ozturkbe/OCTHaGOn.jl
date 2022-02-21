@@ -93,7 +93,7 @@ end
 get_varmap(expr_vars::Nothing, vars::Array) = nothing
 
 
-""" Returns the mapping from flattened expr_vars to vars. """
+""" Returns the mapping from flattened expr\\_vars to vars. """
 function get_datamap(expr_vars::Array, vars::Array)
     datamap = []
     flatvars = flat(expr_vars)
@@ -109,7 +109,7 @@ function get_datamap(expr_vars::Array, vars::Array)
 end
 
 
-"""Returns the relevant ranges for variables in expr_vars..."""
+"""Returns the relevant index ranges for variables in expr\\_vars."""
 function get_var_ranges(expr_vars::Array)            
     var_ranges = []
     count = 0

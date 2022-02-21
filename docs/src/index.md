@@ -1,4 +1,6 @@
-[![codecov](https://codecov.io/gh/1ozturkbe/OCTHaGOn.jl/branch/master/graph/badge.svg?token=3ODJZJN3WT)](https://codecov.io/gh/1ozturkbe/OCTHaGOn.jl)
+# [OCTHaGOn](https://github.com/1ozturkbe/OCTHaGOn.jl)
+
+[![codecov](https://codecov.io/gh/1ozturkbe/OCTHaGOn.jl/branch/master/graph/badge.svg?token=3ODJZJN3WT)](https://codecov.io/gh/1ozturkbe/OCTHaGOn.jl) [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://1ozturkbe.github.io/OCTHaGOn.jl)
 
 OCTHaGOn (Optimal Classification Trees with Hyperplanes for Global Optimization) is a [Julia](https://julialang.org/) package that allows for the solution of global optimization problems using mixed-integer (MI) linear and convex approximations. It is an implementation of the methods detailed in [Chapter 2 of this thesis](https://1ozturkbe.github.io/data/ozturk-bozturk-PhD-AeroAstro-2022-thesis.pdf) and submitted to *Operations Research*. OCTHaGOn is licensed under [the MIT License](https://github.com/1ozturkbe/OCTHaGOn.jl/blob/master/LICENSE). 
 

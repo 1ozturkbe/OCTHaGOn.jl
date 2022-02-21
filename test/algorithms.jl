@@ -5,7 +5,7 @@ function test_baron_solve(m::JuMP.Model = gear(false))
     @test true
 end
 
-function test_speed_params(gm::GlobalModel = minlp(true), solver = CPLEX_SILENT)
+function test_speed_params(gm::GlobalModel = minlp(true), solver = OCTHaGOn.SOLVER_SILENT)
     set_optimizer(gm, solver)   
     bbl = gm.bbls[1]
     uniform_sample_and_eval!(bbl)    
@@ -31,6 +31,7 @@ end
 
 function test_classify_gradients()
     gm = minlp(true)
+    set_optimizer(gm, SOLVER_SILENT)
     bbr = gm.bbls[3]
     uniform_sample_and_eval!(gm)
     idxs = collect(1:10)
@@ -72,6 +73,7 @@ end
 function test_survey_method(gm::GlobalModel = minlp(true))
     uniform_sample_and_eval!(gm)
     bbrs = [bbl for bbl in gm.bbls if bbl isa BlackBoxRegressor]
+    set_optimizer(gm, OCTHaGOn.SOLVER_SILENT)
     surveysolve(gm)
     bbcs = [bbl for bbl in gm.bbls if bbl isa BlackBoxClassifier]
     bbc_idxs = [x isa BlackBoxClassifier for x in gm.bbls]
@@ -85,7 +87,7 @@ function test_survey_method(gm::GlobalModel = minlp(true))
 end
 
 function test_concave_regressors(gm::GlobalModel = gear(true))
-    gm = gear(true)
+    set_optimizer(gm, SOLVER_SILENT)
     uniform_sample_and_eval!(gm)
     bbrs = [bbl for bbl in gm.bbls if bbl isa BlackBoxRegressor]
     if !isempty(bbrs)
@@ -134,6 +136,7 @@ end
 
 function test_descent()
     gm = minlp(true)
+    set_optimizer(gm, SOLVER_SILENT)
     uniform_sample_and_eval!(gm) # descent requires some samples
     x0 = DataFrame(string.(gm.vars) .=> [1, 0, 1, 0, 1, 0, 5.8])
     append!(gm.solution_history, x0)
@@ -143,6 +146,7 @@ function test_descent()
     @test isapprox(gm.cost[end], 6.09; atol = 3)
 
     gm = pool1(true)
+    set_optimizer(gm, SOLVER_SILENT)
     uniform_sample_and_eval!(gm)
     x0 = DataFrame(string.(gm.vars) .=> [4.0, 3.0, 1.0, 4.0, 0, 7, 0])
     append!(gm.solution_history, x0)
@@ -152,6 +156,7 @@ function test_descent()
     @test isapprox(gm.cost[end], 23; atol = 3)
 
     gm = nlp3(true)
+    set_optimizer(gm, SOLVER_SILENT)
     uniform_sample_and_eval!(gm)
     x0 = DataFrame(string.(gm.vars) .=>
     [1728.71, 16000.0, 69.9795, 3056.32,  2000.0,  91.323, 94.7197, 11.5857, 2.26271, 151.159, -1600.81])
@@ -164,6 +169,7 @@ end
 
 function test_recipe()
     gm = nlp2(true)
+    set_optimizer(gm, SOLVER_SILENT)
     globalsolve_and_time!(gm)
     @test isapprox(gm.cost[end], 201; atol = 3)
 end

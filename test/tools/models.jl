@@ -13,7 +13,7 @@ function test_model()
 end
 
 """ Basic qp for testing. """
-function test_qp(solver = CPLEX_SILENT)
+function test_qp(solver = OCTHaGOn.SOLVER_SILENT)
     m = JuMP.Model(with_optimizer(solver))
     @variable(m, 2 >= x[1:2] >= 0) 
     @objective(m, Min, 3*x[1]^2 + x[2]^2 + 2*x[1]*x[2] + x[1] + 6*x[2] + 2)
@@ -22,7 +22,7 @@ function test_qp(solver = CPLEX_SILENT)
 end
 
 """ Basic gqp, same as above. """
-function test_gqp(solver = CPLEX_SILENT)
+function test_gqp(solver = OCTHaGOn.SOLVER_SILENT)
     m = JuMP.Model(with_optimizer(solver))
     @variable(m, 2 >= x[1:2] >= 0) 
     @constraint(m, 2*x[1] + 3*x[2] >= 4)
@@ -34,11 +34,11 @@ function test_gqp(solver = CPLEX_SILENT)
 end
 
 """
-    random_qp(dims::Int64, nconstrs::Int64, sparsity=dims, solver = CPLEX_SILENT)
+    random_qp(dims::Int64, nconstrs::Int64, sparsity=dims, solver = OCTHaGOn.SOLVER_SILENT)
 
 Generates a random quadratic program with the specified parameters. 
 """
-function random_qp(dims::Int64, nconstrs::Int64, sparsity=dims, solver = CPLEX_SILENT)
+function random_qp(dims::Int64, nconstrs::Int64, sparsity=dims, solver = OCTHaGOn.SOLVER_SILENT)
     m = JuMP.Model(with_optimizer(solver))
     @variable(m, -1 <= x[1:dims] <= 1)
     m[:sparse_vars] = randperm(dims)[1:sparsity]

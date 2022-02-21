@@ -1,4 +1,4 @@
-# Data Structures
+# Data structures
 
 Work in progress...
 

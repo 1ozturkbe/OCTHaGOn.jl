@@ -8,7 +8,7 @@ using Plots
 # msol = solution(m)
 
 gm = test_gqp()
-set_optimizer(gm, CPLEX_SILENT)
+set_optimizer(gm, SOLVER_SILENT)
 
 # bbcs = [bbl for bbl in gm.bbls if bbl isa BlackBoxClassifier]
 bbr = [bbl for bbl in gm.bbls if bbl isa BlackBoxRegressor][1]

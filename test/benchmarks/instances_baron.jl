@@ -17,5 +17,5 @@ while !eof(file)
 
  name = "flay05m.gms" # GOOD EXAMPLE
  gm = GAMS_to_GlobalModel(OCTHaGOn.GAMS_DIR, name)
- set_optimizer(gm, CPLEX_SILENT)
+ set_optimizer(gm, SOLVER_SILENT)
  globalsolve_and_time!(gm)

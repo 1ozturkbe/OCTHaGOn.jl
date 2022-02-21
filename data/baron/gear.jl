@@ -11,7 +11,7 @@
 # //  Seventh International Conference on Genetic Algorithms. 1997,
 # //  pp. 521-528.
 
-function gear(gm::Bool = false)
+function gear(oct::Bool = false)
     m = JuMP.Model()
     @variable(m, 12 <= i[1:4] <= 60, Int)
     for j = 1:4
@@ -19,15 +19,13 @@ function gear(gm::Bool = false)
     end
     @constraint(m, e2, - i[3] + i[4] >= 0)
     @constraint(m, e3, i[1] - i[2] >= 0)
-    if !gm
+    if !oct
         @NLobjective(m, Min, (6.931 - i[1]*i[2]/(i[3]*i[4]))^2 + 1)
-        set_optimizer(m, BARON_SILENT)
         return m
     else
         @variable(m, obj)
         @objective(m, Min, obj)
         gm = GlobalModel(model = m, name = "gear")
-        set_optimizer(gm, CPLEX_SILENT)
         add_nonlinear_constraint(gm, :((i) -> (6.931 - i[1]*i[2]/(i[3]*i[4]))^2 + 1), dependent_var = obj)
         return gm
     end
