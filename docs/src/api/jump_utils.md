@@ -1,6 +1,6 @@
-# JuMP and MathOptInterface utilities
+# JuMP and MOI utilities
 
-These functions act on JuMP and MOI structures to be able to implement OCTHaGOn. 
+These functions act on JuMP and MathOptInterface structures to be able to implement OCTHaGOn. 
 
 ```@docs
 bound!
@@ -13,6 +13,7 @@ get_constant
 get_unbounds
 linearize_objective!
 restrict_to_set
+vars_from_constraint
 ```
 
 The following functions extend JuMP functions to act on OCTHaGOn's structs. 

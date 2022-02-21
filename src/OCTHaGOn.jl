@@ -170,7 +170,7 @@ module OCTHaGOn
         alphac_to_expr, alphac_to_objexpr, alphac_to_varbound!,
 
         # Small scripts
-        vars_from_expr, vars_from_constraint, flat,
-        power, sqr, normalized_data, print_details
-end
+        deconstruct, flat, get_datamap, get_var_ranges, get_varmap,
+        power, sqr, merge_kwargs, normalized_data, print_details, substitute, vars_from_expr, vars_from_constraint 
+    end
 

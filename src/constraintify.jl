@@ -167,13 +167,13 @@ end
 add_tree_constraints!(gm::GlobalModel) = add_tree_constraints!(gm, gm.bbls)
 
 """
-    Creates a set of binary feasibility constraints from
-    a binary classification tree:
-    Arguments:
-        lnr: A fitted IAI.OptimalTreeLearner
-        m:: JuMP Model
-        x:: JuMPVariables (features in lnr)
-    NOTE: mic and lv are only nonempty if we are adding an OCT approximation of a BBR. 
+Creates a set of binary feasibility constraints from a binary classification tree. 
+Arguments:
+- m: JuMP Model
+- x: independent JuMP.Variables (features in lnr)
+- lnr: A fitted OptimalTreeClassifier
+- equality: whether the constraint is an equality. 
+NOTE: lcs, mic and lv are only nonempty if we are adding an OCT approximation of a BBR. Leave defaults empty for basic usage. 
 """
 function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::IAI.OptimalTreeLearner;
                                equality::Bool = false, 
@@ -282,17 +282,17 @@ end
 
 Creates a set of MIO constraints from a OptimalTreeClassifier that thresholds a BlackBoxRegressor.
 Arguments:
-    m:: JuMP Model
-    x:: independent JuMPVariable (features in lnr)
-    y:: dependent JuMPVariable (output of lnr)
-    lnr:: A fitted OptimalTreeRegressor
-    ul_data:: Upper and lower bounding hyperplanes for data in leaves of lnr
+- m:: JuMP Model
+- x:: independent JuMP.Variable (features in lnr)
+- y:: dependent JuMP.Variable (output of lnr)
+- lnr:: A fitted OptimalTreeRegressor
+- ul_data:: Upper and lower bounding hyperplanes for data in leaves of lnr
 """
 function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuMP.VariableRef, 
-                               lnr::IAI.OptimalTreeLearner,
-                               ul_data::Dict; equality::Bool = false, 
-                               relax_var::Union{Real, JuMP.VariableRef} = 0,
-                               lrs::Array = [])
+lnr::IAI.OptimalTreeLearner,
+ul_data::Dict; equality::Bool = false, 
+relax_var::Union{Real, JuMP.VariableRef} = 0,
+lrs::Array = [])
     # TODO: Determine whether I should relax approximator or trust regions or both. 
     if lnr isa OptimalTreeRegressor                
         check_if_trained(lnr)
@@ -503,10 +503,7 @@ function clear_lower_constraints!(gm, bbr::Union{BlackBoxRegressor, LinkedRegres
 end
 
 """ 
-    clear_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier)
-    clear_tree_constraints!(gm::GlobalModel, bbc::BlackBoxRegressor)
-    clear_tree_constraints!(gm::GlobalModel, bbls::Array{BlackBoxLearner})
-    clear_tree_constraints!(gm::GlobalModel)
+    $(TYPEDSIGNATURES)
 
 Clears the MI-approximating constraints and variables in GlobalModel and its sub-structs.
 """

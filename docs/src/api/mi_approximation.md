@@ -8,7 +8,10 @@ Work in progress...
 add_feas_constraints!
 add_regr_constraints!
 add_tree_constraints!
+all_mi_constraints
+clear_data!
 clear_tree_constraints!
+clear_tree_data!
 update_tree_constraints!
 clear_lower_constraints!
 clear_upper_constraints!

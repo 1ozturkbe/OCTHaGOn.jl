@@ -158,7 +158,11 @@ end
 
  Adds a new nonlinear constraint to Global Model. Standard method for adding BlackBoxClassifiers and BlackBoxRegressors. 
 
- NOTE: If adding constraints via an `Expr`
+ Note: If adding constraints via an `Expr`, please define the appropriate vector indices. Eg. 
+    `expr = :((x) -> -x[1:\$(N)]'*\$(Q)*x[1:\$(N)] - \$(c)'*x[1:\$(N)])`,
+instead of 
+    `expr = :((x) -> -x'*\$(Q)*x - \$(c)'*x)`,
+to avoid vectorization errors.
 """
 function add_nonlinear_constraint(gm::GlobalModel,
                      constraint::Union{JuMP.ConstraintRef, Expr};
@@ -202,8 +206,7 @@ end
                          name::String = gm.name * "_" * string(length(gm.bbls) + 1),
                          equality::Bool = false)
 
-Extents add_nonlinear_constraint to recognize JuMP compatible constraints and add them
-as normal JuMP constraints
+Extends `add_nonlinear_constraint` to recognize JuMP compatible linear constraints and add them as linear JuMP constraints instead.
 """
 function add_nonlinear_or_compatible(gm::GlobalModel,
                      constraint::Union{JuMP.ConstraintRef, Expr};
