@@ -11,11 +11,11 @@ module OCTHaGOn
     using MathOptInterface
     using MathOptSetDistances
     using Missings
-    using MLDataUtils
     using NearestNeighbors
     using Parameters
     using ProgressMeter
-
+    using Random
+    
     const PROJECT_ROOT = dirname(dirname(@__FILE__))
     const DATA_DIR = PROJECT_ROOT * "\\data\\"
     const BARON_DIR = PROJECT_ROOT * "\\data\\baron\\"
@@ -32,11 +32,22 @@ module OCTHaGOn
                           "reg" => "upper", # reg with some threshold.second
                           "upper" => "reg"] # reg with some threshold.second
 
+    include("structs.jl")
+
     include("small_scripts.jl")
 
     include("on_jump.jl")
 
+    include("util/train_test_split.jl")
+
+
+    
+    include("learners/abstract.jl")
+    include("learners/svm.jl")
+    include("learners/gbm.jl")
     include("learners.jl")
+
+    #include("learners/iai.jl")
 
     include("exceptions.jl")
 
@@ -49,6 +60,8 @@ module OCTHaGOn
     include("iai_wrappers.jl")
 
     include("global_model.jl")
+
+
     
     include("data_driven.jl")
 
@@ -69,7 +82,7 @@ module OCTHaGOn
         
         # STRUCTS
     export GlobalModel, BlackBoxLearner, BlackBoxClassifier, BlackBoxRegressor, 
-        LinkedLearner, LinkedClassifier, LinkedRegressor,
+        LinkedLearner, LinkedClassifier, LinkedRegressor, SVM_Classifier,
 
     # JuMP.Model extensions to GlobalModel
         set_optimizer, optimize!,
@@ -138,7 +151,7 @@ module OCTHaGOn
         clear_data!, clear_tree_data!,
 
         # HELPERS
-
+        roc_auc_score,
         # IAI helpers, 
         pwl_constraint_data, trust_region_data,
 

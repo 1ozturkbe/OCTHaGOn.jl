@@ -12,12 +12,16 @@ Note: All tests should be run from a julia REPR within the OCTHaGOn folder, usin
       include("test/all.jl")
 =#
 
+
 include("load.jl");
+
 
 @testset "OCTHaGOn" begin
     include(string(OCTHaGOn.PROJECT_ROOT, "/test/src.jl"))
 
     include(string(OCTHaGOn.PROJECT_ROOT, "/test/imports.jl"))
+
+    include(string(OCTHaGOn.PROJECT_ROOT, "/test/learners.jl"))
 
 #     include(string(OCTHaGOn.PROJECT_ROOT, "/test/cbf.jl"))
 

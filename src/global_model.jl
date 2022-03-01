@@ -1,21 +1,3 @@
-"""
-Contains all required info to be able to generate a global optimization problem.
-NOTE: proper construction is to use add_nonlinear_constraint to add bbls.
-model must be a mixed integer convex model.
-nonlinear_model can contain JuMP.NonlinearConstraints.
-"""
-@with_kw mutable struct GlobalModel
-    model::JuMP.Model                                            # Associated JuMP.Model
-    name::String = "Model"                                       # Name
-    bbls::Array{BlackBoxLearner} = BlackBoxLearner[]             # Constraints to be learned
-    vars::Array{JuMP.VariableRef} = JuMP.all_variables(model)    # JuMP variables
-    objective = JuMP.objective_function(model)                # Original objective function
-    solution_history::DataFrame = DataFrame(string.(vars) .=> [Float64[] for i=1:length(vars)]) # Solution history
-    cost::Array = []                                             # List of costs. 
-    soldict::Dict = Dict()                                       # For solution extraction
-    params::Dict = gm_defaults()                                 # GM settings
-    og_objective = nothing                                       # Used to hold the original objective (LHS of dependent constraint)
-end
 
 function Base.show(io::IO, gm::GlobalModel)
     println(io, "GlobalModel " * gm.name * " with $(length(gm.vars)) variables: ")

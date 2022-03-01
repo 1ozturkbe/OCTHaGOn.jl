@@ -165,3 +165,18 @@ function deconstruct(data::DataFrame, vars::Array, expr_vars::Array, varmap::Arr
     end
     return arrs
 end
+
+
+"""
+Allows for struct inheritance
+"""
+macro inherit(name, base, fields)
+    base_type = Core.eval(@__MODULE__, base)
+    base_fieldnames = fieldnames(base_type)
+    base_types = [t for t in base_type.types]
+    base_fields = [:($f::$T) for (f, T) in zip(base_fieldnames, base_types)]
+    res = :(mutable struct $name end)
+    push!(res.args[end].args, base_fields...)
+    push!(res.args[end].args, fields.args...)
+    return res
+end

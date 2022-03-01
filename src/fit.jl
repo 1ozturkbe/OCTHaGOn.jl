@@ -213,7 +213,7 @@ function learn_constraint_IAI!(lnr, bbc::BlackBoxClassifier; kwargs...)
     end
     IAI.set_params!(lnr; classifier_kwargs(; kwargs...)...)
 
-    (X_train, y_train), (X_test, y_test) = splitobs((bbc.X, bbc.Y .>= 0); at = 0.67)
+    (X_train, y_train), (X_test, y_test) = train_test_split(bbc.X, bbc.Y .>= 0; at = 0.67)
     X_train = DataFrame(X_train)
     X_test = DataFrame(X_test)
     if check_feasibility(bbc) || get_param(bbc, :ignore_feasibility)
@@ -230,25 +230,42 @@ function learn_constraint_IAI!(lnr, bbc::BlackBoxClassifier; kwargs...)
 end
 
 
-function learn_constraint_SVM!(bbc::BlackBoxClassifier; kwargs...)
-    if check_feasibility(bbc) || get_param(bbc, :ignore_feasibility)
+# function learn_constraint_SVM!(bbc::BlackBoxClassifier; kwargs...)
+#     if check_feasibility(bbc) || get_param(bbc, :ignore_feasibility)
 
-        #score = IAI.score(lnr, bbc.X, bbc.Y .>= 0)
+#         #score = IAI.score(lnr, bbc.X, bbc.Y .>= 0)
 
-        (X_train, y_train), (X_test, y_test) = splitobs((bbc.X, bbc.Y .>= 0); at = 0.67)
+#         (X_train, y_train), (X_test, y_test) = train_test_split(bbc.X, bbc.Y .>= 0; at = 0.67)
 
-        (β0, β) = svm(Matrix(X_train), 1*(y_train .>= 0))
+#         (β0, β) = svm(Matrix(X_train), 1*(y_train .>= 0))
         
-        y_pred = 1*(Matrix(X_test) * β .+ β0 .> 0.5 )
+#         y_pred = 1*(Matrix(X_test) * β .+ β0 .> 0.5 )
 
-        score = roc_auc_score(y_test, y_pred)
+#         score = roc_auc_score(y_test, y_pred)
 
-        lnr = SVM_Classifier(β0=β0, β=β)
+#         lnr = SVM_Classifier(β0=β0, β=β)
 
-        return lnr, score, Dict(kwargs)
-    else
-        throw(OCTHaGOnException("Not enough feasible samples for BlackBoxClassifier " * string(bbc.name) * "."))
-    end
+#         return lnr, score, Dict(kwargs)
+#     else
+#         throw(OCTHaGOnException("Not enough feasible samples for BlackBoxClassifier " * string(bbc.name) * "."))
+#     end
+# end
+
+function fit_and_evaluate!(lnr::AbstractModel, bbc::BlackBoxClassifier; equality=false)
+
+    EPSILON = 1e-1
+
+    (X_train, y_train), (X_test, y_test) = train_test_split(bbc.X, bbc.Y; at = 0.67)
+
+    lnr.fit!(lnr, X_train, y_train; equality = equality)
+
+    y_pred = lnr.predict(lnr, X_test)
+
+    y_test = equality ? 1*(abs.(y_test).<= EPSILON) : 1*(y_test .>= 0);
+
+    score = roc_auc_score(y_test, y_pred)
+
+    return score
 end
 
 """
@@ -284,22 +301,30 @@ function learn_constraint!(bbc::BlackBoxClassifier, algs::Union{Nothing, Array{S
 
     for alg in algs
         
-        if alg in ["CART", "OCT"]
-            # Use IAI
-            lnr = IAI_LEARNER_DICT["classification"][alg]()
-            lnr, score, args = learn_constraint_IAI!(lnr, bbc; kwargs...)
-        elseif alg == "SVM"
-            lnr, score, args = learn_constraint_SVM!(bbc; kwargs...)
-        else
+        if !haskey(LEARNER_DICT["classification"], alg)
             throw(OCTHaGOnException("$(alg) model is not supported for classification."))
         end
-        
-        @info "Trained $(alg) with AUC=$(score)"
-        if score >= best_score
-            best_alg_name = alg
-            best_score  = score
-            best_model = (lnr, score, args)
-        end
+
+        # try
+            if alg in ["CART", "OCT"]
+                # Use IAI
+                lnr = LEARNER_DICT["classification"][alg]()
+                lnr, score, args = learn_constraint_IAI!(lnr, bbc; kwargs...)
+            else
+                lnr = LEARNER_DICT["classification"][alg]()
+                score = fit_and_evaluate!(lnr, bbc; equality = bbc.equality)
+                args = kwargs
+            end
+            
+            @info "Trained $(alg) with AUC=$(score)"
+            if score >= best_score
+                best_alg_name = alg
+                best_score  = score
+                best_model = (lnr, score, args)
+            end
+        # catch
+        #     println("Model $(alg) failed") 
+        # end
     end
 
     lnr, score, args = best_model

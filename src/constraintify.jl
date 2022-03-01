@@ -35,13 +35,19 @@ Generates MI constraints from gm.learners, and adds them to gm.model.
 function add_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier, idx = length(bbc.learners))
     isempty(bbc.mi_constraints) || throw(OCTHaGOnException("BBC $(bbc.name) already has associated MI approximation."))
     isempty(bbc.leaf_variables) || throw(OCTHaGOnException("BBC $(bbc.name) already has associated MI variables."))
+
     if bbc.feas_ratio == 1.0 # Just a placeholder to show that the tree is "trained". 
         z_feas = @variable(gm.model, binary = true)
         bbc.mi_constraints = Dict(1 => [@constraint(gm.model, z_feas == 1)])
         bbc.leaf_variables = Dict(1 => (z_feas, []))
     elseif get_param(bbc, :reloaded)
-        bbc.mi_constraints, bbc.leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[idx];
-                                            equality = bbc.equality, lcs = bbc.lls)
+        lnr = bbc.learners[idx]
+        if lnr isa AbstractModel
+            bbc.mi_constraints, bbc.leaf_variables = lnr.embed_mio!(lnr, gm, bbc)
+        else
+            bbc.mi_constraints, bbc.leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[idx];
+                                                equality = bbc.equality, lcs = bbc.lls)
+        end
     elseif size(bbc.X, 1) == 0
         throw(OCTHaGOnException("Constraint " * string(bbc.name) * " has not been sampled yet, and is thus untrained."))
     elseif isempty(bbc.learners)
@@ -53,8 +59,13 @@ function add_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier, idx = l
     elseif !get_param(gm, :ignore_accuracy) && !check_accuracy(bbc)
         throw(OCTHaGOnException("Constraint " * string(bbc.name) * " is inaccurately approximated. "))
     else
-        bbc.mi_constraints, bbc.leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[idx];
-                                            equality = bbc.equality, lcs = bbc.lls)
+        lnr = bbc.learners[idx]
+        if lnr isa AbstractModel
+            bbc.mi_constraints, bbc.leaf_variables = lnr.embed_mio!(lnr, gm, bbc)
+        else
+            bbc.mi_constraints, bbc.leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[idx];
+                                                equality = bbc.equality, lcs = bbc.lls)
+        end
     end
     bbc.active_leaves = []
     return
@@ -175,17 +186,19 @@ add_tree_constraints!(gm::GlobalModel) = add_tree_constraints!(gm, gm.bbls)
         x:: JuMPVariables (features in lnr)
     NOTE: mic and lv are only nonempty if we are adding an OCT approximation of a BBR. 
 """
-function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::Union{IAI.OptimalTreeLearner, SVM_Classifier};
+function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::Union{IAI.OptimalTreeLearner, AbstractModel};
                                equality::Bool = false, 
                                relax_var::Union{Real, JuMP.VariableRef} = 0,
                                lcs::Array = [], mic::Dict = Dict(), lv::Dict = Dict())
 
-    if lnr isa SVM_Classifier
-        println(x)
-        β0, β = lnr.β0, lnr.β
-        @constraint(m, x'*β .+ 0.5 >=0)
-        return Dict(), Dict()
-    end
+    # if lnr isa AbstractModel
+    #     println(x)
+
+    #     lnr
+    #     β0, β = lnr.β0, lnr.β
+    #     @constraint(m, x'*β .+ 0.5 >=0)
+    #     return Dict(), Dict()
+    # end
     check_if_trained(lnr);
     all_leaves = find_leaves(lnr)
     # Add a binary variable for each leaf

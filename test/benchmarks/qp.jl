@@ -1,9 +1,11 @@
 
 include("../load.jl")
 
-using LinearAlgebra, Random, BARON, Pkg
+using LinearAlgebra, Random, BARON, Pkg, Dates
 
-algs = ["SVM", "CART", "OCT"]
+EQUALITIES = false
+
+#algs = ["SVM", "CART", "GBM"]#, "CART", "OCT"
 
 function create_negative_definite_matrix(N)
     # Create a random matrix
@@ -22,7 +24,7 @@ end
 Creates a non-convex QP model with different numbers of variables/constraints.
 Returns  a GlobalModel and a JuMP baron model 
 """
-function create_noncvx_qp_models(n_vars, n_constr, linear_objective=true; seed=123)
+function create_noncvx_qp_models(n_vars, n_constr, algs, linear_objective=true; seed=123)
     
     Random.seed!(seed)
     
@@ -59,7 +61,7 @@ function create_noncvx_qp_models(n_vars, n_constr, linear_objective=true; seed=1
         
         # Add constraints
         for constr in constr_expr
-            OCTHaGOn.add_nonlinear_constraint(gm, constr, vars=x[1:N], expr_vars=[x[1:N]], alg_list=algs)
+            OCTHaGOn.add_nonlinear_constraint(gm, constr, vars=x[1:N], expr_vars=[x[1:N]], alg_list=algs, equality=EQUALITIES)
         end
         
         OCTHaGOn.set_param(gm, :ignore_accuracy, true)
@@ -81,7 +83,11 @@ function create_noncvx_qp_models(n_vars, n_constr, linear_objective=true; seed=1
         
         # Add constraints
         for constr in constr_expr
-           @constraint(m, Base.invokelatest(eval(constr), x)>=0)
+            if EQUALITIES
+                @constraint(m, Base.invokelatest(eval(constr), x)==0)
+            else 
+                @constraint(m, Base.invokelatest(eval(constr), x)>=0)
+            end
         end
         
         return m
@@ -109,7 +115,7 @@ function create_noncvx_qp_models(n_vars, n_constr, linear_objective=true; seed=1
     return create_gm_model(obj_expr, constr_expr), create_baron_model(obj_expr, constr_expr)
 end
 
-function solve_and_benchmark(gm, gb, df_results, N, M)
+function solve_and_benchmark(gm, gb, df_results, N, M, algs)
     
     local function solve_gm()
         OCTHaGOn.globalsolve!(gm)
@@ -125,12 +131,15 @@ function solve_and_benchmark(gm, gb, df_results, N, M)
     end
     
     ts = time()
+    baron_obj, xb = solve_baron()
+    baron_time = time()-ts
+    println("Baron solution: $(baron_obj)")
+
+    ts = time()
     gm_obj, xgm = solve_gm()
     gm_time = time()-ts
     
-    ts = time()
-    baron_obj, xb = solve_baron()
-    baron_time = time()-ts
+
     
     df_tmp = DataFrame(
         "n" => N,
@@ -139,7 +148,8 @@ function solve_and_benchmark(gm, gb, df_results, N, M)
         "baron" => baron_obj,
         "diff" => gm_obj-baron_obj,
         "gm_time" => gm_time,
-        "ba_time" => baron_time
+        "ba_time" => baron_time,
+        "algs" => "[\""*join(algs, "\",\"")*"\"]"
     )
     
     append!(df_results, df_tmp)
@@ -150,30 +160,36 @@ end
 # Create the output path if not exists
 output_path = "dump/qp/"
 Base.Filesystem.mkpath(output_path)
+suffix = Dates.format(Dates.now(), "YY-mm-dd_HH-MM-SS")
 
 df_results = DataFrame()
 
 # Solve negative-definite QP with different 
 # number of variables (N) and different number 
 # of constraints (M)
-for N=[5, 10, 20, 30, 40, 50, 60, 70]
-    for M=[2, 5, 10, 15]
-        try
-            println("Solving with (N, M)=($(N),$(M))")
-            gm, gb = create_noncvx_qp_models(N, M;seed=1)
-            (gm_obj, xgm), (baron_obj, xb) = solve_and_benchmark(gm, gb, df_results, N, M)
-            try
-                CSV.write(output_path*"benchmark2.csv", df_results)
-            catch
-                println("Couldn't write to CSV")
-            end
-        catch
-            println("Error solving (N, M)=($(N),$(M))")
-            println(catch_backtrace())
+for algs in [["GBM"],["SVM"],["CART"], ["GBM", "SVM", "CART"], ["OCT"], ["GBM", "SVM", "CART", "OCT"]]
+    for N=[5, 10, 20, 30, 40, 50, 60, 70]
+        for M=[2, 5, 10, 15]
+            # try
+                println("Solving with (N, M)=($(N),$(M))")
+                gm, gb = create_noncvx_qp_models(N, M, algs;seed=1)
+                (gm_obj, xgm), (baron_obj, xb) = solve_and_benchmark(gm, gb, df_results, N, M, algs)
+                try
+                    
+                    csv_path = output_path*"benchmark$(suffix).csv"
+                    #println(csv_path)
+                    CSV.write(csv_path, df_results)
+                catch
+                    println("Couldn't write to CSV")
+                end
+            # catch
+            #     println("Error solving (N, M)=($(N),$(M))")
+            #     println(stacktrace(catch_backtrace()))
+            # end
+            return;
         end
     end
 end
-    
 print(df_results)
 
 #OCTHaGOn.print_feas_gaps(gm)

@@ -1,12 +1,12 @@
-@with_kw mutable struct SVM_Classifier
-    β0::Real
-    β::Vector{Float64}
-end
+# @with_kw mutable struct SVM_Classifier
+#     β0::Real
+#     β::Vector{Float64}
+# end
 
-@with_kw mutable struct SVM_Regressor
-    β0::Real
-    β::Vector{Float64}
-end
+# @with_kw mutable struct SVM_Regressor
+#     β0::Real
+#     β::Vector{Float64}
+# end
 
 """ Returns the baseline OptimalTreeLearners, with all valid training args. """
 function base_classifier()
@@ -98,11 +98,13 @@ end
 
 # Dictionary that registers the
 # generators for the different models
-IAI_LEARNER_DICT = Dict(
+LEARNER_DICT = Dict(
     "classification" => Dict(
         "OCT" => base_classifier,
         "RF" => base_rf_classifier,
-        "CART" => base_cart_classifier
+        "CART" => base_cart_classifier,
+        "SVM" => SVM_Classifier,
+        "GBM" => GBM_Classifier
     ),
     "regression" => Dict(
         "OCT" => base_regressor,
