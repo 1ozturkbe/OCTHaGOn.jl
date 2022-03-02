@@ -95,6 +95,12 @@ function get_bounds(model::Union{GlobalModel, JuMP.Model, BlackBoxLearner,
     return get_bounds(JuMP.all_variables(model))
 end
 
+""" Returns bounds of all variables, flattened in order of .vars attribute. """
+function flattened_bounds(bbc::Union{GlobalModel, BlackBoxLearner, LinkedLearner})
+    var_bounds = get_bounds(bbc)
+    return [var_bounds[var] for var in bbc.vars]
+end
+
 """
     $(TYPEDSIGNATURES)
 
