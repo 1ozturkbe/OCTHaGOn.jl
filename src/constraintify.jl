@@ -27,11 +27,9 @@ function bounded_aux(x::Array{JuMP.VariableRef}, y::JuMP.VariableRef, binary_var
 end
 
 """
-    add_tree_constraints!(gm::GlobalModel, bbl::BlackBoxLearner)
-    add_tree_constraints!(gm::GlobalModel, bbls::Vector{BlackBoxLearner})
-    add_tree_constraints!(gm::GlobalModel)
+    $(TYPEDSIGNATURES)
 
-Generates MI constraints from gm.learners, and adds them to gm.model.
+Generates MI constraints from GlobalModel and its BlackBoxLearners(gm.bbls), and adds them to gm.model.
 """
 function add_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier, idx = length(bbc.learners))
     isempty(bbc.mi_constraints) || throw(OCTHaGOnException("BBC $(bbc.name) already has associated MI approximation."))
@@ -83,6 +81,7 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
         merge!(append!, bbr.mi_constraints, mi_constraints)
         if !isempty(bbr.lls)
             for lr in bbr.lls
+                clear_tree_constraints!(gm, lr)
                 mc = Dict(1 => [])
                 # Number of initial cuts depends on the dimension of the constraint
                 pt_idxs = Int64.(ceil.(size(bbr.X,1) .* rand(maximum([10, Int64(10*ceil(log(length(bbr.vars))))]))))
@@ -135,14 +134,14 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
                                                             "before adding new constraints."))
     end
     if bbr.thresholds[idx].first == "rfreg"
-        # NOTE: RFREG augments LinkedLearners. THIS WILL CAUSE BUGS. NOT A FULLY SUPPORTED FEATURE. 
+        isempty(bbr.lls) || throw(ErrorException("RandomForestRegressors augment LinkedLearners when MI approximations are made. To avoid bugs, BBRs approximated via RFs cannot have LinkedLearners."))
         trees = get_random_trees(bbr.learners[idx])
         bbr.mi_constraints, bbr.leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
-                    trees[1], bbr.ul_data[idx][1]; equality = bbr.equality) 
+                    trees[1], bbr.ul_data[idx][1]; equality = bbr.equality, bigM = bbr.bigM, relax_var = bbr.relax_var) 
         for i=2:length(trees)
             mic, lv = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
                                                 trees[i], bbr.ul_data[idx][i];
-                                                equality = bbr.equality) 
+                                                equality = bbr.equality, bigM = bbr.bigM) 
             nll = LinkedRegressor(vars = bbr.vars, dependent_var = bbr.dependent_var)
             nll.mi_constraints = mic
             nll.leaf_variables = lv       
@@ -152,15 +151,27 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
     else
         mi_constraints, leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
                                                 bbr.learners[idx], bbr.ul_data[idx];
-                                                equality = bbr.equality, lrs = bbr.lls)
+                                                equality = bbr.equality, bigM = bbr.bigM, relax_var = bbr.relax_var)
+        if !isempty(bbr.lls)
+            for lr in bbr.lls
+                lr_mi, lr_lv = add_regr_constraints!(gm.model, lr.vars, lr.dependent_var,
+                                                bbr.learners[idx], bbr.ul_data[idx];
+                                                equality = bbr.equality, bigM = bbr.bigM, relax_var = lr.relax_var)
+                merge!(append!, lr.mi_constraints, lr_mi)
+                merge!(append!, lr.leaf_variables, lr_lv)
+            end
+        end
         if bbr.thresholds[idx].first == "upper"
             push!(mi_constraints[-1], @constraint(gm.model, bbr.dependent_var <= bbr.thresholds[idx].second))
+            [push!(lr.mi_constraints[-1], @constraint(gm.model, lr.dependent_var <= bbr.thresholds[idx])) for lr in bbr.lls]
         elseif bbr.thresholds[idx].first == "lower"
             push!(mi_constraints[1], @constraint(gm.model, bbr.dependent_var >= bbr.thresholds[idx].second))
+            [push!(lr.mi_constraints[1], @constraint(gm.model, lr.dependent_var >= bbr.thresholds[idx])) for lr in bbr.lls]
         end
         merge!(append!, bbr.mi_constraints, mi_constraints)
         merge!(append!, bbr.leaf_variables, leaf_variables)
         bbr.active_trees[idx] = bbr.thresholds[idx]
+        [lr.active_trees[idx] = bbr.thresholds[idx] for lr in bbr.lls]
     end
     bbr.active_leaves = []
     return
@@ -305,10 +316,9 @@ Arguments:
 - ul_data:: Upper and lower bounding hyperplanes for data in leaves of lnr (empty by default)
 """
 function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuMP.VariableRef, 
-lnr::IAI.OptimalTreeLearner,
-ul_data::Dict; equality::Bool = false, bigM::Bool = false,
-relax_var::Union{Real, JuMP.VariableRef} = 0,
-lrs::Array = [])
+                               lnr::IAI.OptimalTreeLearner,
+                               ul_data::Dict; equality::Bool = false, bigM::Bool = false,
+                               relax_var::Union{Real, JuMP.VariableRef} = 0)
     # TODO: Determine whether I should relax approximator or trust regions or both. 
     if lnr isa OptimalTreeRegressor                
         check_if_trained(lnr)
@@ -323,16 +333,6 @@ lrs::Array = [])
         [push!(mi_constraints[1], constr) 
             for constr in @constraint(m, sum(leaf_variables[leaf][2] for leaf in all_leaves) .== x)]
         push!(mi_constraints[1], @constraint(m, sum(leaf_variables[leaf][3] for leaf in all_leaves) == y))
-        for lr in lrs          
-            for leaf in all_leaves
-                lr.leaf_variables[leaf], lr.mi_constraints[leaf] = bounded_aux(lr.vars, lr.dependent_var, @variable(m, binary=true))
-            end
-            lr.mi_constraints[1] = [@constraint(m, sum(lr.leaf_variables[leaf][1] for leaf in all_leaves) == 1)]
-            [push!(lr.mi_constraints[1], constr)
-                for constr in @constraint(m, sum(lr.leaf_variables[leaf][2] for leaf in all_leaves) .== lr.vars)]
-            push!(lr.mi_constraints[1], @constraint(m, sum(lr.leaf_variables[leaf][3] for leaf in all_leaves) == lr.dependent_var))
-            lr.active_leaves = []
-        end
         # Getting lnr data
         pwlDict = pwl_constraint_data(lnr, Symbol.(x))
         upperDict, lowerDict = trust_region_data(lnr, Symbol.(x))
@@ -344,45 +344,32 @@ lrs::Array = [])
                 # Use the ridge regressor!
                 push!(mi_constraints[leaf], @constraint(m, sum(β .* leaf_variables[leaf][2]) + 
                     β0 * leaf_variables[leaf][1] + relax_var >= leaf_variables[leaf][3]))
-                [push!(lr.mi_constraints[leaf],  @constraint(m, sum(β .* lr.leaf_variables[leaf][2]) + 
-                    β0 * leaf_variables[leaf][1] + lr.relax_var >= lr.leaf_variables[leaf][3])) for lr in lrs]
                 push!(mi_constraints[leaf], @constraint(m, sum(β .* leaf_variables[leaf][2]) + 
                     β0 * leaf_variables[leaf][1] <= leaf_variables[leaf][3] + relax_var))
-                [push!(lr.mi_constraints[leaf], @constraint(m, sum(β .* lr.leaf_variables[leaf][2]) + 
-                    β0 * lr.leaf_variables[leaf][1] <= lr.leaf_variables[leaf][3] + lr.relax_var)) for lr in lrs]
             elseif !isempty(ul_data) 
                 # Use only the lower approximator
                 β0, β = ul_data[leaf] # update the lower approximator
                 push!(mi_constraints[leaf], @constraint(m, sum(β .* leaf_variables[leaf][2]) + 
                     β0 * leaf_variables[leaf][1] <= leaf_variables[leaf][3] + relax_var))
-                [push!(lr.mi_constraints[leaf], @constraint(m, sum(β .* lr.leaf_variables[leaf][2]) + 
-                    β0 * leaf_variables[leaf][1] <= lr.leaf_variables[leaf][3] + lr.relax_var)) for lr in lrs]
             else 
                 # Use only the ridge regressor as the lower approximator. 
                 push!(mi_constraints[leaf], @constraint(m, sum(β .* leaf_variables[leaf][2]) + 
                     β0 * leaf_variables[leaf][1] <= leaf_variables[leaf][3] + relax_var))
-                [push!(lr.mi_constraints[leaf], @constraint(m, sum(β .* leaf_variables[leaf][2]) + 
-                    β0 * leaf_variables[leaf][1] <= lr.leaf_variables[leaf][3] + lr.relax_var)) for lr in lrs]
             end
             # ADDING TRUST REGIONS
             for region in upperDict[leaf]
                 threshold, α = region
                 push!(mi_constraints[leaf], @constraint(m, threshold * leaf_variables[leaf][1] <= 
                     sum(α .* leaf_variables[leaf][2]) + relax_var))
-                [push!(lr.mi_constraints[leaf], @constraint(m, threshold * lr.leaf_variables[leaf][1] <= 
-                    sum(α .* lr.leaf_variables[leaf][2]) + lr.relax_var)) for lr in lrs]
             end
             for region in lowerDict[leaf]
                 threshold, α = region
                 push!(mi_constraints[leaf], @constraint(m, threshold * leaf_variables[leaf][1] + relax_var >= 
                 sum(α .* leaf_variables[leaf][2])))
-                [push!(lr.mi_constraints[leaf], @constraint(m, threshold * lr.leaf_variables[leaf][1] + 
-                    relax_var >= sum(α .* lr.leaf_variables[leaf][2]))) for lr in lrs]
             end
         end
         return mi_constraints, leaf_variables
     elseif lnr isa OptimalTreeClassifier
-        isempty(lrs) || throw(OCTHaGOnException("Bug: Cannot use OCTs to approximate linked BBRs."))
         # Add a binary variable for each leaf
         all_leaves = find_leaves(lnr)
         # Add a binary variable for each leaf
