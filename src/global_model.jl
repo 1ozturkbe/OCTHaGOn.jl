@@ -68,15 +68,13 @@ function active_leaves(gm::GlobalModel)
 end
 
 """
-    JuMP.all_variables(bbo::Union{GlobalModel, BlackBoxLearner})
-    JuMP.all_variables(bbls::Array{BlackBoxLearner})
+    $(TYPEDSIGNATURES)
 
-Extends JuMP.all_variables to GlobalModels and BlackBoxLearners. 
-TODO: add ability to add variables to GlobalModels. 
+Extends JuMP.all_variables to GlobalModels and BlackBoxLearners.
 """
-JuMP.all_variables(bbo::Union{GlobalModel, BlackBoxLearner}) = bbo.vars
+JuMP.all_variables(bbo::Union{GlobalModel, BlackBoxLearner, LinkedLearner}) = bbo.vars
 
-function JuMP.all_variables(bbls::Array{BlackBoxLearner})
+function JuMP.all_variables(bbls::Union{Array{BlackBoxLearner}, Array{LinkedLearner}})
     return unique(Iterators.flatten(([JuMP.all_variables(bbl) for bbl in bbls])))
 end
 
