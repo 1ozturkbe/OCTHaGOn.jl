@@ -1,6 +1,7 @@
 """ 
     bounded_aux(x::Array{JuMP.VariableRef}, binary_var::JuMP.VariableRef)
     bounded_aux(x::Array{JuMP.VariableRef}, y::JuMP.VariableRef, binary_var::JuMP.VariableRef)
+
 Generates binary-bounded auxiliary variables and their bounding constraints of the same size as x + y.
 """
 function bounded_aux(x::Array{JuMP.VariableRef}, binary_var::JuMP.VariableRef)

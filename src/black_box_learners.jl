@@ -76,6 +76,7 @@ Can be added to GlobalModel using `add_nonlinear_constraint` or `add_nonlinear_o
     relax_var::Union{Real, JuMP.VariableRef} = 0.      # slack variable  
     accuracies::Array{Float64} = []                    # and the tree MSE scores.       
     lls::Array{LinkedRegressor} = []                   # Linked regressor mi_constraints and leaf_variables
+    bigM::Bool = false 
     convex::Bool = false
     local_convexity::Float64 = 0.
     vexity::Dict = Dict{Int64, Tuple}()                # Size and convexity of leaves
@@ -119,6 +120,7 @@ Can be added to GlobalModel using `add_nonlinear_constraint` or `add_nonlinear_o
     gradients::Union{Nothing, DataFrame} = nothing     # Gradients
     curvatures::Union{Nothing, Array} = nothing        # Curvature around the points
     feas_ratio::Float64 = 0.                           # Feasible sample proportion
+    bigM::Bool = false                                 # Whether approximations should use big-M formulations
     convex::Bool = false
     local_convexity::Float64 = 0.
     vexity::Dict = Dict{Int64, Tuple}()                # Size and convexity of leaves
