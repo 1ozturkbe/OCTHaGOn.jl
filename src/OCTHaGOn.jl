@@ -129,6 +129,7 @@ module OCTHaGOn
         add_infeasibility_cuts!, boundify, surveysolve,
         relax_objective!, tight_objective!,
         globalsolve!, globalsolve_and_time!, descend!,
+        compute_hyperplane_bigM,
 
         # Checks and exceptions
         feasibility, check_accuracy, check_feasibility, 
