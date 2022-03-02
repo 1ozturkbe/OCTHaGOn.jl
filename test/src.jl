@@ -292,17 +292,15 @@ function test_bbr()
     @test bbr.thresholds[end] == ("upper" => 20.)
     
     # Check adding of upper bounding constraint to empty model
-    types = JuMP.list_of_constraint_types(gm.model)
-    init_constraints = sum(length(all_constraints(gm.model, type[1], type[2])) for type in types)
-    init_variables = length(all_variables(gm))
+    init_constraints = count_constraints(gm)
+    init_variables = count_variables(gm)
     add_tree_constraints!(gm, bbr)
     @test sort(union(feas_leaves, [1])) == sort(abs.(collect(keys(bbr.mi_constraints))))
     @test sort(abs.(collect(keys(bbr.leaf_variables)))) == sort(feas_leaves)
 
     # Checking that correct numbers of constraints and variables are added
-    types = JuMP.list_of_constraint_types(gm.model)
-    final_constraints = sum(length(all_constraints(gm.model, type[1], type[2])) for type in types)
-    final_variables = length(all_variables(gm.model))
+    final_constraints = count_constraints(gm.model)
+    final_variables = count_variables(gm.model)
     @test final_constraints == init_constraints + length(all_mi_constraints(bbr)) + length(bbr.leaf_variables)    
     @test final_variables == init_variables + length(bbr.leaf_variables)*(length(bbr.vars) + 2) + 
                                 length(bbcs[1].leaf_variables)*(length(bbcs[1].vars) + 1) + 
@@ -310,9 +308,8 @@ function test_bbr()
 
     # Check clearing of all constraints and variables
     clear_tree_constraints!(gm, bbr)
-    types = JuMP.list_of_constraint_types(gm.model)
-    @test init_constraints == sum(length(all_constraints(gm.model, type[1], type[2])) for type in types)
-    @test init_variables == length(all_variables(gm))
+    @test init_constraints == count_constraints(gm.model)
+    @test init_variables == count_variables(gm.model)
     # Since all_variables(gm) doesn't count auxiliary variables...
     @test length(all_variables(gm.model)) == length(all_variables(gm)) +
         length(bbcs[1].leaf_variables)*(length(bbcs[1].vars) + 1) + 
@@ -672,9 +669,16 @@ function test_oos()
     op = oos_params()
     gm = oos_gm!()
     print_details(gm)
-    m = gm.model
+    types = count_types(gm)
+    init_constraints = count_constraints(gm)
     uniform_sample_and_eval!(gm)
     learn_constraint!(gm, max_depth=8)
+    # for bbl in gm.bbls
+    #     add_tree_constraints!(gm, bbl)
+    #     clear_tree_constraints!(gm, bbl)
+    #     init_constraints ==  sum(length(all_constraints(gm.model, type[1], type[2])) for type in types) ||
+    #         println("$(bbl.name)")
+    # end
     add_tree_constraints!(gm)
     optimize!(gm)
     bin_vals = round.(JuMP.getvalue.(gm.model[:xx]))
@@ -738,40 +742,46 @@ function test_oos()
     # @constraint(m.model, m.model[:sat_order] .== [5,6,7,1,2,3,4])
     # nonlinearize!(m)
     # set_optimizer(m, Ipopt.Optimizer)
+
+    # Checking constraint clearing
+    clear_tree_constraints!(gm)
+    clear_relaxation_variables!(gm)
+    final_types = count_types(gm)
+    final_constraints = count_constraints(gm) 
+    @test types == final_types
+    # @test init_constraints == final_constraints
 end
 
-# test_expressions()
+test_expressions()
 
-# test_variables()
+test_variables()
 
-# test_bounds()
+test_bounds()
 
-# test_sets()
+test_sets()
 
-# test_linearize()
+test_linearize()
 
-# test_nonlinearize()
+test_nonlinearize()
 
-# test_bbc()
+test_bbc()
 
-# test_kwargs()
+test_kwargs()
 
-# test_regress()
+test_regress()
 
-# test_bbr()
+test_bbr()
 
-# test_basic_gm()
+test_basic_gm()
 
-# test_convex_objective()
+test_convex_objective()
 
-# test_data_driven()
+test_data_driven()
 
-# test_rfs()
+test_rfs()
 
-# test_convexcheck()
+test_convexcheck()
 
-# test_linking()
+test_linking()
 
-# test_oos()
-
-# function compute_bigMs
+test_oos()

@@ -96,8 +96,7 @@ function test_concave_regressors(gm::GlobalModel = gear(true))
     bbr = bbrs[1]
     
     # Checking number of constraints
-    types = JuMP.list_of_constraint_types(gm.model)
-    init_constraints = sum(length(all_constraints(gm.model, type[1], type[2])) for type in types)
+    init_constraints = count_constraints(gm.model)
     surveysolve(gm) # 1st tree (ORT)
     actual = bbr.actuals[end]
     optim = bbr.optima[end]
@@ -120,7 +119,7 @@ function test_concave_regressors(gm::GlobalModel = gear(true))
                     @test treevalues[1].first in OCTHaGOn.valid_singles || treevalues[1].first == "upper"
                 end
                 clear_tree_constraints!(gm)
-                n_constraints = sum(length(all_constraints(gm.model, type[1], type[2])) for type in JuMP.list_of_constraint_types(gm.model))
+                n_constraints = count_constraints(gm.model)
                 @test n_constraints == init_constraints
             end
         end
@@ -131,7 +130,7 @@ function test_concave_regressors(gm::GlobalModel = gear(true))
     @test active_upper_tree(bbr) == 3  
     optimize!(gm)
     clear_tree_constraints!(gm)
-    @test init_constraints == sum(length(all_constraints(gm.model, type[1], type[2])) for type in JuMP.list_of_constraint_types(gm.model))
+    @test init_constraints == count_constraints(gm.model)
 end
 
 function test_descent()
