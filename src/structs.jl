@@ -4,6 +4,8 @@ Used to represent an abstract learner
 """
 abstract type AbstractModel end
 
+abstract type AbstractRegressor <: AbstractModel end
+abstract type AbstractClassifier <: AbstractModel end
 
 
 """ Contains data for a constraint that is repeated. """
@@ -80,7 +82,7 @@ Optional arguments:
     equality::Bool = false                             # Equality check
     learners::Array{Union{IAI.OptimalTreeClassifier,
                           IAI.Heuristics.RandomForestClassifier,
-                          AbstractModel}} = []    # Learners...
+                          AbstractClassifier}} = []    # Learners...
     learner_kwargs = []                                # And their kwargs... 
     mi_constraints::Dict = Dict{Int64, Array{JuMP.ConstraintRef}}() # and their corresponding MI constraints,
     leaf_variables::Dict = Dict{Int64, Tuple{JuMP.VariableRef, Array}}() # and their leaf variables 
@@ -130,7 +132,7 @@ Optional arguments:
 @with_kw mutable struct BlackBoxRegressor
     constraint::Union{Nothing, JuMP.ConstraintRef, Expr}        # The "raw" constraint
     vars::Array{JuMP.VariableRef,1}                    # JuMP variables (flat)
-    dependent_var::JuMP.VariableRef                    # Dependent variable
+    dependent_var::Union{Nothing, JuMP.VariableRef} = nothing          # Dependent variable
     name::String = ""                                  # Function name
     expr_vars::Array                                   # Function inputs (nonflat JuMP variables)
     varmap::Union{Nothing,Array} = get_varmap(expr_vars, vars)     # ... with the required varmapping.
@@ -146,7 +148,7 @@ Optional arguments:
     for i=1:length(vars)]) # Infeasible samples, if any
     equality::Bool = false                             # Equality check
     learners::Array{Union{IAI.OptimalTreeRegressor, IAI.OptimalTreeClassifier,
-                          IAI.Heuristics.RandomForestRegressor}} = []     # Learners...
+                          IAI.Heuristics.RandomForestRegressor, AbstractRegressor}} = []     # Learners...
     learner_kwargs = []                                # and their kwargs... 
     thresholds::Array{Pair} = []                       # For thresholding. 
     ul_data::Array{Dict} = Dict[]                      # Upper/lower bounding data
@@ -167,6 +169,7 @@ Optional arguments:
     params::Dict = bbr_defaults(length(vars))          # Relevant settings
     max_Y::Union{Nothing, Real} = nothing
     min_Y::Union{Nothing, Real} = nothing
+    alg_list::Array{String} = ["OCT"]                  # List of algs used to approximate the constraint (e.g. 'CART','OCT','RF')
 end
 
 BlackBoxLearner = Union{BlackBoxClassifier, BlackBoxRegressor}

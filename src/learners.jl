@@ -109,6 +109,8 @@ LEARNER_DICT = Dict(
     "regression" => Dict(
         "OCT" => base_regressor,
         "RF" => base_rf_regressor,
-        "CART" => base_cart_regressor
+        "CART" => base_cart_regressor,
+        "SVM" => SVM_Regressor,
+        "GBM" => GBM_Regressor
     )
 )

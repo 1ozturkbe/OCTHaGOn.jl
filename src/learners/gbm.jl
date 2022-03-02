@@ -1,79 +1,30 @@
 using JLBoost
 
-EPSILON = 0.5
 
-abstract type AbstractGBM <: AbstractModel end
-
-@with_kw mutable struct GBM_Classifier <: AbstractGBM
+@with_kw mutable struct GBM_Classifier <: AbstractClassifier 
     # Arguments
     max_depth::Int64 = 6
     solver = CPLEX_SILENT
 
     # Model data
     gbm::Union{Nothing, JLBoostTreeModel} = nothing
-    
-    # Methods
-    fit!::Function = gbm_cl_fit
-    predict::Function = gbm_cl_predict
-    embed_mio!::Function = gbm_cl_embed
+    use_epsilon::Bool = false # Whether or not the equality is approximated with epsilon tolerance
+    equality::Bool = false # Whether or not we are dealing with an equality constraint
+    thres::Real = 0.5 # Classification threshold
 end
 
-@with_kw mutable struct GBM_Regressor <: AbstractGBM
+@with_kw mutable struct GBM_Regressor <: AbstractRegressor
     # Arguments
     max_depth::Int64 = 6
     solver = CPLEX_SILENT
 
     # Model data
     gbm::Union{Nothing, JLBoostTreeModel} = nothing
-    
-    # Methods
-    fit!::Function = gbm_r_fit
-    predict::Function = gbm_predict
-    embed_mio!::Function = gbm_cl_embed
+    equality::Bool = false # Whether or not we are dealing with an equality constraint
 end
 
 
-"""
-Fit gbm in classification task
-"""
-function gbm_cl_fit(lnr::GBM_Classifier , X::DataFrame, Y::Array; equality=false)
-    
-    df = deepcopy(X)
 
-    Y_hat = 1*(Y .>= 0) 
-    
-    if equality
-        tmp = abs.(Y) .<= EPSILON
-        positive_sample_fraction = sum(tmp)/length(Y);
-        if positive_sample_fraction >= 0.1
-            Y_hat = tmp
-        else 
-            # In this case, we will continue modeling as inequality instead of equality
-            println("Not enough samples to GBM approximate equality constraint: $(positive_sample_fraction)")
-        end
-    end
-    df[!,"output"] = Y_hat;
-    lnr.gbm = jlboost(df, "output"; verbose=false, max_depth = lnr.max_depth);
-end
-
-function gbm_r_fit(lnr::GBM_Regressor , X::DataFrame, Y::Array; equality=false)
-    
-    df = deepcopy(X)
-    df[!,"output"] = Y;
-    lnr.gbm = jlboost(df, "output"; verbose=false, max_depth = lnr.max_depth);
-end
-
-function gbm_cl_predict(lnr::GBM_Classifier, X::DataFrame; continuous=false)
-    
-    if isnothing(lnr.gbm)
-        error("GBM model hasn't been fitted yet")
-    end
-    logits = JLBoost.predict(lnr.gbm, X)
-    if !continuous
-        logits = 1*(logits .>= 0.5)
-    end
-    return logits
-end
 
 function find_all_leaves(tree::AbstractJLBoostTree)
     if length(tree.children) == 0
@@ -166,7 +117,7 @@ function embed_single_tree(gm::GlobalModel, bbl::BlackBoxLearner, tree_id::Int64
     return outcome_var;
 end
 
-function gbm_embed_helper(lnr::Union{GBM_Regressor, GBM_Classifier}, gm::GlobalModel, bbl::BlackBoxClassifier, lb=-Inf, ub=Inf; kwargs...) 
+function gbm_embed_helper(lnr::Union{GBM_Regressor, GBM_Classifier}, gm::GlobalModel, bbl::Union{BlackBoxClassifier, BlackBoxRegressor}, lb=-Inf, ub=Inf; kwargs...) 
     
     trees = lnr.gbm.jlt;
     
@@ -199,20 +150,125 @@ function gbm_embed_helper(lnr::Union{GBM_Regressor, GBM_Classifier}, gm::GlobalM
     return Dict(), Dict()
 end
 
+
+function convert_to_binary(lnr::GBM_Classifier, Y::Array)
+    return (lnr.equality && lnr.use_epsilon ? 1*(abs.(Y .- lnr.thres) .<= EPSILON) : 1*(Y .>= lnr.thres));
+end
+
+"""
+Fit gbm in classification task
+"""
+function fit!(lnr::GBM_Classifier , X::DataFrame, Y::Array; equality=false)
+    
+    lnr.equality = equality
+
+    df = deepcopy(X)
+
+    Y_hat = 1*(Y .>= 0) 
+    
+    if equality
+        tmp = abs.(Y) .<= EPSILON
+        positive_sample_fraction = sum(tmp)/length(Y);
+        if positive_sample_fraction >= 0.1
+            Y_hat = tmp
+            lnr.use_epsilon = true
+        else 
+            # In this case, we will continue modeling as inequality instead of equality
+            println("Not enough samples to GBM approximate equality constraint: $(positive_sample_fraction)")
+        end
+    end
+    df[!,"output"] = Y_hat;
+    lnr.gbm = jlboost(df, "output"; verbose=false, max_depth = lnr.max_depth);
+end
+
+"""
+Fit gbm in regression task
+"""
+function fit!(lnr::GBM_Regressor , X::DataFrame, Y::Array; equality=false)
+    
+    lnr.equality = equality
+
+    df = deepcopy(X)
+    df[!,"output"] = Y;
+    lnr.gbm = jlboost(df, "output"; verbose=false, max_depth = lnr.max_depth);
+end
+
+"""
+Predict using gbm in classification task
+"""
+function predict(lnr::GBM_Classifier, X::DataFrame; continuous=false)
+    
+    if isnothing(lnr.gbm)
+        error("GBM model hasn't been fitted yet")
+    end
+    y = JLBoost.predict(lnr.gbm, X)
+    if !continuous
+        y = convert_to_binary(lnr, y)
+    end
+    
+    return y
+end
+
+
+"""
+Predict using gbm in regression task
+"""
+function predict(lnr::GBM_Regressor, X::DataFrame)
+    
+    if isnothing(lnr.gbm)
+        error("GBM model hasn't been fitted yet")
+    end
+    y = JLBoost.predict(lnr.gbm, X)
+    return y
+end
+
+
+"""
+Evaluate using gbm in classification task
+"""
+function evaluate(lnr::GBM_Classifier, X::DataFrame, Y::Array)
+    
+    y_pred = predict(lnr, X)
+
+    evaluator = classification_evaluation()
+
+    score = evaluator.second(y_pred, convert_to_binary(lnr, Y))
+    return score
+end
+
+"""
+Evaluate using gbm in regression task
+"""
+function evaluate(lnr::GBM_Regressor, X::DataFrame, Y::Array)
+    
+    y_pred = predict(lnr, X)
+
+    evaluator = regression_evaluation()
+
+    score = evaluator.second(y_pred, Y)
+    return score
+end
+
+
+
 """
 Embed MIO constraints on GBM classifier
 """
-function gbm_cl_embed(lnr::GBM_Classifier, gm::GlobalModel, bbl::BlackBoxClassifier; kwargs...)
+function embed_mio!(lnr::GBM_Classifier, gm::GlobalModel, bbl::BlackBoxClassifier; kwargs...)
 
-   return gbm_embed_helper(lnr, gm, bbl, 0.5)
+    return gbm_embed_helper(lnr, gm, bbl, lnr.thres)
 end
 
 """
 Embed MIO constraints on GBM regressor
 """
-function gbm_cl_embed(lnr::GBM_Classifier, gm::GlobalModel, bbl::BlackBoxClassifier; kwargs...)
-
-   return gbm_embed_helper(lnr, gm, bbl, 0.5)
+function embed_mio!(lnr::GBM_Regressor, gm::GlobalModel, bbl::BlackBoxRegressor; kwargs...)
+   
+    if lnr.equality
+        return gbm_embed_helper(lnr, gm, bbl, -EPSILON, EPSILON)
+    else 
+        return gbm_embed_helper(lnr, gm, bbl, 0)
+    end
 end
 
 

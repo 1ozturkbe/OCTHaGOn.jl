@@ -167,7 +167,7 @@ function uniform_sample_and_eval!(bbl::BlackBoxLearner;
     # TODO: update these mx/min Y more frequently. 
     # Setting vague bounds for the dependent variable. 
     # This is the only big-M required in the formulation, adding 50% margin to all observed Y values. 
-    if bbl isa BlackBoxRegressor
+    if bbl isa BlackBoxRegressor && !isnothing(bbl.dependent_var)
         max_Y = bbl.max_Y
         min_Y = bbl.min_Y
         lower_margined_bound = min_Y - (max_Y - min_Y)/2
@@ -279,7 +279,7 @@ function feasibility_sample(bbc::BlackBoxClassifier, n_samples::Int64 = get_para
     minbucket = minimum([Int64(round(bbc.feas_ratio .* size(bbc.X, 1))), Int64(floor(0.05*size(bbc.X, 1)))])
     lnr = base_classifier()
     IAI.set_params!(lnr, minbucket = minbucket)
-    lnr = learn_from_data!(bbc.X, bbc.Y .>= 0, lnr; fit_classifier_kwargs()...)
+    lnr, score = learn_from_data!(bbc.X, bbc.Y .>= 0, lnr; fit_classifier_kwargs()...)
     all_leaves = find_leaves(lnr)
     feas_leaves = [i for i in all_leaves if Bool(IAI.get_classification_label(lnr, i))]
     orig_feasratio = copy(bbc.feas_ratio)

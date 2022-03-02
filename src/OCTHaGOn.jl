@@ -77,7 +77,7 @@ module OCTHaGOn
 
     include("plot.jl")
 
-    include("eval_metrics.jl")
+    include("util/eval_metrics.jl")
 
         
         # STRUCTS

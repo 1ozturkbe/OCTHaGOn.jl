@@ -42,8 +42,8 @@ function add_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier, idx = l
         bbc.leaf_variables = Dict(1 => (z_feas, []))
     elseif get_param(bbc, :reloaded)
         lnr = bbc.learners[idx]
-        if lnr isa AbstractModel
-            bbc.mi_constraints, bbc.leaf_variables = lnr.embed_mio!(lnr, gm, bbc)
+        if lnr isa AbstractClassifier
+            bbc.mi_constraints, bbc.leaf_variables = embed_mio!(lnr, gm, bbc)
         else
             bbc.mi_constraints, bbc.leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[idx];
                                                 equality = bbc.equality, lcs = bbc.lls)
@@ -60,8 +60,8 @@ function add_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier, idx = l
         throw(OCTHaGOnException("Constraint " * string(bbc.name) * " is inaccurately approximated. "))
     else
         lnr = bbc.learners[idx]
-        if lnr isa AbstractModel
-            bbc.mi_constraints, bbc.leaf_variables = lnr.embed_mio!(lnr, gm, bbc)
+        if lnr isa AbstractClassifier
+            bbc.mi_constraints, bbc.leaf_variables = embed_mio!(lnr, gm, bbc)
         else
             bbc.mi_constraints, bbc.leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[idx];
                                                 equality = bbc.equality, lcs = bbc.lls)
@@ -101,9 +101,17 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
     elseif isempty(bbr.learners)
         throw(OCTHaGOnException("Constraint " * string(bbr.name) * " must be learned before tree constraints
                             can be generated."))
-    elseif isempty(bbr.ul_data)
+    elseif isempty(bbr.ul_data) && !(bbr.learners[idx] isa AbstractRegressor)
         throw(OCTHaGOnException("Constraint " * string(bbr.name) * " is a Regressor, 
         but doesn't have a ORT and/or OCT with upper/lower bounding approximators!"))
+
+    elseif bbr.learners[idx] isa AbstractRegressor
+        mi_constraints, leaf_variables = embed_mio!(bbr.learners[idx], gm, bbr)
+        merge!(append!, bbr.mi_constraints, mi_constraints)
+        merge!(append!, bbr.leaf_variables, leaf_variables)
+
+        bbr.active_leaves = []
+        return
     end
     if !isempty(bbr.lls)
         bbr.thresholds[idx].first == "reg" || 
@@ -152,9 +160,9 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
         end
         bbr.active_trees[idx] = bbr.thresholds[idx]    
     else
-        mi_constraints, leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
-                                                bbr.learners[idx], bbr.ul_data[idx];
-                                                equality = bbr.equality, lrs = bbr.lls)
+
+        mi_constraints, leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, bbr.learners[idx], bbr.ul_data[idx];
+                                                                equality = bbr.equality, lrs = bbr.lls)
         if bbr.thresholds[idx].first == "upper"
             push!(mi_constraints[-1], @constraint(gm.model, bbr.dependent_var <= bbr.thresholds[idx].second))
         elseif bbr.thresholds[idx].first == "lower"

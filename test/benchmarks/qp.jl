@@ -4,6 +4,8 @@ include("../load.jl")
 using LinearAlgebra, Random, BARON, Pkg, Dates
 
 EQUALITIES = false
+REGRESSION = true
+REPAIR = true 
 
 #algs = ["SVM", "CART", "GBM"]#, "CART", "OCT"
 
@@ -61,7 +63,7 @@ function create_noncvx_qp_models(n_vars, n_constr, algs, linear_objective=true; 
         
         # Add constraints
         for constr in constr_expr
-            OCTHaGOn.add_nonlinear_constraint(gm, constr, vars=x[1:N], expr_vars=[x[1:N]], alg_list=algs, equality=EQUALITIES)
+            OCTHaGOn.add_nonlinear_constraint(gm, constr, vars=x[1:N], expr_vars=[x[1:N]], alg_list=algs, equality=EQUALITIES, regression=REGRESSION)
         end
         
         OCTHaGOn.set_param(gm, :ignore_accuracy, true)
@@ -118,7 +120,7 @@ end
 function solve_and_benchmark(gm, gb, df_results, N, M, algs)
     
     local function solve_gm()
-        OCTHaGOn.globalsolve!(gm)
+        OCTHaGOn.globalsolve!(gm; repair=REPAIR)
         x = gm.soldict[:x][1:N]
         return gm.cost[end], x
     end
@@ -167,10 +169,13 @@ df_results = DataFrame()
 # Solve negative-definite QP with different 
 # number of variables (N) and different number 
 # of constraints (M)
-for algs in [["GBM"],["SVM"],["CART"], ["GBM", "SVM", "CART"], ["OCT"], ["GBM", "SVM", "CART", "OCT"]]
-    for N=[5, 10, 20, 30, 40, 50, 60, 70]
-        for M=[2, 5, 10, 15]
+for algs in [["GBM"],["CART"],["SVM"]]#["SVM"],["CART"], ["GBM", "SVM", "CART"], ["OCT"], ["GBM", "SVM", "CART", "OCT"]]
+    for N=[50]#, 10, 20, 30, 40, 50, 60, 70]
+        for M=[2]#, 5, 10, 15]
             # try
+                algs = filter(x-> (x ∉ ["CART","OCT"]) || (!REGRESSION), algs)
+                if length(algs) == 0 continue end
+
                 println("Solving with (N, M)=($(N),$(M))")
                 gm, gb = create_noncvx_qp_models(N, M, algs;seed=1)
                 (gm_obj, xgm), (baron_obj, xb) = solve_and_benchmark(gm, gb, df_results, N, M, algs)
@@ -186,7 +191,7 @@ for algs in [["GBM"],["SVM"],["CART"], ["GBM", "SVM", "CART"], ["OCT"], ["GBM", 
             #     println("Error solving (N, M)=($(N),$(M))")
             #     println(stacktrace(catch_backtrace()))
             # end
-            return;
+            #return;
         end
     end
 end

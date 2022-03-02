@@ -110,24 +110,36 @@ end
 
 
 """
-    roc_auc_score(y_true, y_score)
+    roc_auc_score(y_pred, y_true)
 This function returns the area under the curve (AUC) for the receiver operating characteristic 
-curve (ROC). This function takes two vectors, `y_true` and `y_score`. The vector `y_true` is the 
-observed `y` in a binary classification problem. And the vector `y_score` is the real-valued 
+curve (ROC). This function takes two vectors, `y_true` and `y_pred`. The vector `y_true` is the 
+observed `y` in a binary classification problem. And the vector `y_pred` is the real-valued 
 prediction for each observation.
 """
-function roc_auc_score(y_true, y_score)
-    # if length(Set(y_true)) == 1
-    #     warn("Only one class present in y_true.\n
-    #           The AUC is not defined in that case; returning -Inf.")
-    #     res = -Inf
-    # else
-    #     fpr, tpr, thresholds = _roc_curve(y_true, y_score)
-    #     res = _auc(fpr, tpr, true)
-    # end
+function roc_auc_score(y_pred, y_true)
+    if length(Set(y_true)) == 1
+        warn("Only one class present in y_true.\n
+              The AUC is not defined in that case; returning -Inf.")
+        res = -Inf
+    else
+        fpr, tpr, thresholds = _roc_curve(y_true, y_pred)
+        res = _auc(fpr, tpr, true)
+    end
     # @TODO: add auc
-    res = sum(y_true .== y_score) / size(y_true, 1)
+    # res = sum(y_true .== y_pred) / size(y_true, 1)
     return res
 end
 
+function accuracy(y_pred, y_true)
+    res = sum(y_true .== y_pred) / size(y_true, 1)
+    return res;
+end
 
+
+function r2_score(y_pred, y_true)
+    @assert length(y_true) == length(y_pred)
+    ss_res = sum((y_true .- y_pred).^2)
+    mean = sum(y_true) / length(y_true)
+    ss_total = sum((y_true .- mean).^2)
+    return 1 - ss_res/(ss_total + eps(eltype(y_pred)))
+end

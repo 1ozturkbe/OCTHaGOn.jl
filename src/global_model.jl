@@ -148,15 +148,30 @@ function add_nonlinear_constraint(gm::GlobalModel,
                      dependent_var::Union{Nothing, JuMP.VariableRef} = nothing,
                      name::String = "bbl" * string(length(gm.bbls) + 1),
                      equality::Bool = false, 
-                     alg_list::Array{String} = ["OCT"])
+                     alg_list::Array{String} = ["OCT"],
+                     regression::Bool = false)
 
     vars, expr_vars = determine_vars(gm, constraint, vars = vars, expr_vars = expr_vars)
     if constraint isa Expr
         if isnothing(dependent_var)
-            new_bbl = BlackBoxClassifier(constraint = constraint, vars = vars, expr_vars = expr_vars,
-                                         equality = equality, name = name, alg_list = alg_list)
-            set_param(new_bbl, :n_samples, Int(ceil(get_param(gm, :sample_coeff)*sqrt(length(vars)))))
-            push!(gm.bbls, new_bbl)
+            if regression
+                # If we have a constraint with no dependent variables and we want
+                # to use regression, then create a new dependent variable that 
+                # will act as the RHS of the equation
+                # dep_var_symbol = eval(Meta.parse(":yr_$(name)"));
+                # m[dep_var_symbol] = @variable(m, base_name=string(dep_var_symbol));
+                # dependent_var = m[dep_var_symbol];
+
+                new_bbl = BlackBoxRegressor(constraint = constraint, vars = vars, expr_vars = expr_vars,
+                    equality = equality, name = name, alg_list = alg_list)
+                set_param(new_bbl, :n_samples, Int(ceil(get_param(gm, :sample_coeff)*sqrt(length(vars)))))
+                push!(gm.bbls, new_bbl)
+            else 
+                new_bbl = BlackBoxClassifier(constraint = constraint, vars = vars, expr_vars = expr_vars,
+                equality = equality, name = name, alg_list = alg_list)
+                set_param(new_bbl, :n_samples, Int(ceil(get_param(gm, :sample_coeff)*sqrt(length(vars)))))
+                push!(gm.bbls, new_bbl)
+            end
             return
         else
             new_bbl = BlackBoxRegressor(constraint = constraint, vars = vars, expr_vars = expr_vars,
@@ -413,20 +428,39 @@ function feas_gap(gm::GlobalModel, soln = solution(gm))
             eval!(bbl, soln)
             push!(bbl.feas_gap, bbl.Y[end] ./ (bbl.max_Y - bbl.min_Y))
         elseif bbl isa BlackBoxRegressor && !isnothing(bbl.constraint)
-            for ll in bbl.lls # LL feas_gaps evaluated first, for descent function
-                eval!(bbl, DataFrame(string.(bbl.vars) .=> values(soln[1, string.(ll.vars)])))
-                optimum = soln[:, string(ll.dependent_var)][1]
+
+            if isnothing(bbl.dependent_var)
+                for ll in bbl.lls # LL feas_gaps evaluated first, for descent function
+                    eval!(bbl, DataFrame(string.(bbl.vars) .=> values(soln[1, string.(ll.vars)])))
+                    optimum = 0
+                    actual = bbl.Y[end]
+                    push!(ll.optima, optimum)
+                    push!(ll.actuals, actual)
+                    push!(ll.feas_gap, (optimum-actual) / ((bbl.max_Y - bbl.min_Y)))
+                end
+                eval!(bbl, soln)
+                optimum = 0
                 actual = bbl.Y[end]
-                push!(ll.optima, optimum)
-                push!(ll.actuals, actual)
-                push!(ll.feas_gap, (optimum-actual) / ((bbl.max_Y - bbl.min_Y)))
+                push!(bbl.optima, optimum)
+                push!(bbl.actuals, actual)
+                push!(bbl.feas_gap, (optimum-actual) / ((bbl.max_Y - bbl.min_Y)))
+            else 
+                for ll in bbl.lls # LL feas_gaps evaluated first, for descent function
+                    eval!(bbl, DataFrame(string.(bbl.vars) .=> values(soln[1, string.(ll.vars)])))
+                    optimum = soln[:, string(ll.dependent_var)][1]
+                    actual = bbl.Y[end]
+                    push!(ll.optima, optimum)
+                    push!(ll.actuals, actual)
+                    push!(ll.feas_gap, (optimum-actual) / ((bbl.max_Y - bbl.min_Y)))
+                end
+                eval!(bbl, soln)
+                optimum = soln[:, string(bbl.dependent_var)][1]
+                actual = bbl.Y[end]
+                push!(bbl.optima, optimum)
+                push!(bbl.actuals, actual)
+                push!(bbl.feas_gap, (optimum-actual) / ((bbl.max_Y - bbl.min_Y)))
             end
-            eval!(bbl, soln)
-            optimum = soln[:, string(bbl.dependent_var)][1]
-            actual = bbl.Y[end]
-            push!(bbl.optima, optimum)
-            push!(bbl.actuals, actual)
-            push!(bbl.feas_gap, (optimum-actual) / ((bbl.max_Y - bbl.min_Y)))
+            
         elseif bbl isa BlackBoxClassifier && isnothing(bbl.constraint)
             for ll in bbl.lls # LL feas_gaps evaluated first, for descent function
                 push!(ll.feas_gap, 0)

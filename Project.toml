@@ -5,7 +5,6 @@ version = "0.9.0"
 
 [deps]
 Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
-Artifacts = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
 AxisAlgorithms = "13072b0f-2c55-5437-9ae7-d433b7a33950"
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 Bzip2_jll = "6e34b625-4abd-537c-b88f-471c36dfa7a0"
@@ -108,6 +107,3 @@ XML2_jll = "02c8fc9c-b97f-50b9-bbe4-9be30ff0a78a"
 ZipFile = "a5390f91-8eb1-5f08-bee0-b1d1ffed6cea"
 Zlib_jll = "83775a58-1f1d-513f-b197-d71354ab007a"
 glmnet_jll = "78c6b45d-5eaf-5d68-bcfb-a5a2cb06c27f"
-
-[compat]
-julia = "1.5,1.6"
