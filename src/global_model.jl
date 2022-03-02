@@ -70,7 +70,7 @@ end
 """
     $(TYPEDSIGNATURES)
 
-Extends JuMP.all_variables to GlobalModels and BlackBoxLearners.
+Extends JuMP.all_variables to GlobalModels and BlackBoxLearners, but only returns non-auxiliary variables
 """
 JuMP.all_variables(bbo::Union{GlobalModel, BlackBoxLearner, LinkedLearner}) = bbo.vars
 
@@ -82,6 +82,10 @@ end
 function JuMP.set_optimizer(gm::GlobalModel, optimizer_factory)
     JuMP.set_optimizer(gm.model, optimizer_factory)
 end
+
+count_types(gm::GlobalModel) = count_types(gm.model)
+count_variables(gm::GlobalModel) = count_variables(gm.model)
+count_constraints(gm::GlobalModel) = count_constraints(gm.model)
 
 """
     $(TYPEDSIGNATURES)
@@ -551,4 +555,4 @@ function print_details(gm::GlobalModel)
         @info "And a nonlinear objective."
     end
     return
-end
+end    

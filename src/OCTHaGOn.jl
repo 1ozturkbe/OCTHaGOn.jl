@@ -149,7 +149,8 @@ module OCTHaGOn
         bounded_aux, 
         linearize_objective!, classify_constraints,
         bound!, restrict_to_set,
-        distance_to_set, get_constant, 
+        distance_to_set, get_constant,
+        count_constraints, count_variables, count_types,
 
         # Data manipulation
         data_to_DataFrame, data_to_Dict,
