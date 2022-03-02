@@ -740,36 +740,38 @@ function test_oos()
     # set_optimizer(m, Ipopt.Optimizer)
 end
 
-test_expressions()
+# test_expressions()
 
-test_variables()
+# test_variables()
 
-test_bounds()
+# test_bounds()
 
-test_sets()
+# test_sets()
 
-test_linearize()
+# test_linearize()
 
-test_nonlinearize()
+# test_nonlinearize()
 
-test_bbc()
+# test_bbc()
 
-test_kwargs()
+# test_kwargs()
 
-test_regress()
+# test_regress()
 
-test_bbr()
+# test_bbr()
 
-test_basic_gm()
+# test_basic_gm()
 
-test_convex_objective()
+# test_convex_objective()
 
-test_data_driven()
+# test_data_driven()
 
-test_rfs()
+# test_rfs()
 
-test_convexcheck()
+# test_convexcheck()
 
-test_linking()
+# test_linking()
 
-test_oos()
+# test_oos()
+
+# function compute_bigMs
