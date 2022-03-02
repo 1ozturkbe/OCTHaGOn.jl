@@ -57,6 +57,7 @@ function clear_relaxation_variables!(gm::GlobalModel, bbl::Union{BlackBoxLearner
     if bbl.relax_var isa JuMP.VariableRef
         is_valid(gm.model, bbl.relax_var) || 
             throw(OCTHaGOnException("$(bbl.relax_var) is not a valid variable of  $(gm.model)."))
+        delete_lower_bound(gm.model, bbl.relax_var)
         delete(gm.model, bbl.relax_var)
         bbl.relax_var = 0
     end

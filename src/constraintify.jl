@@ -188,7 +188,7 @@ add_tree_constraints!(gm::GlobalModel) = add_tree_constraints!(gm, gm.bbls)
 
 """ Computes the smallest possible big-M for a hyperplane split in a tree. """
 function compute_hyperplane_bigM(threshold::Real, α::Vector, var_bounds::Vector)
-    return maximum([threshold, sum(maximum(abs.(α[i] .* var_bounds[i])) for i=1:length(α))])
+    return maximum([abs(threshold), sum(maximum(abs.(α[i] .* var_bounds[i])) for i=1:length(α))])
 end
 
 """

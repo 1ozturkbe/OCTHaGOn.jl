@@ -43,6 +43,8 @@ include(OCTHaGOn.DATA_DIR * "afpm.jl")
 
 include(OCTHaGOn.DATA_DIR * "polynomial.jl")
 
+include(OCTHaGOn.DATA_DIR * "foxes_and_rabbits.jl")
+
 include(OCTHaGOn.BARON_DIR * "gear.jl")
 
 include(OCTHaGOn.BARON_DIR * "minlp.jl")
