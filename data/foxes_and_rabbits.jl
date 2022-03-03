@@ -1,3 +1,4 @@
+""" Predator prey model with logistic function from http://www.math.lsa.umich.edu/~rauch/256/F2Lab5.pdf """
 function foxes_and_rabbits(oct::Bool = true)
     m = Model(SOLVER_SILENT)
     t = 20

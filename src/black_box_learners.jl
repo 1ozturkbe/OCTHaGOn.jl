@@ -378,11 +378,12 @@ function active_leaves(bbl::Union{BlackBoxLearner, LinkedLearner})
 end
 
 """ 
-    all_mi_constraints(bbl::BlackBoxLearner)
+    $(TYPEDSIGNATURES)
 
-Returns all JuMP.ConstraintRefs associated with BBL. 
+Returns all JuMP.ConstraintRefs associated with BlackBox/LinkedLearner. 
+Hypertype input optional for upper/lower bounding learners. 
 """
-function all_mi_constraints(bbl::BlackBoxLearner, hypertype::Union{String, Nothing} = nothing)
+function all_mi_constraints(bbl::Union{BlackBoxLearner, LinkedLearner}, hypertype::Union{String, Nothing} = nothing)
     all_constraints = []
     if hypertype == nothing
         for (leaf, constraints) in bbl.mi_constraints

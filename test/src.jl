@@ -279,7 +279,6 @@ function test_bbr()
     end
     @test all(evaluate_accuracy.(bbcs) .>= 0.95)
 
-    
     # Threshold training
     learn_constraint!(bbr, "upper" => 20.)
     lnr = bbr.learners[end]
@@ -302,10 +301,8 @@ function test_bbr()
     final_constraints = count_constraints(gm.model)
     final_variables = count_variables(gm.model)
     @test final_constraints == init_constraints + length(all_mi_constraints(bbr)) + length(bbr.leaf_variables)    
-    @test final_variables == init_variables + length(bbr.leaf_variables)*(length(bbr.vars) + 2) + 
-                                length(bbcs[1].leaf_variables)*(length(bbcs[1].vars) + 1) + 
-                                length(bbcs[2].leaf_variables)*(length(bbcs[2].vars) + 1)
-
+    @test final_variables == init_variables + length(bbr.leaf_variables)*(length(bbr.vars) + 2) 
+                                
     # Check clearing of all constraints and variables
     clear_tree_constraints!(gm, bbr)
     @test init_constraints == count_constraints(gm.model)
@@ -601,45 +598,10 @@ function test_convexcheck()
     @test !gm.bbls[end].convex
 end
 
-# Fox and rabbit nonlinear population dynamics 
-# Predator prey model with logistic function from http://www.math.lsa.umich.edu/~rauch/256/F2Lab5.pdf
 function test_linking()
-    m = Model(SOLVER_SILENT)
-    t = 20
-    r = 0.2
-    x1 = 0.6
-    y1 = 0.5
-    @variable(m, x[1:t] >= 0.01) # Note: Ipopt solution does not converge with an upper bound!!
-    @variable(m, dx[1:t-1])
-    @variable(m, y[1:t] >= 0.01)
-    @variable(m, dy[1:t-1])
-    @constraint(m, x[1] == x1)
-    @constraint(m, y[1] == y1)
-    @constraint(m, [i=2:t], x[i] == x[i-1] + dx[i-1])
-    @constraint(m, [i=2:t], y[i] == y[i-1] + dy[i-1])
-
-    # NL dynamics solution using Ipopt
-    # @NLconstraint(m, [i=1:t-1], dx[i] == x[i]*(1-x[i]) - x[i]*y[i]/(x[i]+1/5))
-    # @NLconstraint(m, [i=1:t-1], dy[i] == r*y[i]*(1-y[i]/x[i]))
-
-    # GlobalModel representation
-    set_upper_bound.(x, 1)
-    set_upper_bound.(dx, 1)
-    set_lower_bound.(dx, -1)
-    set_upper_bound.(y, 1)
-    set_upper_bound.(dy, 1)
-    set_lower_bound.(dy, -1)
-    gm = GlobalModel(model = m, name = "foxes_rabbits")
-    add_nonlinear_constraint(gm, :((x, y, dx) -> dx[1] - (x[1]*(1-x[1]) -x[1]*y[1]/(x[1]+$(r)))), 
-                            vars = [x[1], y[1], dx[1]], equality=true)
-    add_nonlinear_constraint(gm, :((x, y, dy) -> dy[1] - $(r)*y[1]*(1-y[1]/x[1])), 
-                            vars = [x[1], y[1], dy[1]], equality=true)
-    for i = 2:t-1
-        add_linked_constraint(gm, gm.bbls[1], [x[i], y[i], dx[i]])
-        add_linked_constraint(gm, gm.bbls[2], [x[i], y[i], dy[i]])
-    end
-    init_constraints = sum(length(all_constraints(gm.model, type[1], type[2])) 
-        for type in JuMP.list_of_constraint_types(gm.model))
+    gm = foxes_and_rabbits()
+    init_constraints = count_constraints(gm)
+    init_variables = count_variables(gm)
     set_param(gm, :max_iterations, 20)
     set_param(gm, :tighttol, 1e-3)
     set_param(gm, :equality_penalty, 1e5)
@@ -647,7 +609,6 @@ function test_linking()
     add_relaxation_variables!(gm)
     relax_objective!(gm)
     globalsolve!(gm)
-    @test true
     
     # # Plotting temporal population data (for visual debugging)
     # using Plots
@@ -658,11 +619,29 @@ function test_linking()
     #     xlabel = "Prey", ylabel = "Predators", 
     #     label = 1:t, legend = false)
 
-    # Checking constraint clearing
+    # Checking constraint generation
+    bbl_mic_count = length(all_mi_constraints(gm.bbls[1]))
+    iters = size(gm.solution_history, 1)
+    @test all(bbl_mic_count .== length(all_mi_constraints(ll)) for ll in gm.bbls[1].lls)
     clear_tree_constraints!(gm)
     clear_relaxation_variables!(gm)
-    @test init_constraints == sum(length(all_constraints(gm.model, type[1], type[2])) 
-        for type in JuMP.list_of_constraint_types(gm.model))
+    @test init_constraints == count_constraints(gm)
+    @test init_variables == count_variables(gm)
+
+    # Trying the same with big-M constraints
+    [bbl.bigM = true for bbl in gm.bbls]
+    add_relaxation_variables!(gm)
+    relax_objective!(gm)
+    add_tree_constraints!(gm)
+    optimize!(gm)
+    @test all(values(gm.solution_history[1,:]) .≈ values(gm.solution_history[end, :]))
+    descend!(gm)
+
+    # Checking constraints generation for big-M
+    clear_tree_constraints!(gm)
+    clear_relaxation_variables!(gm)
+    @test init_constraints == count_constraints(gm)
+    @test init_variables == count_variables(gm)
 end
 
 function test_oos()
@@ -752,36 +731,36 @@ function test_oos()
     # @test init_constraints == final_constraints
 end
 
-test_expressions()
+# test_expressions()
 
-test_variables()
+# test_variables()
 
-test_bounds()
+# test_bounds()
 
-test_sets()
+# test_sets()
 
-test_linearize()
+# test_linearize()
 
-test_nonlinearize()
+# test_nonlinearize()
 
-test_bbc()
+# test_bbc()
 
-test_kwargs()
+# test_kwargs()
 
-test_regress()
+# test_regress()
 
-test_bbr()
+# test_bbr()
 
-test_basic_gm()
+# test_basic_gm()
 
-test_convex_objective()
+# test_convex_objective()
 
-test_data_driven()
+# test_data_driven()
 
-test_rfs()
+# test_rfs()
 
-test_convexcheck()
+# test_convexcheck()
 
-test_linking()
+# test_linking()
 
-test_oos()
+# test_oos()
