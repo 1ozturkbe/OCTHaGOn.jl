@@ -609,15 +609,16 @@ function test_linking()
     add_relaxation_variables!(gm)
     relax_objective!(gm)
     globalsolve!(gm)
+    bigMfreesol_idx = size(gm.solution_history, 1)
     
     # # Plotting temporal population data (for visual debugging)
     # using Plots
     # plot(gm.soldict[:x], label = "Prey")
     # plot!(gm.soldict[:y], label = "Predators", xlabel = "Time", ylabel = "Normalized population")
     # # OR simultaneously in the population dimensions
-    # plot(gm.soldict[:x], gm.soldict[:y],
+    # plot!(gm.soldict[:x], gm.soldict[:y],
     #     xlabel = "Prey", ylabel = "Predators", 
-    #     label = 1:t, legend = false)
+    #     label = 1:20, legend = false)
 
     # Checking constraint generation
     bbl_mic_count = length(all_mi_constraints(gm.bbls[1]))
@@ -628,14 +629,13 @@ function test_linking()
     @test init_constraints == count_constraints(gm)
     @test init_variables == count_variables(gm)
 
-    # Trying the same with big-M constraints
+    # Trying the same with big-M constraints (BBC with equalities)
     [bbl.bigM = true for bbl in gm.bbls]
     add_relaxation_variables!(gm)
     relax_objective!(gm)
-    add_tree_constraints!(gm)
-    optimize!(gm)
-    @test all(values(gm.solution_history[1,:]) .≈ values(gm.solution_history[end, :]))
-    descend!(gm)
+    globalsolve!(gm)
+    @test all(isapprox.(values(gm.solution_history[bigMfreesol_idx,:]), 
+                        values(gm.solution_history[end, :]), rtol = 1e-2))
 
     # Checking constraints generation for big-M
     clear_tree_constraints!(gm)
@@ -731,36 +731,36 @@ function test_oos()
     # @test init_constraints == final_constraints
 end
 
-# test_expressions()
+test_expressions()
 
-# test_variables()
+test_variables()
 
-# test_bounds()
+test_bounds()
 
-# test_sets()
+test_sets()
 
-# test_linearize()
+test_linearize()
 
-# test_nonlinearize()
+test_nonlinearize()
 
-# test_bbc()
+test_bbc()
 
-# test_kwargs()
+test_kwargs()
 
-# test_regress()
+test_regress()
 
-# test_bbr()
+test_bbr()
 
-# test_basic_gm()
+test_basic_gm()
 
-# test_convex_objective()
+test_convex_objective()
 
-# test_data_driven()
+test_data_driven()
 
-# test_rfs()
+test_rfs()
 
-# test_convexcheck()
+test_convexcheck()
 
-# test_linking()
+test_linking()
 
 # test_oos()
