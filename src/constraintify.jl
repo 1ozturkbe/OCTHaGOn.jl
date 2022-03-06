@@ -75,8 +75,6 @@ function add_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier, idx = l
 end
 
 function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = length(bbr.learners))
-    mi_constraints = Dict{Int64, Array{JuMP.ConstraintRef}}()
-    leaf_variables = Dict{Int64, Tuple{JuMP.VariableRef, Array, JuMP.VariableRef}}()
     if size(bbr.X, 1) == 0 && !get_param(bbr, :reloaded)
         throw(OCTHaGOnException("Constraint " * string(bbr.name) * " has not been sampled yet, and is thus untrained."))
     elseif bbr.convex && !bbr.equality
@@ -144,40 +142,46 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
         isempty(bbr.lls) || throw(ErrorException("RandomForestRegressors augment LinkedLearners when MI approximations are made. To avoid bugs, BBRs approximated via RFs cannot have LinkedLearners."))
         trees = get_random_trees(bbr.learners[idx])
         bbr.mi_constraints, bbr.leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
-                    trees[1], bbr.ul_data[idx][1]; equality = bbr.equality, bigM = bbr.bigM, relax_var = bbr.relax_var) 
+                    trees[1], bbr.ul_data[idx][1]; equality = bbr.equality, bigM = bbr.bigM, relax_var = bbr.relax_var,)
+                    # mic = bbr.mi_constraints, lv = bbr.leaf_variables) 
         for i=2:length(trees)
-            mic, lv = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
-                                                trees[i], bbr.ul_data[idx][i];
-                                                equality = bbr.equality, bigM = bbr.bigM) 
             nll = LinkedRegressor(vars = bbr.vars, dependent_var = bbr.dependent_var)
-            nll.mi_constraints = mic
-            nll.leaf_variables = lv       
+            nll.mi_constraints, nll.leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
+                                                trees[i], bbr.ul_data[idx][i];
+                                                equality = bbr.equality, bigM = bbr.bigM,)
+                                                # mic = nll.mi_constraints,
+                                                # lv = nll.leaf_variables)   
             push!(bbr.lls, nll)
         end
         bbr.active_trees[idx] = bbr.thresholds[idx]    
     else
-        mi_constraints, leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
+       mi_constraints, leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, 
                                                 bbr.learners[idx], bbr.ul_data[idx];
-                                                equality = bbr.equality, bigM = bbr.bigM, relax_var = bbr.relax_var)
+                                                equality = bbr.equality, bigM = bbr.bigM, relax_var = bbr.relax_var,)
+                                                # mic = bbr.mi_constraints, 
+                                                # lv = bbr.leaf_variables)
+                                                
+        merge!(append!, bbr.mi_constraints, mi_constraints)
+        merge!(bbr.leaf_variables, leaf_variables)
         if !isempty(bbr.lls)
             for lr in bbr.lls
                 lr_mi, lr_lv = add_regr_constraints!(gm.model, lr.vars, lr.dependent_var,
                                                 bbr.learners[idx], bbr.ul_data[idx];
-                                                equality = bbr.equality, bigM = bbr.bigM, relax_var = lr.relax_var, 
-                                                symbs = Symbol.(bbr.vars))
+                                                equality = bbr.equality, bigM = bbr.bigM, relax_var = lr.relax_var,
+                                                symbs = Symbol.(bbr.vars),)
+                                                # mic = lr.mi_constraints,
+                                                # lv = lr.leaf_variables)
                 merge!(append!, lr.mi_constraints, lr_mi)
-                merge!(append!, lr.leaf_variables, lr_lv)
+                merge!(lr.leaf_variables, lr_lv)
             end
         end
         if bbr.thresholds[idx].first == "upper"
-            push!(mi_constraints[-1], @constraint(gm.model, bbr.dependent_var <= bbr.thresholds[idx].second))
+            push!(bbr.mi_constraints[-1], @constraint(gm.model, bbr.dependent_var <= bbr.thresholds[idx].second))
             [push!(lr.mi_constraints[-1], @constraint(gm.model, lr.dependent_var <= bbr.thresholds[idx])) for lr in bbr.lls]
         elseif bbr.thresholds[idx].first == "lower"
-            push!(mi_constraints[1], @constraint(gm.model, bbr.dependent_var >= bbr.thresholds[idx].second))
+            push!(bbr.mi_constraints[1], @constraint(gm.model, bbr.dependent_var >= bbr.thresholds[idx].second))
             [push!(lr.mi_constraints[1], @constraint(gm.model, lr.dependent_var >= bbr.thresholds[idx])) for lr in bbr.lls]
         end
-        merge!(append!, bbr.mi_constraints, mi_constraints)
-        merge!(append!, bbr.leaf_variables, leaf_variables)
         bbr.active_trees[idx] = bbr.thresholds[idx]
     end
     bbr.active_leaves = []
@@ -206,7 +210,7 @@ Arguments:
 - x: independent JuMP.Variables (features in lnr)
 - lnr: A fitted OptimalTreeClassifier
 - equality: whether the constraint is an equality. 
-NOTE: lcs, mic and lv are only nonempty if we are adding an OCT approximation of a BBR. Leave defaults empty for basic usage. 
+NOTE: mic and lv are only nonempty if we are adding an OCT approximation on top of an existing set of MI constraints and variables respectively. Leave defaults empty for basic usage. 
 symbs helps add constraints to linked learners, since the varkeys in lnr are different to the variables in the linked learner. 
 """
 function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::IAI.OptimalTreeLearner;
@@ -225,31 +229,29 @@ function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::I
         feas_leaves = all_leaves
     end
     mi_constraints = Dict(leaf => [] for leaf in feas_leaves)
+    mi_constraints[1] = []
     leaf_variables = Dict{Int64, Tuple{JuMP.VariableRef, Array}}()
     var_bounds = get_bounds(x)
     var_bounds = [var_bounds[var] for var in x] # ordered vector form
-    if isempty(lv)
+    if isempty(lv) # if the variables haven't already been created and passed!
         if bigM
             # big-M formulation variable generation and coupling
             for leaf in feas_leaves
                 leaf_variables[leaf] = (@variable(m, binary = true), [])
-                mi_constraints[leaf] = []
             end
-            mi_constraints[1] = [@constraint(m, sum(leaf_variables[leaf][1] for leaf in feas_leaves) == 1)]
+            push!(mi_constraints[1], @constraint(m, sum(leaf_variables[leaf][1] for leaf in feas_leaves) == 1))
         else
             # big-M free formulation variable generation and coupling
             for leaf in feas_leaves
-                leaf_variables[leaf], mi_constraints[leaf] = bounded_aux(x, @variable(m, binary=true))
+                leaf_variables[leaf], bd_mi = bounded_aux(x, @variable(m, binary=true))
+                append!(mi_constraints[leaf], bd_mi)
             end
-            mi_constraints[1] = [@constraint(m, sum(leaf_variables[leaf][1] for leaf in feas_leaves) == 1)]
+            push!(mi_constraints[1], @constraint(m, sum(leaf_variables[leaf][1] for leaf in feas_leaves) == 1))
             [push!(mi_constraints[1], constr) 
                 for constr in @constraint(m, sum(leaf_variables[leaf][2] for leaf in feas_leaves) .== x)]
         end
     else
         leaf_variables = lv
-    end
-    if !isempty(mic)
-        merge!(append!, mi_constraints, mic)
     end
     # Getting lnr data
     upperDict, lowerDict = trust_region_data(lnr, symbs)
@@ -276,20 +278,23 @@ function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::I
     end
     if equality
         infeas_leaves = [i for i in all_leaves if !Bool(IAI.get_classification_label(lnr, i))];
-        if bigM
-            # big-M formulation variable generation and coupling
-            for leaf in infeas_leaves
-                leaf_variables[leaf] = (@variable(m, binary = true), [])
-                mi_constraints[leaf] = []
+        [mi_constraints[leaf] = [] for leaf in infeas_leaves]     
+        if isempty(lv)   
+            if bigM
+                # big-M formulation variable generation and coupling
+                for leaf in infeas_leaves
+                    leaf_variables[leaf] = (@variable(m, binary = true), [])
+                end
+                push!(mi_constraints[1], @constraint(m, sum(leaf_variables[leaf][1] for leaf in infeas_leaves) == 1))  
+            else
+                for leaf in infeas_leaves
+                    leaf_variables[leaf], bd_mi = bounded_aux(x, @variable(m, binary=true))
+                    append!(mi_constraints[leaf], bd_mi)
+                end
+                push!(mi_constraints[1], @constraint(m, sum(leaf_variables[leaf][1] for leaf in infeas_leaves) == 1))
+                [push!(mi_constraints[1], constr) 
+                    for constr in @constraint(m, sum(leaf_variables[leaf][2] for leaf in infeas_leaves) .== x)]
             end
-            push!(mi_constraints[1], @constraint(m, sum(leaf_variables[leaf][1] for leaf in infeas_leaves) == 1))  
-        else
-            for leaf in infeas_leaves
-                leaf_variables[leaf], mi_constraints[leaf] = bounded_aux(x, @variable(m, binary=true))
-            end
-            push!(mi_constraints[1], @constraint(m, sum(leaf_variables[leaf][1] for leaf in infeas_leaves) == 1))
-            [push!(mi_constraints[1], constr) 
-                for constr in @constraint(m, sum(leaf_variables[leaf][2] for leaf in infeas_leaves) .== x)]
         end
         for leaf in infeas_leaves
             # ADDING TRUST REGIONS
@@ -313,6 +318,7 @@ function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::I
             end
         end
     end
+    merge!(append!, mi_constraints, mic)
     return mi_constraints, leaf_variables
 end
 
@@ -339,11 +345,13 @@ function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuM
         all_leaves = find_leaves(lnr)
         # Add a binary variable for each leaf
         mi_constraints = Dict(leaf => [] for leaf in all_leaves)
+        mi_constraints[1] = []
         leaf_variables = Dict{Int64, Tuple{JuMP.VariableRef, Array, JuMP.VariableRef}}()
         for leaf in all_leaves
-            leaf_variables[leaf], mi_constraints[leaf] = bounded_aux(x, y, @variable(m, binary=true))
+            leaf_variables[leaf], bd_mi = bounded_aux(x, y, @variable(m, binary=true))
+            append!(mi_constraints[leaf], bd_mi)
         end
-        mi_constraints[1] = [@constraint(m, sum(leaf_variables[leaf][1] for leaf in all_leaves) == 1)]
+        push!(mi_constraints[1], @constraint(m, sum(leaf_variables[leaf][1] for leaf in all_leaves) == 1))
         [push!(mi_constraints[1], constr) 
             for constr in @constraint(m, sum(leaf_variables[leaf][2] for leaf in all_leaves) .== x)]
         push!(mi_constraints[1], @constraint(m, sum(leaf_variables[leaf][3] for leaf in all_leaves) == y))
@@ -389,11 +397,13 @@ function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuM
         # Add a binary variable for each leaf
         feas_leaves = [i for i in all_leaves if Bool(IAI.get_classification_label(lnr, i))]
         mi_constraints = Dict(leaf => [] for leaf in feas_leaves)
+        mi_constraints[1] = []
         leaf_variables = Dict{Int64, Tuple{JuMP.VariableRef, Array, JuMP.VariableRef}}()
         for leaf in feas_leaves
-            leaf_variables[leaf], mi_constraints[leaf] = bounded_aux(x, y, @variable(m, binary=true))
+            leaf_variables[leaf], bd_mi = bounded_aux(x, y, @variable(m, binary=true))
+            append!(mi_constraints[leaf], bd_mi)
         end
-        mi_constraints[1] = [@constraint(m, sum(leaf_variables[leaf][1] for leaf in feas_leaves) == 1)]
+        push!(mi_constraints[1], @constraint(m, sum(leaf_variables[leaf][1] for leaf in feas_leaves) == 1))
         [push!(mi_constraints[1], constr) 
             for constr in @constraint(m, sum(leaf_variables[leaf][2] for leaf in feas_leaves) .== x)]
         push!(mi_constraints[1], @constraint(m, sum(leaf_variables[leaf][3] for leaf in feas_leaves) == y))
