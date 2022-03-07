@@ -648,25 +648,34 @@ function test_oos()
     op = oos_params()
     gm = oos_gm!()
     print_details(gm)
-    types = count_types(gm)
+    init_variables = count_variables(gm)
     init_constraints = count_constraints(gm)
     uniform_sample_and_eval!(gm)
     learn_constraint!(gm, max_depth=8)
-    # for bbl in gm.bbls
-    #     add_tree_constraints!(gm, bbl)
-    #     clear_tree_constraints!(gm, bbl)
-    #     init_constraints ==  sum(length(all_constraints(gm.model, type[1], type[2])) for type in types) ||
-    #         println("$(bbl.name)")
-    # end
+    for bbl in gm.bbls
+        add_tree_constraints!(gm, bbl)
+        clear_tree_constraints!(gm, bbl)
+        init_constraints ==  count_constraints(gm) ||
+            println("$(bbl.name)")
+    end
+    add_tree_constraints!(gm)
+    optimize!(gm)
+
+    # # Testing big-M formulation
+    clear_tree_constraints!(gm)
+    @test count_constraints(gm) == init_constraints
+    @test count_variables(gm) == init_variables
+    [bbl.bigM = true for bbl in gm.bbls]
     add_tree_constraints!(gm)
     optimize!(gm)
     bin_vals = round.(JuMP.getvalue.(gm.model[:xx]))
-    unset_binary.(gm.model[:xx])
-    delete_lower_bound.(gm.model[:xx])
-    delete_upper_bound.(gm.model[:xx])
-    fix.(gm.model[:xx], bin_vals)
     clear_tree_constraints!(gm)
+    @test all(isapprox.(Array(gm.solution_history[1,:]), 
+                             Array(gm.solution_history[2,:]), rtol = 1e-3))
+    @test count_constraints(gm) == init_constraints
+
     # NOTE: PGD may fail due to CPLEX issues. 
+    fix.(gm.model[:xx], bin_vals, force = true)
     descend!(gm, max_iterations = 2, tighttol = 1e-5, step_penalty = 1e8, equality_penalty = 1e6)
 
     # Post-processing
@@ -716,19 +725,15 @@ function test_oos()
     # bar_plots = plot(bar1, bar2, bar3, layout = (1,3))
     # @show bar_plots
 
+    # Trying Ipopt's hand (doesn't work)
+    # using Ipopt
     # m = oos_gm!()
     # JuMP.unset_binary.(m.model[:xx])
-    # @constraint(m.model, m.model[:sat_order] .== [5,6,7,1,2,3,4])
+    # @constraint(m.model, m.model[:sat_order] .==  [4, 3, 2, 1, 7, 6, 5])
     # nonlinearize!(m)
+    # uniform_sample_and_eval!(m)
     # set_optimizer(m, Ipopt.Optimizer)
-
-    # Checking constraint clearing
-    clear_tree_constraints!(gm)
-    clear_relaxation_variables!(gm)
-    final_types = count_types(gm)
-    final_constraints = count_constraints(gm) 
-    @test types == final_types
-    # @test init_constraints == final_constraints
+    # optimize!(m)
 end
 
 test_expressions()
