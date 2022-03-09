@@ -1,11 +1,3 @@
-# filename = "weapons.gms"
-# filename = "himmel16.gms"
-# filename = "ramsey.gms"
-# filename = "alan.gms"
-# filename = "gbd.gms"
-# filename = "hydro.gms"
-# filename = "pollut.gms"
-
 # gm = speed_reducer()
 # set_optimizer(gm, SOLVER_SILENT)
 # globalsolve_and_time!(gm)
@@ -96,28 +88,3 @@ set_optimizer(gm, SOLVER_SILENT)
 time1 = time()
 optimize_with_more_depth(gm)
 @info "Time elapsed: $(time()-time1)"
-
-# # ALL SET, but no comparative solver
-# name = "sfacloc2_3_80.gms"
-# gm = GAMS_to_GlobalModel(OCTHaGOn.GAMS_DIR, name)
-# set_param(gm, :max_iterations, 500)
-# set_param(gm, :ignore_accuracy, true)
-# set_optimizer(gm, SOLVER_SILENT)
-# time1 = time()
-# uniform_sample_and_eval!(gm)
-# learn_constraint!(gm, max_depth=5)
-# while any(isempty(bbl.learners) for bbl in gm.bbls)
-#     for bbl in gm.bbls
-#         if isempty(bbl.learners)
-#             try
-#                 learn_constraint!(bbl, max_depth=5)
-#             catch
-#                 @info "BBL $(bbl.name) causing problems."
-#             end
-#         end
-#     end
-# end
-# add_tree_constraints!(gm)
-# optimize!(gm)
-# descend!(gm)
-# @info "Time elapsed: $(time()-time1)"
