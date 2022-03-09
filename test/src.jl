@@ -608,8 +608,10 @@ function test_linking()
     set_param(gm, :step_penalty, 1e4)
     add_relaxation_variables!(gm)
     relax_objective!(gm)
-    globalsolve!(gm)
-    bigMfreesol_idx = size(gm.solution_history, 1)
+    uniform_sample_and_eval!(gm)
+    learn_constraint!(gm)
+    add_tree_constraints!(gm)
+    optimize!(gm)
     
     # # Plotting temporal population data (for visual debugging)
     # using Plots
@@ -622,7 +624,6 @@ function test_linking()
 
     # Checking constraint generation
     bbl_mic_count = length(all_mi_constraints(gm.bbls[1]))
-    iters = size(gm.solution_history, 1)
     @test all(bbl_mic_count .== length(all_mi_constraints(ll)) for ll in gm.bbls[1].lls)
     clear_tree_constraints!(gm)
     clear_relaxation_variables!(gm)
@@ -633,9 +634,11 @@ function test_linking()
     [bbl.bigM = true for bbl in gm.bbls]
     add_relaxation_variables!(gm)
     relax_objective!(gm)
-    globalsolve!(gm)
-    @test all(isapprox.(values(gm.solution_history[bigMfreesol_idx,:]), 
-                        values(gm.solution_history[end, :]), rtol = 1e-2))
+    add_tree_constraints!(gm)
+    optimize!(gm)
+
+    @test sum(isapprox.(values(gm.solution_history[1,:]), 
+                        values(gm.solution_history[2,:]), rtol = 1e-1))/size(gm.solution_history, 2) >= 0.9
 
     # Checking constraints generation for big-M
     clear_tree_constraints!(gm)

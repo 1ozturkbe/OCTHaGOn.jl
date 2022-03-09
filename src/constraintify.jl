@@ -272,19 +272,17 @@ function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::I
     upperDict, lowerDict = trust_region_data(lnr, symbs)
     for leaf in feas_leaves
         # ADDING TRUST REGIONS
-        for region in upperDict[leaf]
-            threshold, α = region
+        for (threshold, α) in upperDict[leaf] # upperDict is lower-bounded. 
             if bigM 
-                M = compute_hyperplane_bigM(threshold, α, var_bounds)
+                M = compute_hyperplane_bigM_lower(threshold, α, var_bounds)
                 push!(mi_constraints[leaf], @constraint(m, threshold ≤ sum(α .* x) + M * (1 - leaf_variables[leaf][1] + relax_var)))
             else
                 push!(mi_constraints[leaf], @constraint(m, threshold * leaf_variables[leaf][1] <= sum(α .* leaf_variables[leaf][2]) + relax_var))
             end
         end
-        for region in lowerDict[leaf]
-            threshold, α = region
+        for (threshold, α) in lowerDict[leaf] # lowerDict is upper-bounded. 
             if bigM
-                M = compute_hyperplane_bigM(threshold, α, var_bounds)
+                M = compute_hyperplane_bigM_upper(threshold, α, var_bounds)
                 push!(mi_constraints[leaf], @constraint(m, M * (1 - leaf_variables[leaf][1] + relax_var) + threshold ≥ sum(α .* x)))
             else
                 push!(mi_constraints[leaf], @constraint(m, threshold * leaf_variables[leaf][1] + relax_var >= sum(α .* leaf_variables[leaf][2])))
@@ -313,19 +311,17 @@ function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::I
         end
         for leaf in infeas_leaves
             # ADDING TRUST REGIONS
-            for region in upperDict[leaf]
-                threshold, α = region
+            for (threshold, α) in upperDict[leaf] # upperDict is lower-bounded. 
                 if bigM 
-                    M = compute_hyperplane_bigM(threshold, α, var_bounds)
+                    M = compute_hyperplane_bigM_lower(threshold, α, var_bounds)
                     push!(mi_constraints[leaf], @constraint(m, threshold ≤ sum(α .* x) + M * (1 - leaf_variables[leaf][1] + relax_var)))
                 else
                     push!(mi_constraints[leaf], @constraint(m, threshold * leaf_variables[leaf][1] <= sum(α .* leaf_variables[leaf][2]) + relax_var))
                 end
             end
-            for region in lowerDict[leaf]
-                threshold, α = region
+            for (threshold, α) in lowerDict[leaf] # lowerDict is upper-bounded. 
                 if bigM
-                    M = compute_hyperplane_bigM(threshold, α, var_bounds)
+                    M = compute_hyperplane_bigM_upper(threshold, α, var_bounds)
                     push!(mi_constraints[leaf], @constraint(m, threshold + M * (1 - leaf_variables[leaf][1] + relax_var) >= sum(α .* x)))
                 else
                     push!(mi_constraints[leaf], @constraint(m, threshold * leaf_variables[leaf][1] + relax_var >= sum(α .* leaf_variables[leaf][2])))
@@ -362,47 +358,78 @@ function add_regr_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, y::JuM
         mi_constraints = Dict(leaf => [] for leaf in all_leaves)
         mi_constraints[1] = []
         leaf_variables = Dict{Int64, Tuple{JuMP.VariableRef, Array, JuMP.VariableRef}}()
-        for leaf in all_leaves
-            leaf_variables[leaf], bd_mi = bounded_aux(x, y, @variable(m, binary=true))
-            append!(mi_constraints[leaf], bd_mi)
+        var_bounds = get_bounds(x)
+        var_bounds = [var_bounds[var] for var in x]
+        y_bounds = get_bound(y)
+        if bigM
+            for leaf in all_leaves
+                leaf_variables[leaf] = (@variable(m, binary = true), [], @variable(m)) # third item in tuple is placeholder. TODO: find a more elegant bookkeeping method. 
+            end
+            push!(mi_constraints[1], @constraint(m, sum(leaf_variables[leaf][1] for leaf in all_leaves) == 1))
+        else
+            for leaf in all_leaves
+                leaf_variables[leaf], bd_mi = bounded_aux(x, y, @variable(m, binary=true))
+                append!(mi_constraints[leaf], bd_mi)
+            end
+            push!(mi_constraints[1], @constraint(m, sum(leaf_variables[leaf][1] for leaf in all_leaves) == 1))
+            [push!(mi_constraints[1], constr) 
+                for constr in @constraint(m, sum(leaf_variables[leaf][2] for leaf in all_leaves) .== x)]
+            push!(mi_constraints[1], @constraint(m, sum(leaf_variables[leaf][3] for leaf in all_leaves) == y))    
         end
-        push!(mi_constraints[1], @constraint(m, sum(leaf_variables[leaf][1] for leaf in all_leaves) == 1))
-        [push!(mi_constraints[1], constr) 
-            for constr in @constraint(m, sum(leaf_variables[leaf][2] for leaf in all_leaves) .== x)]
-        push!(mi_constraints[1], @constraint(m, sum(leaf_variables[leaf][3] for leaf in all_leaves) == y))
         # Getting lnr data
         pwlDict = pwl_constraint_data(lnr, symbs)
         upperDict, lowerDict = trust_region_data(lnr, symbs)
-        for i = 1:size(all_leaves, 1)
-            # ADDING CONSTRAINTS
-            leaf = all_leaves[i]
+        for leaf in all_leaves
+            # ADDING PWL APPROXIMATIONS
             β0, β = pwlDict[leaf]
-            if equality
-                # Use the ridge regressor!
-                push!(mi_constraints[leaf], @constraint(m, sum(β .* leaf_variables[leaf][2]) + 
-                    β0 * leaf_variables[leaf][1] + relax_var >= leaf_variables[leaf][3]))
-                push!(mi_constraints[leaf], @constraint(m, sum(β .* leaf_variables[leaf][2]) + 
-                    β0 * leaf_variables[leaf][1] <= leaf_variables[leaf][3] + relax_var))
-            elseif !isempty(ul_data) 
-                # Use only the lower approximator
-                β0, β = ul_data[leaf] # update the lower approximator
-                push!(mi_constraints[leaf], @constraint(m, sum(β .* leaf_variables[leaf][2]) + 
-                    β0 * leaf_variables[leaf][1] <= leaf_variables[leaf][3] + relax_var))
-            else 
-                # Use only the ridge regressor as the lower approximator. 
-                push!(mi_constraints[leaf], @constraint(m, sum(β .* leaf_variables[leaf][2]) + 
-                    β0 * leaf_variables[leaf][1] <= leaf_variables[leaf][3] + relax_var))
+            if bigM
+                if equality
+                    M_upper = compute_regression_bigM_upper(β0, β, var_bounds, y_bounds)
+                    M_lower = compute_regression_bigM_lower(β0, β, var_bounds, y_bounds)
+                    # Use the ridge regressor!
+                    push!(mi_constraints[leaf], @constraint(m, sum(β .* x) + β0 + M_upper * (1 - leaf_variables[leaf][1] + relax_var) >= y))
+                    push!(mi_constraints[leaf], @constraint(m, sum(β .* x) + β0 <= y + M_lower * (1 - leaf_variables[leaf][1] + relax_var)))
+                elseif !isempty(ul_data) 
+                    # Use only the lower approximator
+                    β0, β = ul_data[leaf] # update the lower approximator
+                    M_lower = compute_regression_bigM_lower(β0, β, var_bounds, y_bounds)
+                    push!(mi_constraints[leaf], @constraint(m, sum(β .* x) + β0 <= y + M_lower * (1 - leaf_variables[leaf][1] + relax_var)))
+                else 
+                    # Use only the ridge regressor as the lower approximator. 
+                    M_lower = compute_regression_bigM_lower(β0, β, var_bounds, y_bounds)
+                    push!(mi_constraints[leaf], @constraint(m, sum(β .* x) + β0 <= y + M_lower * (1 - leaf_variables[leaf][1] + relax_var)))
+                end
+            else
+                if equality
+                    # Use the ridge regressor!
+                    push!(mi_constraints[leaf], @constraint(m, sum(β .* leaf_variables[leaf][2]) + β0 * leaf_variables[leaf][1] + relax_var >= leaf_variables[leaf][3]))
+                    push!(mi_constraints[leaf], @constraint(m, sum(β .* leaf_variables[leaf][2]) + β0 * leaf_variables[leaf][1] <= leaf_variables[leaf][3] + relax_var))
+                elseif !isempty(ul_data) 
+                    # Use only the lower approximator
+                    β0, β = ul_data[leaf] # update the lower approximator
+                    push!(mi_constraints[leaf], @constraint(m, sum(β .* leaf_variables[leaf][2]) + β0 * leaf_variables[leaf][1] <= leaf_variables[leaf][3] + relax_var))
+                else 
+                    # Use only the ridge regressor as the lower approximator. 
+                    push!(mi_constraints[leaf], @constraint(m, sum(β .* leaf_variables[leaf][2]) + β0 * leaf_variables[leaf][1] <= leaf_variables[leaf][3] + relax_var))
+                end
             end
             # ADDING TRUST REGIONS
-            for region in upperDict[leaf]
-                threshold, α = region
-                push!(mi_constraints[leaf], @constraint(m, threshold * leaf_variables[leaf][1] <= 
-                    sum(α .* leaf_variables[leaf][2]) + relax_var))
+            for (threshold, α) in upperDict[leaf] # upperDict is lower-bounded. 
+                if bigM 
+                    M = compute_hyperplane_bigM_lower(threshold, α, var_bounds)
+                    push!(mi_constraints[leaf], @constraint(m, threshold ≤ sum(α .* x) + M * (1 - leaf_variables[leaf][1] + relax_var)))
+                else
+                    push!(mi_constraints[leaf], @constraint(m, threshold * leaf_variables[leaf][1] <= sum(α .* leaf_variables[leaf][2]) + relax_var))
+                end
             end
-            for region in lowerDict[leaf]
-                threshold, α = region
-                push!(mi_constraints[leaf], @constraint(m, threshold * leaf_variables[leaf][1] + relax_var >= 
-                sum(α .* leaf_variables[leaf][2])))
+            for (threshold, α) in lowerDict[leaf] # lowerDict is upper-bounded. 
+                if bigM
+                    M = compute_hyperplane_bigM_upper(threshold, α, var_bounds)
+                    push!(mi_constraints[leaf], @constraint(m, M * (1 - leaf_variables[leaf][1] + relax_var) + threshold ≥ sum(α .* x)))
+                else
+                    push!(mi_constraints[leaf], @constraint(m, threshold * leaf_variables[leaf][1] + relax_var >= 
+                    sum(α .* leaf_variables[leaf][2])))
+                end
             end
         end
         return mi_constraints, leaf_variables
