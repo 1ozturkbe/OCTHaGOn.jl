@@ -110,11 +110,14 @@ function embed_single_tree(gm::GlobalModel, bbl::BlackBoxLearner, tree_id::Int64
     m[var_name] = @variable(m, base_name=string(var_name));
     outcome_var = m[var_name]
 
-    @constraint(m, coeffs*x .<= intercept.+M*(1 .- leaf_vars[l_ids]));
-    @constraint(m, outcome_var == leaf_predictions'*leaf_vars);
-    @constraint(m, sum(leaf_vars[i] for i=1:n_leaves) == 1);
+    constrs = [
+        @constraint(m, coeffs*x .<= intercept.+M*(1 .- leaf_vars[l_ids]));
+        @constraint(m, outcome_var == leaf_predictions'*leaf_vars);
+        @constraint(m, sum(leaf_vars[i] for i=1:n_leaves) == 1);
+    ];
+
     
-    return outcome_var;
+    return constrs, outcome_var;
 end
 
 function gbm_embed_helper(lnr::Union{GBM_Regressor, GBM_Classifier}, gm::GlobalModel, bbl::Union{BlackBoxClassifier, BlackBoxRegressor}, lb=-Inf, ub=Inf; kwargs...) 
@@ -123,12 +126,14 @@ function gbm_embed_helper(lnr::Union{GBM_Regressor, GBM_Classifier}, gm::GlobalM
     
     m = gm.model;
     
+    all_constraints = []
     outcome_vars = []
     etas = []
     for (i, tree) in enumerate(trees)
-        tree_outcome = embed_single_tree(gm, bbl, i, tree; M=1000);
+        constrs, tree_outcome = embed_single_tree(gm, bbl, i, tree; M=1000);
         push!(outcome_vars, tree_outcome)
         push!(etas, tree.eta)
+        append!(all_constraints, constrs)
     end
 
     # Define final outcome variable
@@ -137,17 +142,17 @@ function gbm_embed_helper(lnr::Union{GBM_Regressor, GBM_Classifier}, gm::GlobalM
     final_outcome = m[var_name];
     
     if lb != -Inf
-        @constraint(m, final_outcome >= lb);
+        push!(all_constraints, @constraint(m, final_outcome >= lb));
     end
     if ub != Inf
-        @constraint(m, final_outcome <= ub);
+        push!(all_constraints, @constraint(m, final_outcome <= ub));
     end
     
     # Final outcome variable is the weighted average
     # of the sub-trees
-    @constraint(m, outcome_vars'*etas./sum(etas) == final_outcome)
+    push!(all_constraints, @constraint(m, outcome_vars'*etas./sum(etas) == final_outcome));
     
-    return Dict(), Dict()
+    return Dict(1 => all_constraints), Dict()
 end
 
 
@@ -250,7 +255,6 @@ function evaluate(lnr::GBM_Regressor, X::DataFrame, Y::Array)
 end
 
 
-
 """
 Embed MIO constraints on GBM classifier
 """
@@ -258,6 +262,7 @@ function embed_mio!(lnr::GBM_Classifier, gm::GlobalModel, bbl::BlackBoxClassifie
 
     return gbm_embed_helper(lnr, gm, bbl, lnr.thres)
 end
+
 
 """
 Embed MIO constraints on GBM regressor

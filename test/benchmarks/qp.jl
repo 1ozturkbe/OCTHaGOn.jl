@@ -4,7 +4,7 @@ include("../load.jl")
 using LinearAlgebra, Random, BARON, Pkg, Dates
 
 EQUALITIES = false
-REGRESSION = true
+REGRESSION = false
 REPAIR = true 
 
 #algs = ["SVM", "CART", "GBM"]#, "CART", "OCT"
@@ -169,10 +169,10 @@ df_results = DataFrame()
 # Solve negative-definite QP with different 
 # number of variables (N) and different number 
 # of constraints (M)
-for algs in [["GBM"],["CART"],["SVM"]]#["SVM"],["CART"], ["GBM", "SVM", "CART"], ["OCT"], ["GBM", "SVM", "CART", "OCT"]]
-    for N=[50]#, 10, 20, 30, 40, 50, 60, 70]
-        for M=[2]#, 5, 10, 15]
-            # try
+for algs in [["MLP"],["CART"],["SVM"],["GBM", "SVM", "CART"], ["GBM", "MLP"]]#["SVM"],["CART"], ["GBM", "SVM", "CART"], ["OCT"], ["GBM", "SVM", "CART", "OCT"]]
+    for N=[5, 10, 20, 30, 40, 50, 60, 70]
+        for M=[1, 5, 10, 15]
+            try
                 algs = filter(x-> (x ∉ ["CART","OCT"]) || (!REGRESSION), algs)
                 if length(algs) == 0 continue end
 
@@ -187,10 +187,10 @@ for algs in [["GBM"],["CART"],["SVM"]]#["SVM"],["CART"], ["GBM", "SVM", "CART"],
                 catch
                     println("Couldn't write to CSV")
                 end
-            # catch
-            #     println("Error solving (N, M)=($(N),$(M))")
-            #     println(stacktrace(catch_backtrace()))
-            # end
+            catch
+                println("Error solving (N, M)=($(N),$(M))")
+                println(stacktrace(catch_backtrace()))
+            end
             #return;
         end
     end

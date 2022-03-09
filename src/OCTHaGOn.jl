@@ -15,6 +15,8 @@ module OCTHaGOn
     using Parameters
     using ProgressMeter
     using Random
+    using Clustering
+    using NeuralNets
     
     const PROJECT_ROOT = dirname(dirname(@__FILE__))
     const DATA_DIR = PROJECT_ROOT * "\\data\\"
@@ -40,11 +42,11 @@ module OCTHaGOn
 
     include("util/train_test_split.jl")
 
-
     
     include("learners/abstract.jl")
     include("learners/svm.jl")
     include("learners/gbm.jl")
+    include("learners/mlp.jl")
     include("learners.jl")
 
     #include("learners/iai.jl")

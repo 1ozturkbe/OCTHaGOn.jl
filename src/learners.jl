@@ -104,13 +104,15 @@ LEARNER_DICT = Dict(
         "RF" => base_rf_classifier,
         "CART" => base_cart_classifier,
         "SVM" => SVM_Classifier,
-        "GBM" => GBM_Classifier
+        "GBM" => GBM_Classifier,
+        "MLP" => MLP_Classifier
     ),
     "regression" => Dict(
         "OCT" => base_regressor,
         "RF" => base_rf_regressor,
         "CART" => base_cart_regressor,
         "SVM" => SVM_Regressor,
-        "GBM" => GBM_Regressor
+        "GBM" => GBM_Regressor,
+        #"MLP" => MLP_Regressor
     )
 )
