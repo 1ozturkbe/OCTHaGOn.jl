@@ -198,9 +198,24 @@ end
 
 add_tree_constraints!(gm::GlobalModel) = add_tree_constraints!(gm, gm.bbls)
 
-""" Computes the smallest possible big-M for a hyperplane split in a tree. """
-function compute_hyperplane_bigM(threshold::Real, α::Vector, var_bounds::Vector)
-    return maximum([abs(threshold), sum(maximum(abs.(α[i] .* var_bounds[i])) for i=1:length(α))])
+""" Computes the smallest possible big-M for a α'x ≥ threshold split in a tree. """
+function compute_hyperplane_bigM_lower(threshold::Real, α::Vector, var_bounds::Vector)
+    return threshold - sum(minimum(α[i] .* var_bounds[i]) for i=1:length(α))
+end
+
+""" Computes the smallest possible big-M for a α'x ≤ threshold split in a tree. """
+function compute_hyperplane_bigM_upper(threshold::Real, α::Vector, var_bounds::Vector)
+    return -threshold + sum(maximum(α[i] .* var_bounds[i]) for i=1:length(α))
+end
+
+""" Computes the smallest possible big-M for lower bounding regression in a tree leaf. """
+function compute_regression_bigM_lower(β0::Real, β::Vector, var_bounds::Vector, y_bounds::Vector)
+    return β0 + sum(maximum(β[i] .* var_bounds[i]) for i=1:length(β)) - minimum(y_bounds)
+end
+
+""" Computes the smallest possible big-M for upper bounding regression in a tree leaf. """
+function compute_regression_bigM_upper(β0::Real, β::Vector, var_bounds::Vector, y_bounds::Vector)
+    return -β0 - sum(minimum(β[i] .* var_bounds[i]) for i=1:length(β)) + maximum(y_bounds)
 end
 
 """
