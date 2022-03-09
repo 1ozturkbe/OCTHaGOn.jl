@@ -674,7 +674,7 @@ function test_oos()
     bin_vals = round.(JuMP.getvalue.(gm.model[:xx]))
     clear_tree_constraints!(gm)
     @test all(isapprox.(Array(gm.solution_history[1,:]), 
-                             Array(gm.solution_history[2,:]), rtol = 1e-3))
+                             Array(gm.solution_history[2,:]), rtol = 1e-2))
     @test count_constraints(gm) == init_constraints
 
     # NOTE: PGD may fail due to CPLEX issues. 

@@ -1,10 +1,3 @@
-function test_baron_solve(m::JuMP.Model = gear(false))
-    set_optimizer(m, BARON_SILENT)
-    optimize!(m)
-    sol = solution(m)
-    @test true
-end
-
 function test_speed_params(gm::GlobalModel = minlp(true), solver = OCTHaGOn.SOLVER_SILENT)
     set_optimizer(gm, solver)   
     bbl = gm.bbls[1]
@@ -172,8 +165,6 @@ function test_recipe()
     globalsolve_and_time!(gm)
     @test isapprox(gm.cost[end], 201; atol = 3)
 end
-
-test_baron_solve()
 
 test_speed_params()
 
