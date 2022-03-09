@@ -631,7 +631,7 @@ function test_linking()
     @test init_variables == count_variables(gm)
 
     # Trying the same with big-M constraints (BBC with equalities)
-    [bbl.bigM = true for bbl in gm.bbls]
+    set_bigM(gm, true)
     add_relaxation_variables!(gm)
     relax_objective!(gm)
     add_tree_constraints!(gm)
@@ -668,7 +668,7 @@ function test_oos()
     clear_tree_constraints!(gm)
     @test count_constraints(gm) == init_constraints
     @test count_variables(gm) == init_variables
-    [bbl.bigM = true for bbl in gm.bbls]
+    set_bigM(gm, true)
     add_tree_constraints!(gm)
     optimize!(gm)
     bin_vals = round.(JuMP.getvalue.(gm.model[:xx]))
@@ -771,4 +771,4 @@ test_convexcheck()
 
 test_linking()
 
-# test_oos()
+test_oos()

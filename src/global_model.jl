@@ -556,3 +556,11 @@ function print_details(gm::GlobalModel)
     end
     return
 end    
+
+""" Sets whether a BlackBoxLearner should be represented with big-M or big-M free constraints. """
+function set_bigM(bbl::BlackBoxLearner, b::Bool)
+    bbl.bigM = b
+    return
+end
+
+set_bigM(gm::GlobalModel, b::Bool) = set_bigM.(gm.bbls, b)

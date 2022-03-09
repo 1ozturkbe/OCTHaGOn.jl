@@ -116,6 +116,7 @@ module OCTHaGOn
         # Error computation
 
         # Constraint/variable generation/deletion
+        set_bigM,
         add_feas_constraints!, add_regr_constraints!,
         add_tree_constraints!, clear_tree_constraints!, update_tree_constraints!,
         clear_lower_constraints!, clear_upper_constraints!,
