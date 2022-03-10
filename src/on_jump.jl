@@ -341,3 +341,19 @@ function restrict_to_set(var::JuMP.VariableRef, s::Union{Set, Array})
     @constraint(var.model, var == sum(s .* int))
     return
 end
+
+""" Counts the number of constraints in an optimization model."""
+function count_constraints(model::JuMP.Model)
+    types = JuMP.list_of_constraint_types(model)
+    return sum(length(all_constraints(model, type[1], type[2])) for type in types)
+end
+
+""" Counts the number of constraint types in an optimization model."""
+function count_types(model::JuMP.Model)
+    return length(JuMP.list_of_constraint_types(model))
+end
+
+""" Counts the number of variables in an optimization model. """
+function count_variables(model::JuMP.Model)
+    return length(JuMP.all_variables(model))
+end

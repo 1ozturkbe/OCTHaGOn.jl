@@ -10,7 +10,6 @@ Pkg.activate("test")
 
 using DataFrames
 using JuMP
-using BARON
 using CPLEX
 using CSV
 # using Gurobi
@@ -23,7 +22,6 @@ using Random
 include("../src/OCTHaGOn.jl")
 using .OCTHaGOn
 global MOI = MathOptInterface
-global BARON_SILENT = with_optimizer(BARON.Optimizer, OutputFlag = 0)
 global SOLVER_SILENT = with_optimizer(CPLEX.Optimizer, CPX_PARAM_SCRIND = 0)
 # global GUROBI_SILENT = with_optimizer(Gurobi.Optimizer, OutputFlag = 0, Gurobi.Env())
 Random.seed!(1);
@@ -42,6 +40,8 @@ include(OCTHaGOn.DATA_DIR * "oos.jl")
 include(OCTHaGOn.DATA_DIR * "afpm.jl")
 
 include(OCTHaGOn.DATA_DIR * "polynomial.jl")
+
+include(OCTHaGOn.DATA_DIR * "foxes_and_rabbits.jl")
 
 include(OCTHaGOn.BARON_DIR * "gear.jl")
 

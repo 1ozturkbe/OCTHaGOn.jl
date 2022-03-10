@@ -68,15 +68,13 @@ function active_leaves(gm::GlobalModel)
 end
 
 """
-    JuMP.all_variables(bbo::Union{GlobalModel, BlackBoxLearner})
-    JuMP.all_variables(bbls::Array{BlackBoxLearner})
+    $(TYPEDSIGNATURES)
 
-Extends JuMP.all_variables to GlobalModels and BlackBoxLearners. 
-TODO: add ability to add variables to GlobalModels. 
+Extends JuMP.all_variables to GlobalModels and BlackBoxLearners, but only returns non-auxiliary variables
 """
-JuMP.all_variables(bbo::Union{GlobalModel, BlackBoxLearner}) = bbo.vars
+JuMP.all_variables(bbo::Union{GlobalModel, BlackBoxLearner, LinkedLearner}) = bbo.vars
 
-function JuMP.all_variables(bbls::Array{BlackBoxLearner})
+function JuMP.all_variables(bbls::Union{Array{BlackBoxLearner}, Array{LinkedLearner}})
     return unique(Iterators.flatten(([JuMP.all_variables(bbl) for bbl in bbls])))
 end
 
@@ -85,14 +83,25 @@ function JuMP.set_optimizer(gm::GlobalModel, optimizer_factory)
     JuMP.set_optimizer(gm.model, optimizer_factory)
 end
 
+count_types(gm::GlobalModel) = count_types(gm.model)
+count_variables(gm::GlobalModel) = count_variables(gm.model)
+count_constraints(gm::GlobalModel) = count_constraints(gm.model)
+
 """
     $(TYPEDSIGNATURES)
 
 Returns bounds of all variables.
 """
 function get_bounds(model::Union{GlobalModel, JuMP.Model, BlackBoxLearner, 
-                                 Array{BlackBoxLearner}})
+                                 Array{BlackBoxLearner}, LinkedLearner, 
+                                 Array{LinkedLearner}})
     return get_bounds(JuMP.all_variables(model))
+end
+
+""" Returns bounds of all variables, flattened in order of .vars attribute. """
+function flattened_bounds(bbc::Union{GlobalModel, BlackBoxLearner, LinkedLearner})
+    var_bounds = get_bounds(bbc)
+    return [var_bounds[var] for var in bbc.vars]
 end
 
 """
@@ -254,7 +263,11 @@ function add_linked_constraint(gm::GlobalModel, bbc::BlackBoxClassifier, vars::A
         clear_tree_constraints!(gm, bbc)
         @info "Cleared constraints from BBC $(bbc.name) since it was relinked."
     end
-    push!(bbc.lls, LinkedClassifier(vars = vars, equality = bbc.equality))
+    lc = LinkedClassifier(vars = vars, equality = bbc.equality)
+    var_bounds = flattened_bounds(bbc)
+    lc_var_bounds = flattened_bounds(lc)
+    all(minimum.(var_bounds) .<= minimum.(lc_var_bounds)) &&  all(maximum.(var_bounds) .>= maximum.(lc_var_bounds)) || throw(ErrorException("The LinkedClassifier must have a smaller variable range than the BlackBoxClassifier."))
+    push!(bbc.lls, lc)
     return
 end
 
@@ -266,8 +279,12 @@ function add_linked_constraint(gm::GlobalModel, bbr::BlackBoxRegressor, vars::Ar
         clear_tree_constraints!(gm, bbr)
         @info "Cleared constraints from BBR $(bbr.name) since it was relinked."
     end
-    push!(bbr.lls, LinkedRegressor(vars = vars, dependent_var = dependent_var, 
-                                   equality = bbr.equality))
+    lr = LinkedRegressor(vars = vars, dependent_var = dependent_var, 
+                                   equality = bbr.equality)
+    var_bounds = flattened_bounds(bbr)
+    lr_var_bounds = flattened_bounds(lr)
+    all(minimum.(var_bounds) .<= minimum.(lr_var_bounds)) &&  all(maximum.(var_bounds) .>= maximum.(lr_var_bounds)) || throw(ErrorException("The LinkedRegressor must have a smaller variable range than the BlackBoxRegressor."))
+    push!(bbr.lls, lr)
     return
 end
 
@@ -538,4 +555,12 @@ function print_details(gm::GlobalModel)
         @info "And a nonlinear objective."
     end
     return
+end    
+
+""" Sets whether a BlackBoxLearner should be represented with big-M or big-M free constraints. """
+function set_bigM(bbl::BlackBoxLearner, b::Bool)
+    bbl.bigM = b
+    return
 end
+
+set_bigM(gm::GlobalModel, b::Bool) = set_bigM.(gm.bbls, b)

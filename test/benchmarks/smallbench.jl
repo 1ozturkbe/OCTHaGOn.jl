@@ -1,3 +1,6 @@
+using BARON 
+BARON_SILENT = with_optimizer(BARON.Optimizer, OutputFlag = 0)
+
 # Loading BARON examples (that haven't been loaded yet)
 for i in ["nlp1.jl", "nlp2.jl", "nlp3.jl"]
     include(OCTHaGOn.BARON_DIR * i)
