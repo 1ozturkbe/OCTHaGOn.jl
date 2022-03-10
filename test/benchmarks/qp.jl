@@ -169,9 +169,9 @@ df_results = DataFrame()
 # Solve negative-definite QP with different 
 # number of variables (N) and different number 
 # of constraints (M)
-for algs in [["MLP"],["CART"],["SVM"],["GBM", "SVM", "CART"], ["GBM", "MLP"]]#["SVM"],["CART"], ["GBM", "SVM", "CART"], ["OCT"], ["GBM", "SVM", "CART", "OCT"]]
-    for N=[5, 10, 20, 30, 40, 50, 60, 70]
-        for M=[1, 5, 10, 15]
+for N=[5, 10, 20, 30, 40, 50, 60, 70]
+    for M=[1, 5, 10, 15]
+        for algs in [["MLP"],["CART"],["SVM"],["GBM"], ["GBM", "CART"], ["GBM", "SVM", "CART"], ["GBM", "CART", "MLP"], ["GBM", "SVM", "CART", "MLP"]]#["SVM"],["CART"], ["GBM", "SVM", "CART"], ["OCT"], ["GBM", "SVM", "CART", "OCT"]]
             try
                 algs = filter(x-> (x ∉ ["CART","OCT"]) || (!REGRESSION), algs)
                 if length(algs) == 0 continue end
@@ -191,6 +191,8 @@ for algs in [["MLP"],["CART"],["SVM"],["GBM", "SVM", "CART"], ["GBM", "MLP"]]#["
                 println("Error solving (N, M)=($(N),$(M))")
                 println(stacktrace(catch_backtrace()))
             end
+            #break
+            #print(df_results)
             #return;
         end
     end

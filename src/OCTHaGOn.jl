@@ -16,7 +16,8 @@ module OCTHaGOn
     using ProgressMeter
     using Random
     using Clustering
-    using NeuralNets
+    using Knet
+    using Statistics
     
     const PROJECT_ROOT = dirname(dirname(@__FILE__))
     const DATA_DIR = PROJECT_ROOT * "\\data\\"

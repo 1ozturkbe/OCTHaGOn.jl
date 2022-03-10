@@ -1,4 +1,36 @@
 
+function mse(y_pred,y_true; weights = nothing, squared = true, dims=1)
+    #_validate_distance_input(y_true, y_pred, weights)
+    result = (y_true .- y_pred) .^ 2
+    result = !squared ? sqrt.(result) : result
+    return weights == nothing ? mean(result) : mean(result .* weights)
+end
+
+function mas(y_pred,y_true; weights = nothing, squared = false, dims=1)
+    return mean(abs.(y_true .- y_pred))
+end
+
+loss = mse
+
+# Define dense layer:
+# Define the dense layer
+struct Dense; 
+    w; 
+    b; 
+    f; 
+end
+Dense(i::Int, o::Int, f = relu) = Dense(param(o, i), param0(o), f); # constructor
+(d::Dense)(x) = d.f.(d.w * x .+ d.b); # define method for dense layer
+
+
+# Define the chain layer
+struct MLP; 
+    layers::Array{Dense};
+    loss::Function;
+end
+(c::MLP)(x) = (for l in c.layers; x = l(x); end; x); # define method for feed-forward
+(c::MLP)(x, y) = c.loss(c(x), y); # define method for mse loss function
+
 
 @with_kw mutable struct MLP_Regressor <: AbstractRegressor
     # Arguments
@@ -19,24 +51,53 @@ end
 
 end
 
+
 """
 Used to fit an MLP regressor
 """
-function fit!(lnr::Union{MLP_Regressor, MLP_Classifier}, X::DataFrame, Y::Array; equality=false)
+function fit!(lnr::MLP_Regressor, X::DataFrame, Y::Array; equality=false)
 
-
+    # Convert dataframe to matrix 
     X = Matrix(X)
-    layer_sizes = [size(X,2), 100, 1]
+    
+    # Initialize model 
+    net = MLP(
+        [Dense(size(X, 2), 100), Dense(100, 1, identity)],
+        mse
+    );
+    lnr.mlp = net
+    
+    println(size(Y))
+    # Initialize training set 
+    dtrn = minibatch(Float32.(X)', Float32.(Y), 16)
 
-    act = Vector{Function}([relu,  logis])
-    actd = Vector{Function}([relud, logisd])
+    # Train for 100 epochs
+    adam!(lnr.mlp, repeat(dtrn, 100));
 
-    # initialize net
-    lnr.mlp = MLP(randn, layer_sizes, act, actd)
+end
 
-    #println(Matrix(Y'))
-    gdmtrain(lnr.mlp, Matrix(X'), Matrix(1*(Y .>= 0)'); batch_size=16,learning_rate=0.01,
-        momentum_rate=0.01,maxiter=20, show_trace=true);
+
+"""
+Used to fit an MLP regressor
+"""
+function fit!(lnr::MLP_Classifier, X::DataFrame, Y::Array; equality=false)
+
+
+    # Convert dataframe to matrix 
+    X = Matrix(X)
+    
+    # Initialize model 
+    net = MLP(
+        [Dense(size(X, 2), 100), Dense(100, 2, identity)],
+        nll
+    );
+    lnr.mlp = net
+    
+    # Initialize training set 
+    dtrn = minibatch(Float32.(X)', Int32.(1 .+ 1*(Y .>= 0)), 16)
+
+    # Train for 100 epochs
+    adam!(lnr.mlp, repeat(dtrn, 100));
 
 end
 
@@ -51,7 +112,10 @@ function predict(lnr::MLP_Classifier, X::DataFrame)
     end
 
     X = Matrix(Matrix(X)')
-    return 1*(prop(lnr.mlp, X) .>= 0.5)
+
+    yy = lnr.mlp(X)
+
+    return 1*(yy[2,:]-yy[1,:] .>= 0)
 end
 
 
@@ -65,7 +129,7 @@ function predict(lnr::MLP_Regressor, X::DataFrame)
     end
 
     X = Matrix(Matrix(X)')
-    return prop(lnr.mlp, X)
+    return lnr.mlp(X)
 end
 
 
@@ -119,13 +183,13 @@ function embed_mio!(lnr::MLP_Classifier, gm::GlobalModel, bbl::BlackBoxClassifie
     m[var_name] = @variable(m, base_name=string(var_name));
     y = m[var_name];
 
-    max_layers = length(mlp.net)
+    max_layers = length(mlp.layers)
 
 
-    for (i, layer) in enumerate(mlp.net)
+    for (i, layer) in enumerate(mlp.layers)
         W, b = layer.w, layer.b
         if i == max_layers
-            @constraint(m, y .== layer_input'*W[1, :] + b)
+            @constraint(m, y .== (W[2, :]'*layer_input + b[2])-(W[1, :]'*layer_input + b[1]))
         else 
             v_pos_list = []
             
@@ -177,13 +241,13 @@ function embed_mio!(lnr::MLP_Regressor, gm::GlobalModel, bbl::BlackBoxRegressor;
     m[var_name] = @variable(m, base_name=string(var_name));
     y = m[var_name];
 
-    max_layers = length(mlp.net)
+    max_layers = length(mlp.layers)
 
 
-    for (i, layer) in enumerate(mlp.net)
+    for (i, layer) in enumerate(mlp.layers)
         W, b = layer.w, layer.b
         if i == max_layers
-            @constraint(m, y .== layer_input'*W[1, :] + b)
+            @constraint(m, y .== layer_input'*W[1, :] + b[1])
         else 
             v_pos_list = []
             

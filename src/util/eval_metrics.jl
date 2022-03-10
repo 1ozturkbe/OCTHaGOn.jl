@@ -136,10 +136,16 @@ function accuracy(y_pred, y_true)
 end
 
 
+# function r2_score(y_pred, y_true)
+#     @assert length(y_true) == length(y_pred)
+#     ss_res = sum((y_true .- y_pred).^2)
+#     mean = sum(y_true) / length(y_true)
+#     ss_total = sum((y_true .- mean).^2)
+#     return 1 - ss_res/(ss_total + eps(eltype(y_pred)))
+# end
+
 function r2_score(y_pred, y_true)
-    @assert length(y_true) == length(y_pred)
-    ss_res = sum((y_true .- y_pred).^2)
-    mean = sum(y_true) / length(y_true)
-    ss_total = sum((y_true .- mean).^2)
-    return 1 - ss_res/(ss_total + eps(eltype(y_pred)))
+    SSres = sum( (y_true .- y_pred).^2 )
+    SStot = sum( (y_true .- mean(y_true)).^2 )
+    return 1-SSres/SStot
 end

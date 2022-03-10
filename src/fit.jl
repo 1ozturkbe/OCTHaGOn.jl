@@ -453,6 +453,10 @@ function learn_constraint!(bbr::BlackBoxRegressor, threshold::Pair = Pair("reg",
         algs = bbr.alg_list
     end
     
+    best_score = -Inf
+    best_alg_name = nothing
+    best_model = nothing
+
     for alg in algs 
         if bbr.convex && !bbr.equality
             return # If convex, don't train a tree!
@@ -484,6 +488,13 @@ function learn_constraint!(bbr::BlackBoxRegressor, threshold::Pair = Pair("reg",
             lnr = LEARNER_DICT["regression"][alg]()
 
             lnr, score = learn_from_data!(bbr.X, bbr.Y, lnr)
+
+            @info "Trained $(alg) with R2=$(score)"
+            if score >= best_score
+                best_alg_name = alg
+                best_score  = score
+                best_model = (lnr, score, args)
+            end
 
             push!(bbr.learners, lnr);
             push!(bbr.learner_kwargs, Dict(kwargs))

@@ -113,6 +113,6 @@ LEARNER_DICT = Dict(
         "CART" => base_cart_regressor,
         "SVM" => SVM_Regressor,
         "GBM" => GBM_Regressor,
-        #"MLP" => MLP_Regressor
+        "MLP" => MLP_Regressor
     )
 )
