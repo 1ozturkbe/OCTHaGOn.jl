@@ -122,6 +122,7 @@ module OCTHaGOn
         # Error computation
 
         # Constraint/variable generation/deletion
+        set_bigM,
         add_feas_constraints!, add_regr_constraints!,
         add_tree_constraints!, clear_tree_constraints!, update_tree_constraints!,
         clear_lower_constraints!, clear_upper_constraints!,
@@ -135,6 +136,8 @@ module OCTHaGOn
         add_infeasibility_cuts!, boundify, surveysolve,
         relax_objective!, tight_objective!,
         globalsolve!, globalsolve_and_time!, descend!,
+        compute_hyperplane_bigM_upper, compute_hyperplane_bigM_lower, 
+        compute_regression_bigM_lower, compute_regression_bigM_upper,
 
         # Checks and exceptions
         feasibility, check_accuracy, check_feasibility, 
@@ -150,11 +153,12 @@ module OCTHaGOn
         pwl_constraint_data, trust_region_data,
 
         # Functions on JuMP/MathOptInterface objects
-        fetch_variable, get_bounds, get_unbounds,
+        fetch_variable, get_bounds, get_unbounds, flattened_bounds,
         bounded_aux, 
         linearize_objective!, classify_constraints,
         bound!, restrict_to_set,
-        distance_to_set, get_constant, 
+        distance_to_set, get_constant,
+        count_constraints, count_variables, count_types,
 
         # Data manipulation
         data_to_DataFrame, data_to_Dict,

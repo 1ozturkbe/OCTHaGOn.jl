@@ -279,7 +279,6 @@ function test_bbr()
     end
     @test all(evaluate_accuracy.(bbcs) .>= 0.95)
 
-    
     # Threshold training
     learn_constraint!(bbr, "upper" => 20.)
     lnr = bbr.learners[end]
@@ -292,27 +291,22 @@ function test_bbr()
     @test bbr.thresholds[end] == ("upper" => 20.)
     
     # Check adding of upper bounding constraint to empty model
-    types = JuMP.list_of_constraint_types(gm.model)
-    init_constraints = sum(length(all_constraints(gm.model, type[1], type[2])) for type in types)
-    init_variables = length(all_variables(gm))
+    init_constraints = count_constraints(gm)
+    init_variables = count_variables(gm)
     add_tree_constraints!(gm, bbr)
     @test sort(union(feas_leaves, [1])) == sort(abs.(collect(keys(bbr.mi_constraints))))
     @test sort(abs.(collect(keys(bbr.leaf_variables)))) == sort(feas_leaves)
 
     # Checking that correct numbers of constraints and variables are added
-    types = JuMP.list_of_constraint_types(gm.model)
-    final_constraints = sum(length(all_constraints(gm.model, type[1], type[2])) for type in types)
-    final_variables = length(all_variables(gm.model))
+    final_constraints = count_constraints(gm.model)
+    final_variables = count_variables(gm.model)
     @test final_constraints == init_constraints + length(all_mi_constraints(bbr)) + length(bbr.leaf_variables)    
-    @test final_variables == init_variables + length(bbr.leaf_variables)*(length(bbr.vars) + 2) + 
-                                length(bbcs[1].leaf_variables)*(length(bbcs[1].vars) + 1) + 
-                                length(bbcs[2].leaf_variables)*(length(bbcs[2].vars) + 1)
-
+    @test final_variables == init_variables + length(bbr.leaf_variables)*(length(bbr.vars) + 2) 
+                                
     # Check clearing of all constraints and variables
     clear_tree_constraints!(gm, bbr)
-    types = JuMP.list_of_constraint_types(gm.model)
-    @test init_constraints == sum(length(all_constraints(gm.model, type[1], type[2])) for type in types)
-    @test init_variables == length(all_variables(gm))
+    @test init_constraints == count_constraints(gm.model)
+    @test init_variables == count_variables(gm.model)
     # Since all_variables(gm) doesn't count auxiliary variables...
     @test length(all_variables(gm.model)) == length(all_variables(gm)) +
         length(bbcs[1].leaf_variables)*(length(bbcs[1].vars) + 1) + 
@@ -604,86 +598,87 @@ function test_convexcheck()
     @test !gm.bbls[end].convex
 end
 
-# Fox and rabbit nonlinear population dynamics 
-# Predator prey model with logistic function from http://www.math.lsa.umich.edu/~rauch/256/F2Lab5.pdf
 function test_linking()
-    m = Model(SOLVER_SILENT)
-    t = 20
-    r = 0.2
-    x1 = 0.6
-    y1 = 0.5
-    @variable(m, x[1:t] >= 0.01) # Note: Ipopt solution does not converge with an upper bound!!
-    @variable(m, dx[1:t-1])
-    @variable(m, y[1:t] >= 0.01)
-    @variable(m, dy[1:t-1])
-    @constraint(m, x[1] == x1)
-    @constraint(m, y[1] == y1)
-    @constraint(m, [i=2:t], x[i] == x[i-1] + dx[i-1])
-    @constraint(m, [i=2:t], y[i] == y[i-1] + dy[i-1])
-
-    # NL dynamics solution using Ipopt
-    # @NLconstraint(m, [i=1:t-1], dx[i] == x[i]*(1-x[i]) - x[i]*y[i]/(x[i]+1/5))
-    # @NLconstraint(m, [i=1:t-1], dy[i] == r*y[i]*(1-y[i]/x[i]))
-
-    # GlobalModel representation
-    set_upper_bound.(x, 1)
-    set_upper_bound.(dx, 1)
-    set_lower_bound.(dx, -1)
-    set_upper_bound.(y, 1)
-    set_upper_bound.(dy, 1)
-    set_lower_bound.(dy, -1)
-    gm = GlobalModel(model = m, name = "foxes_rabbits")
-    add_nonlinear_constraint(gm, :((x, y, dx) -> dx[1] - (x[1]*(1-x[1]) -x[1]*y[1]/(x[1]+$(r)))), 
-                            vars = [x[1], y[1], dx[1]], equality=true)
-    add_nonlinear_constraint(gm, :((x, y, dy) -> dy[1] - $(r)*y[1]*(1-y[1]/x[1])), 
-                            vars = [x[1], y[1], dy[1]], equality=true)
-    for i = 2:t-1
-        add_linked_constraint(gm, gm.bbls[1], [x[i], y[i], dx[i]])
-        add_linked_constraint(gm, gm.bbls[2], [x[i], y[i], dy[i]])
-    end
-    init_constraints = sum(length(all_constraints(gm.model, type[1], type[2])) 
-        for type in JuMP.list_of_constraint_types(gm.model))
+    gm = foxes_and_rabbits()
+    init_constraints = count_constraints(gm)
+    init_variables = count_variables(gm)
     set_param(gm, :max_iterations, 20)
     set_param(gm, :tighttol, 1e-3)
     set_param(gm, :equality_penalty, 1e5)
     set_param(gm, :step_penalty, 1e4)
     add_relaxation_variables!(gm)
     relax_objective!(gm)
-    globalsolve!(gm)
-    @test true
+    uniform_sample_and_eval!(gm)
+    learn_constraint!(gm)
+    add_tree_constraints!(gm)
+    optimize!(gm)
     
     # # Plotting temporal population data (for visual debugging)
     # using Plots
     # plot(gm.soldict[:x], label = "Prey")
     # plot!(gm.soldict[:y], label = "Predators", xlabel = "Time", ylabel = "Normalized population")
     # # OR simultaneously in the population dimensions
-    # plot(gm.soldict[:x], gm.soldict[:y],
+    # plot!(gm.soldict[:x], gm.soldict[:y],
     #     xlabel = "Prey", ylabel = "Predators", 
-    #     label = 1:t, legend = false)
+    #     label = 1:20, legend = false)
 
-    # Checking constraint clearing
+    # Checking constraint generation
+    bbl_mic_count = length(all_mi_constraints(gm.bbls[1]))
+    @test all(bbl_mic_count .== length(all_mi_constraints(ll)) for ll in gm.bbls[1].lls)
     clear_tree_constraints!(gm)
     clear_relaxation_variables!(gm)
-    @test init_constraints == sum(length(all_constraints(gm.model, type[1], type[2])) 
-        for type in JuMP.list_of_constraint_types(gm.model))
+    @test init_constraints == count_constraints(gm)
+    @test init_variables == count_variables(gm)
+
+    # Trying the same with big-M constraints (BBC with equalities)
+    set_bigM(gm, true)
+    add_relaxation_variables!(gm)
+    relax_objective!(gm)
+    add_tree_constraints!(gm)
+    optimize!(gm)
+
+    @test sum(isapprox.(values(gm.solution_history[1,:]), 
+                        values(gm.solution_history[2,:]), rtol = 1e-1))/size(gm.solution_history, 2) >= 0.9
+
+    # Checking constraints generation for big-M
+    clear_tree_constraints!(gm)
+    clear_relaxation_variables!(gm)
+    @test init_constraints == count_constraints(gm)
+    @test init_variables == count_variables(gm)
 end
 
 function test_oos()
     op = oos_params()
     gm = oos_gm!()
     print_details(gm)
-    m = gm.model
+    init_variables = count_variables(gm)
+    init_constraints = count_constraints(gm)
     uniform_sample_and_eval!(gm)
     learn_constraint!(gm, max_depth=8)
+    for bbl in gm.bbls
+        add_tree_constraints!(gm, bbl)
+        clear_tree_constraints!(gm, bbl)
+        init_constraints ==  count_constraints(gm) ||
+            println("$(bbl.name)")
+    end
+    add_tree_constraints!(gm)
+    optimize!(gm)
+
+    # # Testing big-M formulation
+    clear_tree_constraints!(gm)
+    @test count_constraints(gm) == init_constraints
+    @test count_variables(gm) == init_variables
+    set_bigM(gm, true)
     add_tree_constraints!(gm)
     optimize!(gm)
     bin_vals = round.(JuMP.getvalue.(gm.model[:xx]))
-    unset_binary.(gm.model[:xx])
-    delete_lower_bound.(gm.model[:xx])
-    delete_upper_bound.(gm.model[:xx])
-    fix.(gm.model[:xx], bin_vals)
     clear_tree_constraints!(gm)
+    @test all(isapprox.(Array(gm.solution_history[1,:]), 
+                             Array(gm.solution_history[2,:]), rtol = 1e-2))
+    @test count_constraints(gm) == init_constraints
+
     # NOTE: PGD may fail due to CPLEX issues. 
+    fix.(gm.model[:xx], bin_vals, force = true)
     descend!(gm, max_iterations = 2, tighttol = 1e-5, step_penalty = 1e8, equality_penalty = 1e6)
 
     # Post-processing
@@ -733,11 +728,15 @@ function test_oos()
     # bar_plots = plot(bar1, bar2, bar3, layout = (1,3))
     # @show bar_plots
 
+    # Trying Ipopt's hand (doesn't work)
+    # using Ipopt
     # m = oos_gm!()
     # JuMP.unset_binary.(m.model[:xx])
-    # @constraint(m.model, m.model[:sat_order] .== [5,6,7,1,2,3,4])
+    # @constraint(m.model, m.model[:sat_order] .==  [4, 3, 2, 1, 7, 6, 5])
     # nonlinearize!(m)
+    # uniform_sample_and_eval!(m)
     # set_optimizer(m, Ipopt.Optimizer)
+    # optimize!(m)
 end
 
 test_expressions()
