@@ -226,11 +226,19 @@ function oos_baron!(op = oos_params())
     @variable(m, dmass_exit_bin[i=1:n-1, j=1:2], Bin)
     @constraint(m, [i=1:n-1], sum(dmass_exit_bin[i, :]) == 1)
 
-    @NLconstraint(m, [i = 1:n-1], dmass_entry[i] == dmass_entry_bin[i,1] * exp(1/(op.g*op.Isp) * (op.mu*r_orbit[i]^(-1))^0.5*((2 * op.r_sat*(op.r_sat + r_orbit[i])^(-1))^0.5-1)) + dmass_exit_bin[i, 2] * exp(1/(op.g*op.Isp) * (op.mu*op.r_sat^(-1))^0.5*((2 * r_orbit[i]*(op.r_sat + r_orbit[i])^(-1))^0.5-1)))
+    # Upper bounding dmass_entry (big-M)
+    @NLconstraint(m, [i = 1:n-1], dmass_entry[i] <= 2*(1-dmass_entry_bin[i, 1]) + exp(1/(op.g*op.Isp) * (op.mu*r_orbit[i]^(-1))^0.5*((2 * op.r_sat*(op.r_sat + r_orbit[i])^(-1))^0.5-1)))
+    @NLconstraint(m, [i = 1:n-1], dmass_entry[i] <= 2*(1-dmass_entry_bin[i, 2]) + exp(1/(op.g*op.Isp) * (op.mu*op.r_sat^(-1))^0.5*((2 * r_orbit[i]*(op.r_sat + r_orbit[i])^(-1))^0.5-1)))
+
+    # Lower bounding dmass_entry
     @NLconstraint(m, [i = 1:n-1], dmass_entry[i] >= exp(1/(op.g*op.Isp) * (op.mu*r_orbit[i]^(-1))^0.5*((2 * op.r_sat*(op.r_sat + r_orbit[i])^(-1))^0.5-1)))
     @NLconstraint(m, [i = 1:n-1], dmass_entry[i] >= exp(1/(op.g*op.Isp) * (op.mu/op.r_sat)^0.5*((2 * r_orbit[i]*(op.r_sat + r_orbit[i])^(-1))^0.5-1)))
 
-    @NLconstraint(m, [i = 1:n-1], dmass_exit[i] == dmass_exit_bin[i,1] * exp(1/(op.g*op.Isp) * (op.mu*op.r_sat^(-1))^0.5*(1 - (2 * r_orbit[i]*(op.r_sat + r_orbit[i])^(-1))^0.5)) + dmass_exit_bin[i, 2] * exp(1/(op.g*op.Isp) * (op.mu*r_orbit[i]^(-1))^0.5*(1 - (2 * op.r_sat*(op.r_sat + r_orbit[i])^(-1))^0.5)))
+    # Upper bounding dmass_exit (big-M)
+    @NLconstraint(m, [i = 1:n-1], dmass_exit[i] <= 2*(1 - dmass_exit_bin[i,1]) + exp(1/(op.g*op.Isp) * (op.mu*op.r_sat^(-1))^0.5*(1 - (2 * r_orbit[i]*(op.r_sat + r_orbit[i])^(-1))^0.5)))
+    @NLconstraint(m, [i = 1:n-1], dmass_exit[i] <= 2*(1 - dmass_exit_bin[i,2]) + exp(1/(op.g*op.Isp) * (op.mu*r_orbit[i]^(-1))^0.5*(1 - (2 * op.r_sat*(op.r_sat + r_orbit[i])^(-1))^0.5)))
+
+    # Lower bounding dmass_exit
     @NLconstraint(m, [i = 1:n-1], dmass_exit[i] >= exp(1/(op.g*op.Isp) * (op.mu/op.r_sat)^0.5*(1 - (2 * r_orbit[i]*(op.r_sat + r_orbit[i])^(-1))^(0.5))))
     @NLconstraint(m, [i = 1:n-1], dmass_exit[i] >= exp(1/(op.g*op.Isp) * (op.mu*r_orbit[i]^(-1))^0.5*(1 - (2 * op.r_sat*(op.r_sat + r_orbit[i])^(-1))^0.5)))
 
@@ -251,3 +259,7 @@ function oos_baron!(op = oos_params())
 
     return m
 end
+
+# m = oos_baron!()
+# set_optimizer(m, BARON.Optimizer)
+# optimize!(m)
