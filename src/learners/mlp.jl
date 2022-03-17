@@ -134,7 +134,7 @@ end
 
 
 """
-Evaluate using MLP in regression task
+Evaluate using MLP in classification task
 """
 function evaluate(lnr::MLP_Classifier, X::DataFrame, Y::Array)
     

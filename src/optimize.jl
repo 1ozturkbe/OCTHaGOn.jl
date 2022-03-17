@@ -410,11 +410,11 @@ function descend!(gm::GlobalModel; kwargs...)
 end
 
 """ Complete solution procedure for GlobalModel. """
-function globalsolve!(gm::GlobalModel; repair=true)
+function globalsolve!(gm::GlobalModel; repair=true, opt_sampling=false)
     @info "GlobalModel " * gm.name * " solution in progress..."
     for bbl in gm.bbls
         if !is_sampled(bbl)
-            uniform_sample_and_eval!(bbl)
+            uniform_sample_and_eval!(bbl; opt_sampling=opt_sampling, gm=gm)
         end
     end
     set_param(gm, :ignore_accuracy, true)

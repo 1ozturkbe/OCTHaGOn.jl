@@ -6,6 +6,7 @@ using LinearAlgebra, Random, BARON, Pkg, Dates
 EQUALITIES = false
 REGRESSION = false
 REPAIR = true 
+OPT_SAMPLING = false
 
 #algs = ["SVM", "CART", "GBM"]#, "CART", "OCT"
 
@@ -21,6 +22,7 @@ function create_negative_definite_matrix(N)
     
     return Q
 end
+
 
 """
 Creates a non-convex QP model with different numbers of variables/constraints.
@@ -61,9 +63,13 @@ function create_noncvx_qp_models(n_vars, n_constr, algs, linear_objective=true; 
             is_objective=true
         )
         
+        #hashes = Set([])
+
         # Add constraints
         for constr in constr_expr
             OCTHaGOn.add_nonlinear_constraint(gm, constr, vars=x[1:N], expr_vars=[x[1:N]], alg_list=algs, equality=EQUALITIES, regression=REGRESSION)
+            #constr_hash = bytes2hex(sha1("$(repr(constr))$(EQUALITIES)"))
+            #push!(hashes, constr_hash)
         end
         
         OCTHaGOn.set_param(gm, :ignore_accuracy, true)
@@ -112,7 +118,6 @@ function create_noncvx_qp_models(n_vars, n_constr, algs, linear_objective=true; 
         push!(constr_expr, expr)
         push!(tmp, (Q, c))
     end
-    
     #return obj_expr
     return create_gm_model(obj_expr, constr_expr), create_baron_model(obj_expr, constr_expr)
 end
@@ -120,20 +125,50 @@ end
 function solve_and_benchmark(gm, gb, df_results, N, M, algs)
     
     local function solve_gm()
-        OCTHaGOn.globalsolve!(gm; repair=REPAIR)
+        OCTHaGOn.globalsolve!(gm; repair=REPAIR, opt_sampling=OPT_SAMPLING)
         x = gm.soldict[:x][1:N]
         return gm.cost[end], x
     end
     
-    local function solve_baron()
-        optimize!(gb)
-        x_ref = [JuMP.variable_by_name(gb, "x[$(i)]") for i=1:N]
-        x = value.(x_ref)
-        return JuMP.objective_value(gb), x
+    local function solve_baron(gm_hash)
+
+        baron_output_path = "dump/qp/baron/baron2.csv"
+
+        try
+            df = DataFrame(CSV.File(baron_output_path))
+        catch 
+            df = DataFrame()
+        end
+
+        d = Dict(row["hash"] => row["obj"] for row in eachrow(df))
+
+        obj = nothing
+        x = nothing
+        # If the same problem has been solved by baron,
+        # load the results from file
+        if haskey(d, gm_hash)
+            obj = d[gm_hash]
+            println("Loading baron solution from file")
+        else
+            optimize!(gb)
+            x_ref = [JuMP.variable_by_name(gb, "x[$(i)]") for i=1:N]
+            x = value.(x_ref)
+            obj = JuMP.objective_value(gb)
+
+            df = append!(df, DataFrame("obj" => obj, "hash" => gm_hash))
+            try
+                CSV.write(baron_output_path, df)
+            catch
+                println("Couldn't write to CSV1")
+            end 
+        end
+        obj, x
     end
-    
+    #println("Calculating hash")
+    gm_hash = OCTHaGOn.calculate_hash(gm)
+
     ts = time()
-    baron_obj, xb = solve_baron()
+    baron_obj, xb = solve_baron(gm_hash)
     baron_time = time()-ts
     println("Baron solution: $(baron_obj)")
 
@@ -142,7 +177,6 @@ function solve_and_benchmark(gm, gb, df_results, N, M, algs)
     gm_time = time()-ts
     
 
-    
     df_tmp = DataFrame(
         "n" => N,
         "m" => M,
@@ -165,6 +199,9 @@ Base.Filesystem.mkpath(output_path)
 suffix = Dates.format(Dates.now(), "YY-mm-dd_HH-MM-SS")
 
 df_results = DataFrame()
+
+# gm, gb = create_noncvx_qp_models(5, 1, ["SVM"];seed=1)
+# solve_and_benchmark(gm, gb, df_results, 5, 1, ["SVM"])
 
 # Solve negative-definite QP with different 
 # number of variables (N) and different number 

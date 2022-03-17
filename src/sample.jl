@@ -140,7 +140,7 @@ Keyword arguments:
 """
 function uniform_sample_and_eval!(bbl::BlackBoxLearner;
                           boundary_fraction::Float64 = 0.5,
-                          lh_iterations::Int64 = 0, sample_density = 1.e-5)
+                          lh_iterations::Int64 = 0, sample_density = 1.e-5, opt_sampling::Bool=false, gm::Union{GlobalModel,Nothing}=nothing)
     @assert size(bbl.X, 1) == 0 # TODO: fix this w.r.t. data-driven constraints. 
     vks = string.(bbl.vars)
     n_dims = length(vks);
@@ -149,6 +149,16 @@ function uniform_sample_and_eval!(bbl::BlackBoxLearner;
     eval!(bbl, df)
     df = lh_sample(bbl, lh_iterations = lh_iterations, n_samples = get_param(bbl, :n_samples) - size(df, 1))
     eval!(bbl, df);
+
+    bbl.max_Y = maximum(filter(!isinf, bbl.Y))
+    bbl.min_Y = minimum(filter(!isinf, bbl.Y))
+    
+    if opt_sampling
+        @info("Starting opt sampling. Samples before $(length(bbl.Y))")
+        opt_sample(gm, bbl)
+        @info("Samples after $(length(bbl.Y))")
+    end
+
     if bbl isa BlackBoxClassifier
         if bbl.feas_ratio == 1.0
             @info(string(bbl.name) * " was not KNN sampled since it has no infeasible samples.")
@@ -338,3 +348,336 @@ function upper_bound_sample(bbr::BlackBoxRegressor)
     return
 end
 
+
+function opt_sample(gm::GlobalModel, bbl::BlackBoxLearner)
+
+    # Cluster already sampled points 
+    Xc = kmeans(Matrix(bbl.X)', length(bbl.vars)).centers';
+    id_map = Dict(string(c) => i for (i,c) in enumerate(bbl.vars));
+    #bbl_id = filter(x-> x[2] == bbl, [(i, bbl) for (i, bbl) in enumerate(gm.bbls)])[1][1]
+    
+    
+    # for bb in gm.bbls 
+    #     push!(Xo, deepcopy(bbl.X))
+    #     push!(Yo, deepcopy(bbl.Y))
+    #     push!(Fg, deepcopy(bbl.feas_gap))
+    #     push!(G, deepcopy(bbl.soldict))
+    # end
+
+    # For every cluster, call the optimization sampling method
+    for i in 1:size(Xc, 1)
+        #bbl_old = deepcopy(bbl)
+        #Xo, Yo, Fg, G = deepcopy(bbl.X), deepcopy(bbl.Y), deepcopy(bbl.feas_gap), deepcopy(bbl.gradients)
+        Xo, Yo, Fg, G = [], [], [], []
+        for bb in gm.bbls 
+            push!(Xo, deepcopy(bb.X))
+            push!(Yo, deepcopy(bb.Y))
+            push!(Fg, deepcopy(bb.feas_gap))
+            push!(G, deepcopy(bb.gradients))
+        end
+
+        Sh, Cs, Sd = deepcopy(gm.solution_history), deepcopy(gm.cost), deepcopy(gm.soldict)
+
+        #println("Clustering iteration $(i)")
+        x0 = DataFrame(Dict(string(p[1]) => rand(Uniform(p[2][1], p[2][2])) for p in OCTHaGOn.get_bounds(gm)))
+        for col in names(x0)
+            if haskey(id_map, col)
+                x0[1, col] = Xc[i, id_map[col]]
+            end
+        end
+        try
+            old_points = length(bbl.Y)
+            X_s = opt_sample_helper(gm, bbl, x0)
+
+            for (i, bb) in enumerate(gm.bbls)
+                bb.X, bb.Y, bb.feas_gap, bb.gradients = Xo[i], Yo[i], Fg[i], G[i]
+            end
+            gm.solution_history, gm.cost, gm.soldict = Sh, Cs, Sd
+            eval!(bbl, X_s)
+            new_points = length(bbl.Y)
+            #@info("Cluster $(i): $(new_points-old_points) new points")
+        catch 
+            #@info("Skipping cluster $(i)")
+            for (i, bb) in enumerate(gm.bbls)
+                bb.X, bb.Y, bb.feas_gap, bb.gradients = Xo[i], Yo[i], Fg[i], G[i]
+            end
+            gm.solution_history, gm.cost, gm.soldict = Sh, Cs, Sd
+        end
+    end
+end 
+
+"""
+Samples close to the constraint boundary using optimization.
+The sampling is done only on feasible points
+"""
+function opt_sample_helper(gmo::GlobalModel, bblo::BlackBoxLearner, xstart::DataFrame; max_iterations=50, kwargs...)
+    
+    # bbl_id = filter(x-> x[2] == bblo, [(i, bbl) for (i, bbl) in enumerate(gmo.bbls)])[1][1]
+    bbl_id = nothing 
+    for (i, bbl) in enumerate(gmo.bbls)
+        if bbl == bblo 
+            bbl_id = i
+        end
+    end
+
+    #gm = deepcopy(gmo)
+    gm = gmo
+    # Initialization
+    clear_tree_constraints!(gm) 
+    bbls = gm.bbls
+    vars = gm.vars
+    bounds = get_bounds(vars)
+
+    #gm.solution_history = DataFrames()
+
+    new_samples = DataFrame()
+
+    # Update descent algorithm parameters
+    if !isempty(kwargs) 
+        for item in kwargs
+            set_param(gm, item.first, item.second)
+        end
+    end
+
+    # Checking for a nonlinear objective
+    obj_bbl = gm.bbls[bbl_id]
+#     if gm.objective isa VariableRef
+#         obj_bbl = filter(x -> x.dependent_var == gm.objective, 
+#                             [bbl for bbl in gm.bbls if bbl isa BlackBoxRegressor])
+#         if isempty(obj_bbl)
+#             obj_bbl = nothing
+#         elseif length(obj_bbl) == 1
+#             obj_bbl = obj_bbl[1]
+#             vars = [var for var in vars if var != obj_bbl.dependent_var]
+#             bbls = [bbl for bbl in gm.bbls if bbl != obj_bbl]
+#         elseif length(obj_bbl) > 1
+#             throw(OCTHaGOnException("GlobaModel $(gm.name) has more than one BlackBoxRegressor" *
+#                                " on the objective variable."))
+#         end
+#     end 
+
+    grad_shell = DataFrame(string.(vars) .=> [Float64[] for i=1:length(vars)])
+
+    # Add relaxation variables
+    add_relaxation_variables!(gm)
+
+    # Final checks
+    obj_gradient = copy(grad_shell)
+#     if isnothing(obj_bbl)
+#         if gm.objective isa VariableRef
+#             append!(obj_gradient, DataFrame(string.(gm.objective) => 1), cols = :subset)
+#         elseif gm.objective isa JuMP.GenericAffExpr
+#             append!(obj_gradient, DataFrame(Dict(string(key) => value for (key,value) in gm.objective.terms)), cols = :subset)
+#         else
+#             @warn "Type of objective $(gm.objective) is unsupported."
+#         end
+#         obj_gradient = coalesce.(obj_gradient, 0)
+#     end
+    if isempty(obj_gradient)
+        obj_gradient = DataFrame(string.(vars) .=> zeros(length(vars)))
+    end
+
+    # x0 initialization, and actual objective computation
+    #x0 = DataFrame(gm.solution_history[end, :])
+    x0 = xstart
+    sol_vals = x0[:,string.(vars)]
+    if !isnothing(obj_bbl)
+        actual_cost = obj_bbl(x0)
+        push!(gm.cost, actual_cost[1])
+        x0[:, string(gm.objective)] = actual_cost
+        sol_vals = x0[:,string.(vars)]
+        feas_gap(gm, x0) # Checking feasibility gaps with updated objective
+        append!(gm.solution_history, x0) # Pushing last solution
+    end
+
+    # Descent direction, counting and book-keeping
+    d = @variable(gm.model, [1:length(vars)])
+    var_diff = []
+    max_diff = 0
+    for key in vars
+        push!(var_diff, maximum(bounds[key]) - minimum(bounds[key]))
+        if !isinf(var_diff[end])
+            max_diff = maximum([var_diff[end], max_diff])
+        end
+    end
+    if any(isinf.(var_diff))
+        @warn "Unbounded variables detected. " *
+              "PGD may fail to converge to a local minimum."
+        replace!(var_diff, Inf => max_diff)
+    end
+    replace!(var_diff, 0 => 1) # Sanitizing fixed values. 
+
+    ct = 0
+    d_improv = 1e5
+    prev_feas = false
+    feas = is_feasible(gm)
+    abstol = get_param(gm, :abstol)
+    tighttol = get_param(gm, :tighttol)
+    #max_iterations = get_param(gm, :max_iterations)
+    step_penalty = get_param(gm, :step_penalty)
+    equality_penalty = get_param(gm, :equality_penalty)
+    step_size = get_param(gm, :step_size) 
+    decay_rate = get_param(gm, :decay_rate)
+
+    # WHILE LOOP
+    # @info("Starting projected gradient descent...")
+    while (!feas || !prev_feas ||
+        (prev_feas && feas && d_improv >= get_param(gm, :abstol)) ||
+        ct == 0) && ct < max_iterations
+        prev_obj = gm.cost[end]
+        constrs = []
+        ct += 1
+        if step_penalty == 0
+            step_penalty = maximum([1e3, 1e4*abs(prev_obj)])
+        end
+        if equality_penalty == 0
+            equality_penalty = 100*step_penalty
+        end
+    
+        # Linear objective gradient and constraints
+        if !isnothing(obj_bbl)
+            update_gradients(obj_bbl, [length(obj_bbl.Y)])
+            obj_gradient = copy(grad_shell)
+            append!(obj_gradient, 
+                DataFrame(obj_bbl.gradients[end,:]), cols = :subset) 
+            obj_gradient = coalesce.(obj_gradient, 0)
+            # Update objective constraints
+            # push!(constrs, @constraint(gm.model, sum(Array(obj_gradient[end,:]) .* d) + 
+            #                   obj_bbl.dependent_var >= obj_bbl.Y[end]))
+        end
+
+        # Constraint evaluation
+        errors = 0
+        for bbl in bbls
+            update_gradients(bbl, [length(bbl.Y)])
+            constr_gradient = copy(grad_shell)
+            append!(constr_gradient, DataFrame(bbl.gradients[end,:]), cols = :subset)
+            constr_gradient = coalesce.(constr_gradient, 0)
+            if bbl isa BlackBoxClassifier
+                error_diff = maximum([tighttol, abs(bbl.Y[end])])
+                if bbl.equality
+                    push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + bbl.Y[end] + error_diff * bbl.relax_var >= 0))
+                    push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + bbl.Y[end] <= error_diff * bbl.relax_var))
+                    push!(constrs, @constraint(gm.model, bbl.relax_var <= 1))
+                    errors += bbl.relax_var^2
+                elseif !is_feasible(bbl) || (is_feasible(bbl) && bbl.feas_gap[end] <= 0)
+                    push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + bbl.Y[end] + error_diff * bbl.relax_var >= 0))
+                    push!(constrs, @constraint(gm.model, bbl.relax_var <= 1))
+                    errors += bbl.relax_var^2
+                else # feasible to zero tolerance
+                    push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + bbl.Y[end] >= 0))
+                end
+            elseif bbl isa BlackBoxRegressor
+
+                if isnothing(bbl.dependent_var)
+                    error_diff = maximum([tighttol, abs(bbl.optima[end] - bbl.actuals[end])])
+                    if bbl.equality
+                        push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + error_diff * bbl.relax_var >= bbl.Y[end]))
+                        push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) <= bbl.Y[end] + error_diff * bbl.relax_var))
+                        push!(constrs, @constraint(gm.model, bbl.relax_var <= 1))
+                        errors += bbl.relax_var^2
+                    elseif !is_feasible(bbl) || (is_feasible(bbl) && bbl.feas_gap[end] <= 0)
+                        push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + bbl.Y[end] + error_diff * bbl.relax_var >= 0))
+                        push!(constrs, @constraint(gm.model, bbl.relax_var <= 1))
+                        errors += bbl.relax_var^2
+                    else # feasible to zero tolerance
+                        push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) >= bbl.Y[end]))
+                    end
+                else
+                    error_diff = maximum([tighttol, abs(bbl.optima[end] - bbl.actuals[end])])
+                    if bbl.equality
+                        push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + bbl.dependent_var + error_diff * bbl.relax_var >= bbl.Y[end]))
+                        push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + bbl.dependent_var <= bbl.Y[end] + error_diff * bbl.relax_var))
+                        push!(constrs, @constraint(gm.model, bbl.relax_var <= 1))
+                        errors += bbl.relax_var^2
+                    elseif !is_feasible(bbl) || (is_feasible(bbl) && bbl.feas_gap[end] <= 0)
+                        push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d)  + bbl.Y[end] + error_diff * bbl.relax_var >= 0))
+                        push!(constrs, @constraint(gm.model, bbl.relax_var <= 1))
+                        errors += bbl.relax_var^2
+                    else # feasible to zero tolerance
+                        push!(constrs, @constraint(gm.model, sum(Array(constr_gradient[end,:]) .* d) + bbl.dependent_var >= bbl.Y[end]))
+                    end
+                end
+            end
+        end
+
+        # Initializing descent direction
+        push!(constrs, @constraint(gm.model, d .== vars .- Array(sol_vals[end,:])))
+        if feas # Small gradient step
+            push!(constrs, @constraint(gm.model, sum((d ./ var_diff).^2) <= 
+                step_size/exp(decay_rate*(ct-1)/max_iterations)))
+            @objective(gm.model, Min, sum(Array(obj_gradient[end,:]) .* d) + equality_penalty*errors)
+        else    # Projection step
+            @objective(gm.model, Min, sum(Array(obj_gradient[end,:]) .* d) + step_penalty*sum((d ./ var_diff).^2) + equality_penalty*errors)
+        end
+
+        # Optimizing the step, and finding next x0
+        optimize!(gm.model)
+
+        try
+            x0 = DataFrame(string.(vars) .=> getvalue.(vars))
+            if !isnothing(obj_bbl)
+                tmp = obj_bbl(x0)
+                x0[!, string(gm.objective)] = tmp
+                # println(tmp)
+            end
+            sol_vals = x0[:,string.(vars)]
+            feas_gap(gm, x0)
+            append!(gm.solution_history, x0)
+
+            # Measuring improvements
+            if !isnothing(obj_bbl)
+                push!(gm.cost, gm.solution_history[end, string(gm.objective)])
+            else
+                push!(gm.cost,  JuMP.getvalue(gm.objective))
+            end
+            d_improv = gm.cost[end-1] - gm.cost[end]
+
+            # Feasibility check
+            prev_feas = feas
+            feas = is_feasible(gm)
+
+            if feas
+                append!(new_samples, x0)
+            end
+
+            # Saving solution dict for JuMP-style recovery.
+            # TODO: do not regenerate soldict unless final solution. 
+            gm.soldict = Dict(key => JuMP.getvalue.(gm.model[key]) for (key, value) in gm.model.obj_dict)
+            for con in constrs
+                delete(gm.model, con)
+            end
+        catch
+            for con in constrs
+                delete(gm.model, con)
+            end
+            break
+        end
+    end
+
+    fincost = round(gm.cost[end], digits = -Int(round(log10(abstol))))
+    # Termination criteria
+    # if ct >= max_iterations
+    #     @info "Max iterations ($(ct)) reached."
+    #     if prev_feas && feas
+    #         @info "Solution is not converged to tolerance $(abstol)!" 
+    #     elseif (feas && !prev_feas) && (abs(d_improv) <= 100*abstol)
+    #         @info "Solution is feasible and likely cycling, but the solution is close. Reduce step size and descend again. "
+    #     elseif (!feas && prev_feas) && (abs(d_improv) <= 100*abstol)
+    #         @info "Solution is infeasible and likely cycling, but the solution is close. Reduce step size and descend again. "
+    #     elseif ((feas && !prev_feas) || (prev_feas && !feas))
+    #         @info "Solution is likely cycling, with > $(abstol) changes in cost. Reduce step size and descend again."
+    #     elseif !feas && !prev_feas
+    #         @info "Solution is infeasible to tolerance $(tighttol)."
+    #     end
+    #     @info("Final cost is $(fincost).")
+    # else 
+    #     @info("PGD converged in $(ct) iterations!")
+    #     @info("The optimal cost is $(fincost).")
+    # end
+
+    # Reverting objective, and deleting vars
+    @objective(gm.model, Min, gm.objective)
+    delete(gm.model, d)
+    return new_samples
+end

@@ -18,6 +18,8 @@ module OCTHaGOn
     using Clustering
     using Knet
     using Statistics
+    using SHA
+    using Distributions
     
     const PROJECT_ROOT = dirname(dirname(@__FILE__))
     const DATA_DIR = PROJECT_ROOT * "\\data\\"
@@ -25,7 +27,7 @@ module OCTHaGOn
     const GAMS_DIR = PROJECT_ROOT * "\\data\\gams\\"  
     const SOL_DIR = PROJECT_ROOT * "\\data\\solutions\\"
     const TREE_DIR = PROJECT_ROOT * "\\data\\trees\\"
-    const CPLEX_SILENT = with_optimizer(CPLEX.Optimizer, CPX_PARAM_SCRIND = 0)
+    const CPLEX_SILENT = with_optimizer(CPLEX.Optimizer, CPX_PARAM_SCRIND = 0, CPX_PARAM_TILIM = 300)
 
     const valid_lowers = ["reg", "lower", "upperlower"]
     const valid_uppers = ["reg", "upper", "upperlower"]
@@ -110,6 +112,7 @@ module OCTHaGOn
         uniform_sample_and_eval!, knn_sample, 
         build_knn_tree,
         find_knn, classify_patches,
+        opt_sample,opt_sample_helper,
 
         # Evaluation
         evaluate, evaluate_gradient, update_gradients,
@@ -155,6 +158,10 @@ module OCTHaGOn
 
         # HELPERS
         roc_auc_score,
+
+        # Calculate hash 
+        calculate_hash,
+
         # IAI helpers, 
         pwl_constraint_data, trust_region_data,
 
