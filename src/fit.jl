@@ -423,7 +423,7 @@ function learn_constraint!(bbc::BlackBoxClassifier, algs::Union{Nothing, Array{S
                 args = kwargs
             end
             
-            @info "Trained $(alg) with AUC=$(score)"
+            @info "Trained $(alg) with ACCURACY=$(score)"
             if score >= best_score
                 best_alg_name = alg
                 best_score  = score
@@ -435,7 +435,7 @@ function learn_constraint!(bbc::BlackBoxClassifier, algs::Union{Nothing, Array{S
     end
 
     lnr, score, args = best_model
-    @info "Best model: $(best_alg_name) with AUC=$(score)"
+    @info "Best model: $(best_alg_name) with ACCURACY=$(score)"
     
     push!(bbc.learners, lnr)
     push!(bbc.accuracies, score) # TODO: add ability to specify criterion. 
@@ -461,28 +461,30 @@ function learn_constraint!(bbr::BlackBoxRegressor, threshold::Pair = Pair("reg",
         if bbr.convex && !bbr.equality
             return # If convex, don't train a tree!
         elseif threshold.first in classifications
-            error("Cannot use classification in regressor")
-            # lnr = base_classifier()
-            # IAI.set_params!(lnr; minbucket = 
-            #     maximum([2*length(bbr.vars)/length(bbr.Y), lnr.minbucket]), 
-            #     classifier_kwargs(; kwargs...)...)
-            # ul_data = Dict()
-            # if threshold.first == "upper" # Upper bounding classifier with upper bounds in leaves
-            #     lnr = learn_from_data!(bbr.X, bbr.Y .<= threshold.second, lnr; fit_classifier_kwargs(; kwargs...)...)
-            #     merge!(ul_data, boundify(lnr, bbr.X, bbr.Y, "upper"))
-            # elseif threshold.first == "lower" # Lower bounding classifier with lower bounds in leaves
-            #     lnr = learn_from_data!(bbr.X, bbr.Y .>= threshold.second, lnr; fit_classifier_kwargs(; kwargs...)...)
-            #     merge!(ul_data, boundify(lnr, bbr.X, bbr.Y, "lower"))
-            # elseif threshold.first == "upperlower" # Upper bounding classifier with bounds in each leaf
-            #     lnr = learn_from_data!(bbr.X, bbr.Y .<= threshold.second, lnr; fit_classifier_kwargs(; kwargs...)...)
-            #     merge!(ul_data, boundify(lnr, bbr.X, bbr.Y, "lower"))
-            #     merge!(ul_data, boundify(lnr, bbr.X, bbr.Y, "upper"))
-            # end
-            # push!(bbr.learners, lnr);
-            # push!(bbr.learner_kwargs, Dict(kwargs))
-            # push!(bbr.thresholds, threshold)
-            # push!(bbr.ul_data, ul_data)
-            # push!(bbr.accuracies, IAI.score(lnr, bbr.X, bbr.Y .>= 0))
+            if alg != "OCT" && alg != "CART"
+                @warn("$(alg) regressor attempts to be used as classifier. Skipping")
+            end
+            lnr = base_classifier()
+            IAI.set_params!(lnr; minbucket = 
+                maximum([2*length(bbr.vars)/length(bbr.Y), lnr.minbucket]), 
+                classifier_kwargs(; kwargs...)...)
+            ul_data = Dict()
+            if threshold.first == "upper" # Upper bounding classifier with upper bounds in leaves
+                lnr, score = learn_from_data!(bbr.X, bbr.Y .<= threshold.second, lnr; fit_classifier_kwargs(; kwargs...)...)
+                merge!(ul_data, boundify(lnr, bbr.X, bbr.Y, "upper"))
+            elseif threshold.first == "lower" # Lower bounding classifier with lower bounds in leaves
+                lnr, score = learn_from_data!(bbr.X, bbr.Y .>= threshold.second, lnr; fit_classifier_kwargs(; kwargs...)...)
+                merge!(ul_data, boundify(lnr, bbr.X, bbr.Y, "lower"))
+            elseif threshold.first == "upperlower" # Upper bounding classifier with bounds in each leaf
+                lnr, score = learn_from_data!(bbr.X, bbr.Y .<= threshold.second, lnr; fit_classifier_kwargs(; kwargs...)...)
+                merge!(ul_data, boundify(lnr, bbr.X, bbr.Y, "lower"))
+                merge!(ul_data, boundify(lnr, bbr.X, bbr.Y, "upper"))
+            end
+            push!(bbr.learners, lnr);
+            push!(bbr.learner_kwargs, Dict(kwargs))
+            push!(bbr.thresholds, threshold)
+            push!(bbr.ul_data, ul_data)
+            push!(bbr.accuracies, IAI.score(lnr, bbr.X, bbr.Y .>= 0))
         elseif alg ∉ ["OCT", "CART"]
             
             lnr = LEARNER_DICT["regression"][alg]()
