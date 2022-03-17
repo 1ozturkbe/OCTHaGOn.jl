@@ -152,6 +152,7 @@ function add_nonlinear_constraint(gm::GlobalModel,
                      regression::Bool = false)
 
     vars, expr_vars = determine_vars(gm, constraint, vars = vars, expr_vars = expr_vars)
+
     if constraint isa Expr
         
         constr_str = replace(repr(constraint),  r"#(.+?)#" => s"")
@@ -179,7 +180,7 @@ function add_nonlinear_constraint(gm::GlobalModel,
             return
         else
             new_bbl = BlackBoxRegressor(constraint = constraint, vars = vars, expr_vars = expr_vars,
-                                        dependent_var = dependent_var, equality = equality, name = name, hash = constr_hash)
+                                        dependent_var = dependent_var, equality = equality, name = name, alg_list = alg_list, hash = constr_hash)
             set_param(new_bbl, :n_samples, Int(ceil(get_param(gm, :sample_coeff)*sqrt(length(vars)))))
             push!(gm.bbls, new_bbl)
             return
@@ -214,7 +215,8 @@ function add_nonlinear_or_compatible(gm::GlobalModel,
                      dependent_var::Union{Nothing, JuMP.VariableRef} = nothing,
                      name::String = gm.name * "_" * string(length(gm.bbls) + 1),
                      equality::Bool = false,
-                     is_objective::Bool = true)
+                     is_objective::Bool = true,
+                     alg_list = ["OCT"])
     vars, expr_vars = determine_vars(gm, constraint, vars = vars, expr_vars = expr_vars)
     fn = functionify(constraint)
     if fn isa Function
@@ -236,7 +238,7 @@ function add_nonlinear_or_compatible(gm::GlobalModel,
         catch
             add_nonlinear_constraint(gm, constraint, vars = vars, expr_vars = expr_vars, 
                                      dependent_var = dependent_var,
-                                     name = name, equality = equality)
+                                     name = name, equality = equality, alg_list = alg_list)
         end
 
         if is_objective
@@ -245,7 +247,7 @@ function add_nonlinear_or_compatible(gm::GlobalModel,
     else
         add_nonlinear_constraint(gm, constraint, vars = vars, expr_vars = expr_vars, 
                                     dependent_var = dependent_var,
-                                    name = name, equality = equality)
+                                    name = name, equality = equality, alg_list = alg_list)
     end
 end
 

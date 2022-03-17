@@ -463,6 +463,7 @@ function learn_constraint!(bbr::BlackBoxRegressor, threshold::Pair = Pair("reg",
         elseif threshold.first in classifications
             if alg != "OCT" && alg != "CART"
                 @warn("$(alg) regressor attempts to be used as classifier. Skipping")
+                continue
             end
             lnr = base_classifier()
             IAI.set_params!(lnr; minbucket = 
@@ -485,9 +486,10 @@ function learn_constraint!(bbr::BlackBoxRegressor, threshold::Pair = Pair("reg",
             push!(bbr.thresholds, threshold)
             push!(bbr.ul_data, ul_data)
             push!(bbr.accuracies, IAI.score(lnr, bbr.X, bbr.Y .>= 0))
+            return
         elseif alg ∉ ["OCT", "CART"]
             
-            lnr = LEARNER_DICT["regression"][alg]()
+            lnr = LEARNER_DICT["regression"][alg](dependent_var = bbr.dependent_var)
 
             lnr, score = learn_from_data!(bbr.X, bbr.Y, lnr)
 
@@ -495,7 +497,7 @@ function learn_constraint!(bbr::BlackBoxRegressor, threshold::Pair = Pair("reg",
             if score >= best_score
                 best_alg_name = alg
                 best_score  = score
-                best_model = (lnr, score, args)
+                best_model = (lnr, score, Dict(kwargs))
             end
 
             push!(bbr.learners, lnr);
@@ -504,7 +506,7 @@ function learn_constraint!(bbr::BlackBoxRegressor, threshold::Pair = Pair("reg",
             #push!(bbr.ul_data, boundify(lnr, bbr.X, bbr.Y))
             push!(bbr.accuracies, score)
         elseif threshold.first == "reg"
-            lnr = LEARNER_DICT["regression"][alg]()
+            lnr = LEARNER_DICT["regression"][alg](dependent_var = bbr.dependent_var)
             IAI.set_params!(lnr; minbucket = 
                 maximum([2*length(bbr.vars)/length(bbr.Y), lnr.minbucket]),
                 regressor_kwargs(; kwargs...)...)
@@ -525,6 +527,13 @@ function learn_constraint!(bbr::BlackBoxRegressor, threshold::Pair = Pair("reg",
             elseif bbr.local_convexity >= 0.75
                 idxs = findall(y -> y <= threshold.second, bbr.Y) 
                 lnr, score = learn_from_data!(bbr.X[idxs, :], bbr.curvatures[idxs] .> 0, lnr; fit_regressor_kwargs(; kwargs...)...)
+            end
+            
+            @info "Trained $(alg) with R2=$(score)"
+            if score >= best_score
+                best_alg_name = alg
+                best_score  = score
+                best_model = (lnr, score, Dict(kwargs))
             end
             push!(bbr.learners, lnr);
             push!(bbr.learner_kwargs, Dict(kwargs))
@@ -553,6 +562,12 @@ function learn_constraint!(bbr::BlackBoxRegressor, threshold::Pair = Pair("reg",
             throw(OCTHaGOnException("$(threshold.first) is not a valid learner type for" *
                 " thresholded learning of BBR $(bbr.name)."))
         end    
+    end
+
+    if threshold.first != "rfreg"
+        bbr.learners = [best_model[1]]
+        bbr.learner_kwargs = [Dict(kwargs)]
+        bbr.accuracies = [best_score]
     end
     return
 end

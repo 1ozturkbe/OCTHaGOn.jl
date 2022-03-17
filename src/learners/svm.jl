@@ -5,6 +5,7 @@
     solver = CPLEX_SILENT
     equality::Bool = false # Whether or not we are dealing with an equality constraint 
     use_epsilon::Bool = false # Whether we should round Y using EPSILON tolerance in case of equality
+    dependent_var::Union{Nothing, JuMP.VariableRef} = nothing
 
     # Model variables
     β0::Union{Nothing, Real} = nothing
@@ -17,7 +18,8 @@ end
     C::Real = 1
     solver = CPLEX_SILENT
     equality::Bool = false
-
+    dependent_var::Union{Nothing, JuMP.VariableRef} = nothing
+    
     # Model variables
     β0::Union{Nothing, Real} = nothing
     β::Union{Nothing, Vector{Float64}} = nothing

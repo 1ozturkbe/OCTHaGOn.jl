@@ -22,7 +22,7 @@ function base_classifier()
         ls_num_hyper_restarts =  5)
 end
 
-function base_regressor()
+function base_regressor(;kwargs...)
     IAI.OptimalTreeRegressor(
         hyperplane_config = (sparsity = :all,),
         regression_sparsity = :all,

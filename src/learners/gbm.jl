@@ -5,6 +5,7 @@ using JLBoost
     # Arguments
     max_depth::Int64 = 6
     solver = CPLEX_SILENT
+    dependent_var::Union{Nothing, JuMP.VariableRef} = nothing
 
     # Model data
     gbm::Union{Nothing, JLBoostTreeModel} = nothing
@@ -17,7 +18,8 @@ end
     # Arguments
     max_depth::Int64 = 6
     solver = CPLEX_SILENT
-
+    dependent_var::Union{Nothing, JuMP.VariableRef} = nothing
+    
     # Model data
     gbm::Union{Nothing, JLBoostTreeModel} = nothing
     equality::Bool = false # Whether or not we are dealing with an equality constraint

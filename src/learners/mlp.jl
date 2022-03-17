@@ -36,6 +36,7 @@ end
     # Arguments
     solver = CPLEX_SILENT
     equality::Bool = false
+    dependent_var::Union{Nothing, JuMP.VariableRef} = nothing
 
     # Model variables
     mlp::Union{MLP, Nothing} = nothing
@@ -45,10 +46,11 @@ end
     # Arguments
     solver = CPLEX_SILENT
     equality::Bool = false
+    dependent_var::Union{Nothing, JuMP.VariableRef} = nothing
 
     # Model variables
     mlp::Union{MLP, Nothing} = nothing
-
+    
 end
 
 
@@ -237,6 +239,7 @@ function embed_mio!(lnr::MLP_Regressor, gm::GlobalModel, bbl::BlackBoxRegressor;
     layer_input = x
 
     # @TODO: probably use dependent var here?
+    println(":y_nn_$(bbl.name)")
     var_name = eval(Meta.parse(":y_nn_$(bbl.name)"));
     m[var_name] = @variable(m, base_name=string(var_name));
     y = m[var_name];
@@ -267,8 +270,21 @@ function embed_mio!(lnr::MLP_Regressor, gm::GlobalModel, bbl::BlackBoxRegressor;
             layer_input = v_pos_list
         end
     end
+
+    linking_constr = nothing 
+
+    if isnothing(lnr.dependent_var) 
+        linking_constr = @constraint(m, y>= 0)
+    else
+        if lnr.equality
+            linking_constr = @constraint(m, y == lnr.dependent_var)
+        else 
+            linking_constr = @constraint(m, lnr.dependent_var >= 0)
+        end
+    end
+
     push!(cons, 
-        @constraint(m, y>= 0)
+        linking_constr
     )
     
     return Dict(1 => cons), Dict()
