@@ -35,3 +35,6 @@ tatus
 /dump/
 /bugreport/
 !/data/**/*.csv
+data/baron
+data/gams
+data/cblib
