@@ -213,4 +213,4 @@ end
 
 folders = ["global"]
 
-solve_and_benchmark(folders; alg_list = ["OCT"])
+solve_and_benchmark(folders; alg_list = ["MLP", "SVM"])
