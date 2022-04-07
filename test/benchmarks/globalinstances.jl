@@ -6,8 +6,14 @@ include(OCTHaGOn.PROJECT_ROOT * "/test/tools/gams.jl")
 
 valid_filenames = []
 
+pd = DataFrame()
 n_max = 100
-for filename in filenames
+pd = CSV.read(dir * "problem_stats.csv", DataFrame)
+pd = pd[pd.all_bounded .>= 0.5, :]
+pd = pd[pd.n_vars .<= n_max, :]
+
+for filename in pd.name
+    filename = filename * ".gms"
     @info "Trying " * filename * "."
     model = JuMP.Model()
     # Parsing GAMS Files
@@ -18,7 +24,7 @@ for filename in filenames
     catch e
         if e isa KeyError
             @warn filename * " failed due to KeyError."
-        elseif e isa Base.InvalidCharError
+        elseif e isa LoadError
             @warn filename * " failed due to an InvalidCharError. "
         else
             @warn filename * " failed due to an unknown Error."
@@ -44,6 +50,8 @@ for filename in filenames
         push!(valid_filenames, filename)
     end
 end
+
+@assert length(valid_filenames) == length(pd.name)
 
 # gms = Dict()
 # for filename in filenames
