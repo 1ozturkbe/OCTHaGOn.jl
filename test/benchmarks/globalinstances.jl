@@ -12,46 +12,65 @@ pd = CSV.read(dir * "problem_stats.csv", DataFrame)
 pd = pd[pd.all_bounded .>= 0.5, :]
 pd = pd[pd.n_vars .<= n_max, :]
 
-for filename in pd.name
-    filename = filename * ".gms"
-    @info "Trying " * filename * "."
-    model = JuMP.Model()
-    # Parsing GAMS Files
-    lexed = GAMSFiles.lex(GAMS_DIR * filename)
-    gams = []
-    try
-        gams = GAMSFiles.parsegams(GAMS_DIR * filename)
-    catch e
-        if e isa KeyError
-            @warn filename * " failed due to KeyError."
-        elseif e isa LoadError
-            @warn filename * " failed due to an InvalidCharError. "
-        else
-            @warn filename * " failed due to an unknown Error."
-        end
-        continue
-    end
-    GAMSFiles.parseconsts!(gams)
+# for filename in pd.name
+#     filename = filename * ".gms"
+#     @info "Trying " * filename * "."
+#     model = JuMP.Model()
+#     # Parsing GAMS Files
+#     lexed = GAMSFiles.lex(GAMS_DIR * filename)
+#     gams = []
+#     try
+#         gams = GAMSFiles.parsegams(GAMS_DIR * filename)
+#     catch e
+#         if e isa KeyError
+#             @warn filename * " failed due to KeyError."
+#         elseif e isa LoadError
+#             @warn filename * " failed due to an InvalidCharError. "
+#         else
+#             @warn filename * " failed due to an unknown Error."
+#         end
+#         continue
+#     end
+#     GAMSFiles.parseconsts!(gams)
 
-    vars = GAMSFiles.getvars(gams["variables"])
-    sets = Dict{String, Any}()
-    if haskey(gams, "sets")
-        sets = gams["sets"]
-    end
-    preexprs, bodyexprs = Expr[], Expr[]
-    if haskey(gams, "parameters") && haskey(gams, "assignments")
-        GAMSFiles.parseassignments!(preexprs, gams["assignments"], gams["parameters"], sets)
-    end
+#     vars = GAMSFiles.getvars(gams["variables"])
+#     sets = Dict{String, Any}()
+#     if haskey(gams, "sets")
+#         sets = gams["sets"]
+#     end
+#     preexprs, bodyexprs = Expr[], Expr[]
+#     if haskey(gams, "parameters") && haskey(gams, "assignments")
+#         GAMSFiles.parseassignments!(preexprs, gams["assignments"], gams["parameters"], sets)
+#     end
 
-    # Getting variables
-    vardict, constdict = generate_variables!(model, gams) # Actual JuMP variables
-    if length(vardict) <= n_max
-        @info filename * " added with $(length(vardict)) variables."
-        push!(valid_filenames, filename)
-    end
-end
+#     # Getting variables
+#     vardict, constdict = generate_variables!(model, gams) # Actual JuMP variables
+#     if length(vardict) <= n_max
+#         @info filename * " added with $(length(vardict)) variables."
+#         push!(valid_filenames, filename)
+#     end
+# end
 
-@assert length(valid_filenames) == length(pd.name)
+# @assert length(valid_filenames) == length(pd.name)
+# count = 0
+
+# gms = []
+# times = []
+# count += 1
+# for filename in valid_filenames
+#     gm = GAMS_to_GlobalModel(dir, filename)
+#     set_optimizer(gm, SOLVER_SILENT)
+#     push!(gms, gm)
+#     t1 = time()
+#     try
+#         globalsolve!(gm)
+#         push!(times, time() - t1)
+#     catch
+#         push!(times, nothing)
+#     end
+# end
+
+# gm = GAMS_to_GlobalModel(dir, valid_filenames[end-1])
 
 # gms = Dict()
 # for filename in filenames
