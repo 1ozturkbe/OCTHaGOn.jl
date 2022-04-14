@@ -264,9 +264,6 @@ function add_linked_constraint(gm::GlobalModel, bbc::BlackBoxClassifier, vars::A
         @info "Cleared constraints from BBC $(bbc.name) since it was relinked."
     end
     lc = LinkedClassifier(vars = vars, equality = bbc.equality)
-    var_bounds = flattened_bounds(bbc)
-    lc_var_bounds = flattened_bounds(lc)
-    all(minimum.(var_bounds) .<= minimum.(lc_var_bounds)) &&  all(maximum.(var_bounds) .>= maximum.(lc_var_bounds)) || throw(ErrorException("The LinkedClassifier must have a smaller variable range than the BlackBoxClassifier."))
     push!(bbc.lls, lc)
     return
 end
@@ -281,9 +278,6 @@ function add_linked_constraint(gm::GlobalModel, bbr::BlackBoxRegressor, vars::Ar
     end
     lr = LinkedRegressor(vars = vars, dependent_var = dependent_var, 
                                    equality = bbr.equality)
-    var_bounds = flattened_bounds(bbr)
-    lr_var_bounds = flattened_bounds(lr)
-    all(minimum.(var_bounds) .<= minimum.(lr_var_bounds)) &&  all(maximum.(var_bounds) .>= maximum.(lr_var_bounds)) || throw(ErrorException("The LinkedRegressor must have a smaller variable range than the BlackBoxRegressor."))
     push!(bbr.lls, lr)
     return
 end
