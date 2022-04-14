@@ -147,7 +147,8 @@ module OCTHaGOn
         pwl_constraint_data, trust_region_data,
 
         # Functions on JuMP/MathOptInterface objects
-        fetch_variable, get_bounds, get_unbounds, flattened_bounds,
+        fetch_variable, get_bounds, get_joint_bounds, 
+        get_unbounds, flattened_bounds,
         bounded_aux, 
         linearize_objective!, classify_constraints,
         bound!, restrict_to_set,
