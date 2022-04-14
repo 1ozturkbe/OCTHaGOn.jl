@@ -12,6 +12,60 @@ pd = CSV.read(dir * "problem_stats.csv", DataFrame)
 pd = pd[pd.all_bounded .>= 0.5, :]
 pd = pd[pd.n_vars .<= n_max, :]
 
+
+""" Merges BlackBoxLearners using LinkedLearners for constraint learning. """
+function detect_linked_constraints(gm::GlobalModel)
+    bounds = get_bounds(gm.bbls)
+    vars = all_variables(gm.bbls)
+    isnothing(check_bounds(bounds)) || throw(OCTHaGOnException("Not all variables in nonlinear constraints are bounded in $(gm.name)."))
+
+    bins = Dict()
+    queue = copy(gm.bbls)
+    while !isempty(queue)
+        bbl = popfirst!(queue)
+        n_vars = length(bbl.vars)
+        reg_bool = bbl isa BlackBoxRegressor
+        similars = [q for q in queue if (n_vars == length(q.vars) 
+                        && reg_bool == (q isa BlackBoxRegressor))]
+        if !isempty(similars)
+            samples = lh_sample(bbl.vars, lh_iterations = 5, n_samples = 10)            
+            vals = evaluate(bbl, samples)
+            act_sims = []
+            for i = 1:length(similars)
+                sim = similars[i]
+                rename!(samples, string.(sim.vars))
+                qs = evaluate(sim, samples)
+                if all(isapprox.(vals, qs, atol = 1e-8))
+                    push!(act_sims, sim)
+                end
+            end
+            if !isempty(act_sims)
+                bins[bbl] = act_sims
+                queue = filter!(e -> !(e in act_sims), queue)
+            end
+        else
+            continue
+        end
+    end
+    @info "Merging $(length(flat(values(bins)))) LinkedLearners into $(length(keys(bins))) BlackBoxLearners. "
+    return bins
+    gm.bbls = []
+    for (bbl, linked_bbls) in bins
+        push!(gm.bbls, bbl)
+        for linked_bbl in linked_bbls
+            if linked_bbl isa BlackBoxClassifier
+                add_linked_constraint(gm, gm.bbls[end], linked_bbl.vars, equality = linked_bbl.equality)
+            else
+                add_linked_constraint(gm, gm.bbls[end], linked_bbl.vars, linked_bbl.dependent_var, equality = linked_bbl.equality)
+            end
+        end
+    end
+    return
+end
+
+gm = GAMS_to_GlobalModel(dir, "ex8_2_1b.gms")
+detect_linked_constraints(gm)
+
 # for filename in pd.name
 #     filename = filename * ".gms"
 #     @info "Trying " * filename * "."

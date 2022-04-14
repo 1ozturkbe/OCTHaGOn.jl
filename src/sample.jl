@@ -9,10 +9,7 @@ function truncate_sigfigs(data, digits = 7)
 end
 
 """
-    lh_sample(vars::Array{JuMP.VariableRef, 1}; lh_iterations::Int64 = 0,
-                   n_samples::Int64 = 1000)
-    lh_sample(bbl::BlackBoxLearner; lh_iterations::Int64 = 0,
-                   n_samples::Int64 = 1000)
+    $(TYPEDSIGNATURES)
 
 Uniformly Latin Hypercube samples the variables of GlobalModel, as long as all
 lbs and ubs are defined.
