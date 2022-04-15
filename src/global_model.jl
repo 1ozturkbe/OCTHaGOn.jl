@@ -617,16 +617,15 @@ Merges detected linked constraints via LinkedLearners.
 """
 function merge_linked_constraints!(gm::GlobalModel, bins::Dict)
     @info "Merging $(length(flat(values(bins)))) LinkedLearners into $(length(keys(bins))) BlackBoxLearners. "
-    gm.bbls = []
     for (bbl, linked_bbls) in bins
-        push!(gm.bbls, bbl)
         for linked_bbl in linked_bbls
             if linked_bbl isa BlackBoxClassifier
-                add_linked_constraint(gm, gm.bbls[end], linked_bbl.vars)
+                add_linked_constraint(gm, bbl, linked_bbl.vars)
             else
-                add_linked_constraint(gm, gm.bbls[end], linked_bbl.vars, linked_bbl.dependent_var)
+                add_linked_constraint(gm, bbl, linked_bbl.vars, linked_bbl.dependent_var)
             end
         end
     end
+    gm.bbls = filter!(x -> !(x in flat(values(bins))), gm.bbls)
     return
 end
