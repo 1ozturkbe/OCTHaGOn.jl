@@ -12,15 +12,15 @@ end
 function get_joint_bounds(bbl::BlackBoxLearner)
     !isempty(bbl.lls) || throw(OCTHaGOnException("BlackBoxLearner $(bbl.name) must have non-zero LinkedLearners for computing joint bounds."))
     bounds = Dict(var => [] for var in bbl.vars)
-    bbc_bounds = flattened_bounds(bbl)
-    lc_bounds = [flattened_bounds(ll) for ll in bbl.lls]
+    bbl_bounds = flattened_bounds(bbl)
+    ll_bounds = [flattened_bounds(ll) for ll in bbl.lls]
     for i = 1:length(bbl.vars)
         var = bbl.vars[i]
         var_bound = [
-            minimum([minimum(bbc_bounds[i]), 
-                    [minimum(lc_bound[i]) for lc_bound in lc_bounds]...])
-            maximum([maximum(bbc_bounds[i]), 
-                    [maximum(lc_bound[i]) for lc_bound in lc_bounds]...])]
+            minimum([minimum(bbl_bounds[i]), 
+                    [minimum(ll_bound[i]) for ll_bound in ll_bounds]...])
+            maximum([maximum(bbl_bounds[i]), 
+                    [maximum(ll_bound[i]) for ll_bound in ll_bounds]...])]
         bounds[var] = var_bound
     end
     return bounds
