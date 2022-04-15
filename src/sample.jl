@@ -84,7 +84,6 @@ function boundary_sample(bounds::Dict; n_samples::Int64 = 100, fraction::Float64
     nX = DataFrame(vks .=> [Float64[] for i in vks])
     sample_indices = [];
     if n_comb >= fraction*n_samples 
-        @info("Can't exhaustively sample the boundary of Constraint " * string(warn_string) * ".")
         n_comb = 2*n_vars+2; # Everything is double because we choose min's and max's
         choosing = 1;
         while n_comb <= fraction*n_samples
