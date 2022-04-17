@@ -119,7 +119,7 @@ Converts a GAMS optimization model to a GlobalModel.
 GAMS_DIR is the directory to look in, while the filename
 is the name of the .gms file. 
 """
-function GAMS_to_GlobalModel(GAMS_DIR::String, filename::String; alg_list=["OCT"])
+function GAMS_to_GlobalModel(GAMS_DIR::String, filename::String; alg_list=["OCT"], regression=false)
     model = JuMP.Model()
     # Parsing GAMS Files
     lexed = GAMSFiles.lex(GAMS_DIR * filename)
@@ -171,7 +171,7 @@ function GAMS_to_GlobalModel(GAMS_DIR::String, filename::String; alg_list=["OCT"
                     constr_fn = :($(input...) -> $(constr_expr))
                 end
                 add_nonlinear_or_compatible(gm, constr_fn, vars = vars, expr_vars = [vardict[varkey] for varkey in varkeys],
-                                        equality = is_equality(eq), name = gm.name * "_" * GAMSFiles.getname(key), alg_list = alg_list)
+                                        equality = is_equality(eq), name = gm.name * "_" * GAMSFiles.getname(key), alg_list = alg_list, regression = regression)
             else
                 constr_expr = OCTHaGOn.substitute(constr_expr, :($(Symbol(gams["minimizing"]))) => 0)
                 # ASSUMPTION: objvar has positive coefficient, and is on the greater size. 
@@ -187,8 +187,9 @@ function GAMS_to_GlobalModel(GAMS_DIR::String, filename::String; alg_list=["OCT"
                 if length(input) == 1
                     constr_fn = :($(input...) -> -$(constr_expr))
                 end
+
                 add_nonlinear_or_compatible(gm, constr_fn, vars = vars, expr_vars = [vardict[varkey] for varkey in varkeys],
-                    dependent_var = vardict[Symbol(gams["minimizing"])], equality = is_equality(eq), name = gm.name * "_" * GAMSFiles.getname(key), alg_list = alg_list)
+                    dependent_var = vardict[Symbol(gams["minimizing"])], equality = is_equality(eq), name = gm.name * "_" * GAMSFiles.getname(key), alg_list = alg_list, regression = regression)
             end
         elseif key isa GAMSFiles.GArray
             axs = GAMSFiles.getaxes(key.indices, sets)
@@ -220,7 +221,7 @@ function GAMS_to_GlobalModel(GAMS_DIR::String, filename::String; alg_list=["OCT"
             for i = 1:length(idxs)
                 add_nonlinear_or_compatible(gm, constr_fns[i], vars = vars, expr_vars = [vardict[varkey] for varkey in varkeys],
                                          equality = is_equality(eq),
-                                         name = names[i], alg_list = alg_list)
+                                         name = names[i], alg_list = alg_list, regression = regression)
             end
         end
     end

@@ -37,6 +37,8 @@ end
     solver = CPLEX_SILENT
     equality::Bool = false
     dependent_var::Union{Nothing, JuMP.VariableRef} = nothing
+    scaler = nothing 
+    train_data = nothing
 
     # Model variables
     mlp::Union{MLP, Nothing} = nothing
@@ -59,37 +61,43 @@ Used to fit an MLP regressor
 """
 function fit!(lnr::MLP_Regressor, X::DataFrame, Y::Array; equality=false)
 
+    lnr.equality = equality
+
     # Convert dataframe to matrix 
     X = Matrix(X)
-    
+    lnr.train_data = X
+    # lnr.scaler = StatsBase.fit(ZScoreTransform, X, dims=1)
+    # X = StatsBase.transform(lnr.scaler, X)
+
     # Initialize model 
     net = MLP(
         [Dense(size(X, 2), 100), Dense(100, 1, identity)],
-        mse
+        mas
     );
     lnr.mlp = net
     
-    println(size(Y))
     # Initialize training set 
     dtrn = minibatch(Float32.(X)', Float32.(Y), 16)
 
     # Train for 100 epochs
-    adam!(lnr.mlp, repeat(dtrn, 100));
+    adam!(lnr.mlp, repeat(dtrn, 500));
 
 end
 
 
 """
-Used to fit an MLP regressor
+Used to fit an MLP classifier
 """
 function fit!(lnr::MLP_Classifier, X::DataFrame, Y::Array; equality=false)
 
+    lnr.equality = equality
 
     # Convert dataframe to matrix 
     X = Matrix(X)
     
     # Initialize model 
     net = MLP(
+        #[Dense(size(X, 2), 100),Dense(100, 100), Dense(100, 2, identity)],
         [Dense(size(X, 2), 100), Dense(100, 2, identity)],
         nll
     );
@@ -129,9 +137,12 @@ function predict(lnr::MLP_Regressor, X::DataFrame)
     if isnothing(lnr.mlp)
         error("MLP model hasn't been fitted")
     end
+    X = Matrix(X)
+    # X = StatsBase.transform(lnr.scaler, X)
 
-    X = Matrix(Matrix(X)')
-    return lnr.mlp(X)
+    X = Matrix(X')
+
+    return lnr.mlp(X)'
 end
 
 
@@ -151,8 +162,8 @@ end
 Evaluate using MLP in regression task
 """
 function evaluate(lnr::MLP_Regressor, X::DataFrame, Y::Array)
-    
     y_pred = predict(lnr, X)
+    XX = Matrix(X)
 
     evaluator = regression_evaluation()
 
@@ -197,14 +208,14 @@ function embed_mio!(lnr::MLP_Classifier, gm::GlobalModel, bbl::BlackBoxClassifie
             
             for node_id in 1:size(W, 1)
                 v = @variable(m, base_name="v_$(i)_$(node_id)")
-                v_ind = @variable(m, base_name="v_ind_$(i)_$(node_id)")
+                v_ind = @variable(m, binary=true, base_name="v_ind_$(i)_$(node_id)")
                 push!(v_pos_list, v)
 
                 append!(cons, [
                     @constraint(m, v >= 0),
                     @constraint(m, v >= W[node_id, :]'*layer_input + b[node_id]),
                     @constraint(m, v <= M_u*v_ind),
-                    @constraint(m, v <= W[node_id, :]'*layer_input + b[node_id]-M_l*v_ind)
+                    @constraint(m, v <= W[node_id, :]'*layer_input + b[node_id]-M_l*(1-v_ind))
                 ])
                 
             end
@@ -239,7 +250,7 @@ function embed_mio!(lnr::MLP_Regressor, gm::GlobalModel, bbl::BlackBoxRegressor;
     layer_input = x
 
     # @TODO: probably use dependent var here?
-    println(":y_nn_$(bbl.name)")
+    #println(":y_nn_$(bbl.name)")
     var_name = eval(Meta.parse(":y_nn_$(bbl.name)"));
     m[var_name] = @variable(m, base_name=string(var_name));
     y = m[var_name];
@@ -250,20 +261,22 @@ function embed_mio!(lnr::MLP_Regressor, gm::GlobalModel, bbl::BlackBoxRegressor;
     for (i, layer) in enumerate(mlp.layers)
         W, b = layer.w, layer.b
         if i == max_layers
-            @constraint(m, y .== layer_input'*W[1, :] + b[1])
+            push!(cons, 
+                @constraint(m, y .== layer_input'*W[1, :] + b[1])
+            )
         else 
             v_pos_list = []
             
             for node_id in 1:size(W, 1)
                 v = @variable(m, base_name="v_$(i)_$(node_id)")
-                v_ind = @variable(m, base_name="v_ind_$(i)_$(node_id)")
+                v_ind = @variable(m, binary=true, base_name="v_ind_$(i)_$(node_id)")
                 push!(v_pos_list, v)
 
                 append!(cons, [
                     @constraint(m, v >= 0),
                     @constraint(m, v >= W[node_id, :]'*layer_input + b[node_id]),
                     @constraint(m, v <= M_u*v_ind),
-                    @constraint(m, v <= W[node_id, :]'*layer_input + b[node_id]-M_l*v_ind)
+                    @constraint(m, v <= W[node_id, :]'*layer_input + b[node_id]-M_l*(1-v_ind))
                 ])
                 
             end
@@ -274,12 +287,16 @@ function embed_mio!(lnr::MLP_Regressor, gm::GlobalModel, bbl::BlackBoxRegressor;
     linking_constr = nothing 
 
     if isnothing(lnr.dependent_var) 
-        linking_constr = @constraint(m, y>= 0)
+        if lnr.equality
+            linking_constr = @constraint(m, y>= 0)
+        else 
+            linking_constr = @constraint(m, EPSILON>= y >= -EPSILON)
+        end
     else
         if lnr.equality
             linking_constr = @constraint(m, y == lnr.dependent_var)
         else 
-            linking_constr = @constraint(m, lnr.dependent_var >= 0)
+            linking_constr = @constraint(m, lnr.dependent_var >= y)
         end
     end
 

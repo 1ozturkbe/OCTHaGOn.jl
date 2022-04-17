@@ -66,7 +66,7 @@ function base_rf_classifier()
         ls_num_hyper_restarts =  5)
 end
 
-function base_cart_classifier()
+function base_cart_classifier(;dependent_var=nothing)
     IAI.OptimalTreeClassifier(
        # hyperplane_config = (sparsity = :none,),
         random_seed = 1,
@@ -79,9 +79,9 @@ function base_cart_classifier()
         ls_num_hyper_restarts =  5)
 end
 
-function base_cart_regressor()
+function base_cart_regressor(;dependent_var=nothing)
     IAI.OptimalTreeRegressor(
-        hyperplane_config = (sparsity = :none,),
+        # hyperplane_config = (sparsity = :none,),
         regression_sparsity = :all,
         regression_weighted_betas = true,
         random_seed = 1,

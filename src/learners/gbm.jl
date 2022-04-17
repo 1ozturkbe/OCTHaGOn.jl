@@ -1,9 +1,11 @@
 using JLBoost
+using LossFunctions: L2DistLoss
 
 
 @with_kw mutable struct GBM_Classifier <: AbstractClassifier 
     # Arguments
     max_depth::Int64 = 6
+    nrounds::Int64 = 3
     solver = CPLEX_SILENT
     dependent_var::Union{Nothing, JuMP.VariableRef} = nothing
 
@@ -17,6 +19,7 @@ end
 @with_kw mutable struct GBM_Regressor <: AbstractRegressor
     # Arguments
     max_depth::Int64 = 6
+    nrounds::Int64 = 2
     solver = CPLEX_SILENT
     dependent_var::Union{Nothing, JuMP.VariableRef} = nothing
     
@@ -49,11 +52,13 @@ function update_leaf_df!(df::DataFrame, leaf::AbstractJLBoostTree, cols::Vector{
     # Initialize all variables to 0
     d = Dict(c => 0.0 for c in cols)
     
+    multiplier = (leaf == leaf.parent.children[1] ? 1 : -1)
+
     # Change value of splitting feature
-    d[String(leaf.parent.splitfeature)] = (leaf == leaf.parent.children[1] ? 1 : -1)
+    d[String(leaf.parent.splitfeature)] = multiplier
     
     #Determine threshold    
-    d["threshold"] = leaf.parent.split
+    d["threshold"] = multiplier*leaf.parent.split
     
     # Keep track of the leaf id and the leaf prediction
     d["leaf_id"] = leaf_id
@@ -85,7 +90,7 @@ function embed_single_tree(gm::GlobalModel, bbl::BlackBoxLearner, tree_id::Int64
     m = gm.model;
     cols = names(bbl.X)
     x = bbl.vars;
-    
+
     # Calculate the df that describes the constraints
     df = find_leaf_df(tree, bbl)
     
@@ -97,6 +102,7 @@ function embed_single_tree(gm::GlobalModel, bbl::BlackBoxLearner, tree_id::Int64
 
     # Splitting coefficients (i.e. which variable is active)
     coeffs = Matrix(df[!, cols]);
+
 
     # Leaf ids
     l_ids = convert.(Int64, df[!, "leaf_id"]);
@@ -112,8 +118,11 @@ function embed_single_tree(gm::GlobalModel, bbl::BlackBoxLearner, tree_id::Int64
     m[var_name] = @variable(m, base_name=string(var_name));
     outcome_var = m[var_name]
 
+    # If the coefficient is -1, force strict inequality
+    strict_ineq_epsilons = (1e-6)*(sum(coeffs, dims=2) .== -1)
+
     constrs = [
-        @constraint(m, coeffs*x .<= intercept.+M*(1 .- leaf_vars[l_ids]));
+        @constraint(m, coeffs*x .+ strict_ineq_epsilons .<= intercept.+M*(1 .- leaf_vars[l_ids]));
         @constraint(m, outcome_var == leaf_predictions'*leaf_vars);
         @constraint(m, sum(leaf_vars[i] for i=1:n_leaves) == 1);
     ];
@@ -143,17 +152,21 @@ function gbm_embed_helper(lnr::Union{GBM_Regressor, GBM_Classifier}, gm::GlobalM
     m[var_name] = @variable(m, base_name=string(var_name));
     final_outcome = m[var_name];
     
-    if lb != -Inf
-        push!(all_constraints, @constraint(m, final_outcome >= lb));
+    if !isnothing(lnr.dependent_var)
+        push!(all_constraints, @constraint(m, final_outcome == lnr.dependent_var))
+    else
+        if lb != -Inf
+            push!(all_constraints, @constraint(m, final_outcome >= lb));
+        end
+        if ub != Inf
+            push!(all_constraints, @constraint(m, final_outcome <= ub));
+        end
     end
-    if ub != Inf
-        push!(all_constraints, @constraint(m, final_outcome <= ub));
-    end
-    
     # Final outcome variable is the weighted average
     # of the sub-trees
     push!(all_constraints, @constraint(m, outcome_vars'*etas./sum(etas) == final_outcome));
     
+
     return Dict(1 => all_constraints), Dict()
 end
 
@@ -197,7 +210,11 @@ function fit!(lnr::GBM_Regressor , X::DataFrame, Y::Array; equality=false)
 
     df = deepcopy(X)
     df[!,"output"] = Y;
-    lnr.gbm = jlboost(df, "output"; verbose=false, max_depth = lnr.max_depth);
+
+   
+	lnr.gbm = jlboost(df, "output", setdiff(Tables.columnnames(df), ["output"]), fill(0.0, nrow(df)), L2DistLoss(), max_depth = lnr.max_depth, nrounds=lnr.nrounds)
+
+    #lnr.gbm = jlboost(df, "output"; verbose=false, max_depth = lnr.max_depth);
 end
 
 """

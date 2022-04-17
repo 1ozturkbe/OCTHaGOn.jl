@@ -491,7 +491,7 @@ function learn_constraint!(bbr::BlackBoxRegressor, threshold::Pair = Pair("reg",
             
             lnr = LEARNER_DICT["regression"][alg](dependent_var = bbr.dependent_var)
 
-            lnr, score = learn_from_data!(bbr.X, bbr.Y, lnr)
+            lnr, score = learn_from_data!(bbr.X, bbr.Y, lnr; equality = bbr.equality)
 
             @info "Trained $(alg) with R2=$(score)"
             if score >= best_score

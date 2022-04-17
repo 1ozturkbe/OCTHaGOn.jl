@@ -32,8 +32,7 @@ end
 """
 Used to fit an SVM classifier
 """
-function fit!(lnr::SVM_Classifier, X::DataFrame, Y::Array; equality=false)
-
+function fit!(lnr::SVM_Classifier, X::DataFrame, Y::Array; equality::Bool=false)
     lnr.equality = equality
 
     Y_hat = 1*(Y .>= 0) 
@@ -72,8 +71,7 @@ end
 """
 Used to fit an SVM regressor
 """
-function fit!(lnr::SVM_Regressor, X::DataFrame, Y::Array; equality=false)
-
+function fit!(lnr::SVM_Regressor, X::DataFrame, Y::Array; equality::Bool=false)
     lnr.equality = equality
 
     X = Matrix(X)
@@ -189,12 +187,14 @@ function embed_mio!(lnr::SVM_Regressor, gm::GlobalModel, bbl::BlackBoxRegressor;
     
     cons = []
 
-    if lnr.equality
+    if !isnothing(lnr.dependent_var) && lnr.equality
+        push!(cons, @constraint(m, x'*β .+ β0 == lnr.dependent_var))
+    elseif lnr.equality
         push!(cons, @constraint(m, x'*β .+ β0 >= -EPSILON))
         push!(cons, @constraint(m, x'*β .+ β0 <= EPSILON))
     else 
         push!(cons, @constraint(m, x'*β .+ β0 >= 0))
     end
-    
+    # println("Doing whatever")
     return Dict(1 => cons), Dict()
 end

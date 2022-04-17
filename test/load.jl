@@ -22,6 +22,7 @@ load:
     using Random
 
     include("../src/OCTHaGOn.jl")
+    #using Revise
     using .OCTHaGOn
     global MOI = MathOptInterface
     global BARON_SILENT = with_optimizer(BARON.Optimizer, OutputFlag = 0)

@@ -152,26 +152,35 @@ function add_nonlinear_constraint(gm::GlobalModel,
                      regression::Bool = false)
 
     vars, expr_vars = determine_vars(gm, constraint, vars = vars, expr_vars = expr_vars)
-
+    alg_list = copy(alg_list)
+    println("$(alg_list) $(length(vars))")
     if constraint isa Expr
         
         constr_str = replace(repr(constraint),  r"#(.+?)#" => s"")
         constr_hash = bytes2hex(sha1("$(constr_str)$(equality)$(dependent_var)"))
 
+
+
         if isnothing(dependent_var)
             if regression
+
+                if length(vars) <= 10 && "OCT" ∉ alg_list 
+                    push!(alg_list, "OCT")
+                end
                 # If we have a constraint with no dependent variables and we want
                 # to use regression, then create a new dependent variable that 
                 # will act as the RHS of the equation
                 # dep_var_symbol = eval(Meta.parse(":yr_$(name)"));
                 # m[dep_var_symbol] = @variable(m, base_name=string(dep_var_symbol));
                 # dependent_var = m[dep_var_symbol];
-
                 new_bbl = BlackBoxRegressor(constraint = constraint, vars = vars, expr_vars = expr_vars,
                     equality = equality, name = name, alg_list = alg_list, hash = constr_hash)
                 set_param(new_bbl, :n_samples, Int(ceil(get_param(gm, :sample_coeff)*sqrt(length(vars)))))
                 push!(gm.bbls, new_bbl)
             else 
+                if length(vars) < 30 && "OCT" ∉ alg_list 
+                    push!(alg_list, "OCT")
+                end
                 new_bbl = BlackBoxClassifier(constraint = constraint, vars = vars, expr_vars = expr_vars,
                 equality = equality, name = name, alg_list = alg_list, hash = constr_hash)
                 set_param(new_bbl, :n_samples, Int(ceil(get_param(gm, :sample_coeff)*sqrt(length(vars)))))
@@ -179,6 +188,9 @@ function add_nonlinear_constraint(gm::GlobalModel,
             end
             return
         else
+            if length(vars) <= 10 && "OCT" ∉ alg_list 
+                push!(alg_list, "OCT")
+            end
             new_bbl = BlackBoxRegressor(constraint = constraint, vars = vars, expr_vars = expr_vars,
                                         dependent_var = dependent_var, equality = equality, name = name, alg_list = alg_list, hash = constr_hash)
             set_param(new_bbl, :n_samples, Int(ceil(get_param(gm, :sample_coeff)*sqrt(length(vars)))))
@@ -216,7 +228,8 @@ function add_nonlinear_or_compatible(gm::GlobalModel,
                      name::String = gm.name * "_" * string(length(gm.bbls) + 1),
                      equality::Bool = false,
                      is_objective::Bool = true,
-                     alg_list = ["OCT"])
+                     alg_list = ["OCT"],
+                     regression::Bool = false)
     vars, expr_vars = determine_vars(gm, constraint, vars = vars, expr_vars = expr_vars)
     fn = functionify(constraint)
     if fn isa Function
@@ -238,7 +251,7 @@ function add_nonlinear_or_compatible(gm::GlobalModel,
         catch
             add_nonlinear_constraint(gm, constraint, vars = vars, expr_vars = expr_vars, 
                                      dependent_var = dependent_var,
-                                     name = name, equality = equality, alg_list = alg_list)
+                                     name = name, equality = equality, alg_list = alg_list, regression = regression)
         end
 
         if is_objective
@@ -247,7 +260,7 @@ function add_nonlinear_or_compatible(gm::GlobalModel,
     else
         add_nonlinear_constraint(gm, constraint, vars = vars, expr_vars = expr_vars, 
                                     dependent_var = dependent_var,
-                                    name = name, equality = equality, alg_list = alg_list)
+                                    name = name, equality = equality, alg_list = alg_list, regression = regression)
     end
 end
 

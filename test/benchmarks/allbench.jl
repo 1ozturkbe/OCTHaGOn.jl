@@ -60,8 +60,8 @@ function get_problem_stats(folder_name; force_reload=false, keep_only_selected=t
     end
 
     # Read all file names/paths in the folder
-    all_paths = readdir(dir; join=true)
-    all_names = [replace(f, ".gms" => "") for f in readdir(dir; join=false)]
+    all_paths = [d for d in readdir(dir; join=true) if occursin(".gms", d)]
+    all_names = [replace(f, ".gms" => "") for f in readdir(dir; join=false) if occursin(".gms", f)]
 
 
     df = DataFrame()
@@ -148,7 +148,7 @@ function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
     
     function solve_gm(name, folder)
         
-        gm = GAMS_to_GlobalModel(OCTHaGOn.GAMS_DIR*"$(folder)\\", name*".gms"; alg_list = alg_list)
+        gm = GAMS_to_GlobalModel(OCTHaGOn.GAMS_DIR*"$(folder)\\", name*".gms"; alg_list = alg_list, regression=false)
         set_optimizer(gm, CPLEX_SILENT)
         globalsolve!(gm; repair=REPAIR, opt_sampling=OPT_SAMPLING)
         gm.cost[end]
@@ -160,20 +160,24 @@ function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
     output_path = "dump/benchmarks/"
     Base.Filesystem.mkpath(output_path)
     suffix = Dates.format(Dates.now(), "YY-mm-dd_HH-MM-SS")
+    
+    og_alg_list = copy(alg_list)
 
     for folder in folders 
-        df_stats = get_problem_stats(folder)
+        df_stats = get_problem_stats(folder;force_reload=false)
         
         for (i, row) in enumerate(eachrow(df_stats))
+            
+            alg_list = copy(og_alg_list)
 
+            name, folder = row["name"], row["folder"]
             try 
-                name, folder = row["name"], row["folder"]
                 ts = time()
                 gm_obj = solve_gm(name, folder)
                 gm_time = time()-ts
                 
 
-                baron_obj = parse(Float32, row["optimal"])
+                baron_obj = parse(Float32, replace(row["optimal"], r"[^0-9\.-]" => ""))
                 baron_time = gm_time
 
                 df_tmp = DataFrame(
@@ -198,12 +202,13 @@ function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
                     println("Couldn't write to CSV")
                 end
 
-                println(new_row)
-            catch
-                println("Error solving $(name)")
-                println(stacktrace(catch_backtrace()))
+                println(df_all)
+            catch e
+                showerror(stdout, e)
+                #println("Error solving $(name)")
+                #println(stacktrace(catch_backtrace()))
             end
-            #break
+            # break
         end
 
         #break
@@ -213,4 +218,5 @@ end
 
 folders = ["global"]
 
-solve_and_benchmark(folders; alg_list = ["MLP", "SVM"])
+solve_and_benchmark(folders; alg_list = ["GBM", "SVM", "MLP"])
+#"GBM", "SVM", "MLP"

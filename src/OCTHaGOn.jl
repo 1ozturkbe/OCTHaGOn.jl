@@ -20,6 +20,7 @@ module OCTHaGOn
     using Statistics
     using SHA
     using Distributions
+    using StatsBase
     
     const PROJECT_ROOT = dirname(dirname(@__FILE__))
     const DATA_DIR = PROJECT_ROOT * "\\data\\"
@@ -113,6 +114,9 @@ module OCTHaGOn
         build_knn_tree,
         find_knn, classify_patches,
         opt_sample,opt_sample_helper,
+
+        # Learner methods 
+        fit!, predict,
 
         # Evaluation
         evaluate, evaluate_gradient, update_gradients,

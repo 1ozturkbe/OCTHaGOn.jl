@@ -110,6 +110,7 @@ decay_rate: Exponential coefficient of step size reduction.
 function descend!(gm::GlobalModel; kwargs...)
     # Initialization
     clear_tree_constraints!(gm) 
+
     bbls = gm.bbls
     vars = gm.vars
     bounds = get_bounds(vars)
@@ -428,6 +429,7 @@ function globalsolve!(gm::GlobalModel; repair=true, opt_sampling=false)
             add_tree_constraints!(gm, bbl)
         end
     end
+
     @info "Solving MIP..."
     optimize!(gm) 
 
