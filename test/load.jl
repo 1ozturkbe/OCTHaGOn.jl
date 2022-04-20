@@ -35,6 +35,8 @@ include(OCTHaGOn.PROJECT_ROOT * "/test/tools/models.jl")
 
 include(OCTHaGOn.DATA_DIR * "speed_reducer.jl")
 
+include(OCTHaGOn.DATA_DIR * "water_network.jl")
+
 include(OCTHaGOn.DATA_DIR * "oos.jl")
 
 include(OCTHaGOn.DATA_DIR * "afpm.jl")
