@@ -598,6 +598,15 @@ function test_convexcheck()
     @test !gm.bbls[end].convex
 end
 
+function test_mergelinked()
+    gm = hanoi_network(true)
+    bins = detect_linked_constraints!(gm)
+    @test length(bins) == 3
+    merge_linked_constraints!(gm, bins)
+    @test length(gm.bbls) == 3
+    @test length([ll for bbl in gm.bbls for ll in bbl.lls]) == 99
+end
+
 function test_linking()
     gm = foxes_and_rabbits()
     init_constraints = count_constraints(gm)
@@ -768,6 +777,8 @@ test_data_driven()
 test_rfs()
 
 test_convexcheck()
+
+test_mergelinked()
 
 test_linking()
 
