@@ -138,12 +138,23 @@ function GAMS_to_GlobalModel(GAMS_DIR::String, filename::String)
 
     # Getting variables
     vardict, constdict = generate_variables!(model, gams) # Actual JuMP variables
-
+    obj_symb = :objvar
     # Getting objective
-    if gams["minimizing"] isa String
-        @objective(model, Min, JuMP.variable_by_name(model, gams["minimizing"]))
-    else
-        @objective(model, Min, sum([JuMP.variable_by_name(i) for i in gams["minimizing"]]))
+    if "minimizing" in keys(gams)
+        if gams["minimizing"] isa String
+            @objective(model, Min, JuMP.variable_by_name(model, gams["minimizing"]))
+            obj_symb = Symbol(gams["minimizing"])
+        else
+            @objective(model, Min, sum([JuMP.variable_by_name(i) for i in gams["minimizing"]]))
+        end
+    elseif "maximizing" in keys(gams)
+        @warn "$(filename) is a maximization. Make sure objvar is on LHS of constraints, with a positive coefficient and and equality."
+        if gams["maximizing"] isa String
+            @objective(model, Max, JuMP.variable_by_name(model, gams["maximizing"]))
+            obj_symb = Symbol(gams["maximizing"])
+        else
+            @objective(model, Max, sum([JuMP.variable_by_name(i) for i in gams["maximizing"]]))
+        end
     end
 
     # Creating GlobalModel
@@ -163,7 +174,7 @@ function GAMS_to_GlobalModel(GAMS_DIR::String, filename::String)
             end
             # Designate free variables
             varkeys = find_vars_in_eq(eq, vardict)
-            if !(Symbol(gams["minimizing"]) in varkeys)
+            if !(obj_symb in varkeys)
                 vars = Array{VariableRef}(flat([vardict[varkey] for varkey in varkeys]))
                 input = Symbol.(varkeys)
                 constr_fn = :(($(input...),) -> $(constr_expr))
@@ -173,14 +184,14 @@ function GAMS_to_GlobalModel(GAMS_DIR::String, filename::String)
                 add_nonlinear_or_compatible(gm, constr_fn, vars = vars, expr_vars = [vardict[varkey] for varkey in varkeys],
                                         equality = is_equality(eq), name = gm.name * "_" * GAMSFiles.getname(key))
             else
-                constr_expr = OCTHaGOn.substitute(constr_expr, :($(Symbol(gams["minimizing"]))) => 0)
+                constr_expr = OCTHaGOn.substitute(constr_expr, :($(obj_symb)) => 0)
                 # ASSUMPTION: objvar has positive coefficient, and is on the greater size. 
                 op = GAMSFiles.eqops[GAMSFiles.getname(eq)]
-                if !(op in [:<, :>])
-                    throw(OCTHaGOnException("Please make sure GAMS model has objvar on the greater than size of inequalities, " *
-                                        " with a leading coefficient of 1."))
-                end
-                varkeys = filter!(x -> x != Symbol(gams["minimizing"]), varkeys)
+                # if !(op in [:<, :>])
+                    # throw(OCTHaGOnException("Please make sure GAMS model has objvar on the greater than size of inequalities, " *
+                    #                     " with a leading coefficient of 1."))
+                # end
+                varkeys = filter!(x -> x != obj_symb, varkeys)
                 vars = Array{VariableRef}(flat([vardict[varkey] for varkey in varkeys]))
                 input = Symbol.(varkeys)
                 constr_fn = :(($(input...),) -> -$(constr_expr))
@@ -188,7 +199,7 @@ function GAMS_to_GlobalModel(GAMS_DIR::String, filename::String)
                     constr_fn = :($(input...) -> -$(constr_expr))
                 end
                 add_nonlinear_or_compatible(gm, constr_fn, vars = vars, expr_vars = [vardict[varkey] for varkey in varkeys],
-                    dependent_var = vardict[Symbol(gams["minimizing"])], equality = is_equality(eq), name = gm.name * "_" * GAMSFiles.getname(key))
+                    dependent_var = vardict[obj_symb], equality = is_equality(eq), name = gm.name * "_" * GAMSFiles.getname(key))
             end
         elseif key isa GAMSFiles.GArray
             axs = GAMSFiles.getaxes(key.indices, sets)

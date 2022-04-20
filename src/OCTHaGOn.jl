@@ -113,14 +113,13 @@ module OCTHaGOn
         fit_regressor_kwargs, fit_classifier_kwargs, 
         regressor_kwargs, classifier_kwargs,
 
-        # Error computation
-
         # Constraint/variable generation/deletion
         set_bigM,
         add_feas_constraints!, add_regr_constraints!,
         add_tree_constraints!, clear_tree_constraints!, update_tree_constraints!,
         clear_lower_constraints!, clear_upper_constraints!,
         add_relaxation_variables!, clear_relaxation_variables!,
+        detect_linked_constraints!, merge_linked_constraints!,
 
         # BlackBoxLearner helpers
         show_trees, all_mi_constraints, active_lower_tree, active_upper_tree,
@@ -147,7 +146,8 @@ module OCTHaGOn
         pwl_constraint_data, trust_region_data,
 
         # Functions on JuMP/MathOptInterface objects
-        fetch_variable, get_bounds, get_unbounds, flattened_bounds,
+        fetch_variable, get_bounds, get_joint_bounds, 
+        get_unbounds, flattened_bounds,
         bounded_aux, 
         linearize_objective!, classify_constraints,
         bound!, restrict_to_set,

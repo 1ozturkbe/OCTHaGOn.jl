@@ -8,19 +8,34 @@ function truncate_sigfigs(data, digits = 7)
     return round.(data, sigdigits = digits)
 end
 
+""" Computes the bounds of the union of variables in a BlackBoxLearner and its LinkedLearners. """
+function get_joint_bounds(bbl::BlackBoxLearner)
+    !isempty(bbl.lls) || throw(OCTHaGOnException("BlackBoxLearner $(bbl.name) must have non-zero LinkedLearners for computing joint bounds."))
+    bounds = Dict(var => [] for var in bbl.vars)
+    bbl_bounds = flattened_bounds(bbl)
+    ll_bounds = [flattened_bounds(ll) for ll in bbl.lls]
+    for i = 1:length(bbl.vars)
+        var = bbl.vars[i]
+        var_bound = [
+            minimum([minimum(bbl_bounds[i]), 
+                    [minimum(ll_bound[i]) for ll_bound in ll_bounds]...])
+            maximum([maximum(bbl_bounds[i]), 
+                    [maximum(ll_bound[i]) for ll_bound in ll_bounds]...])]
+        bounds[var] = var_bound
+    end
+    return bounds
+end
+
 """
-    lh_sample(vars::Array{JuMP.VariableRef, 1}; lh_iterations::Int64 = 0,
-                   n_samples::Int64 = 1000)
-    lh_sample(bbl::BlackBoxLearner; lh_iterations::Int64 = 0,
-                   n_samples::Int64 = 1000)
+    $(TYPEDSIGNATURES)
 
 Uniformly Latin Hypercube samples the variables of GlobalModel, as long as all
 lbs and ubs are defined.
 """
-function lh_sample(vars::Array{JuMP.VariableRef, 1}; lh_iterations::Int64 = 0,
+function lh_sample(bounds::Dict; lh_iterations::Int64 = 0,
                    n_samples::Int64 = 1000)
-    bounds = get_bounds(vars)
     check_bounds(bounds)
+    vars = flat(keys(bounds))
     n_dims = length(vars)
     if lh_iterations > 0
         plan, _ = LHCoptim(n_samples, n_dims, lh_iterations);
@@ -33,7 +48,13 @@ end
 
 function lh_sample(bbl::BlackBoxLearner; lh_iterations::Int64 = 0,
                    n_samples::Int64 = 1000)
-   return lh_sample(bbl.vars; lh_iterations = lh_iterations, n_samples = n_samples)
+    if isempty(bbl.lls)
+        bounds = get_bounds(bbl.vars)
+        return lh_sample(bounds; lh_iterations = lh_iterations, n_samples = n_samples)
+    else
+        bounds = get_joint_bounds(bbl)
+        return lh_sample(bounds; lh_iterations = lh_iterations, n_samples = n_samples)
+    end
 end
 
 function choose(large::Int64, small::Int64)
@@ -41,17 +62,15 @@ function choose(large::Int64, small::Int64)
 end
 
 """
-    boundary_sample(bbl::BlackBoxLearner; fraction::Float64 = 0.5)
-    boundary_sample(vars::Array{JuMP.VariableRef, 1}; n_samples = 100, fraction::Float64 = 0.5,
-                         warn_string::String = "")
+    $(TYPEDSIGNATURES)
 
 Samples a BlackBoxLearner on the corners of the variable hypercube. 
 Samples a subset of corners for learners with large number of variables. 
 """
-function boundary_sample(vars::Array{JuMP.VariableRef, 1}; n_samples::Int64 = 100, fraction::Float64 = 0.5,
+function boundary_sample(bounds::Dict; n_samples::Int64 = 100, fraction::Float64 = 0.5,
                          warn_string::String = "")
-    bounds = get_bounds(vars);
     check_bounds(bounds);
+    vars = flat(keys(bounds))
     n_vars = length(vars);
     vks = string.(vars);
     lbs = DataFrame(Dict(string(key) => minimum(val) for (key, val) in bounds))
@@ -65,7 +84,6 @@ function boundary_sample(vars::Array{JuMP.VariableRef, 1}; n_samples::Int64 = 10
     nX = DataFrame(vks .=> [Float64[] for i in vks])
     sample_indices = [];
     if n_comb >= fraction*n_samples 
-        @info("Can't exhaustively sample the boundary of Constraint " * string(warn_string) * ".")
         n_comb = 2*n_vars+2; # Everything is double because we choose min's and max's
         choosing = 1;
         while n_comb <= fraction*n_samples
@@ -88,9 +106,15 @@ function boundary_sample(vars::Array{JuMP.VariableRef, 1}; n_samples::Int64 = 10
     return nX # Note: boundary samples are not truncated for significant figures
 end
 
-function boundary_sample(bbl::BlackBoxLearner; fraction::Float64 = 0.5)
-    return boundary_sample(bbl.vars, n_samples = get_param(bbl, :n_samples), fraction = fraction,
+function boundary_sample(bbl::BlackBoxLearner; fraction::Float64 = 0.1)
+    if isempty(bbl.lls)
+        return boundary_sample(get_bounds(bbl.vars), n_samples = get_param(bbl, :n_samples), fraction = fraction,
                            warn_string = bbl.name)
+    else
+        bounds = get_joint_bounds(bbl)
+        return boundary_sample(bounds, n_samples = get_param(bbl, :n_samples), fraction = fraction,
+                            warn_string = bbl.name)
+    end
 end
 
 
@@ -132,7 +156,7 @@ end
 Samples and evaluates nonlinear constraints using full suite of methods. 
 """
 function uniform_sample_and_eval!(bbl::BlackBoxLearner;
-                          boundary_fraction::Float64 = 0.5,
+                          boundary_fraction::Float64 = 0.1,
                           lh_iterations::Int64 = 0, sample_density = 1.e-5)
     @assert size(bbl.X, 1) == 0 # TODO: fix this w.r.t. data-driven constraints. 
     vks = string.(bbl.vars)

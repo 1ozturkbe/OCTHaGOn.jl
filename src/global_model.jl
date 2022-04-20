@@ -264,9 +264,6 @@ function add_linked_constraint(gm::GlobalModel, bbc::BlackBoxClassifier, vars::A
         @info "Cleared constraints from BBC $(bbc.name) since it was relinked."
     end
     lc = LinkedClassifier(vars = vars, equality = bbc.equality)
-    var_bounds = flattened_bounds(bbc)
-    lc_var_bounds = flattened_bounds(lc)
-    all(minimum.(var_bounds) .<= minimum.(lc_var_bounds)) &&  all(maximum.(var_bounds) .>= maximum.(lc_var_bounds)) || throw(ErrorException("The LinkedClassifier must have a smaller variable range than the BlackBoxClassifier."))
     push!(bbc.lls, lc)
     return
 end
@@ -281,9 +278,6 @@ function add_linked_constraint(gm::GlobalModel, bbr::BlackBoxRegressor, vars::Ar
     end
     lr = LinkedRegressor(vars = vars, dependent_var = dependent_var, 
                                    equality = bbr.equality)
-    var_bounds = flattened_bounds(bbr)
-    lr_var_bounds = flattened_bounds(lr)
-    all(minimum.(var_bounds) .<= minimum.(lr_var_bounds)) &&  all(maximum.(var_bounds) .>= maximum.(lr_var_bounds)) || throw(ErrorException("The LinkedRegressor must have a smaller variable range than the BlackBoxRegressor."))
     push!(bbr.lls, lr)
     return
 end
@@ -564,3 +558,74 @@ function set_bigM(bbl::BlackBoxLearner, b::Bool)
 end
 
 set_bigM(gm::GlobalModel, b::Bool) = set_bigM.(gm.bbls, b)
+
+""" 
+    $(TYPEDSIGNATURES)
+
+Detects BlackBoxLearner with similar structure, for speeding up constraint learning. 
+"""
+function detect_linked_constraints!(gm::GlobalModel)
+    bounds = get_bounds(gm.bbls)
+    vars = all_variables(gm.bbls)
+    isnothing(check_bounds(bounds)) || throw(OCTHaGOnException("Not all variables in nonlinear constraints are bounded in $(gm.name)."))
+    bins = Dict()
+    queue = copy(gm.bbls)
+    while !isempty(queue)
+        bbl = popfirst!(queue)
+        n_vars = length(bbl.vars)
+        reg_bool = bbl isa BlackBoxRegressor
+        similars = [q for q in queue if (n_vars == length(q.vars) 
+                        && reg_bool == (q isa BlackBoxRegressor) && bbl.equality == q.equality)]
+        if !isempty(similars)
+            samples = lh_sample(bbl, lh_iterations = 5, n_samples = 10)            
+            vals = evaluate(bbl, samples)
+            act_sims = []
+            for i = 1:length(similars)
+                sim = similars[i]
+                rename!(samples, string.(sim.vars))
+                qs = evaluate(sim, samples)
+                if all(isapprox.(vals, qs, atol = 1e-8))
+                    push!(act_sims, sim)
+                end
+            end
+            if !isempty(act_sims)
+                queue = filter!(e -> !(e in act_sims), queue)
+                bbl_bounds = flattened_bounds(bbl)
+                ll_bounds = [flattened_bounds(sim) for sim in act_sims]
+                outer_bounds = []
+                for i = 1:length(bbl_bounds)
+                    var_bound = [
+                        minimum([minimum(bbl_bounds[i]), 
+                                [minimum(ll_bound[i]) for ll_bound in ll_bounds]...])
+                        maximum([maximum(bbl_bounds[i]), 
+                                [maximum(ll_bound[i]) for ll_bound in ll_bounds]...])]
+                    push!(outer_bounds, var_bound)
+                end
+                bins[bbl] = act_sims
+            end
+        else
+            continue
+        end
+    end
+    return bins
+end
+
+""" 
+    $(TYPEDSIGNATURES)
+
+Merges detected linked constraints via LinkedLearners. 
+"""
+function merge_linked_constraints!(gm::GlobalModel, bins::Dict)
+    @info "Merging $(length(flat(values(bins)))) LinkedLearners into $(length(keys(bins))) BlackBoxLearners. "
+    for (bbl, linked_bbls) in bins
+        for linked_bbl in linked_bbls
+            if linked_bbl isa BlackBoxClassifier
+                add_linked_constraint(gm, bbl, linked_bbl.vars)
+            else
+                add_linked_constraint(gm, bbl, linked_bbl.vars, linked_bbl.dependent_var)
+            end
+        end
+    end
+    gm.bbls = filter!(x -> !(x in flat(values(bins))), gm.bbls)
+    return
+end
