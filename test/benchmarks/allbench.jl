@@ -8,6 +8,7 @@ OPT_SAMPLING = false
 using Serialization: serialize, deserialize
 using DataFrames, Dates 
 
+
 """
 Loads and parses gam from file. 
 If already loaded once, it will be loaded
@@ -150,12 +151,19 @@ function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
         
         gm = GAMS_to_GlobalModel(OCTHaGOn.GAMS_DIR*"$(folder)\\", name*".gms"; alg_list = alg_list, regression=false)
         set_optimizer(gm, CPLEX_SILENT)
+        set_param(gm, :sample_coeff, 800)
         globalsolve!(gm; repair=REPAIR, opt_sampling=OPT_SAMPLING)
-        gm.cost[end]
+        
+        # Performance of the different algorithms (e.g. GBM, SVM, OCT)
+        df_algs = vcat([bbl.learner_performance for bbl in gm.bbls]...)
+        
+
+        return gm.cost[end], df_algs
     
     end
 
     df_all = DataFrame()
+    df_algs_all = DataFrame()
 
     output_path = "dump/benchmarks/"
     Base.Filesystem.mkpath(output_path)
@@ -171,38 +179,47 @@ function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
             alg_list = copy(og_alg_list)
 
             name, folder = row["name"], row["folder"]
+            if name != "ex4_1_1"
+                continue 
+            end
+
             try 
                 ts = time()
-                gm_obj = solve_gm(name, folder)
+                gm_obj, df_algs = solve_gm(name, folder)
                 gm_time = time()-ts
                 
 
                 baron_obj = parse(Float32, replace(row["optimal"], r"[^0-9\.-]" => ""))
                 baron_time = gm_time
-
+                subopt = abs(baron_obj)<1 ? ((gm_obj+1)/1+baron_obj) : gm_obj/baron_obj
                 df_tmp = DataFrame(
                     # "n" => N,
                     # "m" => M,
                     "gm" => gm_obj, 
                     "baron" => baron_obj,
                     "diff" => gm_obj-baron_obj,
-                    "subopt_factor" => baron_obj/gm_obj,
+                    "subopt_factor" => gm_obj/baron_obj,
                     "gm_time" => gm_time,
                     "ba_time" => baron_time,
                     "algs" => "[\""*join(alg_list, "\",\"")*"\"]"
                 )
                 new_row = hcat(df_tmp, DataFrame(row))
                 append!(df_all, new_row)
+                append!(df_algs_all, df_algs)
 
                 try
                     csv_path = output_path*"benchmark$(suffix).csv"
+                    csv_path_alg = output_path*"benchmark_alg$(suffix).csv"
                     #println(csv_path)
                     CSV.write(csv_path, df_all)
+                    CSV.write(csv_path_alg, df_algs_all)
                 catch
                     println("Couldn't write to CSV")
                 end
 
                 println(df_all)
+
+                # break
             catch e
                 showerror(stdout, e)
                 #println("Error solving $(name)")

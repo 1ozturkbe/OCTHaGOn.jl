@@ -21,6 +21,8 @@ module OCTHaGOn
     using SHA
     using Distributions
     using StatsBase
+    using DecisionTree
+    using ScikitLearn
     
     const PROJECT_ROOT = dirname(dirname(@__FILE__))
     const DATA_DIR = PROJECT_ROOT * "\\data\\"

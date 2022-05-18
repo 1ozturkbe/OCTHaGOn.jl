@@ -164,9 +164,9 @@ function add_nonlinear_constraint(gm::GlobalModel,
         if isnothing(dependent_var)
             if regression
 
-                if length(vars) <= 10 && "OCT" ∉ alg_list 
-                    push!(alg_list, "OCT")
-                end
+                # if length(vars) <= 10 && "OCT" ∉ alg_list 
+                #     push!(alg_list, "OCT")
+                # end
                 # If we have a constraint with no dependent variables and we want
                 # to use regression, then create a new dependent variable that 
                 # will act as the RHS of the equation
@@ -188,9 +188,9 @@ function add_nonlinear_constraint(gm::GlobalModel,
             end
             return
         else
-            if length(vars) <= 10 && "OCT" ∉ alg_list 
-                push!(alg_list, "OCT")
-            end
+            # if length(vars) <= 10 && "OCT" ∉ alg_list 
+            #     push!(alg_list, "OCT")
+            # end
             new_bbl = BlackBoxRegressor(constraint = constraint, vars = vars, expr_vars = expr_vars,
                                         dependent_var = dependent_var, equality = equality, name = name, alg_list = alg_list, hash = constr_hash)
             set_param(new_bbl, :n_samples, Int(ceil(get_param(gm, :sample_coeff)*sqrt(length(vars)))))

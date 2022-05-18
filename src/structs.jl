@@ -97,7 +97,8 @@ Optional arguments:
     min_Y::Union{Nothing, Real} = nothing
     alg_list::Array{String} = ["OCT"]                  # List of algs used to approximate the constraint (e.g. 'CART','OCT','RF')
     hash::String = ""                                  # Hash function of the constraint to track reproducibility  
-    #gm = nothing                                       # Reference to GlobalModel
+    learner_performance::DataFrame = DataFrame("model"=>[], "type"=>[], "constr"=>[],
+                                        "n"=>[],"score"=>[],"time"=>[])  # Used to record the performance of the learners
 end
 
 
@@ -173,7 +174,8 @@ Optional arguments:
     min_Y::Union{Nothing, Real} = nothing
     alg_list::Array{String} = ["OCT"]                  # List of algs used to approximate the constraint (e.g. 'CART','OCT','RF')
     hash::String = ""                                  # Hash function of the constraint to track reproducibility
-    #gm = nothing                                       # Reference to GlobalModel
+    learner_performance::DataFrame = DataFrame("model"=>[], "type"=>[], "constr"=>[],
+    "n"=>[],"score"=>[],"time"=>[])  # Used to record the performance of the learners
 end
 
 BlackBoxLearner = Union{BlackBoxClassifier, BlackBoxRegressor}

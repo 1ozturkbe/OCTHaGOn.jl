@@ -70,7 +70,7 @@ NOTE: kwargs get unpacked here, all the way from learn_constraint!.
 """
 function learn_from_data!(X::DataFrame, Y::AbstractArray, lnr::Union{IAI.OptimalTreeLearner, 
                                                                      IAI.Heuristics.RandomForestLearner}, 
-                          idxs::Union{Nothing, Array}=nothing;use_test_set=false, kwargs...)
+                          idxs::Union{Nothing, Array}=nothing;use_test_set=true, kwargs...)
     n_samples, n_features = size(X);
     @assert n_samples == length(Y);
     # Making sure that we only consider relevant features.
@@ -94,7 +94,12 @@ function learn_from_data!(X::DataFrame, Y::AbstractArray, lnr::Union{IAI.Optimal
     end 
     
     IAI.fit!(lnr, X_train, y_train; kwargs...)
-    score = IAI.score(lnr, X_test, y_test)
+    #score = IAI.score(lnr, X_test, y_test)
+
+    evaluator = lnr isa IAI.OptimalTreeRegressor ? regression_evaluation() : classification_evaluation();
+    y_pred = IAI.predict(lnr, X_test)
+
+    score = evaluator.second(y_pred, y_test)
 
     return lnr, score
 end
@@ -102,7 +107,7 @@ end
 
 """ 
     learn_from_data!(X::DataFrame, Y::AbstractArray, lnr::AbstractRegressor, idxs::Union{Nothing, Array}=nothing; 
-                        use_test_set=false, kwargs...)
+                        use_test_set=true, kwargs...)
 
 Wrapper around fit! of the different regressors (e.g. CART, GBM)
 Arguments:
@@ -114,7 +119,7 @@ Returns:
 NOTE: kwargs get unpacked here, all the way from learn_constraint!.
 """
 function learn_from_data!(X::DataFrame, Y::AbstractArray, lnr::AbstractRegressor, idxs::Union{Nothing, Array}=nothing; 
-    use_test_set=false, equality=false, kwargs...)
+    use_test_set=true, equality=false, kwargs...)
 
     if !isnothing(idxs)
         println("Feature splitting not suppoerted yet: using all features")
@@ -141,7 +146,7 @@ end
 
 """ 
     learn_from_data!(X::DataFrame, Y::AbstractArray, lnr::AbstractClassifier, idxs::Union{Nothing, Array}=nothing; 
-                        use_test_set=false, kwargs...)
+                        use_test_set=true, kwargs...)
 
 Wrapper around fit! of the different regressors (e.g. CART, GBM)
 Arguments:
@@ -153,7 +158,7 @@ Returns:
 NOTE: kwargs get unpacked here, all the way from learn_constraint!.
 """
 function learn_from_data!(X::DataFrame, Y::AbstractArray, lnr::AbstractClassifier, idxs::Union{Nothing, Array}=nothing; 
-    use_test_set=false, equality=false, kwargs...)
+    use_test_set=true, equality=false, kwargs...)
 
     if !isnothing(idxs)
         println("Feature splitting not supported yet: using all features")
@@ -412,7 +417,8 @@ function learn_constraint!(bbc::BlackBoxClassifier, algs::Union{Nothing, Array{S
             throw(OCTHaGOnException("$(alg) model is not supported for classification."))
         end
 
-        # try
+        try
+            ts = time()
             if alg in ["CART", "OCT"]
                 # Use IAI
                 lnr = LEARNER_DICT["classification"][alg]()
@@ -422,16 +428,25 @@ function learn_constraint!(bbc::BlackBoxClassifier, algs::Union{Nothing, Array{S
                 lnr, score = learn_from_data!(bbc.X, bbc.Y, lnr; equality = bbc.equality)
                 args = kwargs
             end
-            
+
+            append!(bbc.learner_performance, Dict(
+                "model" => alg,
+                "type" => "classification", 
+                "constr" => bbc.name, 
+                "n" => length(bbc.vars),
+                "score" => score,
+                "time" => time()-ts)
+            )
+
             @info "Trained $(alg) with ACCURACY=$(score)"
             if score >= best_score
                 best_alg_name = alg
                 best_score  = score
                 best_model = (lnr, score, args)
             end
-        # catch
-        #     println("Model $(alg) failed") 
-        # end
+        catch
+            @warn "Model $(alg) failed"
+        end
     end
 
     lnr, score, args = best_model
@@ -458,110 +473,139 @@ function learn_constraint!(bbr::BlackBoxRegressor, threshold::Pair = Pair("reg",
     best_model = nothing
 
     for alg in algs 
-        if bbr.convex && !bbr.equality
-            return # If convex, don't train a tree!
-        elseif threshold.first in classifications
-            if alg != "OCT" && alg != "CART"
-                @warn("$(alg) regressor attempts to be used as classifier. Skipping")
-                continue
-            end
-            lnr = base_classifier()
-            IAI.set_params!(lnr; minbucket = 
-                maximum([2*length(bbr.vars)/length(bbr.Y), lnr.minbucket]), 
-                classifier_kwargs(; kwargs...)...)
-            ul_data = Dict()
-            if threshold.first == "upper" # Upper bounding classifier with upper bounds in leaves
-                lnr, score = learn_from_data!(bbr.X, bbr.Y .<= threshold.second, lnr; fit_classifier_kwargs(; kwargs...)...)
-                merge!(ul_data, boundify(lnr, bbr.X, bbr.Y, "upper"))
-            elseif threshold.first == "lower" # Lower bounding classifier with lower bounds in leaves
-                lnr, score = learn_from_data!(bbr.X, bbr.Y .>= threshold.second, lnr; fit_classifier_kwargs(; kwargs...)...)
-                merge!(ul_data, boundify(lnr, bbr.X, bbr.Y, "lower"))
-            elseif threshold.first == "upperlower" # Upper bounding classifier with bounds in each leaf
-                lnr, score = learn_from_data!(bbr.X, bbr.Y .<= threshold.second, lnr; fit_classifier_kwargs(; kwargs...)...)
-                merge!(ul_data, boundify(lnr, bbr.X, bbr.Y, "lower"))
-                merge!(ul_data, boundify(lnr, bbr.X, bbr.Y, "upper"))
-            end
-            push!(bbr.learners, lnr);
-            push!(bbr.learner_kwargs, Dict(kwargs))
-            push!(bbr.thresholds, threshold)
-            push!(bbr.ul_data, ul_data)
-            push!(bbr.accuracies, IAI.score(lnr, bbr.X, bbr.Y .>= 0))
-            return
-        elseif alg ∉ ["OCT", "CART"]
-            
-            lnr = LEARNER_DICT["regression"][alg](dependent_var = bbr.dependent_var)
 
-            lnr, score = learn_from_data!(bbr.X, bbr.Y, lnr; equality = bbr.equality)
+        try
+            if bbr.convex && !bbr.equality
+                return # If convex, don't train a tree!
+            elseif threshold.first in classifications
+                if alg != "OCT" && alg != "CART"
+                    @warn("$(alg) regressor attempts to be used as classifier. Skipping")
+                    continue
+                end
+                lnr = base_classifier()
+                IAI.set_params!(lnr; minbucket = 
+                    maximum([2*length(bbr.vars)/length(bbr.Y), lnr.minbucket]), 
+                    classifier_kwargs(; kwargs...)...)
+                ul_data = Dict()
+                if threshold.first == "upper" # Upper bounding classifier with upper bounds in leaves
+                    lnr, score = learn_from_data!(bbr.X, bbr.Y .<= threshold.second, lnr; fit_classifier_kwargs(; kwargs...)...)
+                    merge!(ul_data, boundify(lnr, bbr.X, bbr.Y, "upper"))
+                elseif threshold.first == "lower" # Lower bounding classifier with lower bounds in leaves
+                    lnr, score = learn_from_data!(bbr.X, bbr.Y .>= threshold.second, lnr; fit_classifier_kwargs(; kwargs...)...)
+                    merge!(ul_data, boundify(lnr, bbr.X, bbr.Y, "lower"))
+                elseif threshold.first == "upperlower" # Upper bounding classifier with bounds in each leaf
+                    lnr, score = learn_from_data!(bbr.X, bbr.Y .<= threshold.second, lnr; fit_classifier_kwargs(; kwargs...)...)
+                    merge!(ul_data, boundify(lnr, bbr.X, bbr.Y, "lower"))
+                    merge!(ul_data, boundify(lnr, bbr.X, bbr.Y, "upper"))
+                end
+                push!(bbr.learners, lnr);
+                push!(bbr.learner_kwargs, Dict(kwargs))
+                push!(bbr.thresholds, threshold)
+                push!(bbr.ul_data, ul_data)
+                push!(bbr.accuracies, IAI.score(lnr, bbr.X, bbr.Y .>= 0))
+                return
+            elseif alg ∉ ["OCT", "CART"]
+                ts = time()
 
-            @info "Trained $(alg) with R2=$(score)"
-            if score >= best_score
-                best_alg_name = alg
-                best_score  = score
-                best_model = (lnr, score, Dict(kwargs))
-            end
+                lnr = LEARNER_DICT["regression"][alg](dependent_var = bbr.dependent_var)
 
-            push!(bbr.learners, lnr);
-            push!(bbr.learner_kwargs, Dict(kwargs))
-            #push!(bbr.thresholds, threshold)
-            #push!(bbr.ul_data, boundify(lnr, bbr.X, bbr.Y))
-            push!(bbr.accuracies, score)
-        elseif threshold.first == "reg"
-            lnr = LEARNER_DICT["regression"][alg](dependent_var = bbr.dependent_var)
-            IAI.set_params!(lnr; minbucket = 
-                maximum([2*length(bbr.vars)/length(bbr.Y), lnr.minbucket]),
-                regressor_kwargs(; kwargs...)...)
-            if bbr.equality # Equalities cannot leverage convexity unfortunately...
+                
+                lnr, score = learn_from_data!(bbr.X, bbr.Y, lnr; equality = bbr.equality)
+
+                append!(bbr.learner_performance, Dict(
+                    "model" => alg,
+                    "type" => "regression", 
+                    "constr" => bbr.name, 
+                    "n" => length(bbr.vars),
+                    "score" => score,
+                    "time" => time()-ts)
+                )
+
+                @info "Trained $(alg) with R2=$(score)"
+                if score >= best_score
+                    best_alg_name = alg
+                    best_score  = score
+                    best_model = (lnr, score, Dict(kwargs))
+                end
+                
+                push!(bbr.learners, lnr);
+                push!(bbr.learner_kwargs, Dict(kwargs))
+                #push!(bbr.thresholds, threshold)
+                #push!(bbr.ul_data, boundify(lnr, bbr.X, bbr.Y))
+                push!(bbr.accuracies, score)
+            elseif threshold.first == "reg"
+
+                ts = time()
+
+                lnr = LEARNER_DICT["regression"][alg](dependent_var = bbr.dependent_var)
+                IAI.set_params!(lnr; minbucket = 
+                    maximum([2*length(bbr.vars)/length(bbr.Y), lnr.minbucket]),
+                    regressor_kwargs(; kwargs...)...)
+                if bbr.equality # Equalities cannot leverage convexity unfortunately...
+                    if threshold.second == nothing
+                        lnr, score = learn_from_data!(bbr.X, bbr.Y, lnr; fit_regressor_kwargs(; kwargs...)...)   
+                    else
+                        idxs = findall(y -> y <= threshold.second, bbr.Y) 
+                        lnr, score = learn_from_data!(bbr.X[idxs, :], bbr.Y[idxs], lnr; fit_regressor_kwargs(; kwargs...)...)
+                    end        
+                elseif threshold.second == nothing && bbr.local_convexity < 0.75
+                    lnr, score = learn_from_data!(bbr.X, bbr.Y, lnr; fit_regressor_kwargs(; kwargs...)...)   
+                elseif threshold.second == nothing && bbr.local_convexity >= 0.75
+                    lnr, score = learn_from_data!(bbr.X, bbr.curvatures .> 0, lnr; fit_regressor_kwargs(; kwargs...)...)             
+                elseif bbr.local_convexity < 0.75
+                    idxs = findall(y -> y <= threshold.second, bbr.Y) 
+                    lnr, score = learn_from_data!(bbr.X[idxs, :], bbr.Y[idxs], lnr; fit_regressor_kwargs(; kwargs...)...)
+                elseif bbr.local_convexity >= 0.75
+                    idxs = findall(y -> y <= threshold.second, bbr.Y) 
+                    lnr, score = learn_from_data!(bbr.X[idxs, :], bbr.curvatures[idxs] .> 0, lnr; fit_regressor_kwargs(; kwargs...)...)
+                end
+                
+                append!(bbr.learner_performance, Dict(
+                    "model" => alg,
+                    "type" => "regression", 
+                    "constr" => bbr.name, 
+                    "n" => length(bbr.vars),
+                    "score" => score,
+                    "time" => time()-ts)
+                )
+
+                @info "Trained $(alg) with R2=$(score)"
+                if score >= best_score
+                    best_alg_name = alg
+                    best_score  = score
+                    best_model = (lnr, score, Dict(kwargs))
+                end
+                push!(bbr.learners, lnr);
+                push!(bbr.learner_kwargs, Dict(kwargs))
+                push!(bbr.thresholds, threshold)
+                push!(bbr.ul_data, boundify(lnr, bbr.X, bbr.Y))
+                push!(bbr.accuracies, score)
+            elseif threshold.first == "rfreg"
+                lnr = base_rf_regressor()
+                bbr.local_convexity < 0.75 || throw(OCTHaGOnException("Cannot use RandomForestRegressor " *
+                "on BBR $(bbr.name) since it is almost convex."))
+                IAI.set_params!(lnr; minbucket = 
+                    maximum([2*length(bbr.vars)/length(bbr.Y), lnr.minbucket]),
+                    regressor_kwargs(; kwargs...)...)
                 if threshold.second == nothing
                     lnr, score = learn_from_data!(bbr.X, bbr.Y, lnr; fit_regressor_kwargs(; kwargs...)...)   
                 else
                     idxs = findall(y -> y <= threshold.second, bbr.Y) 
                     lnr, score = learn_from_data!(bbr.X[idxs, :], bbr.Y[idxs], lnr; fit_regressor_kwargs(; kwargs...)...)
-                end        
-            elseif threshold.second == nothing && bbr.local_convexity < 0.75
-                lnr, score = learn_from_data!(bbr.X, bbr.Y, lnr; fit_regressor_kwargs(; kwargs...)...)   
-            elseif threshold.second == nothing && bbr.local_convexity >= 0.75
-                lnr, score = learn_from_data!(bbr.X, bbr.curvatures .> 0, lnr; fit_regressor_kwargs(; kwargs...)...)             
-            elseif bbr.local_convexity < 0.75
-                idxs = findall(y -> y <= threshold.second, bbr.Y) 
-                lnr, score = learn_from_data!(bbr.X[idxs, :], bbr.Y[idxs], lnr; fit_regressor_kwargs(; kwargs...)...)
-            elseif bbr.local_convexity >= 0.75
-                idxs = findall(y -> y <= threshold.second, bbr.Y) 
-                lnr, score = learn_from_data!(bbr.X[idxs, :], bbr.curvatures[idxs] .> 0, lnr; fit_regressor_kwargs(; kwargs...)...)
-            end
-            
-            @info "Trained $(alg) with R2=$(score)"
-            if score >= best_score
-                best_alg_name = alg
-                best_score  = score
-                best_model = (lnr, score, Dict(kwargs))
-            end
-            push!(bbr.learners, lnr);
-            push!(bbr.learner_kwargs, Dict(kwargs))
-            push!(bbr.thresholds, threshold)
-            push!(bbr.ul_data, boundify(lnr, bbr.X, bbr.Y))
-            push!(bbr.accuracies, score)
-        elseif threshold.first == "rfreg"
-            lnr = base_rf_regressor()
-            bbr.local_convexity < 0.75 || throw(OCTHaGOnException("Cannot use RandomForestRegressor " *
-            "on BBR $(bbr.name) since it is almost convex."))
-            IAI.set_params!(lnr; minbucket = 
-                maximum([2*length(bbr.vars)/length(bbr.Y), lnr.minbucket]),
-                regressor_kwargs(; kwargs...)...)
-            if threshold.second == nothing
-                lnr, score = learn_from_data!(bbr.X, bbr.Y, lnr; fit_regressor_kwargs(; kwargs...)...)   
+                end
+                push!(bbr.learners, lnr);
+                push!(bbr.learner_kwargs, Dict(kwargs))
+                push!(bbr.thresholds, threshold)
+                push!(bbr.ul_data, boundify(lnr, bbr.X, bbr.Y))
+                push!(bbr.accuracies, IAI.score(lnr, bbr.X, bbr.Y))
             else
-                idxs = findall(y -> y <= threshold.second, bbr.Y) 
-                lnr, score = learn_from_data!(bbr.X[idxs, :], bbr.Y[idxs], lnr; fit_regressor_kwargs(; kwargs...)...)
-            end
-            push!(bbr.learners, lnr);
-            push!(bbr.learner_kwargs, Dict(kwargs))
-            push!(bbr.thresholds, threshold)
-            push!(bbr.ul_data, boundify(lnr, bbr.X, bbr.Y))
-            push!(bbr.accuracies, IAI.score(lnr, bbr.X, bbr.Y))
-        else
-            throw(OCTHaGOnException("$(threshold.first) is not a valid learner type for" *
-                " thresholded learning of BBR $(bbr.name)."))
-        end    
+                throw(OCTHaGOnException("$(threshold.first) is not a valid learner type for" *
+                    " thresholded learning of BBR $(bbr.name)."))
+            end  
+            
+        catch
+            @warn "Model $(alg) failed"
+        end
     end
 
     if threshold.first != "rfreg"

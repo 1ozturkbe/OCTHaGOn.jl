@@ -435,6 +435,7 @@ function globalsolve!(gm::GlobalModel; repair=true, opt_sampling=false)
 
     if repair    
         descend!(gm) 
+        final_repair!(gm)
     end
 
 end 
@@ -447,4 +448,26 @@ function globalsolve_and_time!(m::Union{JuMP.Model, GlobalModel})
         globalsolve!(m)
     end
     println("Model solution time: " * string(time()-t1) * " seconds.")
+end
+
+function final_repair!(gm::GlobalModel)
+
+    try
+        df2 = copy(gm.solution_history)
+        df2[!, "feasible"] .= [false]
+
+        for i=1:size(df2,1)
+            feas_gap(gm, df2[i:i, [c for c in names(df2) if c != "feasible"]])
+            df2[i, "feasible"] = all(abs.([bbl.feas_gap[end] for bbl in gm.bbls]).<=1e-3)
+        end
+
+        df_feas = df2[df2[!,"feasible"],:]
+        best_sol = sort(df_feas, :objvar)[1:1,:]
+        append!(gm.solution_history, best_sol, cols=:intersect)
+        push!(gm.cost, gm.solution_history[end, string(gm.objective)])
+        print("Solution repaired")
+        #@warning("Solution repaired")
+    catch
+        #@info("Did not repair solution") 
+    end
 end

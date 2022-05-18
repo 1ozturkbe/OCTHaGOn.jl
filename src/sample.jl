@@ -127,6 +127,75 @@ function knn_sample(bbl::BlackBoxClassifier; k::Int64 = 10, sample_density = 1e-
     return truncate_sigfigs(df)
 end
 
+function describe_leaves(leaf_data, root, current_bounds)
+    
+    if DecisionTree.is_leaf(root)
+        #print(current_bounds)
+        push!(leaf_data, Dict("bounds"  => reduce(hcat, deepcopy(current_bounds))', "val" => mean(root.values), "n_vals"=>length(root.values)))
+    else 
+        tmp_bounds = copy(current_bounds)
+        tmp_bounds[root.featid][2] = root.featval
+        describe_leaves(leaf_data, root.left, tmp_bounds)
+        
+        tmp_bounds = copy(current_bounds)
+        tmp_bounds[root.featid][1] = root.featval
+        describe_leaves(leaf_data, root.right, tmp_bounds)
+    end
+end
+
+
+function refined_derivative_sampling(bbl::BlackBoxLearner, total_samples=100, depth=4)
+
+    try
+        leaf_data = []
+        #og_bounds = [[-1e6, 1e6] for _ =1:length(bbl.vars)]
+
+        bounds = get_bounds(bbl.vars)
+        og_bounds = [bounds[k] for k in bbl.vars]
+        
+        grads = [bbl.g(Vector(bbl.X[i,string.(bbl.vars)])) for i=1:size(bbl.X,1)]
+        grad_norms = [norm(grads[i,:]) for i=1:size(grads,1)]
+
+        dr = DecisionTree.DecisionTreeRegressor(max_depth=depth,min_samples_leaf=2)
+        DecisionTree.fit!(dr, Matrix(bbl.X), grad_norms)
+
+        describe_leaves(leaf_data, dr.root, og_bounds)
+
+        leaf_data = filter((x)->norm(x["bounds"][:,2]-x["bounds"][:,1])>1e-1, leaf_data)
+
+        total_score = 0
+        for i=1:length(leaf_data)
+            leaf_data[i]["score"] = leaf_data[i]["val"]/leaf_data[i]["n_vals"]
+            total_score += leaf_data[i]["score"]
+        end
+
+        Xs = []
+        for i=1:length(leaf_data)
+            n_samples = floor(Int32, total_samples *leaf_data[i]["score"]/total_score)
+            if n_samples > 0
+                xr = Random.rand(n_samples,2)
+                xr = xr ./ sum(xr,dims=2)
+                sample = xr*leaf_data[i]["bounds"]'
+                if length(Xs) == 0
+                    Xs = sample
+                else
+                    Xs = vcat(Xs, sample)
+                end
+            end
+        end
+
+        Xs = DataFrame(Xs, string.(bbl.vars))
+
+        return Xs 
+    catch
+        print("Couldn't do refined sampling")
+        return DataFrame() 
+    end
+
+end
+
+
+
 """
     uniform_sample_and_eval!(bbl::Union{BlackBoxLearner, GlobalModel, Array{BlackBoxLearner}};
                               boundary_fraction::Float64 = 0.5,
@@ -149,6 +218,15 @@ function uniform_sample_and_eval!(bbl::BlackBoxLearner;
     eval!(bbl, df)
     df = lh_sample(bbl, lh_iterations = lh_iterations, n_samples = get_param(bbl, :n_samples) - size(df, 1))
     eval!(bbl, df);
+
+    og_num_samples = get_param(bbl, :n_samples)
+    
+    for (num_samples, depth) in [(og_num_samples,4),(og_num_samples,5)]
+        df = refined_derivative_sampling(bbl, og_num_samples,depth )
+        if (size(df,1) >0)
+            eval!(bbl, df)
+        end
+    end
 
     bbl.max_Y = maximum(filter(!isinf, bbl.Y))
     bbl.min_Y = minimum(filter(!isinf, bbl.Y))
