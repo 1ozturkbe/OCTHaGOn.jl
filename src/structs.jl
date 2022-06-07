@@ -178,7 +178,21 @@ Optional arguments:
     "n"=>[],"score"=>[],"time"=>[])  # Used to record the performance of the learners
 end
 
-BlackBoxLearner = Union{BlackBoxClassifier, BlackBoxRegressor}
+
+
+"""
+Will be used to keep track of linear (and convex) constraints
+"""
+@with_kw mutable struct ClosedFormConstraint
+    constraint::Union{Nothing, JuMP.ConstraintRef, Expr}        # The "raw" constraint
+    vars::Array{JuMP.VariableRef,1}                    # JuMP variables (flat)
+    expr_vars::Array                                   # Function inputs (nonflat JuMP variables)
+    varmap::Union{Nothing,Array} = get_varmap(expr_vars, vars)     # ... with the required varmapping.
+    f::Union{Nothing, Function} = functionify(constraint)
+    equality::Bool = false 
+end
+
+BlackBoxLearner = Union{BlackBoxClassifier, BlackBoxRegressor, ClosedFormConstraint}
 
 """
 Contains all required info to be able to generate a global optimization problem.
@@ -190,6 +204,7 @@ nonlinear_model can contain JuMP.NonlinearConstraints.
     model::JuMP.Model                                            # Associated JuMP.Model
     name::String = "Model"                                       # Name
     bbls::Array{BlackBoxLearner} = BlackBoxLearner[]             # Constraints to be learned
+    cfcs::Array{ClosedFormConstraint} = ClosedFormConstraint[]   # Constraints that are linear/convex and dodn't have a bbls learner
     vars::Array{JuMP.VariableRef} = JuMP.all_variables(model)    # JuMP variables
     objective = JuMP.objective_function(model)                # Original objective function
     solution_history::DataFrame = DataFrame(string.(vars) .=> [Float64[] for i=1:length(vars)]) # Solution history

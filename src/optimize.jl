@@ -107,7 +107,7 @@ step_size: Size of 0-1 normalized Euclidian ball we can step.
 decay_rate: Exponential coefficient of step size reduction. 
 
 """
-function descend!(gm::GlobalModel; kwargs...)
+function descend!(gm::GlobalModel; append_x0=true, kwargs...)
     # Initialization
     clear_tree_constraints!(gm) 
 
@@ -165,11 +165,14 @@ function descend!(gm::GlobalModel; kwargs...)
     sol_vals = x0[:,string.(vars)]
     if !isnothing(obj_bbl)
         actual_cost = obj_bbl(x0)
-        push!(gm.cost, actual_cost[1])
         x0[:, string(gm.objective)] = actual_cost
         sol_vals = x0[:,string.(vars)]
         feas_gap(gm, x0) # Checking feasibility gaps with updated objective
-        append!(gm.solution_history, x0) # Pushing last solution
+
+        if append_x0
+            push!(gm.cost, actual_cost[1])
+            append!(gm.solution_history, x0) # Pushing last solution
+        end
     end
 
     # Descent direction, counting and book-keeping
@@ -432,10 +435,15 @@ function globalsolve!(gm::GlobalModel; repair=true, opt_sampling=false)
 
     @info "Solving MIP..."
     optimize!(gm) 
-
+    
     if repair    
         descend!(gm) 
-        final_repair!(gm)
+        # final_repair!(gm)
+        try
+            final_sample_repair!(gm)
+        catch
+            @warn("Final repair failed") 
+        end
     end
 
 end 

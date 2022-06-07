@@ -154,10 +154,13 @@ function refined_derivative_sampling(bbl::BlackBoxLearner, total_samples=100, de
         og_bounds = [bounds[k] for k in bbl.vars]
         
         grads = [bbl.g(Vector(bbl.X[i,string.(bbl.vars)])) for i=1:size(bbl.X,1)]
+
+        valid_grad_ids = filter((i)->!isnan(sum(grads[i])) && !isinf(sum(grads[i])),1:length(grads))
+        grads = grads[valid_grad_ids]
         grad_norms = [norm(grads[i,:]) for i=1:size(grads,1)]
 
         dr = DecisionTree.DecisionTreeRegressor(max_depth=depth,min_samples_leaf=2)
-        DecisionTree.fit!(dr, Matrix(bbl.X), grad_norms)
+        DecisionTree.fit!(dr, Matrix(bbl.X[valid_grad_ids,:]), grad_norms)
 
         describe_leaves(leaf_data, dr.root, og_bounds)
 

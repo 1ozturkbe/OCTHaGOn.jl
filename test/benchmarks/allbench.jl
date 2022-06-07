@@ -151,7 +151,7 @@ function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
         
         gm = GAMS_to_GlobalModel(OCTHaGOn.GAMS_DIR*"$(folder)\\", name*".gms"; alg_list = alg_list, regression=false)
         set_optimizer(gm, CPLEX_SILENT)
-        set_param(gm, :sample_coeff, 800)
+        set_param(gm, :sample_coeff, 1800)
         globalsolve!(gm; repair=REPAIR, opt_sampling=OPT_SAMPLING)
         
         # Performance of the different algorithms (e.g. GBM, SVM, OCT)
@@ -160,6 +160,13 @@ function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
 
         return gm.cost[end], df_algs
     
+    end
+
+    function solve_baron(name, folder)
+        m = GAMS_to_baron_model(OCTHaGOn.GAMS_DIR*"$(folder)\\", name*".gms")
+        optimize!(m)
+
+        return JuMP.objective_value(m), DataFrame()
     end
 
     df_all = DataFrame()
@@ -179,26 +186,38 @@ function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
             alg_list = copy(og_alg_list)
 
             name, folder = row["name"], row["folder"]
-            if name != "ex4_1_1"
-                continue 
+            println(name)
+            # if name != "ex4_1_1" && name != "ex4_1_6"
+            #     continue 
+            # end
+            if name ∉ ["ex8_3_14", "ex8_3_4", "ex5_2_5", "ex8_3_9", "ex8_3_3", "ex8_3_2"]
+                continue
             end
-
+            
+            # if name ∉ ["ex8_3_14", "ex8_3_4", "ex5_2_5", "ex8_3_9", "ex8_3_3", "ex8_3_2", "ex5_4_4", "ex8_2_1a", "ex8_2_4a", "ex6_2_7", "ex6_2_5", "ex5_2_5", "ex5_3_3", "ex6_2_9", "ex6_2_10", "ex5_4_4", "ex6_2_13", "ex3_1_1", "ex7_2_3", "ex2_1_1", "ex7_2_4", "ex4_1_1"]
+            #     continue
+            # end
             try 
                 ts = time()
+                Random.seed!(50)
                 gm_obj, df_algs = solve_gm(name, folder)
+                #gm_obj, df_algs = solve_baron(name, folder)
+
                 gm_time = time()-ts
                 
 
                 baron_obj = parse(Float32, replace(row["optimal"], r"[^0-9\.-]" => ""))
                 baron_time = gm_time
                 subopt = abs(baron_obj)<1 ? ((gm_obj+1)/1+baron_obj) : gm_obj/baron_obj
+                subopt = abs(baron_obj)<1 ? ((gm_obj-baron_obj)/(1+abs(baron_obj))) : (gm_obj-baron_obj)/abs(baron_obj)
+                subopt = 1-subopt
                 df_tmp = DataFrame(
                     # "n" => N,
                     # "m" => M,
                     "gm" => gm_obj, 
                     "baron" => baron_obj,
                     "diff" => gm_obj-baron_obj,
-                    "subopt_factor" => gm_obj/baron_obj,
+                    "subopt_factor" => subopt,#gm_obj/baron_obj,
                     "gm_time" => gm_time,
                     "ba_time" => baron_time,
                     "algs" => "[\""*join(alg_list, "\",\"")*"\"]"

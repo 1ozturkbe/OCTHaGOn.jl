@@ -83,13 +83,15 @@ module OCTHaGOn
 
     include("optimize.jl")
 
+    include("repair.jl")
+
     include("plot.jl")
 
     include("util/eval_metrics.jl")
 
         
         # STRUCTS
-    export GlobalModel, BlackBoxLearner, BlackBoxClassifier, BlackBoxRegressor, 
+    export GlobalModel, BlackBoxLearner, BlackBoxClassifier, BlackBoxRegressor,ClosedFormConstraint, 
         LinkedLearner, LinkedClassifier, LinkedRegressor, SVM_Classifier,
 
     # JuMP.Model extensions to GlobalModel
@@ -152,7 +154,7 @@ module OCTHaGOn
         # Algorithms
         add_infeasibility_cuts!, boundify, surveysolve,
         relax_objective!, tight_objective!,
-        globalsolve!, globalsolve_and_time!, descend!,
+        globalsolve!, globalsolve_and_time!, descend!, final_sample_repair!,
 
         # Checks and exceptions
         feasibility, check_accuracy, check_feasibility, 
