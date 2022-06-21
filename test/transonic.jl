@@ -47,7 +47,7 @@ function transonic_mio_model()
     @constraint(m, x[3] <= log(maximum(M)))
     @constraint(m, log(minimum(cl)) <= x[4])
     @constraint(m, x[4] <= log(maximum(cl)))
-    OCTHaGOn.add_regr_constraints!(m, x, y, lnr, vks, M=100., eq=true);
+    OCTHaGOn.add_regr_constraints!(m, x, y, lnr, nothing, vks, M=100., eq=true);
     # Setting optimization constraints (as a demonstration)
     # Re, thickness, M, cl
     @constraint(m, x[1] >= log(20000))

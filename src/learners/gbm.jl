@@ -86,7 +86,7 @@ function find_leaf_df(tree::AbstractJLBoostTree, bbl::BlackBoxLearner)
     return df
 end
 
-function embed_single_tree(gm::GlobalModel, bbl::BlackBoxLearner, tree_id::Int64, tree::AbstractJLBoostTree; M=1000)
+function embed_single_tree(gm::GlobalModel, bbl::BlackBoxLearner, tree_id::Int64, tree::AbstractJLBoostTree; M=1000, ro_factor=0)
     m = gm.model;
     cols = names(bbl.X)
     x = bbl.vars;
@@ -121,12 +121,29 @@ function embed_single_tree(gm::GlobalModel, bbl::BlackBoxLearner, tree_id::Int64
     # If the coefficient is -1, force strict inequality
     strict_ineq_epsilons = (1e-6)*(sum(coeffs, dims=2) .== -1)
 
-    constrs = [
-        @constraint(m, coeffs*x .+ strict_ineq_epsilons .<= intercept.+M*(1 .- leaf_vars[l_ids]));
-        @constraint(m, outcome_var == leaf_predictions'*leaf_vars);
-        @constraint(m, sum(leaf_vars[i] for i=1:n_leaves) == 1);
-    ];
+    constrs = []
 
+    push!(constrs, @constraint(m, outcome_var == leaf_predictions'*leaf_vars));
+    push!(constrs, @constraint(m, sum(leaf_vars[i] for i=1:n_leaves) == 1));
+
+    if ro_factor == 0
+        append!(constrs, @constraint(m, coeffs*x .+ strict_ineq_epsilons .<= intercept.+M*(1 .- leaf_vars[l_ids])));
+    else
+        for i in 1:size(coeffs, 1)
+
+            # Robust coefficient matrix
+            P = ro_factor*diagm(1.0*coeffs[i, :])
+            
+            # Create variables that will be used for robustness
+            var_name = eval(Meta.parse(":t_rnn_$(bbl.name)_$(tree_id)_$(i)"));
+            m[var_name] = @variable(m, base_name=string(var_name));
+            t_var = m[var_name];
+
+            push!(constrs, @constraint(m, sum(coeffs[i, :].*x) + strict_ineq_epsilons[i] + t_var <= intercept[i] + M*(1 - leaf_vars[l_ids][i])));
+            append!(constrs, @constraint(m, P*x .<= t_var))
+            append!(constrs, @constraint(m, -P*x .<= t_var))
+        end
+    end
     
     return constrs, outcome_var;
 end
@@ -141,7 +158,7 @@ function gbm_embed_helper(lnr::Union{GBM_Regressor, GBM_Classifier}, gm::GlobalM
     outcome_vars = []
     etas = []
     for (i, tree) in enumerate(trees)
-        constrs, tree_outcome = embed_single_tree(gm, bbl, i, tree; M=1000);
+        constrs, tree_outcome = embed_single_tree(gm, bbl, i, tree; M=1000, ro_factor=get_param(gm, :ro_factor));
         push!(outcome_vars, tree_outcome)
         push!(etas, tree.eta)
         append!(all_constraints, constrs)

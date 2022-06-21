@@ -211,7 +211,7 @@ function test_bbc()
     @test 0 <= evaluate_accuracy(bbl) <= 1
 
     # Training a model
-    jc = add_feas_constraints!(model, bbl.vars, bbl.learners[1]);
+    jc = add_feas_constraints!(model, bbl.vars, bbl.learners[1], bbl);
     @test true
 end
 

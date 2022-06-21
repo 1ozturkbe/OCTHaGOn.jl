@@ -174,7 +174,7 @@ end
 
 
 """
-Embed MIO constraints on MLP regressor
+Embed MIO constraints on MLP classifier
 """
 function embed_mio!(lnr::MLP_Classifier, gm::GlobalModel, bbl::BlackBoxClassifier; kwargs...)
 

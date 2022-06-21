@@ -34,7 +34,7 @@ end
 
 """
 Returns a CSV with the stats of different
-gam problems located in a subfolder of the folderr OCTHaGOn.GAMS_DIR.
+gam problems located in a subfolder of the fwolderr OCTHaGOn.GAMS_DIR.
 Those sats include:
 - Number of constraints 
 - Number of variables 
@@ -147,11 +147,12 @@ end
 
 function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
     
-    function solve_gm(name, folder)
+    function solve_gm(name, folder; ro_factor=0)
         
         gm = GAMS_to_GlobalModel(OCTHaGOn.GAMS_DIR*"$(folder)\\", name*".gms"; alg_list = alg_list, regression=false)
         set_optimizer(gm, CPLEX_SILENT)
         set_param(gm, :sample_coeff, 1800)
+        set_param(gm, :ro_factor, ro_factor)
         globalsolve!(gm; repair=REPAIR, opt_sampling=OPT_SAMPLING)
         
         # Performance of the different algorithms (e.g. GBM, SVM, OCT)
@@ -185,64 +186,71 @@ function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
             
             alg_list = copy(og_alg_list)
 
-            name, folder = row["name"], row["folder"]
-            println(name)
-            # if name != "ex4_1_1" && name != "ex4_1_6"
-            #     continue 
-            # end
-            if name ∉ ["ex8_3_14", "ex8_3_4", "ex5_2_5", "ex8_3_9", "ex8_3_3", "ex8_3_2"]
-                continue
-            end
-            
-            # if name ∉ ["ex8_3_14", "ex8_3_4", "ex5_2_5", "ex8_3_9", "ex8_3_3", "ex8_3_2", "ex5_4_4", "ex8_2_1a", "ex8_2_4a", "ex6_2_7", "ex6_2_5", "ex5_2_5", "ex5_3_3", "ex6_2_9", "ex6_2_10", "ex5_4_4", "ex6_2_13", "ex3_1_1", "ex7_2_3", "ex2_1_1", "ex7_2_4", "ex4_1_1"]
-            #     continue
-            # end
-            try 
-                ts = time()
-                Random.seed!(50)
-                gm_obj, df_algs = solve_gm(name, folder)
-                #gm_obj, df_algs = solve_baron(name, folder)
-
-                gm_time = time()-ts
+            for ro_factor in [0,0.1,0.2,0.5,1,2]
+                name, folder = row["name"], row["folder"]
+                # println(name)
+                # if name != "st_e17"
+                #     continue 
+                # end
+                # if name ∉ ["ex8_3_14", "ex8_3_4", "ex5_2_5", "ex8_3_9", "ex8_3_3", "ex8_3_2"]
+                #     continue
+                # end
                 
+                # if name ∉ ["ex8_3_14", "ex8_3_4", "ex5_2_5", "ex8_3_9", "ex8_3_3", "ex8_3_2", "ex5_4_4", "ex8_2_1a", "ex8_2_4a", "ex6_2_7", "ex6_2_5", "ex5_2_5", "ex5_3_3", "ex6_2_9", "ex6_2_10", "ex5_4_4", "ex6_2_13", "ex3_1_1", "ex7_2_3", "ex2_1_1", "ex7_2_4", "ex4_1_1"]
+                #     continue
+                # end
 
-                baron_obj = parse(Float32, replace(row["optimal"], r"[^0-9\.-]" => ""))
-                baron_time = gm_time
-                subopt = abs(baron_obj)<1 ? ((gm_obj+1)/1+baron_obj) : gm_obj/baron_obj
-                subopt = abs(baron_obj)<1 ? ((gm_obj-baron_obj)/(1+abs(baron_obj))) : (gm_obj-baron_obj)/abs(baron_obj)
-                subopt = 1-subopt
-                df_tmp = DataFrame(
-                    # "n" => N,
-                    # "m" => M,
-                    "gm" => gm_obj, 
-                    "baron" => baron_obj,
-                    "diff" => gm_obj-baron_obj,
-                    "subopt_factor" => subopt,#gm_obj/baron_obj,
-                    "gm_time" => gm_time,
-                    "ba_time" => baron_time,
-                    "algs" => "[\""*join(alg_list, "\",\"")*"\"]"
-                )
-                new_row = hcat(df_tmp, DataFrame(row))
-                append!(df_all, new_row)
-                append!(df_algs_all, df_algs)
-
-                try
-                    csv_path = output_path*"benchmark$(suffix).csv"
-                    csv_path_alg = output_path*"benchmark_alg$(suffix).csv"
-                    #println(csv_path)
-                    CSV.write(csv_path, df_all)
-                    CSV.write(csv_path_alg, df_algs_all)
-                catch
-                    println("Couldn't write to CSV")
+                if name ∉  ["st_e17", "ex6_2_8", "ex6_2_12", "sample", "st_e04", "st_bsj4", "ex5_2_2_case3", "ex2_1_6", "ex2_1_8", "st_e30", "st_e16", "alkylation"]#["sample"]#
+                    continue
                 end
+                try 
+                    ts = time()
+                    Random.seed!(50)
+                    gm_obj, df_algs = solve_gm(name, folder; ro_factor=ro_factor)
+                    #gm_obj, df_algs = solve_baron(name, folder)
 
-                println(df_all)
+                    gm_time = time()-ts
+                    
 
-                # break
-            catch e
-                showerror(stdout, e)
-                #println("Error solving $(name)")
-                #println(stacktrace(catch_backtrace()))
+                    baron_obj = parse(Float32, replace(row["optimal"], r"[^0-9\.-]" => ""))
+                    baron_time = gm_time
+                    subopt = abs(baron_obj)<1 ? ((gm_obj+1)/1+baron_obj) : gm_obj/baron_obj
+                    subopt = abs(baron_obj)<1 ? ((gm_obj-baron_obj)/(1+abs(baron_obj))) : (gm_obj-baron_obj)/abs(baron_obj)
+                    subopt = 1-subopt
+                    df_tmp = DataFrame(
+                        # "n" => N,
+                        # "m" => M,
+                        "gm" => gm_obj, 
+                        "baron" => baron_obj,
+                        "diff" => gm_obj-baron_obj,
+                        "subopt_factor" => subopt,#gm_obj/baron_obj,
+                        "gm_time" => gm_time,
+                        "ba_time" => baron_time,
+                        "algs" => "[\""*join(alg_list, "\",\"")*"\"]",
+                        "ro_factor" => ro_factor
+                    )
+                    new_row = hcat(df_tmp, DataFrame(row))
+                    append!(df_all, new_row)
+                    append!(df_algs_all, df_algs)
+
+                    try
+                        csv_path = output_path*"benchmark$(suffix).csv"
+                        csv_path_alg = output_path*"benchmark_alg$(suffix).csv"
+                        #println(csv_path)
+                        CSV.write(csv_path, df_all)
+                        CSV.write(csv_path_alg, df_algs_all)
+                    catch
+                        println("Couldn't write to CSV")
+                    end
+
+                    println(df_all)
+
+                    # break
+                catch e
+                    showerror(stdout, e)
+                    #println("Error solving $(name)")
+                    #println(stacktrace(catch_backtrace()))
+                end
             end
             # break
         end

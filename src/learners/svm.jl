@@ -162,13 +162,30 @@ function embed_mio!(lnr::SVM_Classifier, gm::GlobalModel, bbl::BlackBoxClassifie
         error("SVM model hasn't been fitted")
     end
 
+    ro_factor = get_param(gm, :ro_factor);
+
     m, x = gm.model, bbl.vars
 
     β0, β = lnr.β0, lnr.β
     
-    con = @constraint(m, x'*β .+ β0 .+ lnr.thres >=0)
+    cons = []
 
-    return Dict(1 => [con]), Dict()
+    if ro_factor == 0
+        push!(cons, @constraint(m, x'*β + β0 + lnr.thres >=0))
+    else
+        P = ro_factor*diagm(1.0*β)
+        
+        # Create variables that will be used for robustness
+        var_name = eval(Meta.parse(":t_rsvm_$(bbl.name)"));
+        m[var_name] = @variable(m, base_name=string(var_name));
+        t_var = m[var_name];
+
+        push!(cons, @constraint(m, x'*β + β0 + lnr.thres - t_var >=0))
+        append!(cons, @constraint(m, P*x .<= t_var))
+        append!(cons, @constraint(m, -P*x .<= t_var))
+
+    end
+    return Dict(1 => cons), Dict()
 
 end
 
