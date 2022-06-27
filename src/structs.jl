@@ -99,6 +99,8 @@ Optional arguments:
     hash::String = ""                                  # Hash function of the constraint to track reproducibility  
     learner_performance::DataFrame = DataFrame("model"=>[], "type"=>[], "constr"=>[],
                                         "n"=>[],"score"=>[],"time"=>[])  # Used to record the performance of the learners
+    
+    ro_data::Union{Tuple, Nothing} = nothing
 end
 
 

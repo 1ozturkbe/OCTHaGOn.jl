@@ -69,7 +69,7 @@ module OCTHaGOn
 
     include("global_model.jl")
 
-
+    include("robust.jl")
     
     include("data_driven.jl")
 

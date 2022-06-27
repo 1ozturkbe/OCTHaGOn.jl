@@ -14,6 +14,7 @@ using LossFunctions: L2DistLoss
     use_epsilon::Bool = false # Whether or not the equality is approximated with epsilon tolerance
     equality::Bool = false # Whether or not we are dealing with an equality constraint
     thres::Real = 0.5 # Classification threshold
+
 end
 
 @with_kw mutable struct GBM_Regressor <: AbstractRegressor
@@ -192,11 +193,8 @@ function convert_to_binary(lnr::GBM_Classifier, Y::Array)
     return (lnr.equality && lnr.use_epsilon ? 1*(abs.(Y .- lnr.thres) .<= EPSILON) : 1*(Y .>= lnr.thres));
 end
 
-"""
-Fit gbm in classification task
-"""
-function fit!(lnr::GBM_Classifier , X::DataFrame, Y::Array; equality=false)
-    
+
+function fit_cls_helper(lnr::GBM_Classifier, X::DataFrame, Y::Array; equality=false)
     lnr.equality = equality
 
     df = deepcopy(X)
@@ -215,7 +213,14 @@ function fit!(lnr::GBM_Classifier , X::DataFrame, Y::Array; equality=false)
         end
     end
     df[!,"output"] = Y_hat;
-    lnr.gbm = jlboost(df, "output"; verbose=false, max_depth = lnr.max_depth);
+    return jlboost(df, "output"; verbose=false, max_depth = lnr.max_depth);
+end
+
+"""
+Fit gbm in classification task
+"""
+function fit!(lnr::GBM_Classifier, X::DataFrame, Y::Array; equality=false)
+    lnr.gbm = fit_cls_helper(lnr, X, Y; equality=equality)
 end
 
 """

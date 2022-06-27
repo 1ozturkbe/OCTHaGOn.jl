@@ -11,6 +11,7 @@
     β0::Union{Nothing, Real} = nothing
     β::Union{Nothing, Vector{Float64}} = nothing
     thres::Real = 0.5
+
 end
 
 @with_kw mutable struct SVM_Regressor <: AbstractRegressor

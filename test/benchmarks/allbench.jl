@@ -186,10 +186,10 @@ function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
             
             alg_list = copy(og_alg_list)
 
-            for ro_factor in [0,0.1,0.2,0.5,1,2]
+            for ro_factor in [0,0.01,0.1,0.2,0.5,1,2]
                 name, folder = row["name"], row["folder"]
                 # println(name)
-                # if name != "st_e17"
+                # if name != "ex5_2_2_case3"
                 #     continue 
                 # end
                 # if name ∉ ["ex8_3_14", "ex8_3_4", "ex5_2_5", "ex8_3_9", "ex8_3_3", "ex8_3_2"]

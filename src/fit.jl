@@ -182,6 +182,43 @@ function learn_from_data!(X::DataFrame, Y::AbstractArray, lnr::AbstractClassifie
     return lnr, score
 end
 
+function learn_from_data_ro!(X::DataFrame, Y::AbstractArray, lnr::Union{IAI.OptimalTreeLearner, 
+                                                                     IAI.Heuristics.RandomForestLearner}, bbl::BlackBoxClassifier,
+                          idxs::Union{Nothing, Array}=nothing;use_test_set=true, kwargs...)
+    
+    
+    if lnr isa IAI.OptimalTreeClassifier
+        all_idx = collect(1:size(X, 1))
+        upper_dicts = []
+        lower_dicts = []
+        
+        for i= 1:10
+            try
+                println("Robust exploration $(i)")
+                sub_idx = StatsBase.sample(all_idx, trunc(Int, size(X,1)*0.8))
+                lnr, score = learn_from_data!(copy(X[sub_idx,:]), copy(Y[sub_idx]), lnr, idxs; use_test_set=use_test_set, kwargs...)
+                upper_dict, lower_dict = trust_region_data(lnr, Symbol.(bbl.expr_vars))
+                
+                
+                push!(upper_dicts, upper_dict)
+                push!(lower_dicts, lower_dict)
+            catch
+                println("Robust exploration $(i) failed")
+                continue
+            end
+        end
+        
+        A_all_u, t_all_u = construct_tr_matrixes(upper_dicts; upper_dict=true)
+        A_all_l, t_all_l = construct_tr_matrixes(lower_dicts; upper_dict=false)
+
+        lnr, score = learn_from_data!(copy(X), copy(Y), lnr, idxs; use_test_set=use_test_set, kwargs...)
+
+        return lnr, score, (A_all_u, t_all_u, A_all_l, t_all_l)
+    end
+    
+    return lnr, score
+end
+
 # function fit_and_evaluate!(lnr::AbstractClassifier, bbc::BlackBoxClassifier; equality=false)
 
 #     EPSILON = 1e-1
@@ -344,9 +381,11 @@ function learn_constraint_IAI!(lnr::Union{IAI.OptimalTreeRegressor, IAI.OptimalT
     Y = bbc.Y .>= 0
     #X_test = DataFrame(X_test)
     if check_feasibility(bbc) || get_param(bbc, :ignore_feasibility)
-        lnr, score = learn_from_data!(X, Y, lnr; fit_classifier_kwargs(; kwargs...)...)
+        lnr, score, (A_all_u, t_all_u, A_all_l, t_all_l) = learn_from_data_ro!(X, Y, lnr, bbc; fit_classifier_kwargs(; kwargs...)...)
         #score = IAI.score(lnr, X_test, y_test)
-
+        
+        bbc.ro_data = (A_all_u, t_all_u, A_all_l, t_all_l)
+        
         return lnr, score, Dict(kwargs)
         # push!(bbc.learners, lnr)
         # push!(bbc.accuracies, IAI.score(lnr, bbc.X, bbc.Y .>= 0)) # TODO: add ability to specify criterion. 
