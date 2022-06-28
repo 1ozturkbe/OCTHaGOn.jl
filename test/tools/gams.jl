@@ -1,4 +1,5 @@
 using GAMSFiles
+using DataStructures
 
 """ Turns GAMSFiles.GCall into an Expr. """
 function eq_to_expr(eq::GAMSFiles.GCall, sets::Dict{String, Any})
@@ -238,6 +239,79 @@ function GAMS_to_GlobalModel(GAMS_DIR::String, filename::String; alg_list=["OCT"
     return gm
 end
 
+function getIndex(s, i)
+  
+    # If input is invalid.
+    if s[i:i] != "("
+        return -1
+    end
+  
+    # Create a deque to use it as a stack.
+    d = Deque{String}()
+  
+    # Traverse through all elements
+    # starting from i.
+    for k in i:length(s)
+  
+        # Pop a starting bracket
+        # for every closing bracket
+        if s[k:k] == ")"
+            popfirst!(d)
+        # Push all starting brackets
+        elseif s[k:k] == "("
+            push!(d, s[i:i])
+        end
+        
+        # If deque becomes empty
+        if isempty(d)
+            return k
+        end
+    end
+    return -1
+end
+
+function replace_tokens(s)
+    # try
+        if length(s) == 0
+            return s
+        else
+            cont = true
+
+            while cont
+
+                cont = false
+
+                for token in ["power", "sqr"]
+
+                    idxes = findfirst(token, s)
+
+                    if !isnothing(idxes)
+                        par_idx = idxes[end]+1
+                        close_par_idx = getIndex(s, par_idx)
+
+                        # sqr
+                        if token == "sqr"
+                            inner_expr = replace_tokens(s[par_idx+1:close_par_idx-1])
+                            s = s[1:idxes[1]-1]*"("*inner_expr*")^2"*s[close_par_idx+1:end]
+                        elseif token == "power"
+                            inner_expr = replace_tokens(s[par_idx+1:close_par_idx-1])
+                            comma_idx = findfirst(",", inner_expr)[1]
+                            s = s[1:idxes[1]-1]*"("*inner_expr[1:comma_idx-1]*")^"*inner_expr[comma_idx+1:end]*s[close_par_idx+1:end]
+                        end
+
+                        # Continue to check for more matches
+                        cont = true
+                    end
+                end
+            end
+        end
+        return s
+    # catch
+    #     println("Error parsing expression $(s)")
+    #     return s
+    # end
+end
+
 function GAMS_to_baron_model(GAMS_DIR::String, filename::String)
     global model = JuMP.Model(with_optimizer(BARON.Optimizer, PrLevel=1, MaxTime=15))
     # Parsing GAMS Files
@@ -306,8 +380,9 @@ function GAMS_to_baron_model(GAMS_DIR::String, filename::String)
                 end
                 
                 s_constr = string(constr_expr)
-                s_constr = replace(s_constr, r"power\(\s*([^,\s)]+)\s*,\s*([0-9]+)\s*\)" => s"\g<1>^\g<2>")
-                s_constr = replace(s_constr, r"sqr\(\s*([^\s)]+)\s*\)" => s"\g<1>^2")
+                s_constr = replace_tokens(s_constr)
+                #s_constr = replace(s_constr, r"power\(\s*([^,\s)]+)\s*,\s*([0-9]+)\s*\)" => s"\g<1>^\g<2>")
+                #s_constr = replace(s_constr, r"sqr\(\s*([^\s)]+)\s*\)" => s"\g<1>^2")
                 
                 if is_equality(eq)
                     #@constraint(m, Base.invokelatest(eval(constr_fn), vars...)==0)
@@ -335,8 +410,10 @@ function GAMS_to_baron_model(GAMS_DIR::String, filename::String)
                 end
                 obj_var = vardict[Symbol(gams["minimizing"])]
                 s_constr = string(constr_expr)
-                s_constr = replace(s_constr, r"power\(\s*([^,\s)]+)\s*,\s*([0-9]+)\s*\)" => s"\g<1>^\g<2>")
-                s_constr = replace(s_constr, r"sqr\(\s*([^\s)]+)\s*\)" => s"\g<1>^2")
+                s_constr = replace_tokens(s_constr)
+
+                #s_constr = replace(s_constr, r"power\(\s*([^,\s)]+)\s*,\s*([0-9]+)\s*\)" => s"\g<1>^\g<2>")
+                #s_constr = replace(s_constr, r"sqr\(\s*([^\s)]+)\s*\)" => s"\g<1>^2")
                 #println(s_constr)
                 eval(Meta.parse("@NLconstraint(model, -("*string(s_constr)*") == $(obj_var))"))
                 #@NLconstraint(m, Base.invokelatest(eval(constr_fn), vars...) == vardict[Symbol(gams["minimizing"])])

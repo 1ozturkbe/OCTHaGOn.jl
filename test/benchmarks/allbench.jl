@@ -186,7 +186,7 @@ function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
             
             alg_list = copy(og_alg_list)
 
-            for ro_factor in [0,0.01,0.1,0.2,0.5,1,2]
+            for ro_factor in [0]#[0,0.01,0.1,0.2,0.5,1,2]
                 name, folder = row["name"], row["folder"]
                 # println(name)
                 # if name != "ex5_2_2_case3"
@@ -200,14 +200,14 @@ function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
                 #     continue
                 # end
 
-                if name ∉  ["st_e17", "ex6_2_8", "ex6_2_12", "sample", "st_e04", "st_bsj4", "ex5_2_2_case3", "ex2_1_6", "ex2_1_8", "st_e30", "st_e16", "alkylation"]#["sample"]#
-                    continue
-                end
+                # if name ∉  ["st_e17", "ex6_2_8", "ex6_2_12", "sample", "st_e04", "st_bsj4", "ex5_2_2_case3", "ex2_1_6", "ex2_1_8", "st_e30", "st_e16", "alkylation"]#["sample"]#
+                #     continue
+                # end
                 try 
                     ts = time()
                     Random.seed!(50)
-                    gm_obj, df_algs = solve_gm(name, folder; ro_factor=ro_factor)
-                    #gm_obj, df_algs = solve_baron(name, folder)
+                    # gm_obj, df_algs = solve_gm(name, folder; ro_factor=ro_factor)
+                    gm_obj, df_algs = solve_baron(name, folder)
 
                     gm_time = time()-ts
                     
@@ -231,14 +231,14 @@ function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
                     )
                     new_row = hcat(df_tmp, DataFrame(row))
                     append!(df_all, new_row)
-                    append!(df_algs_all, df_algs)
+                    # append!(df_algs_all, df_algs)
 
                     try
                         csv_path = output_path*"benchmark$(suffix).csv"
                         csv_path_alg = output_path*"benchmark_alg$(suffix).csv"
                         #println(csv_path)
                         CSV.write(csv_path, df_all)
-                        CSV.write(csv_path_alg, df_algs_all)
+                        # CSV.write(csv_path_alg, df_algs_all)
                     catch
                         println("Couldn't write to CSV")
                     end
@@ -255,7 +255,7 @@ function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
             # break
         end
 
-        #break
+        # break
     end
     println(df_all)
 end
