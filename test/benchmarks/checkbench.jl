@@ -4,44 +4,81 @@ dir = "../OCTHaGOn_benchmarks/gams/global/"
 filenames = readdir(dir)
 GAMS_DIR = dir
 
-pd = DataFrame()
+df = DataFrame()
 n_max = 100
-pd = CSV.read(dir * "problem_stats.csv", DataFrame)
-pd = pd[pd.all_bounded .>= 0.5, :]
-pd = pd[pd.n_vars .<= n_max, :]
-pd = pd[1:80, :]
+df = CSV.read(dir * "problem_stats.csv", DataFrame)
+df = df[df.all_bounded .>= 0.5, :]
+df = df[df.n_vars .<= n_max, :]
+# df = df[1:93, :]
 
-globalresults_idxs = [i for i = 1:80 if !isinf(pd.optimum[i])]
+globalresults_idxs = 1:size(df, 1) #1:93 #[i for i = 1:93 if !isinf(df.optimum[i])]
 
-# Plotting the actual optimality gaps (NOTE: perhaps make a log plot?)
-ylims = (-0.15, 0.35)
-plt = plot(ylims = ylims, xticks = 0:10:80, yticks = minimum(ylims):0.05:maximum(ylims), plot_title	= "Optimality gaps of global benchmarks")
-xlabel!("Problem number")
-ylabel!("Optimality gap")
-for i = 1:length(globalresults_idxs)
-    color = "blue"
-    if !pd.oct_feas[i] 
-        color = "red"
-    end
+function compute_error(i::Int64, df::DataFrame; method::String = "OCTHaGOn")
     error = 0
-    if abs(pd.optimum[i]) <= 1
-        error = pd.oct_cost[i] - pd.optimum[i]
+    optimum = df.oct_cost[i]
+    true_optimum = df.optimum[i]
+    if method == "OCTHaGOn"
+    elseif method == "BARON"
+        optimum = df.baron_cost[i]
     else
-        error = (pd.oct_cost[i] - pd.optimum[i]) / pd.optimum[i]
+        throw(ErrorException("Method $(method) is not supported."))
     end
-    if error >= maximum(ylims)
-        plt = quiver!([i], [maximum(ylims)*7/8], quiver=([0], [maximum(ylims)*1/8]), arrow = true, color = color, linewidth = 1)
-    elseif error <= minimum(ylims)
-        plt = quiver!([i], [-maximum(ylims)*7/8], quiver=([0], [-maximum(ylims)*1/8]), arrow = true, color = color, linewidth = 1)
+    if !isinf(true_optimum) && optimum isa Real
+        if abs(true_optimum) <= 1
+            return optimum - true_optimum
+        else 
+            return (optimum - true_optimum) / abs(true_optimum)
+        end
+    elseif !isinf(true_optimum) && isnan(optimum)
+        return Inf
     else
-        plt = scatter!([i], [error], color = color, legend = false)
+        throw(ErrorException("Problem $(df.name[i]) doesn't have a proper global optimum. "))
     end
 end
+
+function return_feasibility(i::Int64, df::DataFrame; method::String = "OCTHaGOn")
+    if method == "OCTHaGOn"
+        return df.oct_feas[i]
+    elseif method == "BARON"
+        return df.baron_feas[i]
+    else
+        throw(ErrorException("Methoed $(method) is not supported."))
+    end
+end
+
+# Plotting the actual optimality gaps (NOTE: perhaps make a log plot?)
+ylims = (-0.05, 0.35)
+xlims = (0, 100)
+plt = plot(ylims = ylims, xlims = xlims, xticks = 0:10:100, yticks = minimum(ylims):0.05:maximum(ylims), plot_title	= "Optimality gaps of global benchmarks")
+xlabel!("Benchmark index")
+ylabel!("Optimality gap")
+feasibility = []
+errors = []
+
+method = "OCTHaGOn"
+for i = 1:length(globalresults_idxs)
+    push!(feasibility, return_feasibility(i, df, method = method))
+    push!(errors, compute_error(i, df, method = method))
+end
+feas_idxs = findall(x -> x == true, feasibility)
+plt = scatter!(Array(1:length(globalresults_idxs))[feas_idxs], errors[feas_idxs], color = "blue", label = "feasible")
+infeas_idxs = findall(x -> x == false, feasibility)
+plt = scatter!(Array(1:length(globalresults_idxs))[infeas_idxs], errors[infeas_idxs], color = "red", label = "infeasible")
+feas_quiver_idxs = intersect(findall(x -> x >= maximum(ylims), errors), findall(x -> x == true, feasibility))
+plt = quiver!(Array(1:length(globalresults_idxs))[feas_quiver_idxs], 
+    ones(length(feas_quiver_idxs)) * maximum(ylims) * 7/8, 
+    quiver=(zeros(length(feas_quiver_idxs)), ones(length(feas_quiver_idxs)) * maximum(ylims)*1/8), 
+    arrow = true, color = "blue", linewidth = 1)
+infeas_quiver_idxs = intersect(findall(x -> x >= maximum(ylims), errors), findall(x -> x == false, feasibility))
+plt = quiver!(Array(1:length(globalresults_idxs))[infeas_quiver_idxs], 
+    ones(length(infeas_quiver_idxs)) * maximum(ylims) * 7/8, 
+    quiver=(zeros(length(infeas_quiver_idxs)), ones(length(infeas_quiver_idxs)) * maximum(ylims)*1/8), 
+    arrow = true, color = "red", linewidth = 1, legend = :outerright)
 display(plt)
 
 # # Checking that problems are imported properly...
 # valid_filenames = []
-# for filename in pd.name
+# for filename in df.name
 #     filename = filename * ".gms"
 #     @info "Trying " * filename * "."
 #     model = JuMP.Model()
