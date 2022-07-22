@@ -46,7 +46,10 @@ function return_feasibility(i::Int64, df::DataFrame; method::String = "OCTHaGOn"
     end
 end
 
-# Plotting the actual optimality gaps (NOTE: perhaps make a log plot?)
+# Set the desired method here
+method = "BARON"
+
+# Optimality plot
 ylims = (-0.05, 0.35)
 xlims = (0, 100)
 plt = plot(ylims = ylims, xlims = xlims, xticks = 0:10:100, yticks = minimum(ylims):0.05:maximum(ylims), plot_title	= "Optimality gaps of global benchmarks")
@@ -54,8 +57,6 @@ xlabel!("Benchmark index")
 ylabel!("Optimality gap")
 feasibility = []
 errors = []
-
-method = "OCTHaGOn"
 for i = 1:length(globalresults_idxs)
     push!(feasibility, return_feasibility(i, df, method = method))
     push!(errors, compute_error(i, df, method = method))
@@ -74,6 +75,22 @@ plt = quiver!(Array(1:length(globalresults_idxs))[infeas_quiver_idxs],
     ones(length(infeas_quiver_idxs)) * maximum(ylims) * 7/8, 
     quiver=(zeros(length(infeas_quiver_idxs)), ones(length(infeas_quiver_idxs)) * maximum(ylims)*1/8), 
     arrow = true, color = "red", linewidth = 1, legend = :outerright)
+display(plt)
+
+# Solution time plot
+times = df.oct_time[globalresults_idxs]
+n_vars = df.n_vars[globalresults_idxs]   
+if method == "BARON"
+    times = df.baron_time[globalresults_idxs]
+end
+ylims = (0, maximum(times)+10)
+xlims = (0,100)
+plt = plot(ylims = ylims, xlims = xlims, xticks = 0:10:100, yticks = minimum(ylims):100:maximum(ylims), 
+    plot_title	= "Solution times of global benchmarks")
+xlabel!("Number of variables")
+ylabel!("Solution time (s)")
+plt = scatter!(n_vars[infeas_idxs], times[infeas_idxs], color = "red", label = "infeasible", legend = :bottomright)
+plt = scatter!(n_vars[feas_idxs], times[feas_idxs], color = "blue", label = "feasible", legend = :bottomright)
 display(plt)
 
 # # Checking that problems are imported properly...
