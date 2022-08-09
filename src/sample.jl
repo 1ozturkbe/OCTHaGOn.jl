@@ -278,6 +278,14 @@ function uniform_sample_and_eval!(bbl::BlackBoxLearner;
             end
         end
     end
+
+    if bbl isa BlackBoxClassifier
+        df = oct_sampling(bbl)
+        if (size(df,1) >0)
+            eval!(bbl, df)
+        end
+    end
+
     return 
 end
 
@@ -761,4 +769,150 @@ function opt_sample_helper(gmo::GlobalModel, bblo::BlackBoxLearner, xstart::Data
     @objective(gm.model, Min, gm.objective)
     delete(gm.model, d)
     return new_samples
+end
+
+function har_sample_helper(A, b, x_start)
+    
+    max_tries = 10
+    
+    success = false
+    lambdas = nothing
+    dir = nothing
+
+    for i=1:max_tries
+
+        # Generate a random direction
+        dir = rand(length(x_start))
+        dir = dir ./ norm(dir)
+
+        # Calculate maximum/minimum lambdas from
+        # all hyperplanes (i.e. constants such that x_start+lambda*dir
+        # lies on the hyperplane)
+        lambdas = (b.-A*x_start) ./ (A*dir)
+
+        if !any(isinf.(lambdas))
+            success = true
+            break
+        end
+    end
+
+    if !success
+        error("Problem with HAR sampling")
+    end
+
+    # Minimum and maximum values for lambda
+    lam_minus = 1.05*maximum(lambdas[lambdas.<0])
+    lam_plus = 0.95*minimum(lambdas[lambdas.>0])
+
+    # Generate a random lambda between the values
+    lambda = rand(Uniform(lam_minus, lam_plus))
+
+    # Final sample point
+    p = x_start + lambda*dir
+    
+    return p
+end
+
+function har_sample(A, b, x_start, N_samples = 10)
+    
+    X = []
+    
+    i = 1
+    max_tries = 50
+    tries = 0
+    
+    while i<= N_samples && tries <= max_tries
+        
+        # HAR sample
+        p = har_sample_helper(A, b, x_start)
+        
+        if  !all(A*p .<= b)
+            continue
+            tries += 1
+        end
+        
+        tries = 0
+        push!(X, p)
+        x_start = p
+        i += 1
+    end
+    
+    return X
+end
+
+function oct_sampling(bbl::BlackBoxClassifier, sampling_factor=0.5)
+    
+    try
+        all_idx = collect(1:size(bbl.X, 1))
+        upper_dicts = []
+        lower_dicts = []
+        lnrs = []
+
+        for i= 1:8
+        #     try
+                println("OCT sampling $(i)")
+                lnr = OCTHaGOn.LEARNER_DICT["classification"]["OCT"]()
+                sub_idx = StatsBase.sample(all_idx, trunc(Int, size(bbl.X,1)*0.8))
+                lnr, score = OCTHaGOn.learn_from_data!(copy(bbl.X[sub_idx,:]), 1.0*(copy(bbl.Y[sub_idx]) .>= 0), lnr, nothing; use_test_set=false)
+                upper_dict, lower_dict = OCTHaGOn.trust_region_data(lnr, Symbol.(bbl.expr_vars))
+
+
+                push!(upper_dicts, upper_dict)
+                push!(lower_dicts, lower_dict)
+                push!(lnrs, lnr)
+        #     catch
+        #         println("Robust exploration $(i) failed")
+        #         continue
+        #     end
+        end
+        X = bbl.X
+        leaves = [IAI.apply(lnr, X) for lnr in lnrs];
+        preds = [IAI.predict(lnr, X) for lnr in lnrs];
+
+        mn = abs.(0.5.-mean(hcat(preds...),dims=2))
+        mask = (mn .<= 2/8)[:,1];
+
+        sample_ids = (1:length(mask))[mask];
+        sample_leaves = hcat([l[mask] for l in leaves]...);
+
+        leaf_dict = Dict([tuple(sample_leaves[i,:]) => sample_ids[i] for i=1:size(sample_leaves,1)])
+        
+        X_all = DataFrame()
+
+        for id in collect(values(leaf_dict))
+            A = []
+            b = []
+
+            for i = 1:length(leaves)
+                leaf = leaves[i][id]
+                for (bb,aa) in upper_dicts[i][leaf]
+                    push!(A, -aa)
+                    push!(b, -bb)
+                end
+                for (bb,aa) in lower_dicts[i][leaf]
+                    push!(A, aa)
+                    push!(b, bb)
+                end
+            end
+
+            A = hcat(A...)';
+
+            x_start = collect(X[id,:]);
+
+            N_samples = trunc(Int, size(X,1)*sampling_factor/length(leaf_dict))
+
+            Xs = har_sample(A, b, x_start, N_samples);
+            Xs = Matrix(hcat(Xs...)');
+            Xs = DataFrame(Xs, string.(bbl.vars));
+
+            X_all = append!(X_all, Xs)
+        end
+
+        return X_all
+    catch
+        print("Couldn't do OCT sampling")
+        println(stacktrace(catch_backtrace()))
+        return DataFrame() 
+    end
+
 end

@@ -192,7 +192,7 @@ function learn_from_data_ro!(X::DataFrame, Y::AbstractArray, lnr::Union{IAI.Opti
         upper_dicts = []
         lower_dicts = []
         
-        for i= 1:10
+        for i= 1:8
             try
                 println("Robust exploration $(i)")
                 sub_idx = StatsBase.sample(all_idx, trunc(Int, size(X,1)*0.8))
