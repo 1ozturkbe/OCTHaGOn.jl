@@ -202,7 +202,10 @@ function embed_mio!(lnr::MLP_Classifier, gm::GlobalModel, bbl::BlackBoxClassifie
     for (i, layer) in enumerate(mlp.layers)
         W, b = layer.w, layer.b
         if i == max_layers
-            @constraint(m, y .== (W[2, :]'*layer_input + b[2])-(W[1, :]'*layer_input + b[1]))
+            push!(cons,
+                @constraint(m, y .== (W[2, :]'*layer_input + b[2])-(W[1, :]'*layer_input + b[1]))
+            )
+            
         else 
             v_pos_list = []
             

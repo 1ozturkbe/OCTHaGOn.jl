@@ -192,21 +192,21 @@ function learn_from_data_ro!(X::DataFrame, Y::AbstractArray, lnr::Union{IAI.Opti
         upper_dicts = []
         lower_dicts = []
         
-        for i= 1:8
-            try
-                println("Robust exploration $(i)")
-                sub_idx = StatsBase.sample(all_idx, trunc(Int, size(X,1)*0.8))
-                lnr, score = learn_from_data!(copy(X[sub_idx,:]), copy(Y[sub_idx]), lnr, idxs; use_test_set=use_test_set, kwargs...)
-                upper_dict, lower_dict = trust_region_data(lnr, Symbol.(bbl.expr_vars))
+        # for i= 1:1
+        #     try
+        #         println("Robust exploration $(i)")
+        #         sub_idx = StatsBase.sample(all_idx, trunc(Int, size(X,1)*0.8))
+        #         lnr, score = learn_from_data!(copy(X[sub_idx,:]), copy(Y[sub_idx]), lnr, idxs; use_test_set=use_test_set, kwargs...)
+        #         upper_dict, lower_dict = trust_region_data(lnr, Symbol.(bbl.expr_vars))
                 
                 
-                push!(upper_dicts, upper_dict)
-                push!(lower_dicts, lower_dict)
-            catch
-                println("Robust exploration $(i) failed")
-                continue
-            end
-        end
+        #         push!(upper_dicts, upper_dict)
+        #         push!(lower_dicts, lower_dict)
+        #     catch
+        #         println("Robust exploration $(i) failed")
+        #         continue
+        #     end
+        # end
         
         A_all_u, t_all_u = construct_tr_matrixes(upper_dicts; upper_dict=true)
         A_all_l, t_all_l = construct_tr_matrixes(lower_dicts; upper_dict=false)

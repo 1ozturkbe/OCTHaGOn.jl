@@ -258,11 +258,11 @@ function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::U
 													lc.relax_var))
 				end
 			else
-				(A_all_u, t_all_u, A_all_l, t_all_l) = bbl.ro_data
+				# (A_all_u, t_all_u, A_all_l, t_all_l) = bbl.ro_data
                 
-                a_list, t_list = find_closest_planes(α, threshold, A_all_u, t_all_u)
-                mt = sum(t_list)/length(t_list)
-                threshold = maximum([threshold, (mt-threshold)*ro_factor/10])
+                #a_list, t_list = find_closest_planes(α, threshold, A_all_u, t_all_u)
+                #mt = sum(t_list)/length(t_list)
+                #threshold = maximum([threshold, (mt-threshold)*ro_factor/10])
 
 
 				P = ro_factor*diagm(1.0*α)
@@ -301,11 +301,11 @@ function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::U
 																	sum(α .* lc.leaf_variables[leaf][2])))
 				end
 			else
-                (A_all_u, t_all_u, A_all_l, t_all_l) = bbl.ro_data
+                # (A_all_u, t_all_u, A_all_l, t_all_l) = bbl.ro_data
                 
-                a_list, t_list = find_closest_planes(α, threshold, A_all_l, t_all_l)
-                mt = sum(t_list)/length(t_list)
-                threshold = minimum([threshold, (threshold-mt)*ro_factor/10])
+                # a_list, t_list = find_closest_planes(α, threshold, A_all_l, t_all_l)
+                # mt = sum(t_list)/length(t_list)
+                # threshold = minimum([threshold, (threshold-mt)*ro_factor/10])
 
 				P = ro_factor*diagm(1.0*α)
 				

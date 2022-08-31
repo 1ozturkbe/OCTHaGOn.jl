@@ -445,6 +445,8 @@ function feas_gap(gm::GlobalModel, soln = solution(gm))
     for bbl in gm.bbls
         bbl_max = isnothing(bbl.max_Y) ? 1 : bbl.max_Y
         bbl_min = isnothing(bbl.min_Y) ? 1 : bbl.min_Y
+        # bbl_max = 1
+        # bbl_min = 0 
 
         if bbl isa BlackBoxClassifier && !isnothing(bbl.constraint)
             for ll in bbl.lls # LL feas_gaps evaluated first, for descent function

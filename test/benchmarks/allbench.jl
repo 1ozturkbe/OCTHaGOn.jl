@@ -154,12 +154,12 @@ function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
         set_param(gm, :sample_coeff, 1800)
         set_param(gm, :ro_factor, ro_factor)
         globalsolve!(gm; repair=REPAIR, opt_sampling=OPT_SAMPLING)
-        
+        #feas_gap(gm)
         # Performance of the different algorithms (e.g. GBM, SVM, OCT)
         df_algs = vcat([bbl.learner_performance for bbl in gm.bbls]...)
         
 
-        return gm.cost[end], df_algs
+        return gm.cost[end], gm
     
     end
 
@@ -186,10 +186,10 @@ function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
             
             alg_list = copy(og_alg_list)
 
-            for ro_factor in [0.,0.01,0.1,0.2,0.5,1,2]#[0,0.01,0.1,0.2,0.5,1,2]
+            for ro_factor in [0.0]#[0,0.01,0.1,0.2,0.5,1,2] , 0.05, 0.1, 0.5
                 name, folder = row["name"], row["folder"]
                 # println(name)
-                # if name != "ex5_2_2_case3"
+                # if name ∉ ["st_e11","st_e02"]
                 #     continue 
                 # end
                 # if name ∉ ["ex8_3_14", "ex8_3_4", "ex5_2_5", "ex8_3_9", "ex8_3_3", "ex8_3_2"]
@@ -200,56 +200,85 @@ function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
                 #     continue
                 # end
 
-                if name ∉  ["st_e17", "ex6_2_8", "ex6_2_12", "sample", "st_e04", "st_bsj4", "ex5_2_2_case3", "ex2_1_6", "ex2_1_8", "st_e30", "st_e16", "alkylation"]#["sample"]#
+                # if name ∉  ["st_e17", "ex6_2_8", "ex6_2_12", "sample", "st_e04", "st_bsj4", "ex5_2_2_case3", "ex2_1_6", "ex2_1_8", "st_e30", "st_e16", "alkylation"]#["sample"]#
+                #     continue
+                # end
+                
+                # Bad v2
+                # if name ∉ ["st_e33","ex2_1_6","ex5_4_3","ex2_1_8","st_e30","ex5_4_4","ex6_2_12","alkyl","st_bsj4","ex6_2_8","ex4_1_1","ex6_2_9","sample","st_e17"]
+                #     continue
+                # end
+
+                # Infeasible 
+                if name ∉ ["st_e02","st_e11","st_e04","st_e05","ex3_1_1","ex5_4_2","ex7_2_3", "process", "ex5_3_2"]
                     continue
                 end
+
+                # if name ∉ ["st_e05"]
+                #     continue
+                # end
+                baron_obj = parse(Float32, replace(row["optimal"], r"[^0-9\.-]" => ""))
+                df_tmp = DataFrame(
+                    "gm" => NaN, 
+                    "baron" => baron_obj,
+                    "diff" => NaN,
+                    "subopt_factor" => NaN,
+                    "gm_time" => NaN,
+                    "ba_time" => NaN,
+                    "algs" => "[\""*join(alg_list, "\",\"")*"\"]",
+                    "feas_gaps" => [[]],
+                    "ro_factor" => ro_factor,
+                    "solved" => NaN
+                )
+
                 try 
                     ts = time()
                     Random.seed!(50)
-                    gm_obj, df_algs = solve_gm(name, folder; ro_factor=ro_factor)
+                    gm_obj, gm = solve_gm(name, folder; ro_factor=ro_factor)
                     # gm_obj, df_algs = solve_baron(name, folder)
-
-                    gm_time = time()-ts
                     
 
-                    baron_obj = parse(Float32, replace(row["optimal"], r"[^0-9\.-]" => ""))
+                    gm_time = time()-ts
                     baron_time = gm_time
-                    subopt = abs(baron_obj)<1 ? ((gm_obj+1)/1+baron_obj) : gm_obj/baron_obj
+                    subopt = abs(baron_obj)<1 ? ((gm_obj+1)/(1+baron_obj)) : gm_obj/baron_obj
                     subopt = abs(baron_obj)<1 ? ((gm_obj-baron_obj)/(1+abs(baron_obj))) : (gm_obj-baron_obj)/abs(baron_obj)
                     subopt = 1-subopt
-                    df_tmp = DataFrame(
-                        # "n" => N,
-                        # "m" => M,
-                        "gm" => gm_obj, 
-                        "baron" => baron_obj,
-                        "diff" => gm_obj-baron_obj,
-                        "subopt_factor" => subopt,#gm_obj/baron_obj,
-                        "gm_time" => gm_time,
-                        "ba_time" => baron_time,
-                        "algs" => "[\""*join(alg_list, "\",\"")*"\"]",
-                        "ro_factor" => ro_factor
-                    )
+                    
+                    feas_gaps = [bbl.feas_gap[end] for bbl in gm.bbls if isa(bbl, BlackBoxClassifier)]
+
+                    df_tmp[!, "gm"] = [gm_obj]
+                    df_tmp[!, "diff"] = [gm_obj-baron_obj]
+                    df_tmp[!, "subopt_factor"] = [subopt]
+                    df_tmp[!, "gm_time"] = [gm_time]
+                    df_tmp[!, "ba_time"] = [gm_time]
+                    df_tmp[!, "feas_gaps"] = [feas_gaps]
+                    df_tmp[!, "solved"] = [1]
+
                     new_row = hcat(df_tmp, DataFrame(row))
                     append!(df_all, new_row)
                     # append!(df_algs_all, df_algs)
-
-                    try
-                        csv_path = output_path*"benchmark$(suffix).csv"
-                        csv_path_alg = output_path*"benchmark_alg$(suffix).csv"
-                        #println(csv_path)
-                        CSV.write(csv_path, df_all)
-                        # CSV.write(csv_path_alg, df_algs_all)
-                    catch
-                        println("Couldn't write to CSV")
-                    end
 
                     println(df_all)
 
                     # break
                 catch e
+                    df_tmp[!, "solved"] = [0]
+
+                    new_row = hcat(df_tmp, DataFrame(row))
+                    append!(df_all, new_row)
                     showerror(stdout, e)
                     #println("Error solving $(name)")
                     #println(stacktrace(catch_backtrace()))
+                end
+
+                try
+                    csv_path = output_path*"benchmark$(suffix).csv"
+                    csv_path_alg = output_path*"benchmark_alg$(suffix).csv"
+                    #println(csv_path)
+                    CSV.write(csv_path, df_all)
+                    # CSV.write(csv_path_alg, df_algs_all)
+                catch
+                    println("Couldn't write to CSV")
                 end
             end
             # break
