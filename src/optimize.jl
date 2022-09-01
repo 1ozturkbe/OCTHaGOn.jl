@@ -349,10 +349,10 @@ function descend!(gm::GlobalModel; append_x0=true, kwargs...)
         if feas # Small gradient step
             push!(constrs, @constraint(gm.model, sum((d ./ var_diff).^2) <= 
                 step_size/exp(decay_rate*(ct-1)/max_iterations)))
-            @objective(gm.model, Min, 0)
+            @objective(gm.model, Min, 1)
             @objective(gm.model, Min, sum(Array(obj_gradient[end,:]) .* d) + equality_penalty*errors)
         else    # Projection step
-            @objective(gm.model, Min, 0)
+            @objective(gm.model, Min, 1)
             @objective(gm.model, Min, sum(Array(obj_gradient[end,:]) .* d) + step_penalty*sum((d ./ var_diff).^2) + equality_penalty*errors)
         end
 
@@ -436,6 +436,7 @@ function globalsolve!(gm::GlobalModel; repair=true, opt_sampling=false)
     end
 
     @info "Solving MIP..."
+    # print(gm.model)
     optimize!(gm) 
     
     if repair    

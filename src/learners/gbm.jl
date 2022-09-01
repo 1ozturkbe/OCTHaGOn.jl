@@ -173,11 +173,12 @@ function gbm_embed_helper(lnr::Union{GBM_Regressor, GBM_Classifier}, gm::GlobalM
     if !isnothing(lnr.dependent_var)
         push!(all_constraints, @constraint(m, final_outcome == lnr.dependent_var))
     else
+        relax_var = isnothing(gm.relax_var) ? 0 : gm.relax_var;
         if lb != -Inf
-            push!(all_constraints, @constraint(m, final_outcome >= lb));
+            push!(all_constraints, @constraint(m, final_outcome >= lb-relax_var));
         end
         if ub != Inf
-            push!(all_constraints, @constraint(m, final_outcome <= ub));
+            push!(all_constraints, @constraint(m, final_outcome <= ub+relax_var));
         end
     end
     # Final outcome variable is the weighted average
@@ -208,6 +209,7 @@ function fit_cls_helper(lnr::GBM_Classifier, X::DataFrame, Y::Array; equality=fa
             Y_hat = tmp
             lnr.use_epsilon = true
         else 
+            # @error("Not enough samples to GBM approximate equality constraint: $(positive_sample_fraction)")
             # In this case, we will continue modeling as inequality instead of equality
             println("Not enough samples to GBM approximate equality constraint: $(positive_sample_fraction)")
         end

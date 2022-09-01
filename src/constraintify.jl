@@ -36,6 +36,8 @@ function add_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier, idx = l
     isempty(bbc.mi_constraints) || throw(OCTHaGOnException("BBC $(bbc.name) already has associated MI approximation."))
     isempty(bbc.leaf_variables) || throw(OCTHaGOnException("BBC $(bbc.name) already has associated MI variables."))
 
+    relax_var = isnothing(gm.relax_var) ? 0 : gm.relax_var;
+
     if bbc.feas_ratio == 1.0 # Just a placeholder to show that the tree is "trained". 
         z_feas = @variable(gm.model, binary = true)
         bbc.mi_constraints = Dict(1 => [@constraint(gm.model, z_feas == 1)])
@@ -46,7 +48,8 @@ function add_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier, idx = l
             bbc.mi_constraints, bbc.leaf_variables = embed_mio!(lnr, gm, bbc)
         else
             bbc.mi_constraints, bbc.leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[idx], bbc;
-                                                equality = bbc.equality, lcs = bbc.lls, ro_factor = get_param(gm, :ro_factor))
+                                                equality = bbc.equality, relax_var = relax_var,
+                                                lcs = bbc.lls, ro_factor = get_param(gm, :ro_factor))
         end
     elseif size(bbc.X, 1) == 0
         throw(OCTHaGOnException("Constraint " * string(bbc.name) * " has not been sampled yet, and is thus untrained."))
@@ -64,7 +67,8 @@ function add_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier, idx = l
             bbc.mi_constraints, bbc.leaf_variables = embed_mio!(lnr, gm, bbc)
         else
             bbc.mi_constraints, bbc.leaf_variables = add_feas_constraints!(gm.model, bbc.vars, bbc.learners[idx], bbc;
-                                                equality = bbc.equality, lcs = bbc.lls, ro_factor = get_param(gm, :ro_factor))
+                                                equality = bbc.equality, relax_var=relax_var, 
+                                                lcs = bbc.lls, ro_factor = get_param(gm, :ro_factor))
         end
     end
     bbc.active_leaves = []
@@ -198,7 +202,7 @@ function add_feas_constraints!(m::JuMP.Model, x::Array{JuMP.VariableRef}, lnr::U
 							   equality::Bool = false, 
 							   relax_var::Union{Real, JuMP.VariableRef} = 0,
 							   lcs::Array = [], mic::Dict = Dict(), lv::Dict = Dict(), ro_factor::Real = 0)
-	
+	#relax_var = 0
 	gamma = 1
     constr_name = isnothing(bbl) ? "" : bbl.name 
 	# if lnr isa AbstractModel

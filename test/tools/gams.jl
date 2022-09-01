@@ -120,13 +120,17 @@ Converts a GAMS optimization model to a GlobalModel.
 GAMS_DIR is the directory to look in, while the filename
 is the name of the .gms file. 
 """
-function GAMS_to_GlobalModel(GAMS_DIR::String, filename::String; alg_list=["OCT"], regression=false)
+function GAMS_to_GlobalModel(GAMS_DIR::String, filename::String; alg_list=["OCT"], regression=false, use_relax_var=true)
+    
+    relax_coeff = 1
+
     model = JuMP.Model()
+    
     # Parsing GAMS Files
     lexed = GAMSFiles.lex(GAMS_DIR * filename)
     gams = GAMSFiles.parsegams(GAMS_DIR * filename)
     GAMSFiles.parseconsts!(gams)
-
+    
     vars = GAMSFiles.getvars(gams["variables"])
     sets = Dict{String, Any}()
     if haskey(gams, "sets")
@@ -136,30 +140,38 @@ function GAMS_to_GlobalModel(GAMS_DIR::String, filename::String; alg_list=["OCT"
     if haskey(gams, "parameters") && haskey(gams, "assignments")
         GAMSFiles.parseassignments!(preexprs, gams["assignments"], gams["parameters"], sets)
     end
-
+    
     # Getting variables
     vardict, constdict = generate_variables!(model, gams) # Actual JuMP variables
     obj_symb = :objvar
+
+    
+    relax_var = use_relax_var ? @variable(model, r_rel>=0) : nothing
+    relax_term = use_relax_var ? relax_coeff*relax_var : 0;
+    
     # Getting objective
     if "minimizing" in keys(gams)
         if gams["minimizing"] isa String
-            @objective(model, Min, JuMP.variable_by_name(model, gams["minimizing"]))
+            @objective(model, Min, JuMP.variable_by_name(model, gams["minimizing"])+relax_term)
             obj_symb = Symbol(gams["minimizing"])
         else
-            @objective(model, Min, sum([JuMP.variable_by_name(i) for i in gams["minimizing"]]))
+            @objective(model, Min, sum([JuMP.variable_by_name(i) for i in gams["minimizing"]])+relax_term)
         end
     elseif "maximizing" in keys(gams)
         @warn "$(filename) is a maximization. Make sure objvar is on LHS of constraints, with a positive coefficient and and equality."
         if gams["maximizing"] isa String
-            @objective(model, Max, JuMP.variable_by_name(model, gams["maximizing"]))
+            @objective(model, Max, JuMP.variable_by_name(model, gams["maximizing"])-relax_term)
             obj_symb = Symbol(gams["maximizing"])
         else
-            @objective(model, Max, sum([JuMP.variable_by_name(i) for i in gams["maximizing"]]))
+            @objective(model, Max, sum([JuMP.variable_by_name(i) for i in gams["maximizing"]])-relax_term)
         end
-    end
+    end    
 
     # Creating GlobalModel
     gm = GlobalModel(model = model, name = replace(filename, ".gms" => ""))
+    gm.relax_var = relax_var 
+
+    # Creating GlobalModel
     equations = [] # For debugging purposes...
     for (key, eq) in gams["equations"]
         push!(equations, key => eq)

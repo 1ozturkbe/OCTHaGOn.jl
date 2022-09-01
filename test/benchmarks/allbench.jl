@@ -147,9 +147,9 @@ end
 
 function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
     
-    function solve_gm(name, folder; ro_factor=0)
+    function solve_gm(name, folder; ro_factor=0, use_relax_var=false)
         
-        gm = GAMS_to_GlobalModel(OCTHaGOn.GAMS_DIR*"$(folder)\\", name*".gms"; alg_list = alg_list, regression=false)
+        gm = GAMS_to_GlobalModel(OCTHaGOn.GAMS_DIR*"$(folder)\\", name*".gms"; alg_list = alg_list, regression=false, use_relax_var=use_relax_var)
         set_optimizer(gm, CPLEX_SILENT)
         set_param(gm, :sample_coeff, 1800)
         set_param(gm, :ro_factor, ro_factor)
@@ -159,7 +159,7 @@ function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
         df_algs = vcat([bbl.learner_performance for bbl in gm.bbls]...)
         
 
-        return gm.cost[end], gm
+        return df_algs, gm.cost[end], gm
     
     end
 
@@ -210,11 +210,11 @@ function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
                 # end
 
                 # Infeasible 
-                if name ∉ ["st_e02","st_e11","st_e04","st_e05","ex3_1_1","ex5_4_2","ex7_2_3", "process", "ex5_3_2"]
-                    continue
-                end
+                # if name ∉ ["st_e02","st_e11","st_e04","st_e05","ex3_1_1","ex5_4_2","ex7_2_3", "process", "ex5_3_2"]
+                #     continue
+                # end
 
-                # if name ∉ ["st_e05"]
+                # if name ∉ ["st_e02"]
                 #     continue
                 # end
                 baron_obj = parse(Float32, replace(row["optimal"], r"[^0-9\.-]" => ""))
@@ -228,13 +228,25 @@ function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
                     "algs" => "[\""*join(alg_list, "\",\"")*"\"]",
                     "feas_gaps" => [[]],
                     "ro_factor" => ro_factor,
-                    "solved" => NaN
+                    "solved" => NaN,
+                    "use_relax_var" => false
                 )
 
                 try 
                     ts = time()
                     Random.seed!(50)
-                    gm_obj, gm = solve_gm(name, folder; ro_factor=ro_factor)
+
+                    use_relax_var = false
+                    df_algs = nothing 
+                    gm_obj = nothing
+                    gm = nothing
+                    try
+                        df_algs, gm_obj, gm = solve_gm(name, folder; ro_factor=ro_factor, use_relax_var=false)
+                    catch
+                        @info("Trying with relax var")
+                        df_algs, gm_obj, gm = solve_gm(name, folder; ro_factor=ro_factor, use_relax_var=true)
+                        use_relax_var = true
+                    end
                     # gm_obj, df_algs = solve_baron(name, folder)
                     
 
@@ -253,10 +265,11 @@ function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
                     df_tmp[!, "ba_time"] = [gm_time]
                     df_tmp[!, "feas_gaps"] = [feas_gaps]
                     df_tmp[!, "solved"] = [1]
+                    df_tmp[!, "use_relax_var"] = [use_relax_var]
 
                     new_row = hcat(df_tmp, DataFrame(row))
                     append!(df_all, new_row)
-                    # append!(df_algs_all, df_algs)
+                    append!(df_algs_all, df_algs)
 
                     println(df_all)
 
@@ -276,7 +289,7 @@ function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
                     csv_path_alg = output_path*"benchmark_alg$(suffix).csv"
                     #println(csv_path)
                     CSV.write(csv_path, df_all)
-                    # CSV.write(csv_path_alg, df_algs_all)
+                    CSV.write(csv_path_alg, df_algs_all)
                 catch
                     println("Couldn't write to CSV")
                 end

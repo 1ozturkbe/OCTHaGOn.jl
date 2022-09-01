@@ -171,8 +171,10 @@ function embed_mio!(lnr::SVM_Classifier, gm::GlobalModel, bbl::BlackBoxClassifie
     
     cons = []
 
+    relax_var = isnothing(gm.relax_var) ? 0 : gm.relax_var;
+
     if ro_factor == 0
-        push!(cons, @constraint(m, x'*β + β0 + lnr.thres >=0))
+        push!(cons, @constraint(m, x'*β + β0 + lnr.thres + relax_var >=0))
     else
         P = ro_factor*diagm(1.0*β)
         
@@ -181,7 +183,7 @@ function embed_mio!(lnr::SVM_Classifier, gm::GlobalModel, bbl::BlackBoxClassifie
         m[var_name] = @variable(m, base_name=string(var_name));
         t_var = m[var_name];
 
-        push!(cons, @constraint(m, x'*β + β0 + lnr.thres - t_var >=0))
+        push!(cons, @constraint(m, x'*β + β0 + lnr.thres - t_var + relax_var >=0))
         append!(cons, @constraint(m, P*x .<= t_var))
         append!(cons, @constraint(m, -P*x .<= t_var))
 

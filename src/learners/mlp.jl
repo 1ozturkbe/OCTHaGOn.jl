@@ -182,6 +182,8 @@ function embed_mio!(lnr::MLP_Classifier, gm::GlobalModel, bbl::BlackBoxClassifie
         error("MLP model hasn't been fitted")
     end
 
+    relax_var = isnothing(gm.relax_var) ? 0 : gm.relax_var;
+    
     mlp = lnr.mlp
     m, x = gm.model, bbl.vars
     
@@ -226,7 +228,7 @@ function embed_mio!(lnr::MLP_Classifier, gm::GlobalModel, bbl::BlackBoxClassifie
         end
     end
     push!(cons, 
-        @constraint(m, y>= 0)
+        @constraint(m, y + relax_var>= 0)
     )
     
     return Dict(1 => cons), Dict()
@@ -242,6 +244,8 @@ function embed_mio!(lnr::MLP_Regressor, gm::GlobalModel, bbl::BlackBoxRegressor;
     if isnothing(lnr.mlp)
         error("MLP model hasn't been fitted")
     end
+
+    relax_var = isnothing(gm.relax_var) ? 0 : gm.relax_var;
 
     mlp = lnr.mlp
     m, x = gm.model, bbl.vars
@@ -293,13 +297,13 @@ function embed_mio!(lnr::MLP_Regressor, gm::GlobalModel, bbl::BlackBoxRegressor;
         if lnr.equality
             linking_constr = @constraint(m, y>= 0)
         else 
-            linking_constr = @constraint(m, EPSILON>= y >= -EPSILON)
+            linking_constr = @constraint(m, relax_var+EPSILON>= y >= -EPSILON-relax_var)
         end
     else
         if lnr.equality
             linking_constr = @constraint(m, y == lnr.dependent_var)
         else 
-            linking_constr = @constraint(m, lnr.dependent_var >= y)
+            linking_constr = @constraint(m, lnr.dependent_var >= y-relax_var)
         end
     end
 
