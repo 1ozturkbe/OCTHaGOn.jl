@@ -37,7 +37,7 @@ function add_tree_constraints!(gm::GlobalModel, bbc::BlackBoxClassifier, idx = l
     isempty(bbc.leaf_variables) || throw(OCTHaGOnException("BBC $(bbc.name) already has associated MI variables."))
 
     relax_var = isnothing(gm.relax_var) ? 0 : gm.relax_var;
-
+    
     if bbc.feas_ratio == 1.0 # Just a placeholder to show that the tree is "trained". 
         z_feas = @variable(gm.model, binary = true)
         bbc.mi_constraints = Dict(1 => [@constraint(gm.model, z_feas == 1)])

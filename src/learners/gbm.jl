@@ -4,7 +4,7 @@ using LossFunctions: L2DistLoss
 
 @with_kw mutable struct GBM_Classifier <: AbstractClassifier 
     # Arguments
-    max_depth::Int64 = 6
+    max_depth::Int64 = 4
     nrounds::Int64 = 3
     solver = CPLEX_SILENT
     dependent_var::Union{Nothing, JuMP.VariableRef} = nothing
