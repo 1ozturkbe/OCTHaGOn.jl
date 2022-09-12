@@ -215,5 +215,5 @@ nonlinear_model can contain JuMP.NonlinearConstraints.
     params::Dict = gm_defaults()                                 # GM settings
     og_objective = nothing                                       # Used to hold the original objective (LHS of dependent constraint)
     relax_var::Union{Nothing, JuMP.VariableRef} = nothing        # Relaxation variable used for infeasibilities
-    relax_coeff::Real = 1                                        # Relaxaton coefficient
+    relax_coeff::Real = 0                                        # Relaxaton coefficient
 end

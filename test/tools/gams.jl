@@ -147,7 +147,8 @@ function GAMS_to_GlobalModel(GAMS_DIR::String, filename::String; alg_list=["OCT"
     obj_symb = :objvar
 
     
-    relax_var = use_relax_var ? @variable(model, r_rel>=0) : nothing
+    #relax_var = use_relax_var ? @variable(model, r_rel>=0) : nothing
+    relax_var = @variable(model, r_rel>=0)
     relax_term = use_relax_var ? relax_coeff*relax_var : 0;
     print("Relax term is: $(relax_term)")
 
@@ -178,6 +179,7 @@ function GAMS_to_GlobalModel(GAMS_DIR::String, filename::String; alg_list=["OCT"
     # Creating GlobalModel
     gm = GlobalModel(model = model, name = replace(filename, ".gms" => ""))
     gm.relax_var = relax_var 
+    gm.relax_coeff = relax_coeff
     gm.objective = unrelaxed_obj
 
     # Creating GlobalModel
