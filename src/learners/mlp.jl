@@ -182,7 +182,7 @@ function embed_mio!(lnr::MLP_Classifier, gm::GlobalModel, bbl::BlackBoxClassifie
         error("MLP model hasn't been fitted")
     end
 
-    relax_var = isnothing(gm.relax_var) ? 0 : gm.relax_var;
+    relax_var = gm.relax_coeff ==0 ? 0 : gm.relax_var;
     
     mlp = lnr.mlp
     m, x = gm.model, bbl.vars
@@ -245,7 +245,7 @@ function embed_mio!(lnr::MLP_Regressor, gm::GlobalModel, bbl::BlackBoxRegressor;
         error("MLP model hasn't been fitted")
     end
 
-    relax_var = isnothing(gm.relax_var) ? 0 : gm.relax_var;
+    relax_var = gm.relax_coeff ==0 ? 0 : gm.relax_var;
 
     mlp = lnr.mlp
     m, x = gm.model, bbl.vars

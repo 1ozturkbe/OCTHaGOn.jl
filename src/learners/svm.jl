@@ -171,7 +171,7 @@ function embed_mio!(lnr::SVM_Classifier, gm::GlobalModel, bbl::BlackBoxClassifie
     
     cons = []
 
-    relax_var = isnothing(gm.relax_var) ? 0 : gm.relax_var;
+    relax_var = gm.relax_coeff ==0 ? 0 : gm.relax_var;
 
     if ro_factor == 0
         push!(cons, @constraint(m, x'*β + β0 + lnr.thres + relax_var >=0))

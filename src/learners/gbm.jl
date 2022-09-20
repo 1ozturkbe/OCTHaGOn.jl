@@ -173,7 +173,7 @@ function gbm_embed_helper(lnr::Union{GBM_Regressor, GBM_Classifier}, gm::GlobalM
     if !isnothing(lnr.dependent_var)
         push!(all_constraints, @constraint(m, final_outcome == lnr.dependent_var))
     else
-        relax_var = isnothing(gm.relax_var) ? 0 : gm.relax_var;
+        relax_var = gm.relax_coeff ==0 ? 0 : gm.relax_var;
         if lb != -Inf
             push!(all_constraints, @constraint(m, final_outcome >= lb-relax_var));
         end

@@ -93,9 +93,9 @@ Adds data to BlackBoxRegressor.
 function add_data!(bbr::BlackBoxRegressor, X::DataFrame, Y::Array)
     @assert length(Y) == size(X, 1)
     infeas_idxs = findall(x -> isinf(x), Y)
-    length(infeas_idxs) >= 0.5*length(Y) &&
-    throw(OCTHaGOnException("A majority of samples on BBR $(bbr.name) evaluated as infeasible. " * 
-        "Please check your expressions. "))
+    # length(infeas_idxs) >= 0.5*length(Y) &&
+    # throw(OCTHaGOnException("A majority of samples on BBR $(bbr.name) evaluated as infeasible. " * 
+    #     "Please check your expressions. "))
     if isnothing(bbr.gradients) && get_param(bbr, :gradients) 
         bbr.gradients = DataFrame(string.(bbr.vars) .=> [Union{Missing, Float64}[] for i=1:length(bbr.vars)]) 
         bbr.curvatures = Union{Missing, Float64}[]
@@ -179,10 +179,15 @@ function evaluate_gradient(bbl::BlackBoxLearner, data::DataFrame)
         return DataFrame(hcat([bbl.g(Array(row)) 
                 for row in eachrow(data[:, string.(bbl.vars)])]...)', string.(bbl.vars))
     elseif bbl.constraint isa Expr
+        
+        bounds = get_bounds(bbl)
+        bounds = Dict(string(key)=>value for (key, value) in bounds)
+        lbs = [bounds[v][1] for v in string.(bbl.vars)]
+        ubs = [bounds[v][2] for v in string.(bbl.vars)]
         arrs = deconstruct(data, bbl.vars, bbl.expr_vars, bbl.varmap)
-        # grads = hcat([bbl.g(Float64[flat(arr)...]) 
-        #                     for arr in arrs]...)'
-
+        grads = hcat([bbl.g(Float64[flat(arr)...]) 
+                            for arr in arrs]...)'
+        
         grad_rows = []
         for arr in arrs
             row = Float64[flat(arr)...]
