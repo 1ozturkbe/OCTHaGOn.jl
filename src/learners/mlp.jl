@@ -295,7 +295,7 @@ function embed_mio!(lnr::MLP_Regressor, gm::GlobalModel, bbl::BlackBoxRegressor;
 
     if isnothing(lnr.dependent_var) 
         if lnr.equality
-            linking_constr = @constraint(m, y>= 0)
+            linking_constr = @constraint(m, y>= -relax_var)
         else 
             linking_constr = @constraint(m, relax_var+EPSILON>= y >= -EPSILON-relax_var)
         end

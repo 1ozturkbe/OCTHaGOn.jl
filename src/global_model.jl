@@ -15,6 +15,15 @@ function Base.show(io::IO, gm::GlobalModel)
     end
 end
 
+function make_feasible(gm::GlobalModel, df::DataFrame) 
+
+    for (k,v) in get_bounds(gm) 
+        df[!,string(k)] = [minimum([maximum([x,v[1]+1e-6]),v[2]-1e-6]) for x= df[!,string(k)] ]
+    end
+    
+    return df
+end
+
 function set_param(gm::GlobalModel, key::Symbol, val) 
     set_param(gm.params, key, val)
     for bbl in gm.bbls
@@ -400,6 +409,8 @@ end
 
 evaluate_accuracy(gm::GlobalModel) = evaluate_accuracy.(gm.bbls)
 
+
+
 """ 
     JuMP.optimize!(gm::GlobalModel; kwargs...)
 
@@ -423,13 +434,17 @@ Returns the optimal solution of the GlobalModel/JuMP.Model in a DataFrame.
 """
 function solution(gm::GlobalModel)
     vals = getvalue.(gm.vars)
-    return DataFrame(vals', string.(gm.vars))
+    df = DataFrame(vals', string.(gm.vars))
+    df = make_feasible(gm, df)
+    return df
 end
 
 function solution(m::JuMP.Model)
     variables = JuMP.all_variables(m)
     vals = getvalue.(variables)
-    return DataFrame(vals', string.(variables))
+    df = DataFrame(vals', string.(variables))
+    df = make_feasible(gm, df)
+    return df
 end
 
 """ 

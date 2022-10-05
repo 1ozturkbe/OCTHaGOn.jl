@@ -94,7 +94,7 @@ module OCTHaGOn
         
         # STRUCTS
     export GlobalModel, BlackBoxLearner, BlackBoxClassifier, BlackBoxRegressor,ClosedFormConstraint, 
-        LinkedLearner, LinkedClassifier, LinkedRegressor, SVM_Classifier,
+        LinkedLearner, LinkedClassifier, LinkedRegressor, SVM_Classifier, GBM_Classifier, MLP_Classifier,
 
     # JuMP.Model extensions to GlobalModel
         set_optimizer, optimize!,

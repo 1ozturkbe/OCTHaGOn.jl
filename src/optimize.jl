@@ -131,6 +131,7 @@ function descend!(gm::GlobalModel; append_x0=true, kwargs...)
             obj_bbl = nothing
         elseif length(obj_bbl) == 1
             obj_bbl = obj_bbl[1]
+            println("Succsefully set obj bbl")
             vars = [var for var in vars if var != obj_bbl.dependent_var]
             bbls = [bbl for bbl in gm.bbls if bbl != obj_bbl]
         elseif length(obj_bbl) > 1
@@ -440,7 +441,12 @@ function globalsolve!(gm::GlobalModel; repair=true, opt_sampling=false)
     optimize!(gm) 
     
     if repair    
-        descend!(gm) 
+        try
+            descend!(gm)
+        catch
+            @warn("Descend failed") 
+        end
+         
         # final_repair!(gm)
         try
             final_sample_repair!(gm)

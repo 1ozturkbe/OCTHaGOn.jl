@@ -8,6 +8,7 @@ OPT_SAMPLING = false
 using Serialization: serialize, deserialize
 using DataFrames, Dates 
 
+gm = nothing
 
 """
 Loads and parses gam from file. 
@@ -220,14 +221,26 @@ function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
                 #     continue
                 # end
 
-                if name ∉ ["ex8_3_4", "ex8_3_9","ex5_2_5","ex8_3_14","ex8_2_1b","ex8_3_2","ex8_2_4b","ex8_3_3","ex5_3_3","ex8_2_4a","ex5_4_4","ex8_2_1a"]
+                # Infeasible v2
+                if name ∉ ["st_e11","ex7_2_3","process","ex8_2_1b","ex8_2_4b","ex5_3_3","ex8_3_9","ex8_3_14","ex8_3_2","ex8_3_3","ex8_3_4"]
                     continue
                 end
-                
-                gm = create_gm(name, folder)
+                # if name ∉ ["st_e11","ex7_2_3","process","ex8_2_1b","ex8_2_4b","ex5_3_3","ex8_3_9","ex8_3_14","ex8_3_2","ex8_3_3","ex8_3_4"]
+                #     continue
+                # end
 
-                for ro_factor in [0,0.01,0.1,0.5,1]#[0,0.01,0.1,0.2,0.5,1,2]
-                    for relax_coeff in [0,1e-2,1e-4]
+                # if name ∉ ["ex7_2_3"]
+                #     continue
+                # end
+
+                # if name ∈ ["ex8_3_4", "ex8_3_9","ex5_2_5","ex8_3_14","ex8_2_1b","ex8_3_2","ex8_2_4b","ex8_3_3","ex5_3_3","ex8_2_4a","ex5_4_4","ex8_2_1a"]
+                #     continue
+                # end
+                
+                global gm = create_gm(name, folder)
+
+                for ro_factor in [0.0,0.01,0.1,0.5,1]#[0,0.01,0.1,0.2,0.5,1,2]
+                    for relax_coeff in [0.0,1e2,1e4]
 
                         baron_obj = parse(Float32, replace(row["optimal"], r"[^0-9\.-]" => ""))
                         df_tmp = DataFrame(
@@ -272,6 +285,7 @@ function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
                             subopt = 1-subopt
                             
                             feas_gaps = [bbl.feas_gap[end] for bbl in gm.bbls if isa(bbl, BlackBoxClassifier)]
+                            # feas_gaps = []
 
                             df_tmp[!, "gm"] = [gm_obj]
                             df_tmp[!, "diff"] = [gm_obj-baron_obj]

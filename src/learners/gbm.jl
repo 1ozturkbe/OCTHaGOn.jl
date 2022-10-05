@@ -87,7 +87,7 @@ function find_leaf_df(tree::AbstractJLBoostTree, bbl::BlackBoxLearner)
     return df
 end
 
-function embed_single_tree(gm::GlobalModel, bbl::BlackBoxLearner, tree_id::Int64, tree::AbstractJLBoostTree; M=1000, ro_factor=0)
+function embed_single_tree(gm::GlobalModel, bbl::BlackBoxLearner, tree_id::Int64, tree::AbstractJLBoostTree; M=100000, ro_factor=0)
     m = gm.model;
     cols = names(bbl.X)
     x = bbl.vars;
@@ -103,7 +103,6 @@ function embed_single_tree(gm::GlobalModel, bbl::BlackBoxLearner, tree_id::Int64
 
     # Splitting coefficients (i.e. which variable is active)
     coeffs = Matrix(df[!, cols]);
-
 
     # Leaf ids
     l_ids = convert.(Int64, df[!, "leaf_id"]);
@@ -126,9 +125,9 @@ function embed_single_tree(gm::GlobalModel, bbl::BlackBoxLearner, tree_id::Int64
 
     push!(constrs, @constraint(m, outcome_var == leaf_predictions'*leaf_vars));
     push!(constrs, @constraint(m, sum(leaf_vars[i] for i=1:n_leaves) == 1));
-
+    # .+ strict_ineq_epsilons
     if ro_factor == 0
-        append!(constrs, @constraint(m, coeffs*x .+ strict_ineq_epsilons .<= intercept.+M*(1 .- leaf_vars[l_ids])));
+        append!(constrs, @constraint(m, coeffs*x .<= intercept.+M*(1 .- leaf_vars[l_ids])));
     else
         for i in 1:size(coeffs, 1)
 
@@ -159,7 +158,7 @@ function gbm_embed_helper(lnr::Union{GBM_Regressor, GBM_Classifier}, gm::GlobalM
     outcome_vars = []
     etas = []
     for (i, tree) in enumerate(trees)
-        constrs, tree_outcome = embed_single_tree(gm, bbl, i, tree; M=1000, ro_factor=get_param(gm, :ro_factor));
+        constrs, tree_outcome = embed_single_tree(gm, bbl, i, tree; M=100000, ro_factor=get_param(gm, :ro_factor));
         push!(outcome_vars, tree_outcome)
         push!(etas, tree.eta)
         append!(all_constraints, constrs)
