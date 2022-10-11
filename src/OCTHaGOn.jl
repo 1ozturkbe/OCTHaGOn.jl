@@ -31,8 +31,8 @@ module OCTHaGOn
     const GAMS_DIR = PROJECT_ROOT * "\\data\\gams\\"  
     const SOL_DIR = PROJECT_ROOT * "\\data\\solutions\\"
     const TREE_DIR = PROJECT_ROOT * "\\data\\trees\\"
-    const CPLEX_SILENT = with_optimizer(CPLEX.Optimizer, CPX_PARAM_SCRIND = 0, CPX_PARAM_TILIM = 300)
-    # const CPLEX_SILENT = with_optimizer(Gurobi.Optimizer, TimeLimit = 300, NonConvex = 2, OutputFlag = 0)
+    # const CPLEX_SILENT = with_optimizer(CPLEX.Optimizer, CPX_PARAM_SCRIND = 0, CPX_PARAM_TILIM = 300)
+    const CPLEX_SILENT = with_optimizer(Gurobi.Optimizer, TimeLimit = 300, NonConvex = 2, OutputFlag = 0)# , FeasibilityTol=1e-3, OptimalityTol=1e-3
 
     const valid_lowers = ["reg", "lower", "upperlower"]
     const valid_uppers = ["reg", "upper", "upperlower"]
@@ -126,7 +126,7 @@ module OCTHaGOn
 
         # Evaluation
         evaluate, evaluate_gradient, update_gradients,
-        classify_curvature, eval!, add_data!, 
+        classify_curvature, eval!, add_data!, make_feasible,
 
         # Convexity checks
         update_local_convexity, update_vexity, update_leaf_vexity,

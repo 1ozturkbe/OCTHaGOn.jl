@@ -18,7 +18,9 @@ end
 function make_feasible(gm::GlobalModel, df::DataFrame) 
 
     for (k,v) in get_bounds(gm) 
-        df[!,string(k)] = [minimum([maximum([x,v[1]+1e-6]),v[2]-1e-6]) for x= df[!,string(k)] ]
+        if (string(k) in names(df)) &&  (string(k) != "objvar")
+            df[!,string(k)] = [minimum([maximum([x,v[1]+1e-6]),v[2]-1e-6]) for x= df[!,string(k)] ]
+        end
     end
     
     return df
@@ -457,6 +459,7 @@ Positive values -> constraint violation for BBC equalities,
                     regression overestimation for BBRs.
 """
 function feas_gap(gm::GlobalModel, soln = solution(gm))
+
     for bbl in gm.bbls
         bbl_max = isnothing(bbl.max_Y) ? 1 : bbl.max_Y
         bbl_min = isnothing(bbl.min_Y) ? 1 : bbl.min_Y
@@ -496,8 +499,15 @@ function feas_gap(gm::GlobalModel, soln = solution(gm))
                     push!(ll.actuals, actual)
                     push!(ll.feas_gap, (optimum-actual) / ((bbl_max - bbl_min)))
                 end
+                tmp_soln = copy(soln)
+                # optimum = nothing
+                # try
                 eval!(bbl, soln)
                 optimum = soln[:, string(bbl.dependent_var)][1]
+                # catch
+                #     println("PROBLEM")
+                #     println(tmp_soln) 
+                # end
                 actual = bbl.Y[end]
                 push!(bbl.optima, optimum)
                 push!(bbl.actuals, actual)

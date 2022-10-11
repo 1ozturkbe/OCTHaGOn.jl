@@ -162,7 +162,7 @@ function descend!(gm::GlobalModel; append_x0=true, kwargs...)
     end
 
     # x0 initialization, and actual objective computation
-    x0 = DataFrame(gm.solution_history[end, :])
+    x0 = make_feasible(gm, DataFrame(gm.solution_history[end, :]))
     sol_vals = x0[:,string.(vars)]
     if !isnothing(obj_bbl)
         actual_cost = obj_bbl(x0)
@@ -359,7 +359,8 @@ function descend!(gm::GlobalModel; append_x0=true, kwargs...)
 
         # Optimizing the step, and finding next x0
         optimize!(gm.model)
-        x0 = DataFrame(string.(vars) .=> getvalue.(vars))
+        x0 = make_feasible(gm, DataFrame(string.(vars) .=> getvalue.(vars)))
+        
         if !isnothing(obj_bbl)
             x0[!, string(gm.objective)] = obj_bbl(x0)
         end

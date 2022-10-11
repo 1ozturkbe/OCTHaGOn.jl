@@ -229,7 +229,7 @@ function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
                 #     continue
                 # end
 
-                # if name ∉ ["ex7_2_3"]
+                # if name ∉ ["st_e11"]
                 #     continue
                 # end
 
@@ -239,8 +239,8 @@ function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
                 
                 global gm = create_gm(name, folder)
 
-                for ro_factor in [0.0,0.01,0.1,0.5,1]#[0,0.01,0.1,0.2,0.5,1,2]
-                    for relax_coeff in [0.0,1e2,1e4]
+                for ro_factor in [0.0,0.01,0.1,0.5,1]#[0.0,0.01,0.1,0.5,1]#[0,0.01,0.1,0.2,0.5,1,2]
+                    for relax_coeff in [0.0,1e2,1e4] #[0.0,1e2,1e4]
 
                         baron_obj = parse(Float32, replace(row["optimal"], r"[^0-9\.-]" => ""))
                         df_tmp = DataFrame(
