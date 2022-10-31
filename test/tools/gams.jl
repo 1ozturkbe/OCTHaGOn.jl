@@ -153,6 +153,7 @@ function GAMS_to_GlobalModel(GAMS_DIR::String, filename::String; alg_list=["OCT"
     print("Relax term is: $(relax_term)")
 
     unrelaxed_obj = nothing 
+    objective_sense = "Min" 
 
     # Getting objective
     if "minimizing" in keys(gams)
@@ -164,6 +165,7 @@ function GAMS_to_GlobalModel(GAMS_DIR::String, filename::String; alg_list=["OCT"
             unrelaxed_obj = sum([JuMP.variable_by_name(i) for i in gams["minimizing"]])
             @objective(model, Min, unrelaxed_obj+relax_term)
         end
+        objective_sense = "Min"
     elseif "maximizing" in keys(gams)
         @warn "$(filename) is a maximization. Make sure objvar is on LHS of constraints, with a positive coefficient and and equality."
         if gams["maximizing"] isa String
@@ -174,6 +176,7 @@ function GAMS_to_GlobalModel(GAMS_DIR::String, filename::String; alg_list=["OCT"
             unrelaxed_obj = sum([JuMP.variable_by_name(i) for i in gams["maximizing"]])
             @objective(model, Max, unrelaxed_obj-relax_term)
         end
+        objective_sense = "Min"
     end
 
     # Creating GlobalModel
@@ -181,6 +184,7 @@ function GAMS_to_GlobalModel(GAMS_DIR::String, filename::String; alg_list=["OCT"
     gm.relax_var = relax_var 
     gm.relax_coeff = relax_coeff
     gm.objective = unrelaxed_obj
+    gm.objective_sense = objective_sense
 
     # Creating GlobalModel
     equations = [] # For debugging purposes...

@@ -251,14 +251,14 @@ function add_nonlinear_or_compatible(gm::GlobalModel,
                     @constraint(gm.model, dependent_var == constr_expr)
                 elseif equality
                     new_constr = ClosedFormConstraint(constraint=constraint, vars=vars, expr_vars=expr_vars, equality=equality)
-                    push!(gm.cfcs, new_constr)
                     @constraint(gm.model, constr_expr == 0)
+                    push!(gm.cfcs, new_constr)
                 elseif !isnothing(dependent_var)
                     @constraint(gm.model, dependent_var >= constr_expr)
                 else 
                     new_constr = ClosedFormConstraint(constraint=constraint, vars=vars, expr_vars=expr_vars, equality=equality)
-                    push!(gm.cfcs, new_constr)
                     @constraint(gm.model, constr_expr >= 0)
+                    push!(gm.cfcs, new_constr)
                 end
             else
                 throw(ErrorException())

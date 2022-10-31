@@ -222,105 +222,133 @@ function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
                 # end
 
                 # Infeasible v2
-                if name ∉ ["st_e11","ex7_2_3","process","ex8_2_1b","ex8_2_4b","ex5_3_3","ex8_3_9","ex8_3_14","ex8_3_2","ex8_3_3","ex8_3_4"]
-                    continue
-                end
+                # if name ∉ ["st_e11","ex7_2_3","process","ex8_2_1b","ex8_2_4b","ex5_3_3","ex8_3_9","ex8_3_14","ex8_3_2","ex8_3_3","ex8_3_4"]
+                #     continue
+                # end
                 # if name ∉ ["st_e11","ex7_2_3","process","ex8_2_1b","ex8_2_4b","ex5_3_3","ex8_3_9","ex8_3_14","ex8_3_2","ex8_3_3","ex8_3_4"]
                 #     continue
                 # end
 
-                # if name ∉ ["st_e11"]
+                # Non-cvx loose-ends
+                # if name ∉ ["ex8_3_4", "ex8_3_9","ex5_2_5","ex8_3_14","ex8_2_1b","ex8_3_2","ex8_2_4b","ex8_3_3","ex5_3_3","ex8_2_4a","ex5_4_4","ex8_2_1a"]
                 #     continue
                 # end
 
-                # if name ∈ ["ex8_3_4", "ex8_3_9","ex5_2_5","ex8_3_14","ex8_2_1b","ex8_3_2","ex8_2_4b","ex8_3_3","ex5_3_3","ex8_2_4a","ex5_4_4","ex8_2_1a"]
-                #     continue
-                # end
-                
+                # CVX loose-ends
+                if name ∉ ["ex2_1_6","ex5_4_3","ex2_1_1","ex2_1_8","ex5_4_4","st_e30","ex8_4_2","ex7_2_4","ex5_2_5","ex6_2_12","ex8_4_1","st_e04","alkyl"]
+                    continue
+                end
+
                 global gm = create_gm(name, folder)
+                id = 1
+                solved = false 
 
-                for ro_factor in [0.0,0.01,0.1,0.5,1]#[0.0,0.01,0.1,0.5,1]#[0,0.01,0.1,0.2,0.5,1,2]
+                for ro_factor in [0.0,0.01,0.1,0.5,1]#[0.0,0.01,0.1,0.5,1]
                     for relax_coeff in [0.0,1e2,1e4] #[0.0,1e2,1e4]
-
-                        baron_obj = parse(Float32, replace(row["optimal"], r"[^0-9\.-]" => ""))
-                        df_tmp = DataFrame(
-                            "gm" => NaN, 
-                            "baron" => baron_obj,
-                            "diff" => NaN,
-                            "subopt_factor" => NaN,
-                            "gm_time" => NaN,
-                            "ba_time" => NaN,
-                            "algs" => "[\""*join(alg_list, "\",\"")*"\"]",
-                            "feas_gaps" => [[]],
-                            "ro_factor" => ro_factor,
-                            "solved" => NaN,
-                            "relax_coeff" => relax_coeff
-                        )
-
-                        try 
-                            ts = time()
-                            Random.seed!(50)
-
-                            # relax_coeff = 0
-                            df_algs = nothing 
-                            gm_obj = nothing
-                            #gm = nothing
-                            # try
-                            #     df_algs, gm_obj, gm = solve_gm(name, folder; ro_factor=ro_factor, relax_coeff=0)
-                            # catch
-                            #     @info("Trying with relax var")
-                            #     use_relax_var = true
-                            #     df_algs, gm_obj, gm = solve_gm(name, folder; ro_factor=ro_factor, relax_coeff=1)
+                        for momentum in [0.,1.]
+                            # if id < 1080
+                            #     continue
                             # end
-                            # gm_obj, df_algs = solve_baron(name, folder)
+
+                            if solved 
+                                continue
+                            end
+
+                            n_bbls = length([bbl for bbl in gm.bbls if (bbl isa BlackBoxClassifier || bbl isa BlackBoxRegressor)])
                             
-                            #df_algs, gm_obj, gm = solve_gm(name, folder; ro_factor=ro_factor, relax_coeff=relax_coeff)
-                            df_algs, gm_obj, gm = solve_gm(gm; ro_factor=ro_factor, relax_coeff=relax_coeff)
-
-
-                            gm_time = time()-ts
-                            baron_time = gm_time
-                            subopt = abs(baron_obj)<1 ? ((gm_obj+1)/(1+baron_obj)) : gm_obj/baron_obj
-                            subopt = abs(baron_obj)<1 ? ((gm_obj-baron_obj)/(1+abs(baron_obj))) : (gm_obj-baron_obj)/abs(baron_obj)
-                            subopt = 1-subopt
+                            baron_obj = parse(Float32, replace(row["optimal"], r"[^0-9\.-]" => ""))
+                            df_tmp = DataFrame(
+                                "gm" => NaN, 
+                                "baron" => baron_obj,
+                                "diff" => NaN,
+                                "subopt_factor" => NaN,
+                                "gm_time" => NaN,
+                                "ba_time" => NaN,
+                                "algs" => "[\""*join(alg_list, "\",\"")*"\"]",
+                                "feas_gaps" => [[]],
+                                "ro_factor" => ro_factor,
+                                "solved" => NaN,
+                                "relax_coeff" => relax_coeff,
+                                "n_bbls" => n_bbls,
+                                "relax_epsilon" => NaN,
+                                "momentum" => NaN
+                            )
                             
-                            feas_gaps = [bbl.feas_gap[end] for bbl in gm.bbls if isa(bbl, BlackBoxClassifier)]
-                            # feas_gaps = []
+                            id += 1
 
-                            df_tmp[!, "gm"] = [gm_obj]
-                            df_tmp[!, "diff"] = [gm_obj-baron_obj]
-                            df_tmp[!, "subopt_factor"] = [subopt]
-                            df_tmp[!, "gm_time"] = [gm_time]
-                            df_tmp[!, "ba_time"] = [gm_time]
-                            df_tmp[!, "feas_gaps"] = [feas_gaps]
-                            df_tmp[!, "solved"] = [1]
-                            df_tmp[!, "relax_coeff"] = [relax_coeff]
+                            try 
+                                ts = time()
+                                Random.seed!(50)
 
-                            new_row = hcat(df_tmp, DataFrame(row))
-                            append!(df_all, new_row)
-                            append!(df_algs_all, df_algs)
+                                # relax_coeff = 0
+                                df_algs = nothing 
+                                gm_obj = nothing
+                                #gm = nothing
+                                # try
+                                #     df_algs, gm_obj, gm = solve_gm(name, folder; ro_factor=ro_factor, relax_coeff=0)
+                                # catch
+                                #     @info("Trying with relax var")
+                                #     use_relax_var = true
+                                #     df_algs, gm_obj, gm = solve_gm(name, folder; ro_factor=ro_factor, relax_coeff=1)
+                                # end
+                                # gm_obj, df_algs = solve_baron(name, folder)
+                                
+                                #df_algs, gm_obj, gm = solve_gm(name, folder; ro_factor=ro_factor, relax_coeff=relax_coeff)
+                                
+                                set_param(gm, :momentum, momentum)
+                                df_algs, gm_obj, gm = solve_gm(gm; ro_factor=ro_factor, relax_coeff=relax_coeff)
 
-                            println(df_all)
 
-                            # break
-                        catch e
-                            df_tmp[!, "solved"] = [0]
+                                gm_time = time()-ts
+                                baron_time = gm_time
+                                subopt = abs(baron_obj)<1 ? ((gm_obj+1)/(1+baron_obj)) : gm_obj/baron_obj
+                                subopt = abs(baron_obj)<1 ? ((gm_obj-baron_obj)/(1+abs(baron_obj))) : (gm_obj-baron_obj)/abs(baron_obj)
+                                subopt = 1-subopt
+                                
+                                feas_gaps = [bbl.feas_gap[end] for bbl in gm.bbls if isa(bbl, BlackBoxClassifier)]
+                                # feas_gaps = []
+                                
+                                if abs(1-subopt) <= 1e-3  
+                                    solved = true
+                                end
 
-                            new_row = hcat(df_tmp, DataFrame(row))
-                            append!(df_all, new_row)
-                            showerror(stdout, e)
-                            #println("Error solving $(name)")
-                            #println(stacktrace(catch_backtrace()))
-                        end
+                                df_tmp[!, "gm"] = [gm_obj]
+                                df_tmp[!, "diff"] = [gm_obj-baron_obj]
+                                df_tmp[!, "subopt_factor"] = [subopt]
+                                df_tmp[!, "gm_time"] = [gm_time]
+                                df_tmp[!, "ba_time"] = [gm_time]
+                                df_tmp[!, "feas_gaps"] = [feas_gaps]
+                                df_tmp[!, "solved"] = [1]
+                                df_tmp[!, "relax_coeff"] = [relax_coeff]
+                                df_tmp[!, "relax_epsilon"] = [gm.relax_epsilon]
+                                df_tmp[!, "momentum"] = [momentum]
 
-                        try
-                            csv_path = output_path*"benchmark$(suffix).csv"
-                            csv_path_alg = output_path*"benchmark_alg$(suffix).csv"
-                            #println(csv_path)
-                            CSV.write(csv_path, df_all)
-                            CSV.write(csv_path_alg, df_algs_all)
-                        catch
-                            println("Couldn't write to CSV")
+                                new_row = hcat(df_tmp, DataFrame(row))
+                                append!(df_all, new_row)
+                                append!(df_algs_all, df_algs)
+
+                                println(df_all)
+
+                                # break
+                            catch e
+                                df_tmp[!, "solved"] = [0]
+
+                                new_row = hcat(df_tmp, DataFrame(row))
+                                append!(df_all, new_row)
+                                showerror(stdout, e)
+                                #println("Error solving $(name)")
+                                #println(stacktrace(catch_backtrace()))
+                            end
+
+                            try
+                                csv_path = output_path*"benchmark$(suffix).csv"
+                                csv_path_alg = output_path*"benchmark_alg$(suffix).csv"
+                                #println(csv_path)
+                                CSV.write(csv_path, df_all)
+                                CSV.write(csv_path_alg, df_algs_all)
+                            catch
+                                println("Couldn't write to CSV")
+                            end
                         end
                     end
                 end

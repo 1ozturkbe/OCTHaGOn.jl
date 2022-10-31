@@ -209,6 +209,7 @@ nonlinear_model can contain JuMP.NonlinearConstraints.
     cfcs::Array{ClosedFormConstraint} = ClosedFormConstraint[]   # Constraints that are linear/convex and dodn't have a bbls learner
     vars::Array{JuMP.VariableRef} = JuMP.all_variables(model)    # JuMP variables
     objective = JuMP.objective_function(model)                   # Original objective function
+    objective_sense::String = "Min"                              # Min or Max 
     solution_history::DataFrame = DataFrame(string.(vars) .=> [Float64[] for i=1:length(vars)]) # Solution history
     cost::Array = []                                             # List of costs. 
     soldict::Dict = Dict()                                       # For solution extraction
@@ -216,4 +217,5 @@ nonlinear_model can contain JuMP.NonlinearConstraints.
     og_objective = nothing                                       # Used to hold the original objective (LHS of dependent constraint)
     relax_var::Union{Nothing, JuMP.VariableRef} = nothing        # Relaxation variable used for infeasibilities
     relax_coeff::Real = 0                                        # Relaxaton coefficient
+    relax_epsilon::Real = 0                                      # Realized relaxation gap
 end

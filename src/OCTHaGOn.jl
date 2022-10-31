@@ -32,7 +32,7 @@ module OCTHaGOn
     const SOL_DIR = PROJECT_ROOT * "\\data\\solutions\\"
     const TREE_DIR = PROJECT_ROOT * "\\data\\trees\\"
     # const CPLEX_SILENT = with_optimizer(CPLEX.Optimizer, CPX_PARAM_SCRIND = 0, CPX_PARAM_TILIM = 300)
-    const CPLEX_SILENT = with_optimizer(Gurobi.Optimizer, TimeLimit = 300, NonConvex = 2, OutputFlag = 0)# , FeasibilityTol=1e-3, OptimalityTol=1e-3
+    const CPLEX_SILENT = with_optimizer(Gurobi.Optimizer, TimeLimit = 60, NonConvex = 2, OutputFlag = 0)# , FeasibilityTol=1e-3, OptimalityTol=1e-3
 
     const valid_lowers = ["reg", "lower", "upperlower"]
     const valid_uppers = ["reg", "upper", "upperlower"]

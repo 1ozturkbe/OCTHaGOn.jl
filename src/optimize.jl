@@ -111,6 +111,7 @@ function descend!(gm::GlobalModel; append_x0=true, kwargs...)
     # Initialization
     clear_tree_constraints!(gm) 
 
+
     bbls = gm.bbls
     vars = gm.vars
     bounds = get_bounds(vars)
@@ -204,7 +205,12 @@ function descend!(gm::GlobalModel; append_x0=true, kwargs...)
     equality_penalty = get_param(gm, :equality_penalty)
     step_size = get_param(gm, :step_size) 
     decay_rate = get_param(gm, :decay_rate)
-
+    rho = get_param(gm, :momentum)
+    
+    #v_old = x0
+    d_old = zeros(length(vars))
+    d_new = zeros(length(vars))
+    
     # WHILE LOOP
     @info("Starting projected gradient descent...")
     while (!feas || !prev_feas ||
@@ -213,6 +219,9 @@ function descend!(gm::GlobalModel; append_x0=true, kwargs...)
         prev_obj = gm.cost[end]
         constrs = []
         ct += 1
+        if max_iterations-ct < 2
+            rho = 0
+        end
         if step_penalty == 0
             step_penalty = maximum([1e3, 1e4*abs(prev_obj)])
         end
@@ -359,7 +368,16 @@ function descend!(gm::GlobalModel; append_x0=true, kwargs...)
 
         # Optimizing the step, and finding next x0
         optimize!(gm.model)
-        x0 = make_feasible(gm, DataFrame(string.(vars) .=> getvalue.(vars)))
+        
+        d_curr = getvalue.(d)
+        d_new = rho*d_old + d_curr
+        #d_new += random_point_in_sphere(length(d_new), norm(d_new)*0.1/exp(decay_rate*(ct-1)/max_iterations))
+        d_old = d_new
+        
+        x0_old = collect(x0[1,string.(vars)])
+        x0_new = x0_old+d_new
+        
+        x0 = make_feasible(gm, DataFrame(string.(vars) .=> x0_new))
         
         if !isnothing(obj_bbl)
             x0[!, string(gm.objective)] = obj_bbl(x0)
@@ -391,35 +409,59 @@ function descend!(gm::GlobalModel; append_x0=true, kwargs...)
     end
 
     fincost = round(gm.cost[end], digits = -Int(round(log10(abstol))))
+    status = 0
+
     # Termination criteria
     if ct >= max_iterations
         @info "Max iterations ($(ct)) reached."
         if prev_feas && feas
             @info "Solution is not converged to tolerance $(abstol)!" 
+            status = 1
         elseif (feas && !prev_feas) && (abs(d_improv) <= 100*abstol)
             @info "Solution is feasible and likely cycling, but the solution is close. Reduce step size and descend again. "
+            status = 2
         elseif (!feas && prev_feas) && (abs(d_improv) <= 100*abstol)
             @info "Solution is infeasible and likely cycling, but the solution is close. Reduce step size and descend again. "
+            status = 3
         elseif ((feas && !prev_feas) || (prev_feas && !feas))
             @info "Solution is likely cycling, with > $(abstol) changes in cost. Reduce step size and descend again."
+            status = 4
         elseif !feas && !prev_feas
             @info "Solution is infeasible to tolerance $(tighttol)."
+            status = 5
         end
         @info("Final cost is $(fincost).")
     else 
         @info("PGD converged in $(ct) iterations!")
         @info("The optimal cost is $(fincost).")
+        status = 0
     end
 
     # Reverting objective, and deleting vars
-    @objective(gm.model, Min, gm.objective)
+    relax_var = gm.relax_coeff ==0 ? 0 : gm.relax_coeff * gm.relax_var;
+    #relax_term = (gm.relax_coeff != 0) ? relax_coeff*relax_var : 0;
+    if gm.objective_sense == "Max"
+        @objective(gm.model, Max, gm.objective-relax_var)
+    else
+        @objective(gm.model, Min, gm.objective+relax_var)
+    end
     delete(gm.model, d)
-    return
+    return status
 end
 
 """ Complete solution procedure for GlobalModel. """
 function globalsolve!(gm::GlobalModel; repair=true, opt_sampling=false)
+
     @info "GlobalModel " * gm.name * " solution in progress..."
+
+    relax_var = gm.relax_coeff ==0 ? 0 : gm.relax_coeff * gm.relax_var;
+    if gm.objective_sense == "Max"
+        @objective(gm.model, Max, gm.objective-relax_var)
+    else
+        @objective(gm.model, Min, gm.objective+relax_var)
+    end
+
+    
     for bbl in gm.bbls
         if !is_sampled(bbl)
             uniform_sample_and_eval!(bbl; opt_sampling=opt_sampling, gm=gm)
@@ -439,11 +481,25 @@ function globalsolve!(gm::GlobalModel; repair=true, opt_sampling=false)
 
     @info "Solving MIP..."
     # print(gm.model)
+
+    set_optimizer_attribute(gm.model, "TimeLimit", 60)
     optimize!(gm) 
-    
+
+    gm.relax_epsilon = JuMP.value.(gm.relax_var)[1]
+
     if repair    
         try
-            descend!(gm)
+            set_optimizer_attribute(gm.model, "TimeLimit", 15)
+            
+            set_param(gm, :step_penalty, 0.)
+            set_param(gm, :equality_penalty, 0.)
+            status = descend!(gm)
+            if status >= 2
+                set_param(gm, :step_penalty, 10^8)
+                set_param(gm, :equality_penalty, 10^8)
+                descend!(gm)
+            end
+            
         catch
             @warn("Descend failed") 
         end
