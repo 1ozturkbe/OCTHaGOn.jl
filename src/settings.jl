@@ -35,6 +35,7 @@ function gm_defaults()
          :decay_rate => 2.,
          :equality_penalty => 0.,
          :momentum => 0.,
+         :second_order_repair => false,
          # Params for robust optimization
          :ro_factor => 0.
     )

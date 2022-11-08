@@ -194,6 +194,29 @@ function vars_from_constraint(con::JuMP.ConstraintRef)
     end
 end
 
+function hessianify(expr::Expr, expr_vars::Array)
+    var_ranges = get_var_ranges(expr_vars)
+    f = functionify(expr)
+    gradable_fn = x -> Base.invokelatest(f, [x[i] for i in var_ranges]...)
+    hess = x -> ForwardDiff.hessian(gradable_fn, [values(x[string.(expr_vars)])...])
+    
+    function post_process_hessian(x0)
+        
+        Hs = hess(x0)
+        
+        H = zeros(length(names(x0)), length(names(x0)));
+        idxes = [ findall(names(x0) .== s)[1] for s in string.(expr_vars)]
+
+        for i = 1:length(idxes)
+            for j = 1:length(idxes)
+                H[idxes[i],idxes[j]] = Hs[i,j]
+            end
+        end
+        return H
+    end
+    return x -> post_process_hessian(x)
+end
+
 """
     gradientify(expr::Expr, expr_vars::Array)
     gradientify(expr::JuMP.ConstraintRef, expr_vars::Array)
@@ -207,6 +230,8 @@ function gradientify(expr::Expr, expr_vars::Array)
     gradable_fn = x -> Base.invokelatest(f, [x[i] for i in var_ranges]...)
     return x -> ForwardDiff.gradient(gradable_fn, x)
 end
+
+
 
 function gradientify(con::JuMP.ConstraintRef, expr_vars::Array)
     confunc = constraint_object(con).func

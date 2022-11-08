@@ -70,6 +70,7 @@ Optional arguments:
     datamap::Union{Nothing,Array} = get_datamap(expr_vars, vars)     # ... with the required datamapping.
     f::Union{Nothing, Function} = functionify(constraint)         # ... and actually evaluated f'n
     g::Union{Nothing, Function} = gradientify(constraint, expr_vars)   # ... and its gradient f'n
+    h::Union{Nothing, Function} = hessianify(constraint, expr_vars)
     X::DataFrame = DataFrame(string.(vars) .=> [Float64[] for i=1:length(vars)])
                                                        # Function samples
     Y::Array = []                                      # Function values
@@ -144,6 +145,7 @@ Optional arguments:
     datamap::Union{Nothing,Array} = get_datamap(expr_vars, vars)     # ... with the required datamapping.
     f::Union{Nothing, Function} = functionify(constraint)         # ... and actually evaluated f'n
     g::Union{Nothing, Function} = gradientify(constraint, expr_vars)   # ... and its gradient f'n
+    h::Union{Nothing, Function} = hessianify(constraint, expr_vars)
     X::DataFrame = DataFrame(string.(vars) .=> [Float64[] 
     for i=1:length(vars)]) # Function samples
     Y::Array = []                                      # Function values
