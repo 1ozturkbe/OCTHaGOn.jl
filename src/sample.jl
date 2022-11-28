@@ -279,7 +279,7 @@ function uniform_sample_and_eval!(bbl::BlackBoxLearner;
         end
     end
 
-    if bbl isa BlackBoxClassifier
+    if get_param(gm, :oct_sampling) && (bbl isa BlackBoxClassifier) 
         df = oct_sampling(bbl)
         if (size(df,1) >0)
             eval!(bbl, df)

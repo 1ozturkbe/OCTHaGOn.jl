@@ -36,6 +36,7 @@ function gm_defaults()
          :equality_penalty => 0.,
          :momentum => 0.,
          :second_order_repair => false,
+         :oct_sampling => false,
          # Params for robust optimization
          :ro_factor => 0.
     )

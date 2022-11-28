@@ -193,59 +193,61 @@ function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
             alg_list = copy(og_alg_list)
 
             # for ro_factor in [0.0]#[0,0.01,0.1,0.2,0.5,1,2] , 0.05, 0.1, 0.5
-                ro_factor = 0.0
-                name, folder = row["name"], row["folder"]
-                # println(name)
-                # if name ∉ ["st_e11","st_e02"]
-                #     continue 
-                # end
-                # if name ∉ ["ex8_3_14", "ex8_3_4", "ex5_2_5", "ex8_3_9", "ex8_3_3", "ex8_3_2"]
-                #     continue
-                # end
-                
-                # if name ∉ ["ex8_3_14", "ex8_3_4", "ex5_2_5", "ex8_3_9", "ex8_3_3", "ex8_3_2", "ex5_4_4", "ex8_2_1a", "ex8_2_4a", "ex6_2_7", "ex6_2_5", "ex5_2_5", "ex5_3_3", "ex6_2_9", "ex6_2_10", "ex5_4_4", "ex6_2_13", "ex3_1_1", "ex7_2_3", "ex2_1_1", "ex7_2_4", "ex4_1_1"]
-                #     continue
-                # end
+            ro_factor = 0.0
+            name, folder = row["name"], row["folder"]
+            # println(name)
+            # if name ∉ ["st_e11","st_e02"]
+            #     continue 
+            # end
+            # if name ∉ ["ex8_3_14", "ex8_3_4", "ex5_2_5", "ex8_3_9", "ex8_3_3", "ex8_3_2"]
+            #     continue
+            # end
+            
+            # if name ∉ ["ex8_3_14", "ex8_3_4", "ex5_2_5", "ex8_3_9", "ex8_3_3", "ex8_3_2", "ex5_4_4", "ex8_2_1a", "ex8_2_4a", "ex6_2_7", "ex6_2_5", "ex5_2_5", "ex5_3_3", "ex6_2_9", "ex6_2_10", "ex5_4_4", "ex6_2_13", "ex3_1_1", "ex7_2_3", "ex2_1_1", "ex7_2_4", "ex4_1_1"]
+            #     continue
+            # end
 
-                # if name ∉  ["st_e17", "ex6_2_8", "ex6_2_12", "sample", "st_e04", "st_bsj4", "ex5_2_2_case3", "ex2_1_6", "ex2_1_8", "st_e30", "st_e16", "alkylation"]#["sample"]#
-                #     continue
-                # end
-                
-                # Bad v2
-                # if name ∉ ["st_e33","ex2_1_6","ex5_4_3","ex2_1_8","st_e30","ex5_4_4","ex6_2_12","alkyl","st_bsj4","ex6_2_8","ex4_1_1","ex6_2_9","sample","st_e17"]
-                #     continue
-                # end
+            # if name ∉  ["st_e17", "ex6_2_8", "ex6_2_12", "sample", "st_e04", "st_bsj4", "ex5_2_2_case3", "ex2_1_6", "ex2_1_8", "st_e30", "st_e16", "alkylation"]#["sample"]#
+            #     continue
+            # end
+            
+            # Bad v2
+            # if name ∉ ["st_e33","ex2_1_6","ex5_4_3","ex2_1_8","st_e30","ex5_4_4","ex6_2_12","alkyl","st_bsj4","ex6_2_8","ex4_1_1","ex6_2_9","sample","st_e17"]
+            #     continue
+            # end
 
-                # Infeasible 
-                # if name ∉ ["st_e02","st_e11","st_e04","st_e05","ex3_1_1","ex5_4_2","ex7_2_3", "process", "ex5_3_2"]
-                #     continue
-                # end
+            # Infeasible 
+            # if name ∉ ["st_e02","st_e11","st_e04","st_e05","ex3_1_1","ex5_4_2","ex7_2_3", "process", "ex5_3_2"]
+            #     continue
+            # end
 
-                # Infeasible v2
-                # if name ∉ ["st_e11","ex7_2_3","process","ex8_2_1b","ex8_2_4b","ex5_3_3","ex8_3_9","ex8_3_14","ex8_3_2","ex8_3_3","ex8_3_4"]
-                #     continue
-                # end
-                # if name ∉ ["st_e11","ex7_2_3","process","ex8_2_1b","ex8_2_4b","ex5_3_3","ex8_3_9","ex8_3_14","ex8_3_2","ex8_3_3","ex8_3_4"]
-                #     continue
-                # end
+            # Infeasible v2
+            # if name ∉ ["st_e11","ex7_2_3","process","ex8_2_1b","ex8_2_4b","ex5_3_3","ex8_3_9","ex8_3_14","ex8_3_2","ex8_3_3","ex8_3_4"]
+            #     continue
+            # end
+            # if name ∉ ["st_e11","ex7_2_3","process","ex8_2_1b","ex8_2_4b","ex5_3_3","ex8_3_9","ex8_3_14","ex8_3_2","ex8_3_3","ex8_3_4"]
+            #     continue
+            # end
 
-                # Non-cvx loose-ends
-                # if name ∉ ["ex8_3_4", "ex8_3_9","ex5_2_5","ex8_3_14","ex8_2_1b","ex8_3_2","ex8_2_4b","ex8_3_3","ex5_3_3","ex8_2_4a","ex5_4_4","ex8_2_1a"]
-                #     continue
-                # end
+            # Non-cvx loose-ends
+            # if name ∉ ["ex8_3_4", "ex8_3_9","ex5_2_5","ex8_3_14","ex8_2_1b","ex8_3_2","ex8_2_4b","ex8_3_3","ex5_3_3","ex8_2_4a","ex5_4_4","ex8_2_1a"]
+            #     continue
+            # end
 
-                # CVX loose-ends
-                if name ∉ ["ex2_1_6","ex5_4_3","ex2_1_1","ex2_1_8","ex5_4_4","st_e30","ex8_4_2","ex7_2_4","ex5_2_5","ex6_2_12","ex8_4_1","st_e04","alkyl"]
-                    continue
-                end
+            # CVX loose-ends
+            if name ∉ ["ex2_1_6","ex5_4_3","ex2_1_1","ex2_1_8","ex5_4_4","st_e30","ex8_4_2","ex7_2_4","ex5_2_5","ex6_2_12","ex8_4_1","st_e04","alkyl"]
+                continue
+            end
+            
+            
 
+            for oct_sampling in [true]
+                solved = false 
                 global gm = create_gm(name, folder)
                 id = 1
-                solved = false 
-
                 for ro_factor in [0.0]#[0.0,0.01,0.1,0.5,1]
                     for relax_coeff in [0.0,1e2,1e4] #[0.0,1e2,1e4]
-                        for hessian in [false, true]
+                        for hessian in [false]
                             for momentum in [0., 0.8]
                                 if solved 
                                     continue
@@ -269,7 +271,8 @@ function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
                                     "n_bbls" => n_bbls,
                                     "relax_epsilon" => NaN,
                                     "momentum" => NaN,
-                                    "hessian" => false
+                                    "hessian" => false,
+                                    "oct_sampling" => false
                                 )
                                 
                                 id += 1
@@ -295,6 +298,8 @@ function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
                                     
                                     set_param(gm, :momentum, momentum)
                                     set_param(gm, :second_order_repair, hessian)
+                                    set_param(gm, :oct_sampling, oct_sampling)
+
                                     df_algs, gm_obj, gm = solve_gm(gm; ro_factor=ro_factor, relax_coeff=relax_coeff)
 
 
@@ -322,6 +327,7 @@ function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
                                     df_tmp[!, "relax_epsilon"] = [gm.relax_epsilon]
                                     df_tmp[!, "momentum"] = [get_param(gm, :momentum)]
                                     df_tmp[!, "hessian"] = [get_param(gm, :second_order_repair)]
+                                    df_tmp[!, "oct_sampling"] = [get_param(gm, :oct_sampling)]
 
                                     new_row = hcat(df_tmp, DataFrame(row))
                                     append!(df_all, new_row)
@@ -353,6 +359,7 @@ function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
                         end
                     end
                 end
+            end
         end
     end
     println(df_all)
