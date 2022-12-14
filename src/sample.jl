@@ -174,7 +174,7 @@ function refined_derivative_sampling(bbl::BlackBoxLearner, total_samples=100, de
 
         Xs = []
         for i=1:length(leaf_data)
-            n_samples = floor(Int32, total_samples *leaf_data[i]["score"]/total_score)
+            n_samples = floor(Int32, total_samples *(leaf_data[i]["score"])/total_score)
             if n_samples > 0
                 xr = Random.rand(n_samples,2)
                 xr = xr ./ sum(xr,dims=2)
@@ -191,7 +191,7 @@ function refined_derivative_sampling(bbl::BlackBoxLearner, total_samples=100, de
 
         return Xs 
     catch
-        print("Couldn't do refined sampling")
+        println("Couldn't do refined sampling")
         return DataFrame() 
     end
 

@@ -340,7 +340,7 @@ function replace_tokens(s)
 end
 
 function GAMS_to_baron_model(GAMS_DIR::String, filename::String)
-    global model = JuMP.Model(with_optimizer(BARON.Optimizer, PrLevel=1, MaxTime=15))
+    global model = JuMP.Model(with_optimizer(BARON.Optimizer, PrLevel=1, MaxTime=1500))
     # Parsing GAMS Files
     lexed = GAMSFiles.lex(GAMS_DIR * filename)
     gams = GAMSFiles.parsegams(GAMS_DIR * filename)

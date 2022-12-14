@@ -70,7 +70,7 @@ function get_problem_stats(folder_name; force_reload=false, keep_only_selected=t
 
     for (name, path) in zip(all_names, all_paths)
 
-        try
+        # try
             println("Adding $(name)")
 
             gams = load_gam_from_path(path; force_reload=false)
@@ -132,9 +132,9 @@ function get_problem_stats(folder_name; force_reload=false, keep_only_selected=t
             end
             data[1, "all_bounded"] = 1*(data[1, "n_bounded_vars"] == data[1, "n_vars"])
             append!(df, data)
-        catch
-            println("Couldn't add file $(name)")
-        end
+        # catch
+        #     println("Couldn't add file $(name)")
+        # end
     end
 
     CSV.write(csv_path, df)
@@ -235,27 +235,35 @@ function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
             # end
 
             # CVX loose-ends
-            if name ∉ ["ex2_1_6","ex5_4_3","ex2_1_1","ex2_1_8","ex5_4_4","st_e30","ex8_4_2","ex7_2_4","ex5_2_5","ex6_2_12","ex8_4_1","st_e04","alkyl"]
-                continue
-            end
+            # if name ∉ ["ex2_1_6","ex5_4_3","ex2_1_1","ex2_1_8","ex5_4_4","st_e30","ex8_4_2","ex7_2_4","ex5_2_5","ex6_2_12","ex8_4_1","st_e04","alkyl"]
+            #     continue
+            # end
+            # if name ∉ ["prob06"]
+            #     continue
+            # end
             
-            
+            solved = false
+            for oct_sampling in [false]
 
-            for oct_sampling in [true]
-                solved = false 
                 global gm = create_gm(name, folder)
+                ts = time()
                 id = 1
                 for ro_factor in [0.0]#[0.0,0.01,0.1,0.5,1]
-                    for relax_coeff in [0.0,1e2,1e4] #[0.0,1e2,1e4]
+                    for relax_coeff in [0.0] #[0.0,1e2,1e4]
                         for hessian in [false]
-                            for momentum in [0., 0.8]
+                            for momentum in [0.]
                                 if solved 
                                     continue
                                 end
 
                                 n_bbls = length([bbl for bbl in gm.bbls if (bbl isa BlackBoxClassifier || bbl isa BlackBoxRegressor)])
-                                
-                                baron_obj = parse(Float32, replace(row["optimal"], r"[^0-9\.-]" => ""))
+                                baron_obj = 0.0
+                                try
+                                    baron_obj = parse(Float32, replace(string(row["optimal"]), r"[^0-9\.-]" => ""))
+                                catch
+                                    println("Couldn't parse objective for $(name)") 
+                                    continue
+                                end
                                 df_tmp = DataFrame(
                                     "gm" => NaN, 
                                     "baron" => baron_obj,
@@ -269,7 +277,7 @@ function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
                                     "solved" => NaN,
                                     "relax_coeff" => relax_coeff,
                                     "n_bbls" => n_bbls,
-                                    "relax_epsilon" => NaN,
+                                    "relax_epsilon" => 0,
                                     "momentum" => NaN,
                                     "hessian" => false,
                                     "oct_sampling" => false
@@ -277,8 +285,8 @@ function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
                                 
                                 id += 1
 
-                                try 
-                                    ts = time()
+                                try
+                                    
                                     Random.seed!(50)
 
                                     # relax_coeff = 0
@@ -293,8 +301,8 @@ function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
                                     #     df_algs, gm_obj, gm = solve_gm(name, folder; ro_factor=ro_factor, relax_coeff=1)
                                     # end
                                     # gm_obj, df_algs = solve_baron(name, folder)
-                                    
-                                    #df_algs, gm_obj, gm = solve_gm(name, folder; ro_factor=ro_factor, relax_coeff=relax_coeff)
+                                    # solved=true
+                                    # df_algs, gm_obj, gm = solve_gm(name, folder; ro_factor=ro_factor, relax_coeff=relax_coeff)
                                     
                                     set_param(gm, :momentum, momentum)
                                     set_param(gm, :second_order_repair, hessian)
@@ -309,8 +317,12 @@ function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
                                     subopt = abs(baron_obj)<1 ? ((gm_obj-baron_obj)/(1+abs(baron_obj))) : (gm_obj-baron_obj)/abs(baron_obj)
                                     subopt = 1-subopt
                                     
-                                    feas_gaps = [bbl.feas_gap[end] for bbl in gm.bbls if isa(bbl, BlackBoxClassifier)]
-                                    # feas_gaps = []
+                                    feas_gaps = []
+                                    try
+                                        feas_gaps = [bbl.feas_gap[end] for bbl in gm.bbls if isa(bbl, BlackBoxClassifier)] 
+                                    catch  
+                                        println("Feas gap exception")
+                                    end
                                     
                                     if abs(1-subopt) <= 1e-3  
                                         solved = true
@@ -348,10 +360,10 @@ function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
 
                                 try
                                     csv_path = output_path*"benchmark$(suffix).csv"
-                                    csv_path_alg = output_path*"benchmark_alg$(suffix).csv"
+                                    #csv_path_alg = output_path*"benchmark_alg$(suffix).csv"
                                     #println(csv_path)
                                     CSV.write(csv_path, df_all)
-                                    CSV.write(csv_path_alg, df_algs_all)
+                                    #CSV.write(csv_path_alg, df_algs_all)
                                 catch
                                     println("Couldn't write to CSV")
                                 end
