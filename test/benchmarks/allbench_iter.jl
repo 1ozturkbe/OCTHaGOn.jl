@@ -397,5 +397,5 @@ end
 
 folders = ["global"]
 
-solve_and_benchmark(folders; alg_list = ["GBM", "SVM", "MLP"])
+solve_and_benchmark(folders; alg_list = ["GBM", "SVM", "MLP", "MPC"])
 #"GBM", "SVM", "MLP"
