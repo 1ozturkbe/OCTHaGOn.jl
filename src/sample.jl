@@ -790,7 +790,7 @@ function har_sample_helper(A, b, x_start)
         # lies on the hyperplane)
         lambdas = (b.-A*x_start) ./ (A*dir)
 
-        if !any(isinf.(lambdas))
+        if !any(isinf.(lambdas)) && length(lambdas[lambdas.<0]) >0 && length(lambdas[lambdas.>0]) >0
             success = true
             break
         end
@@ -842,7 +842,7 @@ end
 
 function oct_sampling(bbl::BlackBoxClassifier, sampling_factor=0.5)
     
-    try
+    # try
         all_idx = collect(1:size(bbl.X, 1))
         upper_dicts = []
         lower_dicts = []
@@ -854,7 +854,7 @@ function oct_sampling(bbl::BlackBoxClassifier, sampling_factor=0.5)
                 lnr = OCTHaGOn.LEARNER_DICT["classification"]["OCT"]()
                 sub_idx = StatsBase.sample(all_idx, trunc(Int, size(bbl.X,1)*0.8))
                 lnr, score = OCTHaGOn.learn_from_data!(copy(bbl.X[sub_idx,:]), 1.0*(copy(bbl.Y[sub_idx]) .>= 0), lnr, nothing; use_test_set=false)
-                upper_dict, lower_dict = OCTHaGOn.trust_region_data(lnr, Symbol.(bbl.expr_vars))
+                upper_dict, lower_dict = OCTHaGOn.trust_region_data(lnr, Symbol.(bbl.vars))
 
 
                 push!(upper_dicts, upper_dict)
@@ -909,10 +909,10 @@ function oct_sampling(bbl::BlackBoxClassifier, sampling_factor=0.5)
         end
 
         return X_all
-    catch
-        print("Couldn't do OCT sampling")
-        println(stacktrace(catch_backtrace()))
-        return DataFrame() 
-    end
+    # catch
+    #     print("Couldn't do OCT sampling")
+    #     println(stacktrace(catch_backtrace()))
+    #     return DataFrame() 
+    # end
 
 end

@@ -762,13 +762,21 @@ function descend!(gm::GlobalModel; append_x0=true,use_hessian=true, kwargs...)
         prev_feas = feas
         feas = is_feasible(gm)
 
-        # Saving solution dict for JuMP-style recovery.
-        # TODO: do not regenerate soldict unless final solution. 
-        gm.soldict = Dict(key => JuMP.getvalue.(gm.model[key]) for (key, value) in gm.model.obj_dict)
+        try
+            # Saving solution dict for JuMP-style recovery.
+            # TODO: do not regenerate soldict unless final solution. 
+            gm.soldict = Dict(key => JuMP.getvalue.(gm.model[key]) for (key, value) in gm.model.obj_dict)
 
-        # Delete gradient constraints (TODO: perhaps add constraints to avoid cycling?)
-        for con in constrs
-            delete(gm.model, con)
+            # Delete gradient constraints (TODO: perhaps add constraints to avoid cycling?)
+            for con in constrs
+                delete(gm.model, con)
+            end
+        catch
+            # Delete gradient constraints (TODO: perhaps add constraints to avoid cycling?)
+            for con in constrs
+                delete(gm.model, con)
+            end
+            throw(error("Infeasible descend"))
         end
     end
 
@@ -814,6 +822,8 @@ end
 
 """ Complete solution procedure for GlobalModel. """
 function globalsolve!(gm::GlobalModel; repair=true, opt_sampling=false)
+    
+    clear_tree_constraints!(gm)
 
     @info "GlobalModel " * gm.name * " solution in progress..."
 

@@ -165,7 +165,7 @@ function add_tree_constraints!(gm::GlobalModel, bbr::BlackBoxRegressor, idx = le
         bbr.active_trees[idx] = bbr.thresholds[idx]    
     else
 
-        mi_constraints, leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, bbr.learners[idx], bbl, bbr.ul_data[idx];
+        mi_constraints, leaf_variables = add_regr_constraints!(gm.model, bbr.vars, bbr.dependent_var, bbr.learners[idx], bbr, bbr.ul_data[idx];
                                                                 equality = bbr.equality, lrs = bbr.lls)
         if bbr.thresholds[idx].first == "upper"
             push!(mi_constraints[-1], @constraint(gm.model, bbr.dependent_var <= bbr.thresholds[idx].second))
