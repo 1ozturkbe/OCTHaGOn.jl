@@ -172,6 +172,13 @@ function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
     function solve_baron(name, folder)
         m = GAMS_to_baron_model(OCTHaGOn.GAMS_DIR*"$(folder)\\", name*".gms")
         optimize!(m)
+        
+        x = all_variables(model)
+        x_solution = value.(x)
+        
+        sol_dict = Dict(zip(string.(x), x_solution))
+
+        serialize("dump/benchmarks/best_algs/baron_$(name).jls", sol_dict)
 
         return JuMP.objective_value(m), DataFrame()
     end
@@ -247,6 +254,13 @@ function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
             #     continue
             # end
 
+            try
+                baron_obj, df_algs = solve_baron(name, folder)
+            catch 
+                println("Coudn't solve baron for $(name). SKipping") 
+                continue
+            end
+
             solved = false
             for oct_sampling in [false]
 
@@ -256,7 +270,7 @@ function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
                 for ro_factor in [0.0, 0.01, 0.1]#[0.0,0.01,0.1,0.5,1]
                     for relax_coeff in [0.0, 1e2] #[0.0,1e2,1e4]
                         for hessian in [false]
-                            for momentum in [0., 0.8]
+                            for momentum in [0.]
                                 # if solved 
                                 #     continue
                                 # end

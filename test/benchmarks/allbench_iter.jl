@@ -155,17 +155,68 @@ function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
         return gm 
     end
 
-    function solve_gm(gm; relax_coeff=0, ro_factor=0)
+    function solve_gm(gm, name, folder; relax_coeff=0, ro_factor=0)
         
         set_param(gm, :ro_factor, ro_factor)
         gm.relax_coeff = relax_coeff
-
-        globalsolve!(gm; repair=REPAIR, opt_sampling=OPT_SAMPLING)
-        #feas_gap(gm)
-        # Performance of the different algorithms (e.g. GBM, SVM, OCT)
-        df_algs = vcat([bbl.learner_performance for bbl in gm.bbls]...)
         
-        return df_algs, gm.cost[end], gm
+        bounds = get_bounds(gm)
+        bounds = Dict(k => v for (k,v) in bounds if v[1]!= -Inf && v[2]!=Inf)
+        bounds = Dict(k => v for (k,v) in bounds if string(k) ∉ ["objvar", "r_rel"])
+        llbs, uubs = [v[1] for (k,v) in bounds], [v[2] for (k,v) in bounds]
+        lengths = uubs-llbs
+        obj_arr = []
+        feas_arr = []
+        df_algs = nothing
+
+        for iter = 1:3
+            try
+                globalsolve!(gm; repair=REPAIR, opt_sampling=OPT_SAMPLING)
+                df_algs = vcat([bbl.learner_performance for bbl in gm.bbls]...)
+                x0 = collect(gm.solution_history[end, string.(keys(bounds))])
+                feas_gaps = []
+                try
+                    feas_gaps = [bbl.feas_gap[end] for bbl in gm.bbls if isa(bbl, BlackBoxClassifier)] 
+                catch  
+                    println("Feas gap exception")
+                end
+                #feas_gap(gm)
+                # Performance of the different algorithms (e.g. GBM, SVM, OCT)
+
+
+                push!(obj_arr, gm.cost[end])
+                push!(feas_arr, feas_gaps)
+                
+                gm = create_gm(name, folder)
+                # clear_tree_constraints!(gm)
+                # clear_data!(gm)
+
+                tmp_bounds = get_bounds(gm)
+                tmp_bounds = Dict(k => v for (k,v) in tmp_bounds if v[1]!= -Inf && v[2]!=Inf)
+                tmp_bounds = Dict(k => v for (k,v) in tmp_bounds if string(k) ∉ ["objvar", "r_rel"])
+
+                new_lbs, new_ubs = x0-lengths/2^(iter+1), x0+lengths/2^(iter+1) 
+                new_lbs, new_ubs = max.(new_lbs, llbs), min.(new_ubs, uubs)
+                new_lbs, new_ubs = min.(new_lbs, new_ubs), max.(new_lbs, new_ubs)
+                
+                println(new_lbs, llbs)
+                println(new_ubs, uubs)
+
+                @assert all(new_lbs .>= llbs)
+                @assert all(new_ubs .<= uubs)
+                for (k, lb, ub) in zip(keys(tmp_bounds), new_lbs, new_ubs)
+                    JuMP.set_lower_bound(k, lb)
+                    JuMP.set_upper_bound(k, ub)
+                end
+            catch e 
+                showerror(stdout, e)
+                break
+            end  
+        end
+        
+        
+
+        return df_algs, obj_arr[end], gm, obj_arr, feas_arr
     
     end
 
@@ -248,15 +299,16 @@ function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
             # end
 
             solved = false
-            for oct_sampling in [false]
+            for oct_sampling in [true]
 
-                global gm = create_gm(name, folder)
+                
                 ts = time()
                 id = 1
-                for ro_factor in [0.0, 0.01, 0.1]#[0.0,0.01,0.1,0.5,1]
-                    for relax_coeff in [0.0, 1e2] #[0.0,1e2,1e4]
+                for ro_factor in [0.0]#[0.0,0.01,0.1,0.5,1]
+                    for relax_coeff in [0.0] #[0.0,1e2,1e4]
                         for hessian in [false]
-                            for momentum in [0., 0.8]
+                            for momentum in [0.]
+                                global gm = create_gm(name, folder)
                                 # if solved 
                                 #     continue
                                 # end
@@ -291,6 +343,8 @@ function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
                                     "hessian" => false,
                                     "oct_sampling" => false,
                                     "cvx_constr" => false,
+                                    "obj_arr" => [[]],
+                                    "feas_arr" => [[]]
                                 )
                                 
                                 id += 1
@@ -318,7 +372,7 @@ function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
                                     set_param(gm, :second_order_repair, hessian)
                                     set_param(gm, :oct_sampling, oct_sampling)
 
-                                    df_algs, gm_obj, gm = solve_gm(gm; ro_factor=ro_factor, relax_coeff=relax_coeff)
+                                    df_algs, gm_obj, gm, obj_arr, feas_arr = solve_gm(gm, name, folder; ro_factor=ro_factor, relax_coeff=relax_coeff)
 
 
                                     gm_time = time()-ts
@@ -338,7 +392,6 @@ function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
                                         solved = true
                                     end
                                     
-                                    
 
                                     df_tmp[!, "gm"] = [gm_obj]
                                     df_tmp[!, "diff"] = [gm_obj-baron_obj]
@@ -353,7 +406,8 @@ function solve_and_benchmark(folders; alg_list = ["GBM", "SVM"])
                                     df_tmp[!, "hessian"] = [get_param(gm, :second_order_repair)]
                                     df_tmp[!, "oct_sampling"] = [get_param(gm, :oct_sampling)]
                                     df_tmp[!, "cvx_constr"] = [get_param(gm, :convex_constrs)]
-                                    
+                                    df_tmp[!, "obj_arr"] = [obj_arr]
+                                    df_tmp[!, "feas_arr"] = [feas_arr]
                                     new_row = hcat(df_tmp, DataFrame(row))
                                     
                                     
@@ -397,5 +451,5 @@ end
 
 folders = ["global"]
 
-solve_and_benchmark(folders; alg_list = ["GBM", "SVM", "MLP", "MPC"])
+solve_and_benchmark(folders; alg_list = ["GBM", "SVM", "MLP"])
 #"GBM", "SVM", "MLP"
